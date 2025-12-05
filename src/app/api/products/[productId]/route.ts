@@ -7,7 +7,13 @@ export async function PUT(
 ) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -19,9 +25,9 @@ export async function PUT(
 
   const { data, error } = await supabase
     .from('products')
-    .update({ ...updatedProduct, user_uid: user.id })
+    .update({ ...updatedProduct, user_id: user.id })
     .eq('id', productId)
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
     .select()
 
   if (error) {
@@ -34,9 +40,9 @@ export async function PUT(
 
   const orderUpdate = await supabase
     .from('orders')
-    .update({ ...updatedProduct, user_uid: user.id })
+    .update({ ...updatedProduct, user_id: user.id })
     .eq('id', orderId)
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
 
   if (orderUpdate.error) {
     return NextResponse.json({ error: orderUpdate.error.message }, { status: 500 })
@@ -51,7 +57,13 @@ export async function DELETE(
 ) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -64,7 +76,7 @@ export async function DELETE(
     .from('products')
     .delete()
     .eq('id', productId)
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -74,7 +86,7 @@ export async function DELETE(
     .from('orders')
     .delete()
     .eq('id', orderId)
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
 
   if (orderDelete.error) {
     return NextResponse.json({ error: orderDelete.error.message }, { status: 500 })

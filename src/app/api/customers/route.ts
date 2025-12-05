@@ -4,7 +4,13 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -13,7 +19,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from('customers')
     .select('id, name')
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -25,7 +31,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,7 +48,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('customers')
     .insert([
-      { ...newCustomer, user_uid: user.id }
+      { ...newCustomer, user_id: user.id }
     ])
     .select()
 

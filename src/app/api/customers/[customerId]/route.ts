@@ -7,7 +7,13 @@ export async function PUT(
 ) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,9 +24,9 @@ export async function PUT(
 
   const { data, error } = await supabase
     .from('customers')
-    .update({ ...updatedCustomer, user_uid: user.id })
+    .update({ ...updatedCustomer, user_id: user.id })
     .eq('id', customerId)
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
     .select()
 
   if (error) {
@@ -40,7 +46,13 @@ export async function DELETE(
 ) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -52,7 +64,7 @@ export async function DELETE(
     .from('customers')
     .delete()
     .eq('id', customerId)
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

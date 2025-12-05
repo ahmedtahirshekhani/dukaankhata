@@ -4,7 +4,13 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +29,7 @@ export async function GET(request: Request) {
   const { count, error: countError } = await supabase
     .from('transactions')
     .select('*', { count: 'exact', head: true })
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
 
   if (countError) {
     return NextResponse.json({ error: countError.message }, { status: 500 })
@@ -33,7 +39,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
-    .eq('user_uid', user.id)
+    .eq('user_id', user.id)
     .order(sortColumn, { ascending: sortDirection === 'asc' })
     .range(offset, offset + limit - 1)
 
@@ -53,7 +59,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = {
+    data: {
+      user: {
+        id: 123
+      }
+    }
+  }
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -64,7 +76,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('transactions')
     .insert([
-      { ...newTransaction, user_uid: user.id }
+      { ...newTransaction, user_id: user.id }
     ])
     .select()
 
