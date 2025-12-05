@@ -302,7 +302,9 @@ export default function OrdersPage() {
                 <TableRow key={order.id}>
                   <TableCell>{order.id}</TableCell>
                   <TableCell>{order.customer.name}</TableCell>
-                  <TableCell>${order.total_amount.toFixed(2)}</TableCell>
+                  <TableCell>
+                    Rs. {Math.floor(order.total_amount)}
+                  </TableCell>
                   <TableCell>{order.status}</TableCell>
                   <TableCell>{order.created_at}</TableCell>
                   <TableCell>
