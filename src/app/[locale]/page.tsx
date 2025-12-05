@@ -10,7 +10,7 @@ export default function Home() {
 
   useEffect(() => {
     // Redirect to English admin by default
-    router.replace(`/${preferredLanguage || 'en'}/admin`);
+    router.replace(`/${preferredLanguage}/admin`);
   }, [router]);
 
   return null;

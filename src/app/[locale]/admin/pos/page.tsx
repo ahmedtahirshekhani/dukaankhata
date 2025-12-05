@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -34,6 +35,7 @@ interface POSProduct extends Product {
 }
 
 export default function POSPage() {
+  const t = useTranslations("pos");
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -158,7 +160,13 @@ export default function POSPage() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-0">
+      <div className="flex flex-col gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+        </div>
+      </div>
       <Card className="mb-4">
         <CardHeader>
           <CardTitle>Sale Details</CardTitle>

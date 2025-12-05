@@ -10,8 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Package2Icon,
   SearchIcon,
@@ -20,39 +21,53 @@ import {
   ShoppingCartIcon,
   UsersIcon,
   ShoppingBagIcon,
+  LogOutIcon,
 } from "lucide-react";
-
-const pageNames: { [key: string]: string } = {
-  "/admin": "Dashboard",
-  "/admin/customers": "Customers",
-  "/admin/products": "Products",
-  "/admin/orders": "Orders",
-  "/admin/pos": "Point of Sale",
-  "/admin/cashier": "Cashier",
-};
+import { LanguageSwitcher } from "./language-switcher";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const locale = useLocale();
+  const router = useRouter();
+  const t = useTranslations();
+  const tNav = useTranslations("navigation");
+
+  // Remove locale and /admin from pathname to get current page
+  const pathWithoutLocale = pathname.replace(`/${locale}`, "");
+
+  const pageNames: { [key: string]: string } = {
+    "/admin": tNav("dashboard"),
+    "/admin/customers": tNav("customers"),
+    "/admin/products": tNav("products"),
+    "/admin/orders": tNav("orders"),
+    "/admin/pos": tNav("pos"),
+    "/admin/cashier": tNav("cashier"),
+  };
+
+  const handleLogout = () => {
+    router.push(`/${locale}/login`);
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4">
         <Link
-          href="/admin"
+          href={`/${locale}/admin`}
           className="flex items-center gap-2 text-lg font-semibold"
         >
           <Package2Icon className="h-6 w-6" />
-          <span>DukaanKhata</span>
+          <span>{t("common.appName")}</span>
         </Link>
-        <h1 className="text-xl font-bold">{pageNames[pathname]}</h1>
+        <h1 className="text-xl font-bold">{pageNames[pathWithoutLocale] || "Dashboard"}</h1>
         <div className="relative ml-auto flex-1 md:grow-0">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search..."
+            placeholder={t("common.search")}
             className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
           />
         </div>
+        <LanguageSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -70,12 +85,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("common.settings")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOutIcon className="mr-2 h-4 w-4" />
+              {t("common.logout")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
@@ -84,97 +99,97 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex flex-col gap-4 px-4 sm:py-5">
             <div>
               <Link
-                href="/admin"
+                href={`/${locale}/admin`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathname === "/admin"
+                  pathWithoutLocale === "/admin"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <LayoutDashboardIcon className="h-5 w-5" />
                 <div className="flex flex-col">
-                  <span className="font-medium">Dashboard</span>
-                  <span className="text-xs">View all metrics</span>
+                  <span className="font-medium">{tNav("dashboard")}</span>
+                  <span className="text-xs opacity-70">{tNav("dashboardDescription")}</span>
                 </div>
               </Link>
             </div>
             <div>
               <Link
-                href="/admin/cashier"
+                href={`/${locale}/admin/cashier`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathname === "/admin/cashier"
+                  pathWithoutLocale === "/admin/cashier"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <span className="text-xs font-bold">PKR</span>
                 <div className="flex flex-col">
-                  <span className="font-medium">Cashier</span>
-                  <span className="text-xs">Manage transactions</span>
+                  <span className="font-medium">{tNav("cashier")}</span>
+                  <span className="text-xs opacity-70">{tNav("cashierDescription")}</span>
                 </div>
               </Link>
             </div>
             <div>
               <Link
-                href="/admin/products"
+                href={`/${locale}/admin/products`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathname === "/admin/products"
+                  pathWithoutLocale === "/admin/products"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <PackageIcon className="h-5 w-5" />
                 <div className="flex flex-col">
-                  <span className="font-medium">Products</span>
-                  <span className="text-xs">Manage inventory</span>
+                  <span className="font-medium">{tNav("products")}</span>
+                  <span className="text-xs opacity-70">{tNav("productsDescription")}</span>
                 </div>
               </Link>
             </div>
             <div>
               <Link
-                href="/admin/customers"
+                href={`/${locale}/admin/customers`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathname === "/admin/customers"
+                  pathWithoutLocale === "/admin/customers"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <UsersIcon className="h-5 w-5" />
                 <div className="flex flex-col">
-                  <span className="font-medium">Customers</span>
-                  <span className="text-xs">View all customers</span>
+                  <span className="font-medium">{tNav("customers")}</span>
+                  <span className="text-xs opacity-70">{tNav("customersDescription")}</span>
                 </div>
               </Link>
             </div>
             <div>
               <Link
-                href="/admin/orders"
+                href={`/${locale}/admin/orders`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathname === "/admin/orders"
+                  pathWithoutLocale === "/admin/orders"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <ShoppingBagIcon className="h-5 w-5" />
                 <div className="flex flex-col">
-                  <span className="font-medium">Orders</span>
-                  <span className="text-xs">View all orders</span>
+                  <span className="font-medium">{tNav("orders")}</span>
+                  <span className="text-xs opacity-70">{tNav("ordersDescription")}</span>
                 </div>
               </Link>
             </div>
             <div>
               <Link
-                href="/admin/pos"
+                href={`/${locale}/admin/pos`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathname === "/admin/pos"
+                  pathWithoutLocale === "/admin/pos"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <ShoppingCartIcon className="h-5 w-5" />
                 <div className="flex flex-col">
-                  <span className="font-medium">Point of Sale</span>
-                  <span className="text-xs">Create new orders</span>
+                  <span className="font-medium">{tNav("pos")}</span>
+                  <span className="text-xs opacity-70">{tNav("posDescription")}</span>
                 </div>
               </Link>
             </div>

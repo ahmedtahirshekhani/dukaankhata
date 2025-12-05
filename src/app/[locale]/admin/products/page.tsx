@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -63,6 +64,7 @@ interface Product {
 }
 
 export default function Products() {
+  const t = useTranslations("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
@@ -246,6 +248,12 @@ export default function Products() {
 
   return (
     <>
+      <div className="flex flex-col gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+        </div>
+      </div>
       <Card className="flex flex-col gap-6 p-6">
         <CardHeader className="p-0">
           <div className="flex items-center justify-between">

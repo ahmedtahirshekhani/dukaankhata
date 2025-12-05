@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -74,6 +75,7 @@ interface PaginatedResponse {
 }
 
 export default function Cashier() {
+  const t = useTranslations("cashier");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
@@ -305,8 +307,8 @@ export default function Cashier() {
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Cashier Transactions</CardTitle>
-            <CardDescription>Manage your cashier transactions.</CardDescription>
+            <CardTitle>{t("title")}</CardTitle>
+            <CardDescription>{t("pageDescription")}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">Year:</label>

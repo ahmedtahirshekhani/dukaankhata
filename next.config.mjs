@@ -1,5 +1,10 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-};
+import createNextIntlPlugin from 'next-intl/plugin';
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin(
+  './src/request.ts'
+);
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {};
+
+export default withNextIntl(nextConfig);

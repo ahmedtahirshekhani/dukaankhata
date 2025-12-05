@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -60,6 +61,7 @@ type Customer = {
 };
 
 export default function CustomersPage() {
+  const t = useTranslations("customers");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -254,20 +256,25 @@ export default function CustomersPage() {
   }
 
   return (
-    <Card className="flex flex-col gap-6 p-6">
-      <CardHeader className="p-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Search customers..."
-                value={searchTerm}
-                onChange={handleSearch}
-                className="pr-8"
-              />
-              <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            </div>
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+      </div>
+      <Card className="flex flex-col gap-6 p-6">
+        <CardHeader className="p-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pr-8"
+                />
+                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1">
@@ -471,6 +478,7 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+      </Card>
+    </div>
   );
 }
