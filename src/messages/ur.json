@@ -42,6 +42,7 @@
     "transactions": "لین دین"
   },
   "auth": {
+    "error": "خرابی",
     "email": "ای میل",
     "password": "پاس ورڈ",
     "confirmPassword": "پاس ورڈ کی تصدیق کریں",

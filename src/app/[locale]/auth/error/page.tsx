@@ -1,12 +1,13 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function AuthErrorPage({ params }: { params: { locale: string } }) {
+function AuthErrorContent({ locale }: { locale: string }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const t = useTranslations("auth");
@@ -43,7 +44,7 @@ export default function AuthErrorPage({ params }: { params: { locale: string } }
           <p className="text-sm text-gray-600">
             {t("sessionExpired")}
           </p>
-          <Link href={`/${params.locale}/login`} className="block">
+          <Link href={`/${locale}/login`} className="block">
             <Button className="w-full">
               {t("signIn")}
             </Button>
@@ -51,5 +52,13 @@ export default function AuthErrorPage({ params }: { params: { locale: string } }
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AuthErrorPage({ params }: { params: { locale: string } }) {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+      <AuthErrorContent locale={params.locale} />
+    </Suspense>
   );
 }

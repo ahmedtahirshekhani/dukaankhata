@@ -42,6 +42,7 @@
     "transactions": "Transactions"
   },
   "auth": {
+    "error": "Kharabi",
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Password ki Tasdiq Karain",

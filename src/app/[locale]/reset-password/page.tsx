@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -10,11 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 
-export default function ResetPasswordPage({ params }: { params: { locale: string } }) {
+function ResetPasswordContent({ locale }: { locale: string }) {
   const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const token = searchParams.get("token") || "";
 
   const [status, setStatus] = useState<"checking" | "invalid" | "ready" | "submitting" | "success">("checking");
@@ -74,7 +73,7 @@ export default function ResetPasswordPage({ params }: { params: { locale: string
       setConfirmPassword("");
 
       setTimeout(() => {
-        router.push(`/${params.locale}/login`);
+        router.push(`/${locale}/login`);
       }, 3000);
     } catch (err: any) {
       setError(err?.message || "Reset failed");
@@ -100,7 +99,7 @@ export default function ResetPasswordPage({ params }: { params: { locale: string
               <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
                 Invalid or expired token.
               </div>
-              <Link href={`/${params.locale}/forgot-password`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
+              <Link href={`/${locale}/forgot-password`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Forgot Password
               </Link>
@@ -112,7 +111,7 @@ export default function ResetPasswordPage({ params }: { params: { locale: string
               <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
                 Password updated. Redirecting to sign in...
               </div>
-              <Link href={`/${params.locale}/login`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
+              <Link href={`/${locale}/login`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
                 <ArrowLeft className="w-4 h-4" />
                 {t("signIn")}
               </Link>
@@ -155,7 +154,7 @@ export default function ResetPasswordPage({ params }: { params: { locale: string
                 {status === "submitting" ? t("loading") : "Set New Password"}
               </Button>
 
-              <Link href={`/${params.locale}/login`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
+              <Link href={`/${locale}/login`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
                 <ArrowLeft className="w-4 h-4" />
                 {t("signIn")}
               </Link>
@@ -164,5 +163,13 @@ export default function ResetPasswordPage({ params }: { params: { locale: string
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage({ params }: { params: { locale: string } }) {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+      <ResetPasswordContent locale={params.locale} />
+    </Suspense>
   );
 }

@@ -42,6 +42,7 @@
     "transactions": "Transactions"
   },
   "auth": {
+    "error": "Error",
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Confirm Password",
