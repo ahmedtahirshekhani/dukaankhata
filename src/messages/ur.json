@@ -168,5 +168,11 @@
     "english": "English",
     "urdu": "اردو",
     "romanUrdu": "Urdu (Roman)"
+  },
+  "error": {
+    "pageTitle": "کچھ غلط ہو گیا",
+    "message": "ایک غیر متوقع خرابی پیش آئی۔ براہ کرم دوبارہ کوشش کریں۔",
+    "tryAgain": "دوبارہ کوشش کریں",
+    "backHome": "ہوم پر جائیں"
   }
 }

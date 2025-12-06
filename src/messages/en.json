@@ -168,5 +168,11 @@
     "english": "English",
     "urdu": "اردو",
     "romanUrdu": "Urdu (Roman)"
+  },
+  "error": {
+    "pageTitle": "Something went wrong",
+    "message": "An unexpected error occurred. Please try again.",
+    "tryAgain": "Try Again",
+    "backHome": "Back to Home"
   }
 }
