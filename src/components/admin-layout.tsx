@@ -22,8 +22,11 @@ import {
   UsersIcon,
   ShoppingBagIcon,
   LogOutIcon,
+  
 } from "lucide-react";
 import { LanguageSwitcher } from "./language-switcher";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { signOut } from "next-auth/react";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -31,6 +34,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const t = useTranslations();
   const tNav = useTranslations("navigation");
+  const { user } = useUserProfile();
 
   // Remove locale and /admin from pathname to get current page
   const pathWithoutLocale = pathname.replace(`/${locale}`, "");
@@ -44,8 +48,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/cashier": tNav("cashier"),
   };
 
-  const handleLogout = () => {
-    router.push(`/${locale}/login`);
+  const handleLogout = async () => {
+    await signOut({
+      redirect: true,
+      callbackUrl: `/${locale}/login`,
+    });
   };
 
   return (
@@ -75,19 +82,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               size="icon"
               className="overflow-hidden rounded-full"
             >
-              <Image
-                src="/placeholder-user.jpg"
-                width={36}
-                height={36}
-                alt="Avatar"
-                className="overflow-hidden rounded-full"
-              />
+              <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t("common.settings")}</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="px-2 py-1.5">
+              <p className="text-sm font-medium">{user?.name}</p>
+              <p className="text-xs text-gray-500">{user?.email}</p>
+              {user?.company && (
+                <p className="text-xs text-gray-500">{user.company}</p>
+              )}
+            </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            {/* Settings removed */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600">
               <LogOutIcon className="mr-2 h-4 w-4" />
               {t("common.logout")}
             </DropdownMenuItem>

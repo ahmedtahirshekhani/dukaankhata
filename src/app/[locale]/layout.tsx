@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AuthProvider } from "@/components/auth-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { LanguageInitializer } from "@/components/language-initializer";
 import "../globals.css";
@@ -39,14 +40,14 @@ export default async function LocalizedRootLayout({
 
   const messages = (await import(`../../messages/${locale}.json`)).default;
 
+  // Important: Nested layouts must not render <html> or <body>.
+  // The root layout at src/app/layout.tsx owns the document shell.
   return (
-    <html lang={locale} dir={locale === "ur" ? "rtl" : "ltr"} suppressHydrationWarning>
-      <body>
-        <LanguageInitializer />
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <main>{children}</main>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <AuthProvider>
+      <LanguageInitializer />
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </AuthProvider>
   );
 }

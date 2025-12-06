@@ -1,19 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/auth-utils'
 
 export async function PUT(
   request: Request,
   { params }: { params: { productId: string, orderId: string } }
 ) {
   const supabase = createClient();
-
-  const { data: { user } } = {
-    data: {
-      user: {
-        id: 123
-      }
-    }
-  }
+  const user = await getCurrentUser() as { id: string } | null
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -56,14 +50,7 @@ export async function DELETE(
   { params }: { params: { productId: string, orderId: string } }
 ) {
   const supabase = createClient();
-
-  const { data: { user } } = {
-    data: {
-      user: {
-        id: 123
-      }
-    }
-  }
+  const user = await getCurrentUser() as { id: string } | null
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Card,
@@ -29,6 +30,9 @@ import {
 
 export default function Page() {
   const t = useTranslations();
+  const router = useRouter();
+  const params = useParams();
+  const locale = typeof params?.locale === "string" ? params.locale : Array.isArray(params?.locale) ? params?.locale?.[0] : "en";
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
@@ -58,6 +62,21 @@ export default function Page() {
           fetch('/api/admin/expenses/category'),
           fetch('/api/admin/profit/margin')
         ]);
+
+        // If any request returned 401, redirect to locale-aware login page
+        const responses = [
+          revenueRes,
+          expensesRes,
+          profitRes,
+          cashFlowRes,
+          revenueByCategoryRes,
+          expensesByCategoryRes,
+          profitMarginRes,
+        ];
+        if (responses.some((res) => res.status === 401)) {
+          router.replace(`/${locale}/login`);
+          return;
+        }
 
         const revenue = await revenueRes.json();
         const expenses = await expensesRes.json();

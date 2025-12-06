@@ -1,18 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 export async function GET(request: Request) {
   const supabase = createClient();
 
-  const { data: userData } = {
-    data: {
-      user: {
-        id: 123
-      }
-    }
-  }
+  const user = await getCurrentUser() as { id: string } | null;
 
-  if (!userData.user) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -21,7 +16,7 @@ export async function GET(request: Request) {
     .select('amount, category, status, user_id')
     .eq('status', 'completed')
     .eq('type', 'income')
-    .eq('user_id', userData.user.id);
+  .eq('user_id', user.id);
 
   if (revenueError) {
     console.error('Error fetching revenue by category:', revenueError);

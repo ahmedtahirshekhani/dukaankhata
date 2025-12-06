@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AdminLayout } from "@/components/admin-layout";
+import { useSession } from "next-auth/react";
 
 export default function Layout({
   children,
@@ -13,24 +14,20 @@ export default function Layout({
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = {
-    data: {
-      user: {
-        id: 123
-      }
-    }
-  }
-      if (!user) {
+      const user = session?.user as { id: string } | null;
+      
+      if (status !== "loading" && !user) {
         // Redirect to login with current locale
         const locale = pathname.split('/')[1] || 'en';
         router.push(`/${locale}/login`);
       }
     };
     checkUser();
-  }, [router, supabase.auth, pathname]);
+  }, [router, supabase.auth, pathname, session, status]);
 
   return <AdminLayout>{children}</AdminLayout>;
 }
