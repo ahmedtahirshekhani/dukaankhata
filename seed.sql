@@ -29,7 +29,7 @@ INSERT INTO payment_methods (name) VALUES
 
 -- Insert test user
 INSERT INTO users (id, email, password_hash, name, company_name, created_at, updated_at) VALUES
-  (123, 'test@example.com', '438c51c567932d666c54a89f4b9b8d9ffcdd7ef48530d99558c763e5a79ffe9ce85bd67d6701bd0de56b92fbaa26766993af106471bf53d86d36c35b7c54c212', 'Test User', 'Test Company', NOW(), NOW());
+  (123, 'test@example.com', '$2b$10$MxIr9xLJGLM.Lv/d95Jzw.EWoeyEM2ni/nASRr0bgL4RNV.4.q5yS', 'Test User', 'Test Company', NOW(), NOW());
 
 -- Insert products (Pakistani items)
 INSERT INTO products (name, description, price, in_stock, user_id, category) VALUES
