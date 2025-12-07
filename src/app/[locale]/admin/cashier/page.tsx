@@ -44,6 +44,7 @@ import { EllipsisVerticalIcon, Loader2Icon, ArrowUpDown, ArrowUp, ArrowDown } fr
 import { useState, useEffect, useCallback } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker, formatDateTime12Hour } from "@/components/ui/datetime-picker";
 import {
   Select,
   SelectContent,
@@ -95,6 +96,7 @@ export default function Cashier() {
     type: "income",
     amount: 0,
     status: "completed",
+    created_at: new Date().toISOString(),
   });
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
 
@@ -397,7 +399,14 @@ export default function Cashier() {
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>{formatDate(new Date(), true)}</TableCell>
+                <TableCell>
+                  <DateTimePicker
+                    value={newTransaction.created_at || new Date().toISOString()}
+                    onChange={(date) =>
+                      setNewTransaction({ ...newTransaction, created_at: date })
+                    }
+                  />
+                </TableCell>
                 <TableCell>
                   <Input
                     name="amount"
@@ -475,7 +484,14 @@ export default function Cashier() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                      <TableCell>
+                        <DateTimePicker
+                          value={editFormData.created_at || transaction.created_at}
+                          onChange={(date) =>
+                            setEditFormData({ ...editFormData, created_at: date })
+                          }
+                        />
+                      </TableCell>
                       <TableCell>
                         <Input
                           name="amount"
