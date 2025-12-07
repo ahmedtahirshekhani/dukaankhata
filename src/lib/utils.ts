@@ -60,7 +60,7 @@ export function formatDateFromUTC(
   utcIso: string,
   options?: Intl.DateTimeFormatOptions
 ) {
-  return formatDate(fromUTC(utcIso), options)
+  return formatDate(fromUTC(utcIso), false, options)
 }
 
 export function getYearsFromDates(dates: (Date | string)[]): number[] {
