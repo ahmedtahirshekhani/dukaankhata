@@ -72,7 +72,7 @@ export default function Products() {
     inStock: "all",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [productsPerPage] = useState(10);
+  const [productsPerPage] = useState(100);
   const [loading, setLoading] = useState(true);
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
@@ -390,7 +390,9 @@ export default function Products() {
                             setProductToDelete(product);
                             setIsDeleteConfirmationOpen(true);
                           }}
+                          style={{ display: "none" }} 
                         >
+                          {/* hide trashicon */}
                           <TrashIcon className="w-4 h-4" />
                           <span className="sr-only">Delete</span>
                         </Button>

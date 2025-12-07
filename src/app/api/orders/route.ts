@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       )
       `)
     .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { supportContact } from "@/lib/constants";
 
 export default function LoginPage({ params }: { params: { locale: string } }) {
   const t = useTranslations("auth");
@@ -121,6 +122,46 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
               </Link>
             </div>
           </form>
+          {/* Support contact details */}
+          <div className="mt-6 text-center text-xs text-muted-foreground">
+            <p className="font-medium">Need help? Contact Support</p>
+            <div className="flex flex-col gap-1 items-center">
+              <p>
+                Email: {" "}
+                <a href={`mailto:${supportContact.email}`} className="text-blue-600 hover:underline">
+                  {supportContact.email}
+                </a>
+              </p>
+              <p>
+                Call or Whatsapp: {" "}
+                <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline">
+                  {supportContact.phone}
+                </a>
+              </p>
+              <p>
+                WhatsApp Only: {" "}
+                <a
+                  href={`https://wa.me/${supportContact.whatsapp.replace(/[^\d]/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {supportContact.whatsapp}
+                </a>
+              </p>
+              <p>
+                LinkedIn: {" "}
+                <a
+                  href={supportContact.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {supportContact.linkedin}
+                </a>
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

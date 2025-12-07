@@ -18,7 +18,12 @@ export async function PUT(
 
   const { data, error } = await supabase
     .from('customers')
-    .update({ ...updatedCustomer, user_id: user.id })
+    .update({
+      ...updatedCustomer,
+      user_id: user.id,
+      // Update timestamp in UTC
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', customerId)
     .eq('user_id', user.id)
     .select()

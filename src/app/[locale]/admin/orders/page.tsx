@@ -337,12 +337,13 @@ export default function OrdersPage() {
                           setOrderToDelete(order);
                           setIsDeleteConfirmationOpen(true);
                         }}
+                        style={{display: "none"}} 
                       >
                         <Trash2 className="w-4 h-4" />
                         <span className="sr-only">Delete</span>
                       </Button>
                       <Link href={`/admin/orders/${order.id}`} prefetch={false}>
-                        <Button size="icon" variant="ghost">
+                        <Button size="icon" variant="ghost" style={{display: "none"}} >
                           <EyeIcon className="w-4 h-4" />
                           <span className="sr-only">View</span>
                         </Button>

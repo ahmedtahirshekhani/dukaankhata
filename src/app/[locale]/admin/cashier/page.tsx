@@ -133,9 +133,9 @@ export default function Cashier() {
       // Toggle direction if clicking the same column
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      // Set new column and default to ascending
+      // Set new column and default to descending so latest entries stay on top
       setSortColumn(column);
-      setSortDirection("asc");
+      setSortDirection("desc");
     }
   };
 
@@ -222,7 +222,9 @@ export default function Cashier() {
 
       if (response.ok) {
         const addedTransaction = await response.json();
-        // Refresh the current page after adding
+        // Put the newly added transaction at the top of the table immediately
+        setTransactions((prev) => [addedTransaction, ...prev]);
+        // Also reset to first page in case pagination is active
         setCurrentPage(1);
         setNewTransaction({
           description: "",
@@ -395,7 +397,7 @@ export default function Cashier() {
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>{formatDate(new Date().toISOString())}</TableCell>
+                <TableCell>{formatDate(new Date(), true)}</TableCell>
                 <TableCell>
                   <Input
                     name="amount"

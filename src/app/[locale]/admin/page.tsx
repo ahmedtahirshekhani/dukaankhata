@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import { supportContact } from "@/lib/constants";
 import {
   ChartTooltipContent,
   ChartTooltip,
@@ -192,6 +193,47 @@ export default function Page() {
           </CardContent>
         </Card>
       </div>
+      {/* Support contact on dashboard footer */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="grid gap-2 sm:grid-cols-2 items-center text-sm text-muted-foreground">
+            <span className="font-medium">Need help with DukaanKhata? Reach out:</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <a href={`mailto:${supportContact.email}`} className="text-blue-600 hover:underline" aria-label={`Email ${supportContact.email}`}>
+                Email
+              </a>
+              <span className="text-muted-foreground">{supportContact.email}</span>
+              <span className="text-muted-foreground">|</span>
+              <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline" aria-label={`Call ${supportContact.phone}`}>
+                Call
+              </a>
+              <span className="text-muted-foreground">{supportContact.phone}</span>
+              <span className="text-muted-foreground">|</span>
+              <a
+                href={`https://wa.me/${supportContact.whatsapp.replace(/[^\d]/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+                aria-label={`WhatsApp ${supportContact.whatsapp}`}
+              >
+                WhatsApp
+              </a>
+              <span className="text-muted-foreground">{supportContact.whatsapp}</span>
+              <span className="text-muted-foreground">|</span>
+              <a
+                href={supportContact.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+                aria-label={`LinkedIn ${supportContact.linkedin}`}
+              >
+                LinkedIn
+              </a>
+              <span className="text-muted-foreground truncate max-w-[200px]">{supportContact.linkedin}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

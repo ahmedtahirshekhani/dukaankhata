@@ -35,7 +35,13 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('customers')
     .insert([
-      { ...newCustomer, user_id: user.id }
+      {
+        ...newCustomer,
+        user_id: user.id,
+        // Ensure UTC timestamps when creating
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     ])
     .select()
 

@@ -107,14 +107,16 @@ export default function CustomersPage() {
   }, []);
 
   const filteredCustomers = useMemo(() => {
+    if(customers.length === 0) return [];
     return customers.filter((customer) => {
+      console.log("Filtering customer:", customer);
       if (filters.status !== "all" && customer.status !== filters.status) {
         return false;
       }
       return (
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.includes(searchTerm)
+        customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer?.phone?.includes(searchTerm)
       );
     });
   }, [customers, filters.status, searchTerm]);
@@ -355,7 +357,9 @@ export default function CustomersPage() {
                           setCustomerToDelete(customer);
                           setIsDeleteConfirmationOpen(true);
                         }}
-                      >
+                        style={{ display: "none" }} 
+                      > 
+                        {/* Hide  trashicon*/}
                         <Trash2 className="w-4 h-4" />
                         <span className="sr-only">Delete</span>
                       </Button>
