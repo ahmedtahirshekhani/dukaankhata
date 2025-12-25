@@ -51,16 +51,36 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { InvoicePreviewDialog } from "@/components/invoice-preview-dialog";
 
 type Order = {
   id: number;
   customer_id: number;
   total_amount: number;
+  subtotal?: number;
   status: "completed" | "pending" | "cancelled";
   created_at: string;
+  invoice_no?: string;
+  sale_date?: string;
+  due_date?: string | null;
   customer: {
     name: string;
   };
+  items?: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  charges?: Array<{
+    item: string;
+    value: number;
+  }>;
+  payment?: {
+    method: string;
+    paid_amount: number;
+    paid_date: string;
+    no_payment_at_all: boolean;
+  } | null;
 };
 
 export default function OrdersPage() {
@@ -80,6 +100,8 @@ export default function OrdersPage() {
     status: "all",
   });
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -285,10 +307,6 @@ export default function OrdersPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <Button size="sm" onClick={() => setShowNewOrderDialog(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Create Order
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -296,10 +314,11 @@ export default function OrdersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order ID</TableHead>
+                <TableHead>Invoice No</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Balance</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -307,29 +326,28 @@ export default function OrdersPage() {
             <TableBody>
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell>{order.id}</TableCell>
+                  <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
                   <TableCell>{order.customer.name}</TableCell>
                   <TableCell>
                     Rs. {Math.floor(order.total_amount)}
                   </TableCell>
-                  <TableCell>{order.status}</TableCell>
-                  <TableCell>{order.created_at}</TableCell>
+                  <TableCell>
+                    Rs. {Math.floor(order.payment?.paid_amount || 0)}
+                  </TableCell>
+                  <TableCell>
+                    Rs. {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(order.sale_date || order.created_at).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedOrderId(order.id);
-                          setNewOrderCustomerName(order.customer.name);
-                          setNewOrderTotal(order.total_amount.toString());
-                          setNewOrderStatus(order.status);
-                          setIsEditOrderDialogOpen(true);
-                        }}
-                      >
-                        <FilePenIcon className="w-4 h-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
+                     
                       <Button
                         size="icon"
                         variant="ghost"
@@ -342,12 +360,17 @@ export default function OrdersPage() {
                         <Trash2 className="w-4 h-4" />
                         <span className="sr-only">Delete</span>
                       </Button>
-                      <Link href={`/admin/orders/${order.id}`} prefetch={false}>
-                        <Button size="icon" variant="ghost" style={{display: "none"}} >
-                          <EyeIcon className="w-4 h-4" />
-                          <span className="sr-only">View</span>
-                        </Button>
-                      </Link>
+                      <Button 
+                        size="icon" 
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedInvoiceOrder(order);
+                          setInvoiceDialogOpen(true);
+                        }}
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                        <span className="sr-only">Show Invoice</span>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -455,6 +478,30 @@ export default function OrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {selectedInvoiceOrder && (
+        <InvoicePreviewDialog
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          invoiceNo={selectedInvoiceOrder.invoice_no || `ORD-${selectedInvoiceOrder.id}`}
+          customerName={selectedInvoiceOrder.customer.name}
+          saleDate={selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at}
+          dueDate={selectedInvoiceOrder.due_date || null}
+          products={(selectedInvoiceOrder.items || []).map((item, index) => ({
+            id: index,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          }))}
+          subtotal={selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount}
+          charges={selectedInvoiceOrder.charges || []}
+          total={selectedInvoiceOrder.total_amount}
+          onMakePayment={() => {}}
+          onCreateOrder={() => {}}
+          hidePaymentActions={true}
+          initialPayment={selectedInvoiceOrder.payment}
+        />
+      )}
       </Card>
     </div>
   );

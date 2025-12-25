@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -11,15 +11,29 @@ import { ProtectedRoute } from '@/components/protected-route';
 
 export default function SettingsPage({ params }: { params: { locale: string } }) {
   const t = useTranslations('common');
-  const { user, isLoading } = useUserProfile();
+  const { user, isLoading, refreshSession } = useUserProfile();
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
   });
+  const [formDirty, setFormDirty] = useState(false);
+
+  // Keep form data in sync when session user loads/changes (e.g., after refresh)
+  useEffect(() => {
+    if (user && !formDirty) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+      });
+    }
+  }, [user, formDirty]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState<string>('');
 
   if (isLoading) {
     return (
@@ -31,6 +45,7 @@ export default function SettingsPage({ params }: { params: { locale: string } })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setFormDirty(true);
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -42,13 +57,55 @@ export default function SettingsPage({ params }: { params: { locale: string } })
     setIsSaving(true);
     
     try {
-      // TODO: Implement profile update API
+      const res = await fetch(`/${params.locale}/api/users/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to update profile');
+      }
       setMessage('Profile updated successfully');
+      // Refresh session so header/user menu reflects new name
+      try { await refreshSession(); } catch {}
+      setFormDirty(false);
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       setMessage('Failed to update profile');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return;
+    }
+    try {
+      const res = await fetch(`/${params.locale}/api/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to change password');
+      }
+      setMessage('Password changed successfully');
+      setShowPasswordForm(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err: any) {
+      setPasswordError(err?.message || 'Failed to change password');
     }
   };
 
@@ -127,9 +184,35 @@ export default function SettingsPage({ params }: { params: { locale: string } })
               <CardDescription>Update your password and security settings</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" className="w-full sm:w-auto">
-                Change Password
-              </Button>
+              {!showPasswordForm ? (
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setShowPasswordForm(true)}>
+                  Change Password
+                </Button>
+              ) : (
+                <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
+                  {passwordError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                      {passwordError}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="current-password">Current Password</Label>
+                    <Input id="current-password" type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">New Password</Label>
+                    <Input id="new-password" type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Input id="confirm-password" type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit">Save Password</Button>
+                    <Button type="button" variant="outline" onClick={() => { setShowPasswordForm(false); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setPasswordError(''); }}>Cancel</Button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         </div>

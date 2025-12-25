@@ -33,6 +33,8 @@
     "ordersDescription": "Track and manage orders",
     "cashier": "Cashier",
     "cashierDescription": "Payment processing",
+    "configuration": "Configuration",
+    "configurationDescription": "Upload company logo and signature",
     "reports": "Reports",
     "admin": "Admin",
     "expenses": "Expenses",

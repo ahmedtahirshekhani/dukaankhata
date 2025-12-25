@@ -195,7 +195,12 @@ export default function POSPage() {
     setShowInvoicePreview(false);
   };
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (paymentDetails: {
+    paymentMethod: string;
+    paidAmount: number;
+    paidDate: string | null;
+    noPaymentAtAll: boolean;
+  }) => {
     if (!selectedCustomer || selectedProducts.length === 0 || !invoiceNo) {
       return;
     }
@@ -215,6 +220,12 @@ export default function POSPage() {
           subtotal: total,
           charges: charges.map(c => ({ item: c.item, value: c.value })),
           total: finalTotal,
+          payment: {
+            method: paymentDetails.paymentMethod,
+            paidAmount: paymentDetails.paidAmount,
+            paidDate: paymentDetails.paidDate,
+            noPaymentAtAll: paymentDetails.noPaymentAtAll,
+          },
         }),
       });
 
