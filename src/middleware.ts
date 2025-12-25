@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
-import { updateSession } from '@/lib/supabase/middleware'
 
 const intlMiddleware = createMiddleware({
   locales: ['en', 'ur', 'ru'],
@@ -10,15 +9,7 @@ const intlMiddleware = createMiddleware({
 
 export async function middleware(request: NextRequest) {
   // Handle i18n routing
-  const intlResponse = intlMiddleware(request)
-  
-  if (intlResponse) {
-    // Update session while preserving the i18n response
-    const sessionResponse = await updateSession(request)
-    return sessionResponse || intlResponse
-  }
-  
-  return await updateSession(request)
+  return intlMiddleware(request)
 }
 
 export const config = {
@@ -28,8 +19,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - font files (ttf, woff, woff2, etc.)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ttf|woff|woff2|eot|otf)$).*)',
   ],
 }

@@ -1,13 +1,7 @@
 import { getServerSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
-
-// Create Supabase client for auth (not SSR)
-const supabase = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getCollection, COLLECTIONS } from "@/lib/mongodb";
 
 // Shared NextAuth options (v4-compatible)
 export const authOptions = {
@@ -24,13 +18,12 @@ export const authOptions = {
         }
 
         try {
-          const { data: userData, error: userError } = await supabase
-            .from("users")
-            .select("id, email, name, company_name, password_hash")
-            .eq("email", credentials.email)
-            .single();
+          const usersCollection = await getCollection(COLLECTIONS.USERS);
+          const userData = await usersCollection.findOne({
+            email: credentials.email,
+          });
 
-          if (userError || !userData) {
+          if (!userData) {
             return null;
           }
 
@@ -43,12 +36,13 @@ export const authOptions = {
             return null;
           }
 
-          return {
-            id: userData.id.toString(),
+          const user = {
+            id: userData._id.toString(),
             email: userData.email,
             name: userData.name,
             company: userData.company_name,
           };
+          return user;
         } catch (error) {
           console.error("Auth error:", error);
           return null;

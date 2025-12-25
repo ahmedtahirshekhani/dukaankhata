@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { AdminLayout } from "@/components/admin-layout";
 import { useSession } from "next-auth/react";
 
@@ -13,7 +12,6 @@ export default function Layout({
 }>) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = createClient();
   const { data: session, status } = useSession();
 
   useEffect(() => {
@@ -27,7 +25,7 @@ export default function Layout({
       }
     };
     checkUser();
-  }, [router, supabase.auth, pathname, session, status]);
+  }, [router, pathname, session, status]);
 
   return <AdminLayout>{children}</AdminLayout>;
 }

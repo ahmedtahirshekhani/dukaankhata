@@ -1,6 +1,6 @@
 # POS and Inventory Management System
 
-This is a Point of Sale (POS) and Inventory Management System built with Next.js, React, and Supabase. It provides a comprehensive solution for managing products, customers, orders, and transactions in a retail or small business setting.
+This is a Point of Sale (POS) and Inventory Management System built with Next.js, React, and MongoDB. It provides a comprehensive solution for managing products, customers, orders, and transactions in a retail or small business setting.
 
 As a developer with extensive experience in creating similar applications, this project represents the culmination of years of expertise in building POS systems. Of course, in the beginning the project seem a little raw, but with time and hopefully with the help of the community, it will become a robust and feature-rich solution for businesses of all sizes.
 
@@ -18,7 +18,8 @@ This particular iteration embraces the spirit of open-source development, making
 ## Tech Stack
 
 - **Frontend**: Next.js, React, Tailwind CSS
-- **Backend**: Supabase (PostgreSQL database)
+- **Backend**: MongoDB (NoSQL database)
+- **Authentication**: NextAuth.js
 - **State Management**: React Hooks
 - **UI Components**: Custom components and Shadcn UI
 - **Charts**: Recharts
@@ -30,26 +31,32 @@ This particular iteration embraces the spirit of open-source development, making
    ```
    npm install
    ```
-3. Set up your Supabase project and add the necessary environment variables:
+3. Set up your MongoDB connection and add the necessary environment variables:
    - Create a `.env.local` file in the root of your project
    - Add the following lines to the file:
      ```
-     NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-     NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+     MONGODB_URL=your_mongodb_connection_string
+     MONGODB_DB_NAME=dukaankhata
+     NEXTAUTH_SECRET=your_secret_key
+     NEXTAUTH_URL=http://localhost:3000
      ```
-   - Replace `your_supabase_project_url` and `your_supabase_anon_key` with your actual Supabase project URL and anon key
-4. Run the development server:
+   - Replace `your_mongodb_connection_string` with your actual MongoDB Atlas connection string
+4. Seed the database with sample data:
+   ```
+   npm run seed:mongodb
+   ```
+5. Run the development server:
    ```
    npm run dev
    ```
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Project Structure
 
 - `src/app/`: Next.js app router pages
 - `src/components/`: Reusable React components
-- `src/lib/`: Utility functions and Supabase client
-- `schema.sql`: Database schema
+- `src/lib/`: Utility functions and MongoDB client
+- `scripts/`: Database seeding scripts
 
 ## Key Pages
 
@@ -61,7 +68,7 @@ This particular iteration embraces the spirit of open-source development, making
 
 ## Database Schema
 
-The project uses a PostgreSQL database with the following main tables:
+The project uses MongoDB with the following main collections:
 
 - `products`: Store product information
 - `customers`: Customer details
@@ -69,12 +76,17 @@ The project uses a PostgreSQL database with the following main tables:
 - `order_items`: Items within each order
 - `transactions`: Financial transactions
 - `payment_methods`: Available payment methods
-
-For the complete schema, refer to `schema.sql`.
+- `users`: User accounts
 
 ## Authentication
 
-User authentication is handled through Supabase. The login page is available at `/login`.
+User authentication is handled through NextAuth.js with MongoDB. The login page is available at `/login`.
+
+## Default Test Credentials
+
+After seeding the database:
+- **Email**: test@example.com
+- **Password**: password123
 
 ## Error Handling
 

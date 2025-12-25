@@ -3,7 +3,13 @@ import type { Session } from "next-auth";
 
 export async function getCurrentUser() {
   const session: Session | null = await auth();
-  return session?.user as any;
+  const user = session?.user as any;
+  
+  if (!user?.id) {
+    throw new Error('User not authenticated or missing user id');
+  }
+  
+  return user;
 }
 
 export async function getCurrentSession() {
