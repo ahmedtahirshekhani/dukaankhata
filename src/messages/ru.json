@@ -33,6 +33,8 @@
     "ordersDescription": "Orders ko track aur organize karain",
     "cashier": "Cashier",
     "cashierDescription": "Payment processing",
+    "configuration": "Tartibaat",
+    "configurationDescription": "Company logo aur dastakhat upload karain",
     "reports": "Reports",
     "admin": "Admin",
     "expenses": "Kharchen",

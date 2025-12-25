@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS } from "@/lib/mongodb";
+import { getCollection, COLLECTIONS, toObjectId } from "@/lib/mongodb";
 
 // Shared NextAuth options (v4-compatible)
 export const authOptions = {
@@ -56,11 +56,27 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }: any) {
+      // On login, seed token from user
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.company = user.company;
+      }
+
+      // Always refresh token fields from DB so updated profile (name/company) reflects after updates
+      if (token?.id) {
+        try {
+          const usersCollection = await getCollection(COLLECTIONS.USERS);
+          const dbUser = await usersCollection.findOne({ _id: toObjectId(token.id as string) });
+          if (dbUser) {
+            token.name = dbUser.name;
+            token.company = dbUser.company_name;
+            token.email = dbUser.email;
+          }
+        } catch (err) {
+          console.error("jwt callback user fetch error", err);
+        }
       }
       return token;
     },
@@ -68,6 +84,8 @@ export const authOptions = {
       if (session.user) {
         (session.user as any).id = token.id as string;
         (session.user as any).company = token.company as string;
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
       }
       return session;
     },

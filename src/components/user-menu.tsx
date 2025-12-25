@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 
 interface UserMenuProps {
   userName?: string;
@@ -32,6 +32,9 @@ export function UserMenu({ userName, userEmail, locale }: UserMenuProps) {
   };
 
   // Settings removed
+  const goToSettings = () => {
+    router.push(`/${locale}/admin/settings`);
+  };
 
   return (
     <DropdownMenu>
@@ -49,7 +52,10 @@ export function UserMenu({ userName, userEmail, locale }: UserMenuProps) {
           <p className="text-xs text-gray-500">{userEmail}</p>
         </div>
         <DropdownMenuSeparator />
-        {/* Settings removed */}
+        <DropdownMenuItem onClick={goToSettings} className="gap-2">
+          <Settings className="w-4 h-4" />
+          <span>{t('settings')}</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-600">
           <LogOut className="w-4 h-4" />

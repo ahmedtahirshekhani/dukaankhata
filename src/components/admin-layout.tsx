@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,13 +14,13 @@ import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Package2Icon,
-  SearchIcon,
   LayoutDashboardIcon,
   PackageIcon,
   ShoppingCartIcon,
   UsersIcon,
   ShoppingBagIcon,
   LogOutIcon,
+  Settings,
   
 } from "lucide-react";
 import { LanguageSwitcher } from "./language-switcher";
@@ -55,6 +54,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const goToSettings = () => {
+    router.push(`/${locale}/admin/settings`);
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4">
@@ -66,16 +69,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <span>{t("common.appName")}</span>
         </Link>
         <h1 className="text-xl font-bold">{pageNames[pathWithoutLocale] || "Dashboard"}</h1>
-        <div className="relative ml-auto flex-1 md:grow-0">
-          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder={t("common.search")}
-            className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-          />
-        </div>
-        <LanguageSwitcher />
-        <DropdownMenu>
+        <div className="ml-auto flex items-center gap-2">
+          <LanguageSwitcher />
+          <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
@@ -96,18 +92,22 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
             <DropdownMenuSeparator />
-            {/* Settings removed */}
+            <DropdownMenuItem onClick={goToSettings}>
+              <Settings className="mr-2 h-4 w-4" />
+              {t("common.settings")}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-red-600">
               <LogOutIcon className="mr-2 h-4 w-4" />
               {t("common.logout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </div>
       </header>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-64">
         <aside className="fixed mt-[56px] inset-y-0 left-0 z-10 hidden w-64 flex-col border-r bg-background sm:flex">
-          <nav className="flex flex-col gap-4 px-4 sm:py-5">
+          <nav className="flex h-full flex-col gap-4 px-4 sm:py-5">
             <div>
               <Link
                 href={`/${locale}/admin`}
@@ -201,6 +201,22 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-col">
                   <span className="font-medium">{tNav("pos")}</span>
                   <span className="text-xs opacity-70">{tNav("posDescription")}</span>
+                </div>
+              </Link>
+            </div>
+            <div className="mt-auto">
+              <Link
+                href={`/${locale}/admin/configuration`}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+                  pathWithoutLocale === "/admin/configuration"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Settings className="h-5 w-5" />
+                <div className="flex flex-col">
+                  <span className="font-medium">{tNav("configuration")}</span>
+                  <span className="text-xs opacity-70">{tNav("configurationDescription")}</span>
                 </div>
               </Link>
             </div>
