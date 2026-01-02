@@ -40,11 +40,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { EllipsisVerticalIcon, Loader2Icon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  EllipsisVerticalIcon,
+  Loader2Icon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { DateTimePicker, formatDateTime12Hour } from "@/components/ui/datetime-picker";
 import {
   Select,
   SelectContent,
@@ -61,10 +66,8 @@ interface Transaction {
   id: number;
   description: string;
   type: TransactionType;
-  category: string;
   created_at: string;
   amount: number;
-  status: string;
 }
 
 interface PaginatedResponse {
@@ -75,8 +78,8 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
-export default function Cashier() {
-  const t = useTranslations("cashier");
+export default function CounterSale() {
+  const t = useTranslations("counterSale");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
@@ -92,28 +95,52 @@ export default function Cashier() {
   const [allYears, setAllYears] = useState<number[]>([]);
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     description: "",
-    category: "",
     type: "income",
     amount: 0,
-    status: "completed",
     created_at: new Date().toISOString(),
   });
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
 
+  // Helper function to convert ISO date string to YYYY-MM-DD format for date input
+  const isoToDateInput = (isoString: string | undefined): string => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to convert YYYY-MM-DD date input to ISO string
+  const dateInputToIso = (dateString: string): string => {
+    if (!dateString) return new Date().toISOString();
+    // Create date at midnight local time and convert to ISO
+    const date = new Date(dateString + "T00:00:00");
+    return date.toISOString();
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewTransaction((prev) => ({ ...prev, [name]: value }));
+    if (name === "created_at") {
+      setNewTransaction((prev) => ({ ...prev, [name]: dateInputToIso(value) }));
+    } else {
+      setNewTransaction((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "created_at") {
+      setEditFormData((prev) => ({ ...prev, [name]: dateInputToIso(value) }));
+    } else {
+      setEditFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const isAddFormValid = () => {
     return (
       newTransaction.description?.trim() &&
-      newTransaction.category?.trim() &&
       newTransaction.amount &&
       newTransaction.amount > 0
     );
@@ -123,10 +150,8 @@ export default function Cashier() {
     setEditingId(transaction.id);
     setEditFormData({
       description: transaction.description,
-      category: transaction.category,
       type: transaction.type,
       amount: transaction.amount,
-      status: transaction.status,
     });
   };
 
@@ -143,7 +168,7 @@ export default function Cashier() {
 
   const getSortedTransactions = () => {
     // Filter transactions by selected year
-    return transactions.filter(transaction => {
+    return transactions.filter((transaction) => {
       const transactionYear = new Date(transaction.created_at).getFullYear();
       return transactionYear === selectedYear;
     });
@@ -164,10 +189,6 @@ export default function Cashier() {
     // Validate required fields
     if (!editFormData.description?.trim()) {
       alert("Description is required");
-      return;
-    }
-    if (!editFormData.category?.trim()) {
-      alert("Category is required");
       return;
     }
     if (!editFormData.amount || editFormData.amount <= 0) {
@@ -204,10 +225,6 @@ export default function Cashier() {
       alert("Description is required");
       return;
     }
-    if (!newTransaction.category?.trim()) {
-      alert("Category is required");
-      return;
-    }
     if (!newTransaction.amount || newTransaction.amount <= 0) {
       alert("Amount must be greater than 0");
       return;
@@ -230,10 +247,9 @@ export default function Cashier() {
         setCurrentPage(1);
         setNewTransaction({
           description: "",
-          category: "",
           type: "income",
           amount: 0,
-          status: "completed",
+          created_at: new Date().toISOString(),
         });
       } else {
         console.error("Failed to add transaction");
@@ -283,7 +299,7 @@ export default function Cashier() {
           totalPages: result.totalPages,
         });
         // Extract all years from transactions
-        const years = getYearsFromDates(result.data.map(t => t.created_at));
+        const years = getYearsFromDates(result.data.map((t) => t.created_at));
         // Always include the current year
         const currentYear = new Date().getFullYear();
         const yearsSet = new Set([currentYear, ...years]);
@@ -316,12 +332,15 @@ export default function Cashier() {
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">Year:</label>
-            <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-              <SelectTrigger className="w-[120px]">
+            <Select
+              value={selectedYear.toString()}
+              onValueChange={(value) => setSelectedYear(parseInt(value))}
+            >
+              <SelectTrigger className="w-[150px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {allYears.map(year => (
+                {allYears.map((year) => (
                   <SelectItem key={year} value={year.toString()}>
                     {year}
                   </SelectItem>
@@ -334,26 +353,35 @@ export default function Cashier() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("id")}>
+                <TableHead
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => handleSort("id")}
+                >
                   ID {getSortIcon("id")}
                 </TableHead>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("description")}>
+                <TableHead
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => handleSort("description")}
+                >
                   Description {getSortIcon("description")}
                 </TableHead>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("category")}>
-                  Category {getSortIcon("category")}
-                </TableHead>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("type")}>
+                <TableHead
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => handleSort("type")}
+                >
                   Type {getSortIcon("type")}
                 </TableHead>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("created_at")}>
+                <TableHead
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => handleSort("created_at")}
+                >
                   Date {getSortIcon("created_at")}
                 </TableHead>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("amount")}>
+                <TableHead
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => handleSort("amount")}
+                >
                   Amount {getSortIcon("amount")}
-                </TableHead>
-                <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
-                  Status {getSortIcon("status")}
                 </TableHead>
                 <TableHead></TableHead>
                 <TableHead>
@@ -368,15 +396,6 @@ export default function Cashier() {
                     value={newTransaction.description}
                     onChange={handleInputChange}
                     placeholder="Description (Required)"
-                    required
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    name="category"
-                    value={newTransaction.category}
-                    onChange={handleInputChange}
-                    placeholder="Category (Required)"
                     required
                   />
                 </TableCell>
@@ -400,11 +419,12 @@ export default function Cashier() {
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <DateTimePicker
-                    value={newTransaction.created_at || new Date().toISOString()}
-                    onChange={(date) =>
-                      setNewTransaction({ ...newTransaction, created_at: date })
-                    }
+                  <Input
+                    name="created_at"
+                    type="date"
+                    value={isoToDateInput(newTransaction.created_at)}
+                    onChange={handleInputChange}
+                    required
                   />
                 </TableCell>
                 <TableCell>
@@ -418,26 +438,10 @@ export default function Cashier() {
                   />
                 </TableCell>
                 <TableCell>
-                  <Select
-                    defaultValue={newTransaction.status}
-                    onValueChange={(value) =>
-                      setNewTransaction({
-                        ...newTransaction,
-                        status: value,
-                      })
-                    }
+                  <Button
+                    onClick={handleAddTransaction}
+                    disabled={!isAddFormValid()}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Button onClick={handleAddTransaction} disabled={!isAddFormValid()}>
                     Add
                   </Button>
                 </TableCell>
@@ -455,14 +459,6 @@ export default function Cashier() {
                           value={editFormData.description || ""}
                           onChange={handleEditInputChange}
                           placeholder="Description (Required)"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          name="category"
-                          value={editFormData.category || ""}
-                          onChange={handleEditInputChange}
-                          placeholder="Category (Required)"
                         />
                       </TableCell>
                       <TableCell>
@@ -485,11 +481,13 @@ export default function Cashier() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <DateTimePicker
-                          value={editFormData.created_at || transaction.created_at}
-                          onChange={(date) =>
-                            setEditFormData({ ...editFormData, created_at: date })
-                          }
+                        <Input
+                          name="created_at"
+                          type="date"
+                          value={isoToDateInput(
+                            editFormData.created_at || transaction.created_at
+                          )}
+                          onChange={handleEditInputChange}
                         />
                       </TableCell>
                       <TableCell>
@@ -502,29 +500,12 @@ export default function Cashier() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={editFormData.status || "completed"}
-                          onValueChange={(value) =>
-                            setEditFormData({
-                              ...editFormData,
-                              status: value,
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={() => handleUpdateTransaction(transaction.id)}
+                            onClick={() =>
+                              handleUpdateTransaction(transaction.id)
+                            }
                           >
                             Save
                           </Button>
@@ -545,24 +526,20 @@ export default function Cashier() {
                     <TableRow>
                       <TableCell>{transaction.id}</TableCell>
                       <TableCell>{transaction.description}</TableCell>
-                      <TableCell>{transaction.category}</TableCell>
                       <TableCell>
-                        <Badge variant={transaction.type}>{transaction.type}</Badge>
+                        <Badge variant={transaction.type}>
+                          {transaction.type}
+                        </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                      <TableCell>
+                        {formatDate(transaction.created_at, false, {
+                          year: "numeric",
+                          month: "short",
+                          day: "2-digit",
+                        })}
+                      </TableCell>
                       <TableCell>
                         Rs. {Math.floor(transaction.amount)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            transaction.status === "completed"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {transaction.status}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -599,7 +576,7 @@ export default function Cashier() {
               ))}
             </TableBody>
           </Table>
-          
+
           {/* Pagination */}
           {pageInfo.totalPages > 1 && (
             <div className="mt-6">
@@ -620,49 +597,55 @@ export default function Cashier() {
                     />
                   </PaginationItem>
 
-                  {Array.from({ length: pageInfo.totalPages }).map((_, index) => {
-                    const pageNum = index + 1;
-                    // Show first page, last page, current page, and pages around current
-                    if (
-                      pageNum === 1 ||
-                      pageNum === pageInfo.totalPages ||
-                      (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                    ) {
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setCurrentPage(pageNum);
-                            }}
-                            isActive={pageNum === currentPage}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
+                  {Array.from({ length: pageInfo.totalPages }).map(
+                    (_, index) => {
+                      const pageNum = index + 1;
+                      // Show first page, last page, current page, and pages around current
+                      if (
+                        pageNum === 1 ||
+                        pageNum === pageInfo.totalPages ||
+                        (pageNum >= currentPage - 1 &&
+                          pageNum <= currentPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={pageNum}>
+                            <PaginationLink
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(pageNum);
+                              }}
+                              isActive={pageNum === currentPage}
+                            >
+                              {pageNum}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      }
+                      // Show ellipsis
+                      if (
+                        (pageNum === currentPage - 2 && currentPage > 3) ||
+                        (pageNum === currentPage + 2 &&
+                          currentPage < pageInfo.totalPages - 2)
+                      ) {
+                        return (
+                          <PaginationItem key={`ellipsis-${pageNum}`}>
+                            <span className="px-1.5 py-2">...</span>
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
                     }
-                    // Show ellipsis
-                    if (
-                      (pageNum === currentPage - 2 && currentPage > 3) ||
-                      (pageNum === currentPage + 2 && currentPage < pageInfo.totalPages - 2)
-                    ) {
-                      return (
-                        <PaginationItem key={`ellipsis-${pageNum}`}>
-                          <span className="px-1.5 py-2">...</span>
-                        </PaginationItem>
-                      );
-                    }
-                    return null;
-                  })}
+                  )}
 
                   <PaginationItem>
                     <PaginationNext
                       href="#"
                       onClick={(e) => {
                         e.preventDefault();
-                        setCurrentPage((prev) => Math.min(prev + 1, pageInfo.totalPages));
+                        setCurrentPage((prev) =>
+                          Math.min(prev + 1, pageInfo.totalPages)
+                        );
                       }}
                       className={
                         currentPage === pageInfo.totalPages

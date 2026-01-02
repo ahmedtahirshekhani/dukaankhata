@@ -23,6 +23,7 @@ export function getUserTimeZone(fallback: string = 'Asia/Karachi'): string {
 
 
 // Format a date in the user's local timezone. Accepts a Date object or an ISO string.
+// By default, formats date only (no time). Pass options to customize formatting.
 export function formatDate(
   date: Date | string,
   iSCurrentTime?: boolean,
@@ -38,9 +39,7 @@ export function formatDate(
     timeZone: tz,
     month: 'short',
     day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
+    year: 'numeric',
     ...options,
   }).format(timezoneDt)
 }

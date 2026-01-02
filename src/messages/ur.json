@@ -31,8 +31,8 @@
     "customersDescription": "گاہک ڈیٹابیس کا انتظام",
     "orders": "آرڈرز",
     "ordersDescription": "آرڈرز کو ٹریک اور منظم کریں",
-    "cashier": "کیشیر",
-    "cashierDescription": "ادائیگی کی کارروائی",
+    "counterSale": "کیشیر",
+    "counterSaleDescription": "ادائیگی کی کارروائی",
     "configuration": "کنفیگریشن",
     "configurationDescription": "کمپنی لوگو اور مجاز دستخط اپ لوڈ کریں",
     "reports": "رپورٹس",
@@ -117,7 +117,7 @@
     "tax": "ٹیکس",
     "discount": "رعایت"
   },
-  "cashier": {
+  "counterSale": {
     "title": "کیشیر کی لین دین",
     "pageDescription": "اپنی کیشیر لین دین کا انتظام کریں",
     "transactionId": "ٹرانزیکشن ID",
