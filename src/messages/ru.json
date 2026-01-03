@@ -31,8 +31,8 @@
     "customersDescription": "Gahak database ka intezaam",
     "orders": "Orders",
     "ordersDescription": "Orders ko track aur organize karain",
-    "cashier": "Cashier",
-    "cashierDescription": "Payment processing",
+    "counterSale": "Counter Sale",
+    "counterSaleDescription": "Payment processing",
     "configuration": "Tartibaat",
     "configurationDescription": "Company logo aur dastakhat upload karain",
     "reports": "Reports",
@@ -117,9 +117,9 @@
     "tax": "Tax",
     "discount": "Discount"
   },
-  "cashier": {
-    "title": "Cashier Transactions",
-    "pageDescription": "Apne cashier transactions ka intezaam karain",
+  "counterSale": {
+    "title": "Counter Sale Transactions",
+    "pageDescription": "Apne counter sale transactions ka intezaam karain",
     "transactionId": "Transaction ID",
     "date": "Tareekh",
     "amount": "Ragaam",

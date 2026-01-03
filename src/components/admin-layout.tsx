@@ -44,7 +44,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
     "/admin/pos": tNav("pos"),
-    "/admin/cashier": tNav("cashier"),
+    "/admin/counter-sale": tNav("counterSale"),
   };
 
   const handleLogout = async () => {
@@ -126,17 +126,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <Link
-                href={`/${locale}/admin/cashier`}
+                href={`/${locale}/admin/counter-sale`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/cashier"
+                  pathWithoutLocale === "/admin/counter-sale"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <span className="text-xs font-bold">PKR</span>
                 <div className="flex flex-col">
-                  <span className="font-medium">{tNav("cashier")}</span>
-                  <span className="text-xs opacity-70">{tNav("cashierDescription")}</span>
+                  <span className="font-medium">{tNav("counterSale")}</span>
+                  <span className="text-xs opacity-70">{tNav("counterSaleDescription")}</span>
                 </div>
               </Link>
             </div>

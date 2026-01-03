@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     user_id: toObjectId(user.id),
     order_id: newTransaction.order_id ? toObjectId(newTransaction.order_id) : undefined,
     payment_method_id: newTransaction.payment_method_id ? toObjectId(newTransaction.payment_method_id) : undefined,
-    created_at: new Date(),
+    created_at: newTransaction.created_at ? new Date(newTransaction.created_at) : new Date(),
   });
 
   if (!result.insertedId) {
