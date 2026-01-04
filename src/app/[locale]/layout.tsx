@@ -17,7 +17,7 @@ export async function generateMetadata({
 
   return {
     title: messages.common?.appName || "DukaanKhata",
-    description: messages.common?.appDescription || "Point of Sale & Business Management System",
+    description: messages.common?.appDescription || "Ab hoga hisaab barabar!",
   };
 }
 

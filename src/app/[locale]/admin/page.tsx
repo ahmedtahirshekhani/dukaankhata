@@ -27,20 +27,22 @@ import {
   BarChart,
   Line,
   LineChart,
+  Legend,
 } from "recharts";
 
 export default function Page() {
   const t = useTranslations();
+  const tDash = useTranslations("dashboard");
   const router = useRouter();
   const params = useParams();
   const locale = typeof params?.locale === "string" ? params.locale : Array.isArray(params?.locale) ? params?.locale?.[0] : "en";
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
-  const [cashFlow, setCashFlow] = useState<{ date: string; amount: unknown }[]>([]);
-  const [revenueByCategory, setRevenueByCategory] = useState({});
-  const [expensesByCategory, setExpensesByCategory] = useState({});
-  const [profitMargin, setProfitMargin] = useState([]);
+  const [revenueTrend, setRevenueTrend] = useState<{ date: string; revenue: number }[]>([]);
+  const [topProducts, setTopProducts] = useState<{ name: string; quantity: number; revenue: number }[]>([]);
+  const [paymentDistribution, setPaymentDistribution] = useState({});
+  const [ordersByStatus, setOrdersByStatus] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,18 +52,18 @@ export default function Page() {
           revenueRes,
           expensesRes,
           profitRes,
-          cashFlowRes,
-          revenueByCategoryRes,
-          expensesByCategoryRes,
-          profitMarginRes
+          revenueTrendRes,
+          topProductsRes,
+          paymentDistRes,
+          ordersStatusRes
         ] = await Promise.all([
           fetch('/api/admin/revenue/total'),
           fetch('/api/admin/expenses/total'),
           fetch('/api/admin/profit/total'),
-          fetch('/api/admin/cashflow'),
-          fetch('/api/admin/revenue/category'),
-          fetch('/api/admin/expenses/category'),
-          fetch('/api/admin/profit/margin')
+          fetch('/api/admin/revenue/trend'),
+          fetch('/api/admin/products/top'),
+          fetch('/api/admin/payments/distribution'),
+          fetch('/api/admin/orders/status')
         ]);
 
         // If any request returned 401, redirect to locale-aware login page
@@ -69,10 +71,10 @@ export default function Page() {
           revenueRes,
           expensesRes,
           profitRes,
-          cashFlowRes,
-          revenueByCategoryRes,
-          expensesByCategoryRes,
-          profitMarginRes,
+          revenueTrendRes,
+          topProductsRes,
+          paymentDistRes,
+          ordersStatusRes,
         ];
         if (responses.some((res) => res.status === 401)) {
           router.replace(`/${locale}/login`);
@@ -82,18 +84,18 @@ export default function Page() {
         const revenue = await revenueRes.json();
         const expenses = await expensesRes.json();
         const profit = await profitRes.json();
-        const cashFlowData = await cashFlowRes.json();
-        const revenueByCategoryData = await revenueByCategoryRes.json();
-        const expensesByCategoryData = await expensesByCategoryRes.json();
-        const profitMarginData = await profitMarginRes.json();
+        const revenueTrendData = await revenueTrendRes.json();
+        const topProductsData = await topProductsRes.json();
+        const paymentDistData = await paymentDistRes.json();
+        const ordersStatusData = await ordersStatusRes.json();
 
         setTotalRevenue(revenue.totalRevenue);
         setTotalExpenses(expenses.totalExpenses);
         setTotalProfit(profit.totalProfit);
-        setCashFlow(Object.entries(cashFlowData.cashFlow).map(([date, amount]) => ({ date, amount })));
-        setRevenueByCategory(revenueByCategoryData.revenueByCategory);
-        setExpensesByCategory(expensesByCategoryData.expensesByCategory);
-        setProfitMargin(profitMarginData.profitMargin);
+        setRevenueTrend(revenueTrendData.revenueTrend || []);
+        setTopProducts(topProductsData.topProducts || []);
+        setPaymentDistribution(paymentDistData.paymentDistribution || {});
+        setOrdersByStatus(ordersStatusData.ordersByStatus || {});
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -113,102 +115,111 @@ export default function Page() {
   }
 
   return (
-    <div className="grid flex-1 items-start gap-4">
-      <div className="grid auto-rows-max items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <span className="text-xs font-medium text-muted-foreground">PKR</span>
+    <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
+      <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-3">
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">{tDash("totalRevenue")}</CardTitle>
+            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">PKR</span>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              Rs. {Math.floor(totalRevenue)}
+          <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex items-end">
+            <div className="flex flex-col">
+              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">Rs.</span>
+              <div className="text-xl sm:text-2xl font-bold">
+                <span className="hidden sm:inline">Rs. </span>{Math.floor(totalRevenue)}
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Expenses
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("totalExpenses")}
             </CardTitle>
-            <span className="text-xs font-medium text-muted-foreground">PKR</span>
+            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">PKR</span>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              Rs. {Math.floor(totalExpenses)}
+          <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex items-end">
+            <div className="flex flex-col">
+              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">Rs.</span>
+              <div className="text-xl sm:text-2xl font-bold">
+                <span className="hidden sm:inline">Rs. </span>{Math.floor(totalExpenses)}
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Profit (selling)</CardTitle>
-            <span className="text-xs font-medium text-muted-foreground">PKR</span>
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">{tDash("totalProfit")}</CardTitle>
+            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">PKR</span>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              Rs. {Math.floor(totalProfit)}
+          <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex items-end">
+            <div className="flex flex-col">
+              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">Rs.</span>
+              <div className="text-xl sm:text-2xl font-bold">
+                <span className="hidden sm:inline">Rs. </span>{Math.floor(totalProfit)}
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Revenue by Category
+      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("revenueTrend")}
             </CardTitle>
-            <PieChartIcon className="w-4 h-4 text-muted-foreground" />
+            <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <PiechartcustomChart data={revenueByCategory} className="aspect-auto" />
+          <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
+            <LinechartChart data={revenueTrend} className="w-full h-48 sm:h-44 md:h-48" />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Expenses by Category
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("topProducts")}
             </CardTitle>
-            <PieChartIcon className="w-4 h-4 text-muted-foreground" />
+            <BarChartIcon className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <PiechartcustomChart data={expensesByCategory} className="aspect-auto" />
+          <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
+            <BarchartChart data={topProducts} className="w-full h-48 sm:h-44 md:h-48" />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Profit Margin (selling)</CardTitle>
-            <BarChartIcon className="w-4 h-4 text-muted-foreground" />
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("paymentMethods")}
+            </CardTitle>
+            <PieChartIcon className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <BarchartChart data={profitMargin} className="aspect-auto" />
+          <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
+            <PiechartcustomChart data={paymentDistribution} className="w-full h-48 sm:h-44 md:h-48" />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Cash Flow</CardTitle>
-            <span className="text-xs font-medium text-muted-foreground">PKR</span>
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">{tDash("orderStatus")}</CardTitle>
+            <PieChartIcon className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <LinechartChart data={cashFlow} className="aspect-auto" />
+          <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
+            <PiechartcustomChart data={ordersByStatus} className="w-full h-48 sm:h-44 md:h-48" />
           </CardContent>
         </Card>
       </div>
       {/* Support contact on dashboard footer */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="grid gap-2 sm:grid-cols-2 items-center text-sm text-muted-foreground">
-            <span className="font-medium">Need help with DukaanKhata? Reach out:</span>
-            <div className="flex flex-wrap items-center gap-3">
+      <Card className="mt-10">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 items-start sm:items-center text-xs sm:text-sm text-muted-foreground">
+            <span className="font-medium">{tDash("needHelp")}</span>
+            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
               <a href={`mailto:${supportContact.email}`} className="text-blue-600 hover:underline" aria-label={`Email ${supportContact.email}`}>
                 Email
               </a>
-              <span className="text-muted-foreground">{supportContact.email}</span>
-              <span className="text-muted-foreground">|</span>
+              <span className="hidden sm:inline text-muted-foreground">|</span>
               <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline" aria-label={`Call ${supportContact.phone}`}>
                 Call
               </a>
-              <span className="text-muted-foreground">{supportContact.phone}</span>
-              <span className="text-muted-foreground">|</span>
+              <span className="hidden sm:inline text-muted-foreground">|</span>
               <a
                 href={`https://wa.me/${supportContact.whatsapp.replace(/[^\d]/g, "")}`}
                 target="_blank"
@@ -218,18 +229,16 @@ export default function Page() {
               >
                 WhatsApp
               </a>
-              <span className="text-muted-foreground">{supportContact.whatsapp}</span>
-              <span className="text-muted-foreground">|</span>
+              <span className="hidden sm:inline text-muted-foreground">|</span>
               <a
                 href={supportContact.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
+                className="text-blue-600 hover:underline truncate"
                 aria-label={`LinkedIn ${supportContact.linkedin}`}
               >
                 LinkedIn
               </a>
-              <span className="text-muted-foreground truncate max-w-[200px]">{supportContact.linkedin}</span>
             </div>
           </div>
         </CardContent>
@@ -261,28 +270,31 @@ function BarChartIcon(props: any) {
 
 function BarchartChart({ data, ...props }: { data: any[] } & React.HTMLAttributes<HTMLDivElement>) {
   const chartConfig = {
-    margin: {
-      label: "Margin",
+    quantity: {
+      label: "Quantity",
       color: "hsl(var(--chart-1))",
     },
   } satisfies ChartConfig;
+  
   return (
     <div {...props}>
       <ChartContainer config={chartConfig}>
-        <BarChart accessibilityLayer data={data}>
+        <BarChart accessibilityLayer data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
           <CartesianGrid vertical={false} />
           <XAxis
-            dataKey="date"
+            dataKey="name"
             tickLine={false}
-            tickMargin={10}
+            tickMargin={5}
             axisLine={false}
-            tickFormatter={(value) => new Date(value).toLocaleDateString()}
+            tick={{ fontSize: 10 }}
+            tickFormatter={(value) => value.slice(0, 8)}
           />
           <ChartTooltip
             cursor={false}
             content={<ChartTooltipContent indicator="dashed" />}
           />
-          <Bar dataKey="margin" fill="var(--color-margin)" radius={4} />
+          <Legend wrapperStyle={{ fontSize: '10px' }} />
+          <Bar dataKey="quantity" fill="var(--color-quantity)" radius={4} />
         </BarChart>
       </ChartContainer>
     </div>
@@ -296,8 +308,8 @@ function LinechartChart({ data, ...props }: { data: any[] } & React.HTMLAttribut
     <div {...props}>
       <ChartContainer
         config={{
-          amount: {
-            label: "Amount",
+          revenue: {
+            label: "Revenue",
             color: "hsl(var(--chart-1))",
           },
         }}
@@ -306,8 +318,10 @@ function LinechartChart({ data, ...props }: { data: any[] } & React.HTMLAttribut
           accessibilityLayer
           data={data}
           margin={{
-            left: 12,
-            right: 12,
+            left: -20,
+            right: 5,
+            top: 5,
+            bottom: 5,
           }}
         >
           <CartesianGrid vertical={false} />
@@ -315,17 +329,19 @@ function LinechartChart({ data, ...props }: { data: any[] } & React.HTMLAttribut
             dataKey="date"
             tickLine={false}
             axisLine={false}
-            tickMargin={8}
-            tickFormatter={(value) => new Date(value).toLocaleDateString()}
+            tickMargin={5}
+            tick={{ fontSize: 9 }}
+            tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           />
           <ChartTooltip
             cursor={false}
             content={<ChartTooltipContent hideLabel />}
           />
+          <Legend wrapperStyle={{ fontSize: '10px' }} />
           <Line
-            dataKey="amount"
+            dataKey="revenue"
             type="monotone"
-            stroke="var(--color-amount)"
+            stroke="var(--color-revenue)"
             strokeWidth={2}
             dot={false}
           />
@@ -372,19 +388,27 @@ function PiechartcustomChart({ data, ...props }: { data: Record<string, number> 
     ])
   ) as ChartConfig;
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
   return (
     <div {...props}>
       <ChartContainer config={chartConfig}>
-        <PieChart>
+        <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
           <ChartTooltip
             cursor={false}
             content={<ChartTooltipContent hideLabel />}
+          />
+          <Legend 
+            wrapperStyle={{ fontSize: isMobile ? '10px' : '11px', paddingTop: '8px' }} 
+            iconSize={isMobile ? 10 : 12}
+            layout={isMobile ? "horizontal" : "horizontal"}
           />
           <Pie
             data={chartData}
             dataKey="value"
             nameKey="category"
-            outerRadius={80}
+            outerRadius={isMobile ? 45 : 70}
+            label={false}
           />
         </PieChart>
       </ChartContainer>

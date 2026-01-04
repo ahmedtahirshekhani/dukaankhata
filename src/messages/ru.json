@@ -166,6 +166,16 @@
     "deleteExpense": "Kharcha Delete Karain",
     "noExpenses": "Koi Kharcha Nahi Mila"
   },
+  "dashboard": {
+    "totalRevenue": "Kul Aamidni",
+    "totalExpenses": "Kul Kharche",
+    "totalProfit": "Kul Munafa (Farokht)",
+    "revenueTrend": "Aamidni ka Rujhan (30 Din)",
+    "topProducts": "Farokht k Lihaaz Say Top 5 Products",
+    "paymentMethods": "Payment k Tareeqe",
+    "orderStatus": "Orders ki Sorat-e-Haal",
+    "needHelp": "DukaanKhata k saath Madad Chahe? Ham say Rabta Karain:"
+  },
   "language": {
     "english": "English",
     "urdu": "اردو",

@@ -12,22 +12,28 @@ export async function GET(request: Request) {
   // Get pagination and sort parameters from URL
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '15');
+  const limit = parseInt(searchParams.get('limit') || '25');
   const sortColumn = searchParams.get('sortColumn') || 'created_at';
   const sortDirection = searchParams.get('sortDirection') || 'desc';
+  const year = searchParams.get('year');
   
   const offset = (page - 1) * limit;
 
   const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
-  
-  // Get total count
-  const count = await transactionsCollection.countDocuments({
-    user_id: toObjectId(user.id)
-  });
+
+  const filter: Record<string, unknown> = { user_id: toObjectId(user.id) };
+
+  if (year) {
+    const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
+    const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
+    filter.created_at = { $gte: startOfYear, $lte: endOfYear };
+  }
+
+  const count = await transactionsCollection.countDocuments(filter);
 
   // Get paginated and sorted data
   const data = await transactionsCollection
-    .find({ user_id: toObjectId(user.id) })
+    .find(filter)
     .sort({ [sortColumn]: sortDirection === 'asc' ? 1 : -1 })
     .skip(offset)
     .limit(limit)

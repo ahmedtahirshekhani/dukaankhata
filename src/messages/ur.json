@@ -166,6 +166,16 @@
     "deleteExpense": "اخراج ڈیلیٹ کریں",
     "noExpenses": "کوئی اخراج نہیں ملا"
   },
+  "dashboard": {
+    "totalRevenue": "کل آمدنی",
+    "totalExpenses": "کل اخراجات",
+    "totalProfit": "کل منافع (فروخت)",
+    "revenueTrend": "آمدنی کا رجحان (30 دن)",
+    "topProducts": "فروخت کے لحاظ سے ٹاپ 5 مصنوعات",
+    "paymentMethods": "ادائیگی کے طریقے",
+    "orderStatus": "آرڈرز کی صورتحال",
+    "needHelp": "DukaanKhata کے ساتھ مدد چاہیے؟ ہم سے رابطہ کریں:"
+  },
   "language": {
     "english": "English",
     "urdu": "اردو",

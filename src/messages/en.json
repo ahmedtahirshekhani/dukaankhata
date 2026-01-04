@@ -166,8 +166,17 @@
     "deleteExpense": "Delete Expense",
     "noExpenses": "No expenses found"
   },
-  "language": {
-    "english": "English",
+  "dashboard": {
+    "totalRevenue": "Total Revenue",
+    "totalExpenses": "Total Expenses",
+    "totalProfit": "Total Profit (selling)",
+    "revenueTrend": "Revenue Trend (30 Days)",
+    "topProducts": "Top 5 Products by Sales",
+    "paymentMethods": "Payment Methods",
+    "orderStatus": "Orders by Status",
+    "needHelp": "Need help with DukaanKhata? Reach out:"
+  },
+    "language": {"english": "English",
     "urdu": "اردو",
     "romanUrdu": "Urdu (Roman)"
   },

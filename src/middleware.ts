@@ -8,6 +8,15 @@ const intlMiddleware = createMiddleware({
 })
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Serve Chrome devtools well-known file regardless of locale prefix
+  if (pathname.endsWith('/.well-known/appspecific/com.chrome.devtools.json')) {
+    return NextResponse.rewrite(
+      new URL('/.well-known/appspecific/com.chrome.devtools.json', request.url)
+    )
+  }
+
   // Handle i18n routing
   return intlMiddleware(request)
 }
