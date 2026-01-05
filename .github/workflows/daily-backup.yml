@@ -1,0 +1,41 @@
+name: Multi-Env Daily Backup
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install MongoDB Tools
+        run: |
+          wget -q https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.9.4.tgz
+          tar -zxvf mongodb-database-tools-*.tgz
+          sudo cp mongodb-database-tools-*/bin/* /usr/local/bin/
+
+      - name: Clone Backup Repo
+        run: |
+          git clone https://x-access-token:${{ secrets.BACKUP_REPO_TOKEN }}@github.com/${{ github.repository_owner }}/dukaankhata-backup.git backup-repo
+
+      - name: Perform Backups
+        run: |
+          cd backup-repo
+          DATE=$(date +%F)
+
+          # --- PROD BACKUP ---
+          rm -f prod/*.gz
+          mongodump --uri="${{ secrets.MONGODB_URI_PROD }}" --archive=prod/prod-$DATE.gz --gzip
+
+          # --- DEV BACKUP ---
+          rm -f dev/*.gz
+          mongodump --uri="${{ secrets.MONGODB_URI_DEV }}" --archive=dev/dev-$DATE.gz --gzip
+
+      - name: Push to Backup Repo
+        run: |
+          cd backup-repo
+          git config --global user.name "Backup Bot"
+          git config --global user.email "backup-bot@example.com"
+          git add dev/ prod/
+          git commit -m "Backup update: $(date +%F)" || echo "No changes to commit"
+          git push
