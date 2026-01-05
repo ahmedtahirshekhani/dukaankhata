@@ -372,6 +372,17 @@ function PieChartIcon(props: any) {
 }
 
 function PiechartcustomChart({ data, ...props }: { data: Record<string, number> } & React.HTMLAttributes<HTMLDivElement>) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const chartData = Object.entries(data).map(([category, value]) => ({
     category,
     value,
@@ -388,26 +399,27 @@ function PiechartcustomChart({ data, ...props }: { data: Record<string, number> 
     ])
   ) as ChartConfig;
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
   return (
     <div {...props}>
       <ChartContainer config={chartConfig}>
-        <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+        <PieChart>
           <ChartTooltip
             cursor={false}
             content={<ChartTooltipContent hideLabel />}
           />
           <Legend 
-            wrapperStyle={{ fontSize: isMobile ? '10px' : '11px', paddingTop: '8px' }} 
-            iconSize={isMobile ? 10 : 12}
-            layout={isMobile ? "horizontal" : "horizontal"}
+            wrapperStyle={{ fontSize: '10px', paddingTop: '4px' }} 
+            iconSize={10}
+            layout="horizontal"
+            verticalAlign="bottom"
           />
           <Pie
             data={chartData}
             dataKey="value"
             nameKey="category"
-            outerRadius={isMobile ? 45 : 70}
+            cx="50%"
+            cy="45%"
+            outerRadius={isMobile ? 40 : 55}
             label={false}
           />
         </PieChart>

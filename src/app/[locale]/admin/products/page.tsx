@@ -1,42 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
-import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
-import {
-  SearchIcon,
-  FilterIcon,
-  FilePenIcon,
-  TrashIcon,
-  EyeIcon,
-  PlusIcon,
-  LoaderIcon,
-  Loader2Icon,
-  ChevronDownIcon,
-} from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { PlusIcon, Loader2Icon, SearchIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,31 +13,21 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ProductDialog } from "@/components/product-dialog";
-
-interface Product {
-  id: number;
-  type?: string;
-  name: string;
-  description: string;
-  price?: number;
-  sell_price?: number;
-  cost_price?: number;
-  in_stock?: number;
-  quantity?: number;
-  category: string;
-  unit_of_measurement?: string;
-  branch?: string;
-}
+import { ProductFilters } from "@/components/products/product-filters";
+import { ProductsTable, type Product } from "@/components/products/products-table";
+import { useProductsData } from "@/components/products/use-products-data";
+import { FilterIcon, ChevronDownIcon } from "lucide-react";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -78,20 +36,48 @@ const capitalizeFirstLetter = (str: string | undefined | null): string => {
 
 export default function Products() {
   const t = useTranslations("products");
-  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     category: "all",
     inStock: "all",
     type: "all",
+    branch: "all",
+  });
+  const [priceRanges, setPriceRanges] = useState({
+    sellPriceMin: "",
+    sellPriceMax: "",
+    costPriceMin: "",
+    costPriceMax: "",
+    servicePriceMin: "",
+    servicePriceMax: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(100);
-  const [loading, setLoading] = useState(true);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [mobileFilters, setMobileFilters] = useState({
+    category: "all",
+    inStock: "all",
+    type: "all",
+    branch: "all",
+  });
+  const [mobilePriceRanges, setMobilePriceRanges] = useState({
+    sellPriceMin: "",
+    sellPriceMax: "",
+    costPriceMin: "",
+    costPriceMax: "",
+    servicePriceMin: "",
+    servicePriceMax: "",
+  });
+
+  // Use custom hook for data fetching
+  const { products, categories, branches, loading, setProducts } = useProductsData({
+    filters,
+    priceRanges,
+  });
 
   const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
     if (isEdit) {
@@ -120,36 +106,19 @@ export default function Products() {
     } catch (error) {
       console.error("Error deleting product:", error);
     }
-  }, [productToDelete, products]);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const url = new URL("/api/products", window.location.origin);
-        if (filters.type !== "all") {
-          url.searchParams.append("type", filters.type);
-        }
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-          throw new Error("Failed to fetch products");
-        }
-        const data = await response.json();
-        setProducts(data);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [filters.type]);
+  }, [productToDelete, products, setProducts]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      // Category filter
       if (filters.category !== "all" && product.category !== filters.category) {
         return false;
       }
+      // Branch filter
+      if (filters.branch !== "all" && product.branch !== filters.branch) {
+        return false;
+      }
+      // Stock filter
       if (
         filters.inStock !== "all" &&
         filters.inStock === "in-stock" &&
@@ -157,9 +126,31 @@ export default function Products() {
       ) {
         return false;
       }
+      // Sell price range filter
+      if (priceRanges.sellPriceMin && product.sell_price !== undefined && product.sell_price < Number(priceRanges.sellPriceMin)) {
+        return false;
+      }
+      if (priceRanges.sellPriceMax && product.sell_price !== undefined && product.sell_price > Number(priceRanges.sellPriceMax)) {
+        return false;
+      }
+      // Cost price range filter
+      if (priceRanges.costPriceMin && product.cost_price !== undefined && product.cost_price < Number(priceRanges.costPriceMin)) {
+        return false;
+      }
+      if (priceRanges.costPriceMax && product.cost_price !== undefined && product.cost_price > Number(priceRanges.costPriceMax)) {
+        return false;
+      }
+      // Service price range filter
+      if (priceRanges.servicePriceMin && product.price !== undefined && product.price < Number(priceRanges.servicePriceMin)) {
+        return false;
+      }
+      if (priceRanges.servicePriceMax && product.price !== undefined && product.price > Number(priceRanges.servicePriceMax)) {
+        return false;
+      }
+      // Search filter
       return product.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
-  }, [products, filters.category, filters.inStock, searchTerm]);
+  }, [products, filters, priceRanges, searchTerm]);
 
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
@@ -179,11 +170,82 @@ export default function Products() {
     setCurrentPage(1);
   };
 
-  const handleFilterChange = (type: "category" | "inStock" | "type", value: string) => {
+  const handleFilterChange = (type: "category" | "type" | "branch", value: string) => {
     setFilters((prevFilters) => ({
       ...prevFilters,
       [type]: value,
     }));
+    setCurrentPage(1);
+  };
+
+  const handlePriceRangeChange = (field: string, value: string) => {
+    setPriceRanges((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setCurrentPage(1);
+  };
+
+  const handleMobileFilterChange = (type: "category" | "type" | "branch", value: string) => {
+    setMobileFilters((prevFilters) => ({
+      ...prevFilters,
+      [type]: value,
+    }));
+  };
+
+  const handleMobilePriceRangeChange = (field: string, value: string) => {
+    setMobilePriceRanges((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleApplyMobileFilters = () => {
+    setFilters(mobileFilters);
+    setPriceRanges(mobilePriceRanges);
+    setCurrentPage(1);
+    setIsMobileFilterOpen(false);
+  };
+
+  const handleClearMobileFilters = () => {
+    const clearedFilters = {
+      category: "all",
+      inStock: "all",
+      type: "all",
+      branch: "all",
+    };
+    const clearedPriceRanges = {
+      sellPriceMin: "",
+      sellPriceMax: "",
+      costPriceMin: "",
+      costPriceMax: "",
+      servicePriceMin: "",
+      servicePriceMax: "",
+    };
+    setMobileFilters(clearedFilters);
+    setMobilePriceRanges(clearedPriceRanges);
+    setFilters(clearedFilters);
+    setPriceRanges(clearedPriceRanges);
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    const clearedFilters = {
+      category: "all",
+      inStock: "all",
+      type: "all",
+      branch: "all",
+    };
+    const clearedPriceRanges = {
+      sellPriceMin: "",
+      sellPriceMax: "",
+      costPriceMin: "",
+      costPriceMax: "",
+      servicePriceMin: "",
+      servicePriceMax: "",
+    };
+    setFilters(clearedFilters);
+    setPriceRanges(clearedPriceRanges);
     setCurrentPage(1);
   };
 
@@ -197,145 +259,92 @@ export default function Products() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 mb-6">
+      <div className="hidden sm:flex flex-col gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">{t("title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
         </div>
       </div>
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6">
         <CardHeader className="p-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Input
+          <div className="flex flex-col gap-3">
+            {/* Mobile: Search + Add Button in Grid */}
+            <div className="grid grid-cols-3 gap-2 md:hidden">
+              <div className="col-span-2 relative">
+                <input
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={handleSearch}
-                  className="pr-8"
+                  className="w-full h-9 text-sm px-3 pr-8 border rounded-md"
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <span className="text-muted-foreground">Type</span>
-                    <span className="text-muted-foreground">|</span>
-                    <span>{filters.type === "all" ? "All" : filters.type === "goods" ? "Goods" : "Services"}</span>
-                    <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
-                  <DropdownMenuLabel>Type</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.type === "all"}
-                    onCheckedChange={() =>
-                      handleFilterChange("type", "all")
-                    }
-                  >
-                    All
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.type === "goods"}
-                    onCheckedChange={() =>
-                      handleFilterChange("type", "goods")
-                    }
-                  >
-                    Goods
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.type === "services"}
-                    onCheckedChange={() =>
-                      handleFilterChange("type", "services")
-                    }
-                  >
-                    Services
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-2">
+                <PlusIcon className="w-3 h-3 mr-1" />
+                Add
+              </Button>
             </div>
-            <Button size="sm" onClick={() => setIsProductDialogOpen(true)}>
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Add Product
-            </Button>
+            
+            {/* Desktop: Filters with Add Button */}
+            <div className="hidden md:flex items-center gap-2">
+              <ProductFilters
+                searchTerm={searchTerm}
+                filters={filters}
+                priceRanges={priceRanges}
+                categories={categories}
+                branches={branches}
+                onSearchChange={handleSearch}
+                onFilterChange={handleFilterChange}
+                onPriceRangeChange={handlePriceRangeChange}
+                onClearAll={clearAllFilters}
+                capitalizeFirstLetter={capitalizeFirstLetter}
+              />
+              <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-3 flex-shrink-0 ml-auto">
+                <PlusIcon className="w-3 h-3 mr-1" />
+                Add Product
+              </Button>
+            </div>
+            
+            {/* Mobile: Filters Button */}
+            <div className="flex md:hidden items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setMobileFilters(filters);
+                  setMobilePriceRanges(priceRanges);
+                  setIsMobileFilterOpen(true);
+                }}
+                className="h-9 text-xs"
+              >
+                <FilterIcon className="w-3 h-3 mr-1" />
+                Filters
+              </Button>
+              <div className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+                Total: {filteredProducts.length.toLocaleString()}
+              </div>
+            </div>
+            
+            {/* Desktop Total */}
+            <div className="hidden md:flex text-xs text-muted-foreground justify-end">
+              Total: {filteredProducts.length.toLocaleString()}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Sell Price</TableHead>
-                  <TableHead>Cost Price</TableHead>
-                  <TableHead>Service Price</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>UOM</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentProducts.map((product: any) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="text-xs font-medium capitalize">
-                      {capitalizeFirstLetter(product.type || "goods")}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">
-                      {product.name}
-                    </TableCell>
-                    <TableCell className="text-xs">{capitalizeFirstLetter(product.description)}</TableCell>
-                    <TableCell className="text-xs">{capitalizeFirstLetter(product.category)}</TableCell>
-                    <TableCell className="text-xs">
-                      {product.sell_price !== undefined && product.sell_price !== null ? `Rs. ${Math.floor(product.sell_price)}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {product.cost_price !== undefined && product.cost_price !== null ? `Rs. ${Math.floor(product.cost_price)}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {product.price !== undefined && product.price !== null ? `Rs. ${Math.floor(product.price)}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">{product.quantity || product.in_stock || "-"}</TableCell>
-                    <TableCell className="text-xs">{capitalizeFirstLetter(product.unit_of_measurement)}</TableCell>
-                    <TableCell className="text-xs">{capitalizeFirstLetter(product.branch)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedProduct(product);
-                            setIsProductDialogOpen(true);
-                          }}
-                        >
-                          <FilePenIcon className="w-4 h-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setProductToDelete(product);
-                            setIsDeleteConfirmationOpen(true);
-                          }}
-                          style={{ display: "none" }} 
-                        >
-                          {/* hide trashicon */}
-                          <TrashIcon className="w-4 h-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <ProductsTable
+            products={currentProducts}
+            onEdit={(product) => {
+              setSelectedProduct(product);
+              setIsProductDialogOpen(true);
+            }}
+            onDelete={(product) => {
+              setProductToDelete(product);
+              setIsDeleteConfirmationOpen(true);
+            }}
+            capitalizeFirstLetter={capitalizeFirstLetter}
+          />
         </CardContent>
         <CardFooter></CardFooter>
       </Card>
@@ -371,6 +380,213 @@ export default function Products() {
             </Button>
             <Button variant="destructive" onClick={handleDeleteProduct}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Mobile Filter Dialog */}
+      <Dialog open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
+        <DialogContent className="max-w-[90vw] sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>
+              Filter products by type, category, branch, and price ranges.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* 2 Filters per row */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Type Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                    <span className="text-muted-foreground">Type:</span>
+                    <span>
+                      {mobileFilters.type === "all" ? "All" : mobileFilters.type === "goods" ? "Goods" : "Services"}
+                    </span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuLabel>Type</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={mobileFilters.type === "all"}
+                    onCheckedChange={() => handleMobileFilterChange("type", "all")}
+                  >
+                    All
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={mobileFilters.type === "goods"}
+                    onCheckedChange={() => handleMobileFilterChange("type", "goods")}
+                  >
+                    Goods
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={mobileFilters.type === "services"}
+                    onCheckedChange={() => handleMobileFilterChange("type", "services")}
+                  >
+                    Services
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Category Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                    <span className="text-muted-foreground">Category:</span>
+                    <span className="truncate">{mobileFilters.category === "all" ? "All" : mobileFilters.category}</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40 max-h-64 overflow-y-auto">
+                  <DropdownMenuLabel>Category</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={mobileFilters.category === "all"}
+                    onCheckedChange={() => handleMobileFilterChange("category", "all")}
+                  >
+                    All
+                  </DropdownMenuCheckboxItem>
+                  {categories.map((cat) => (
+                    <DropdownMenuCheckboxItem
+                      key={cat}
+                      checked={mobileFilters.category === cat}
+                      onCheckedChange={() => handleMobileFilterChange("category", cat)}
+                    >
+                      {capitalizeFirstLetter(cat)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Branch Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                    <span className="text-muted-foreground">Branch:</span>
+                    <span className="truncate">{mobileFilters.branch === "all" ? "All" : mobileFilters.branch}</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40 max-h-64 overflow-y-auto">
+                  <DropdownMenuLabel>Branch</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={mobileFilters.branch === "all"}
+                    onCheckedChange={() => handleMobileFilterChange("branch", "all")}
+                  >
+                    All
+                  </DropdownMenuCheckboxItem>
+                  {branches.map((branch) => (
+                    <DropdownMenuCheckboxItem
+                      key={branch}
+                      checked={mobileFilters.branch === branch}
+                      onCheckedChange={() => handleMobileFilterChange("branch", branch)}
+                    >
+                      {capitalizeFirstLetter(branch)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Price Range Filters */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                    <FilterIcon className="w-3 h-3" />
+                    <span>Price Ranges</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs font-semibold mb-2 block">Sell Price Range</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={mobilePriceRanges.sellPriceMin}
+                          onChange={(e) => handleMobilePriceRangeChange("sellPriceMin", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={mobilePriceRanges.sellPriceMax}
+                          onChange={(e) => handleMobilePriceRangeChange("sellPriceMax", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold mb-2 block">Cost Price Range</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={mobilePriceRanges.costPriceMin}
+                          onChange={(e) => handleMobilePriceRangeChange("costPriceMin", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={mobilePriceRanges.costPriceMax}
+                          onChange={(e) => handleMobilePriceRangeChange("costPriceMax", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold mb-2 block">Service Price Range</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={mobilePriceRanges.servicePriceMin}
+                          onChange={(e) => handleMobilePriceRangeChange("servicePriceMin", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={mobilePriceRanges.servicePriceMax}
+                          onChange={(e) => handleMobilePriceRangeChange("servicePriceMax", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            {(mobileFilters.type !== "all" || mobileFilters.category !== "all" || mobileFilters.branch !== "all" || mobilePriceRanges.sellPriceMin !== "" || mobilePriceRanges.sellPriceMax !== "" || mobilePriceRanges.costPriceMin !== "" || mobilePriceRanges.costPriceMax !== "" || mobilePriceRanges.servicePriceMin !== "" || mobilePriceRanges.servicePriceMax !== "") && (
+              <Button variant="outline" onClick={() => {
+                setMobileFilters({
+                  category: "all",
+                  inStock: "all",
+                  type: "all",
+                  branch: "all",
+                });
+                setMobilePriceRanges({
+                  sellPriceMin: "",
+                  sellPriceMax: "",
+                  costPriceMin: "",
+                  costPriceMax: "",
+                  servicePriceMin: "",
+                  servicePriceMax: "",
+                });
+              }}>
+                Reset Filters
+              </Button>
+            )}
+            <Button onClick={handleApplyMobileFilters}>
+              Apply Filters
             </Button>
           </DialogFooter>
         </DialogContent>
