@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { supportContact } from "@/lib/constants";
 
 export default function LoginPage({ params }: { params: { locale: string } }) {
@@ -19,6 +26,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Avoid SSR/CSR markup mismatches by rendering only after mount
   useEffect(() => {
@@ -57,8 +65,12 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl text-center">{t("signInTitle")}</CardTitle>
-          <CardDescription className="text-center">{t("signInSubtitle")}</CardDescription>
+          <CardTitle className="text-2xl text-center">
+            {t("signInTitle")}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {t("signInSubtitle")}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,14 +95,25 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
 
             <div className="space-y-2">
               <Label htmlFor="password">{t("password")}</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between text-sm">
@@ -102,22 +125,24 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
                 />
                 <span>{t("rememberMe")}</span>
               </label>
-              <Link href={`/${params.locale}/forgot-password`} className="text-blue-600 hover:underline">
+              <Link
+                href={`/${params.locale}/forgot-password`}
+                className="text-blue-600 hover:underline"
+              >
                 {t("forgotPassword")}
               </Link>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t("signingIn") : t("signIn")}
             </Button>
 
             <div className="text-center text-sm">
               <span>{t("noAccount")} </span>
-              <Link href={`/${params.locale}/signup`} className="text-blue-600 hover:underline font-medium">
+              <Link
+                href={`/${params.locale}/signup`}
+                className="text-blue-600 hover:underline font-medium"
+              >
                 {t("signUp")}
               </Link>
             </div>
@@ -127,21 +152,30 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
             <p className="font-medium">Need help? Contact Support</p>
             <div className="flex flex-col gap-1 items-center">
               <p>
-                Email: {" "}
-                <a href={`mailto:${supportContact.email}`} className="text-blue-600 hover:underline">
+                Email:{" "}
+                <a
+                  href={`mailto:${supportContact.email}`}
+                  className="text-blue-600 hover:underline"
+                >
                   {supportContact.email}
                 </a>
               </p>
               <p>
-                Call or Whatsapp: {" "}
-                <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline">
+                Call or Whatsapp:{" "}
+                <a
+                  href={`tel:${supportContact.phone.replace(/\s/g, "")}`}
+                  className="text-blue-600 hover:underline"
+                >
                   {supportContact.phone}
                 </a>
               </p>
               <p>
-                WhatsApp Only: {" "}
+                WhatsApp Only:{" "}
                 <a
-                  href={`https://wa.me/${supportContact.whatsapp.replace(/[^\d]/g, "")}`}
+                  href={`https://wa.me/${supportContact.whatsapp.replace(
+                    /[^\d]/g,
+                    ""
+                  )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline"
@@ -150,7 +184,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
                 </a>
               </p>
               <p>
-                LinkedIn: {" "}
+                LinkedIn:{" "}
                 <a
                   href={supportContact.linkedin}
                   target="_blank"
