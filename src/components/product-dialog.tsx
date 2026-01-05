@@ -47,6 +47,45 @@ interface ProductDialogProps {
   onSuccess: (product: Product, isEdit: boolean) => void;
 }
 
+const UNITS_OF_MEASUREMENT = [
+  { value: "piece", label: "Piece" },
+  { value: "kg", label: "Kilogram (kg)" },
+  { value: "gram", label: "Gram (g)" },
+  { value: "liter", label: "Liter (L)" },
+  { value: "ml", label: "Milliliter (ml)" },
+  { value: "meter", label: "Meter (m)" },
+  { value: "cm", label: "Centimeter (cm)" },
+  { value: "inch", label: "Inch (in)" },
+  { value: "foot", label: "Foot (ft)" },
+  { value: "yard", label: "Yard (yd)" },
+  { value: "lb", label: "Pound (lb)" },
+  { value: "oz", label: "Ounce (oz)" },
+  { value: "gallon", label: "Gallon (gal)" },
+  { value: "pint", label: "Pint (pt)" },
+  { value: "quart", label: "Quart (qt)" },
+  { value: "sqm", label: "Square Meter (m²)" },
+  { value: "sqft", label: "Square Foot (ft²)" },
+  { value: "cum", label: "Cubic Meter (m³)" },
+  { value: "box", label: "Box" },
+  { value: "pack", label: "Pack" },
+  { value: "dozen", label: "Dozen" },
+  { value: "roll", label: "Roll" },
+  { value: "sheet", label: "Sheet" },
+  { value: "bundle", label: "Bundle" },
+  { value: "carton", label: "Carton" },
+  { value: "case", label: "Case" },
+  { value: "bottle", label: "Bottle" },
+  { value: "can", label: "Can" },
+  { value: "jar", label: "Jar" },
+  { value: "bag", label: "Bag" },
+  { value: "pair", label: "Pair" },
+  { value: "set", label: "Set" },
+  { value: "unit", label: "Unit" },
+  { value: "tube", label: "Tube" },
+  { value: "packet", label: "Packet" },
+  { value: "strip", label: "Strip" },
+];
+
 export function ProductDialog({
   open,
   onOpenChange,
@@ -399,42 +438,11 @@ export function ProductDialog({
                       <SelectValue placeholder="Select unit" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="piece">Piece</SelectItem>
-                      <SelectItem value="kg">Kilogram (kg)</SelectItem>
-                      <SelectItem value="gram">Gram (g)</SelectItem>
-                      <SelectItem value="liter">Liter (L)</SelectItem>
-                      <SelectItem value="ml">Milliliter (ml)</SelectItem>
-                      <SelectItem value="meter">Meter (m)</SelectItem>
-                      <SelectItem value="cm">Centimeter (cm)</SelectItem>
-                      <SelectItem value="inch">Inch (in)</SelectItem>
-                      <SelectItem value="foot">Foot (ft)</SelectItem>
-                      <SelectItem value="yard">Yard (yd)</SelectItem>
-                      <SelectItem value="lb">Pound (lb)</SelectItem>
-                      <SelectItem value="oz">Ounce (oz)</SelectItem>
-                      <SelectItem value="gallon">Gallon (gal)</SelectItem>
-                      <SelectItem value="pint">Pint (pt)</SelectItem>
-                      <SelectItem value="quart">Quart (qt)</SelectItem>
-                      <SelectItem value="sqm">Square Meter (m²)</SelectItem>
-                      <SelectItem value="sqft">Square Foot (ft²)</SelectItem>
-                      <SelectItem value="cum">Cubic Meter (m³)</SelectItem>
-                      <SelectItem value="box">Box</SelectItem>
-                      <SelectItem value="pack">Pack</SelectItem>
-                      <SelectItem value="dozen">Dozen</SelectItem>
-                      <SelectItem value="roll">Roll</SelectItem>
-                      <SelectItem value="sheet">Sheet</SelectItem>
-                      <SelectItem value="bundle">Bundle</SelectItem>
-                      <SelectItem value="carton">Carton</SelectItem>
-                      <SelectItem value="case">Case</SelectItem>
-                      <SelectItem value="bottle">Bottle</SelectItem>
-                      <SelectItem value="can">Can</SelectItem>
-                      <SelectItem value="jar">Jar</SelectItem>
-                      <SelectItem value="bag">Bag</SelectItem>
-                      <SelectItem value="pair">Pair</SelectItem>
-                      <SelectItem value="set">Set</SelectItem>
-                      <SelectItem value="unit">Unit</SelectItem>
-                      <SelectItem value="tube">Tube</SelectItem>
-                      <SelectItem value="packet">Packet</SelectItem>
-                      <SelectItem value="strip">Strip</SelectItem>
+                      {UNITS_OF_MEASUREMENT.map((unit) => (
+                        <SelectItem key={unit.value} value={unit.value}>
+                          {unit.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
