@@ -40,7 +40,7 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
               ...defaultBranches.map((branch) => [branch, { value: branch, label: branch }]),
               ...dbBranches.map((branch: any) => [branch.value, branch]),
             ]).values()
-          );
+          ) as { value: string; label: string }[];
           setBranches(merged);
         }
       } catch (error) {

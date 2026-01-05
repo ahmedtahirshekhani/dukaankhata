@@ -48,7 +48,7 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
               ...defaultCategories.map((cat) => [cat, { value: cat, label: cat }]),
               ...dbCategories.map((cat: any) => [cat.value, cat]),
             ]).values()
-          );
+          ) as { value: string; label: string }[];
           setCategories(merged);
         }
       } catch (error) {
