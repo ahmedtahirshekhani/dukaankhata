@@ -55,6 +55,8 @@ export const COLLECTIONS = {
   PAYMENT_METHODS: 'payment_methods',
   TRANSACTIONS: 'transactions',
   PASSWORD_RESETS: 'password_resets',
+  CATEGORIES: 'categories',
+  BRANCHES: 'branches',
 } as const;
 
 // Helper to convert MongoDB ObjectId to string

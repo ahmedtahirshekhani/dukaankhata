@@ -35,6 +35,7 @@ import {
   PlusIcon,
   LoaderIcon,
   Loader2Icon,
+  ChevronDownIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,15 +54,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProductDialog } from "@/components/product-dialog";
 
 interface Product {
   id: number;
+  type?: string;
   name: string;
   description: string;
-  price: number;
-  in_stock: number;
+  price?: number;
+  sell_price?: number;
+  cost_price?: number;
+  in_stock?: number;
+  quantity?: number;
   category: string;
+  unit_of_measurement?: string;
+  branch?: string;
 }
+
+const capitalizeFirstLetter = (str: string | undefined | null): string => {
+  if (!str) return "-";
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
 export default function Products() {
   const t = useTranslations("products");
@@ -70,93 +83,25 @@ export default function Products() {
   const [filters, setFilters] = useState({
     category: "all",
     inStock: "all",
+    type: "all",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(100);
   const [loading, setLoading] = useState(true);
-  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [productName, setProductName] = useState("");
-  const [productDescription, setProductDescription] = useState("");
-  const [productPrice, setProductPrice] = useState(0);
-  const [productInStock, setProductInStock] = useState(0);
-  const [productCategory, setProductCategory] = useState("");
-  const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  const resetSelectedProduct = () => {
-    setSelectedProductId(null);
-    setProductName("");
-    setProductDescription("");
-    setProductPrice(0);
-    setProductInStock(0);
-    setProductCategory("");
+  const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
+    if (isEdit) {
+      setProducts(
+        products.map((p) => (p.id === product.id ? product : p))
+      );
+    } else {
+      setProducts([...products, product]);
+    }
   };
-
-  const handleAddProduct = useCallback(async () => {
-    try {
-      const newProduct = {
-        name: productName,
-        description: productDescription,
-        price: productPrice,
-        in_stock: productInStock,
-        category: productCategory,
-      };
-      const response = await fetch("/api/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newProduct),
-      });
-
-      if (response.ok) {
-        const addedProduct = await response.json();
-        setProducts([...products, addedProduct]);
-        setIsAddProductDialogOpen(false);
-        resetSelectedProduct();
-      } else {
-        console.error("Failed to add product");
-      }
-    } catch (error) {
-      console.error("Error adding product:", error);
-    }
-  }, [productName, productDescription, productPrice, productInStock, productCategory, products]);
-
-  const handleEditProduct = useCallback(async () => {
-    if (!selectedProductId) return;
-    try {
-      const updatedProduct = {
-        id: selectedProductId,
-        name: productName,
-        description: productDescription,
-        price: productPrice,
-        in_stock: productInStock,
-        category: productCategory,
-      };
-      const response = await fetch(`/api/products/${selectedProductId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedProduct),
-      });
-
-      if (response.ok) {
-        const updatedProductFromServer = await response.json();
-        setProducts(
-          products.map((p) => (p.id === updatedProductFromServer.id ? updatedProductFromServer : p))
-        );
-        setIsEditProductDialogOpen(false);
-        resetSelectedProduct();
-      } else {
-        console.error("Failed to update product");
-      }
-    } catch (error) {
-      console.error("Error updating product:", error);
-    }
-  }, [selectedProductId, productName, productDescription, productPrice, productInStock, productCategory, products]);
 
   const handleDeleteProduct = useCallback(async () => {
     if (!productToDelete) return;
@@ -180,7 +125,11 @@ export default function Products() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("/api/products");
+        const url = new URL("/api/products", window.location.origin);
+        if (filters.type !== "all") {
+          url.searchParams.append("type", filters.type);
+        }
+        const response = await fetch(url.toString());
         if (!response.ok) {
           throw new Error("Failed to fetch products");
         }
@@ -194,7 +143,7 @@ export default function Products() {
     };
 
     fetchProducts();
-  }, []);
+  }, [filters.type]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -204,7 +153,7 @@ export default function Products() {
       if (
         filters.inStock !== "all" &&
         filters.inStock === "in-stock" &&
-        product.in_stock === 0
+        (product.quantity === 0 || (product.in_stock === 0 && !product.quantity))
       ) {
         return false;
       }
@@ -230,7 +179,7 @@ export default function Products() {
     setCurrentPage(1);
   };
 
-  const handleFilterChange = (type: "category" | "inStock", value: string) => {
+  const handleFilterChange = (type: "category" | "inStock" | "type", value: string) => {
     setFilters((prevFilters) => ({
       ...prevFilters,
       [type]: value,
@@ -271,72 +220,43 @@ export default function Products() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
-                    <FilterIcon className="w-4 h-4" />
-                    <span>Filters</span>
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="text-muted-foreground">|</span>
+                    <span>{filters.type === "all" ? "All" : filters.type === "goods" ? "Goods" : "Services"}</span>
+                    <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuLabel>Type</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
-                    checked={filters.category === "all"}
+                    checked={filters.type === "all"}
                     onCheckedChange={() =>
-                      handleFilterChange("category", "all")
+                      handleFilterChange("type", "all")
                     }
                   >
-                    All Categories
+                    All
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
-                    checked={filters.category === "electronics"}
+                    checked={filters.type === "goods"}
                     onCheckedChange={() =>
-                      handleFilterChange("category", "electronics")
+                      handleFilterChange("type", "goods")
                     }
                   >
-                    Electronics
+                    Goods
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
-                    checked={filters.category === "home"}
+                    checked={filters.type === "services"}
                     onCheckedChange={() =>
-                      handleFilterChange("category", "home")
+                      handleFilterChange("type", "services")
                     }
                   >
-                    Home
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.category === "health"}
-                    onCheckedChange={() =>
-                      handleFilterChange("category", "health")
-                    }
-                  >
-                    Health
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.inStock === "all"}
-                    onCheckedChange={() => handleFilterChange("inStock", "all")}
-                  >
-                    All Stock
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.inStock === "in-stock"}
-                    onCheckedChange={() =>
-                      handleFilterChange("inStock", "in-stock")
-                    }
-                  >
-                    In Stock
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.inStock === "out-of-stock"}
-                    onCheckedChange={() =>
-                      handleFilterChange("inStock", "out-of-stock")
-                    }
-                  >
-                    Out of Stock
+                    Services
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <Button size="sm" onClick={() => setIsAddProductDialogOpen(true)}>
+            <Button size="sm" onClick={() => setIsProductDialogOpen(true)}>
               <PlusIcon className="w-4 h-4 mr-2" />
               Add Product
             </Button>
@@ -347,37 +267,50 @@ export default function Products() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Product</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Stock</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Sell Price</TableHead>
+                  <TableHead>Cost Price</TableHead>
+                  <TableHead>Service Price</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>UOM</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentProducts.map((product) => (
+                {currentProducts.map((product: any) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="text-xs font-medium capitalize">
+                      {capitalizeFirstLetter(product.type || "goods")}
+                    </TableCell>
+                    <TableCell className="font-medium text-sm">
                       {product.name}
                     </TableCell>
-                    <TableCell>{product.description}</TableCell>
-                    <TableCell>
-                      Rs. {Math.floor(product.price)}
+                    <TableCell className="text-xs">{capitalizeFirstLetter(product.description)}</TableCell>
+                    <TableCell className="text-xs">{capitalizeFirstLetter(product.category)}</TableCell>
+                    <TableCell className="text-xs">
+                      {product.sell_price !== undefined && product.sell_price !== null ? `Rs. ${Math.floor(product.sell_price)}` : "-"}
                     </TableCell>
-                    <TableCell>{product.in_stock}</TableCell>
+                    <TableCell className="text-xs">
+                      {product.cost_price !== undefined && product.cost_price !== null ? `Rs. ${Math.floor(product.cost_price)}` : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {product.price !== undefined && product.price !== null ? `Rs. ${Math.floor(product.price)}` : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs">{product.quantity || product.in_stock || "-"}</TableCell>
+                    <TableCell className="text-xs">{capitalizeFirstLetter(product.unit_of_measurement)}</TableCell>
+                    <TableCell className="text-xs">{capitalizeFirstLetter(product.branch)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
                           size="icon"
                           variant="ghost"
                           onClick={() => {
-                            setSelectedProductId(product.id);
-                            setProductName(product.name);
-                            setProductDescription(product.description);
-                            setProductPrice(product.price);
-                            setProductInStock(product.in_stock);
-                            setProductCategory(product.category);
-                            setIsEditProductDialogOpen(true);
+                            setSelectedProduct(product);
+                            setIsProductDialogOpen(true);
                           }}
                         >
                           <FilePenIcon className="w-4 h-4" />
@@ -406,105 +339,17 @@ export default function Products() {
         </CardContent>
         <CardFooter></CardFooter>
       </Card>
-      <Dialog
-        open={isAddProductDialogOpen || isEditProductDialogOpen}
+      <ProductDialog
+        open={isProductDialogOpen}
         onOpenChange={(open) => {
+          setIsProductDialogOpen(open);
           if (!open) {
-            setIsAddProductDialogOpen(false);
-            setIsEditProductDialogOpen(false);
-            resetSelectedProduct();
+            setSelectedProduct(null);
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isAddProductDialogOpen ? "Add New Product" : "Edit Product"}
-            </DialogTitle>
-            <DialogDescription>
-              {isAddProductDialogOpen
-                ? "Enter the details of the new product."
-                : "Edit the details of the product."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
-                Description
-              </Label>
-              <Input
-                id="description"
-                value={productDescription}
-                onChange={(e) => setProductDescription(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="price" className="text-right">
-                Price
-              </Label>
-              <Input
-                id="price"
-                type="number"
-                value={productPrice}
-                onChange={(e) => setProductPrice(Number(e.target.value))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="in_stock" className="text-right">
-                In Stock
-              </Label>
-              <Input
-                id="in_stock"
-                type="number"
-                value={productInStock}
-                onChange={(e) => setProductInStock(Number(e.target.value))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="category" className="text-right">
-                Category
-              </Label>
-              <Select
-                value={productCategory}
-                onValueChange={(value) => setProductCategory(value)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="electronics">Electronics</SelectItem>
-                  <SelectItem value="clothing">Clothing</SelectItem>
-                  <SelectItem value="books">Books</SelectItem>
-                  <SelectItem value="home">Home</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={
-                isAddProductDialogOpen ? handleAddProduct : handleEditProduct
-              }
-            >
-              {isAddProductDialogOpen ? "Add Product" : "Update Product"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        selectedProduct={selectedProduct}
+        onSuccess={handleProductDialogSuccess}
+      />
       <Dialog
         open={isDeleteConfirmationOpen}
         onOpenChange={setIsDeleteConfirmationOpen}

@@ -11,37 +11,31 @@ import { ProtectedRoute } from '@/components/protected-route';
 
 export default function SettingsPage({ params }: { params: { locale: string } }) {
   const t = useTranslations('common');
-  const { user, isLoading, refreshSession } = useUserProfile();
+  const { user, refreshSession } = useUserProfile();
   
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
+    name: '',
+    email: '',
   });
   const [formDirty, setFormDirty] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Keep form data in sync when session user loads/changes (e.g., after refresh)
+  // Initialize form data when user first loads
   useEffect(() => {
-    if (user && !formDirty) {
+    if (user && !initialized) {
       setFormData({
         name: user.name || '',
         email: user.email || '',
       });
+      setInitialized(true);
     }
-  }, [user, formDirty]);
+  }, [user?.id, initialized]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordError, setPasswordError] = useState<string>('');
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

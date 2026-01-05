@@ -10,9 +10,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
+
   const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+  
+  const query: any = { user_id: toObjectId(user.id) };
+  if (type && type !== 'all') {
+    query.type = type;
+  }
+
   const data = await productsCollection
-    .find({ user_id: toObjectId(user.id) })
+    .find(query)
     .toArray();
 
   // Convert _id to id for consistency
