@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface ComboboxProps {
-  items: { id: number | string; name: string }[];
+  items: { id: number | string; name: string; description?: string }[];
   placeholder: string;
   onSelect: (id: number | string) => void;
   noSelect?: boolean;
@@ -61,6 +61,7 @@ export function Combobox({ items, placeholder, onSelect, noSelect, className }: 
                 <CommandItem
                   key={item.id}
                   value={item.id.toString()}
+                  className="hover:bg-gray-100 aria-selected:bg-gray-100 text-slate-900"
                   onSelect={(currentValue) => {
                     if (typeof item.id === "string") {
                       onSelect(currentValue);
@@ -72,7 +73,16 @@ export function Combobox({ items, placeholder, onSelect, noSelect, className }: 
                     setValue(item.name);
                   }}
                 >
-                  {item.name}
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium leading-tight text-black">
+                      {item.name}
+                    </span>
+                    {item.description && (
+                      <span className="text-xs text-muted-foreground leading-snug">
+                        {item.description}
+                      </span>
+                    )}
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>

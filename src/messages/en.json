@@ -23,8 +23,8 @@
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "View overview and analytics",
-    "sales": "Sales",
-    "salesDescription": "Manage sales transactions",
+    "invoice": "Invoicing",
+    "invoiceDescription": "Manage invoice transactions",
     "products": "Items",
     "productsDescription": "Manage inventory and items",
     "customers": "Customers",
@@ -126,9 +126,9 @@
     "paymentMethod": "Payment Method",
     "status": "Status"
   },
-  "sales": {
-    "title": "Sales",
-    "pageDescription": "Manage sales transactions",
+  "invoice": {
+    "title": "Invoicing",
+    "pageDescription": "Manage invoice transactions",
     "addItem": "Add Item",
     "total": "Total",
     "checkout": "Checkout"

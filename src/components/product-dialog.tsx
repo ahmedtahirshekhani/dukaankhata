@@ -118,7 +118,7 @@ export function ProductDialog({
         setUnitOfMeasurement(selectedProduct.unit_of_measurement || "");
         setBranch(selectedProduct.branch || "");
       } else {
-        setProductPrice(selectedProduct.price || "");
+        setSellPrice(selectedProduct.sell_price || "");
       }
       setProductCategory(selectedProduct.category);
     } else {
@@ -155,7 +155,7 @@ export function ProductDialog({
           branch: branch,
         }),
         ...(itemType === "services" && {
-          price: productPrice === "" ? 0 : productPrice,
+          sell_price: sellPrice === "" ? 0 : sellPrice,
         }),
       };
       const response = await fetch("/api/products", {
@@ -211,7 +211,7 @@ export function ProductDialog({
           branch: branch,
         }),
         ...(itemType === "services" && {
-          price: productPrice === "" ? 0 : productPrice,
+          sell_price: sellPrice === "" ? 0 : sellPrice,
         }),
       };
       const response = await fetch(`/api/products/${selectedProduct.id}`, {
@@ -462,8 +462,8 @@ export function ProductDialog({
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="price" className="">
-                      Price
+                    <Label htmlFor="sellPrice" className="">
+                      Sell Price
                     </Label>
                     <Tooltip delayDuration={0}>
                       <TooltipTrigger asChild>
@@ -472,17 +472,17 @@ export function ProductDialog({
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        Price for this service
+                        Price at which you sell this service
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   <Input
-                    id="price"
+                    id="sellPrice"
                     type="number"
-                    value={productPrice}
+                    value={sellPrice}
                     onChange={(e) => {
                       const val = e.target.value === "" ? "" : Number(e.target.value);
-                      setProductPrice(val === "" ? "" : Math.max(0, val));
+                      setSellPrice(val === "" ? "" : Math.max(0, val));
                     }}
                     placeholder="0"
                     min="0"

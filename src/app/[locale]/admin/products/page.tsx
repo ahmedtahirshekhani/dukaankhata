@@ -47,9 +47,7 @@ export default function Products() {
     sellPriceMin: "",
     sellPriceMax: "",
     costPriceMin: "",
-    costPriceMax: "",
-    servicePriceMin: "",
-    servicePriceMax: "",
+    costPriceMax: ""
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(100);
@@ -68,9 +66,7 @@ export default function Products() {
     sellPriceMin: "",
     sellPriceMax: "",
     costPriceMin: "",
-    costPriceMax: "",
-    servicePriceMin: "",
-    servicePriceMax: "",
+    costPriceMax: ""
   });
 
   // Use custom hook for data fetching
@@ -140,13 +136,7 @@ export default function Products() {
       if (priceRanges.costPriceMax && product.cost_price !== undefined && product.cost_price > Number(priceRanges.costPriceMax)) {
         return false;
       }
-      // Service price range filter
-      if (priceRanges.servicePriceMin && product.price !== undefined && product.price < Number(priceRanges.servicePriceMin)) {
-        return false;
-      }
-      if (priceRanges.servicePriceMax && product.price !== undefined && product.price > Number(priceRanges.servicePriceMax)) {
-        return false;
-      }
+  
       // Search filter
       return product.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -218,9 +208,7 @@ export default function Products() {
       sellPriceMin: "",
       sellPriceMax: "",
       costPriceMin: "",
-      costPriceMax: "",
-      servicePriceMin: "",
-      servicePriceMax: "",
+      costPriceMax: ""
     };
     setMobileFilters(clearedFilters);
     setMobilePriceRanges(clearedPriceRanges);
@@ -240,9 +228,7 @@ export default function Products() {
       sellPriceMin: "",
       sellPriceMax: "",
       costPriceMin: "",
-      costPriceMax: "",
-      servicePriceMin: "",
-      servicePriceMax: "",
+      costPriceMax: ""
     };
     setFilters(clearedFilters);
     setPriceRanges(clearedPriceRanges);
@@ -540,32 +526,14 @@ export default function Products() {
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label className="text-xs font-semibold mb-2 block">Service Price Range</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          placeholder="Min"
-                          value={mobilePriceRanges.servicePriceMin}
-                          onChange={(e) => handleMobilePriceRangeChange("servicePriceMin", e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Max"
-                          value={mobilePriceRanges.servicePriceMax}
-                          onChange={(e) => handleMobilePriceRangeChange("servicePriceMax", e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
+                   
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            {(mobileFilters.type !== "all" || mobileFilters.category !== "all" || mobileFilters.branch !== "all" || mobilePriceRanges.sellPriceMin !== "" || mobilePriceRanges.sellPriceMax !== "" || mobilePriceRanges.costPriceMin !== "" || mobilePriceRanges.costPriceMax !== "" || mobilePriceRanges.servicePriceMin !== "" || mobilePriceRanges.servicePriceMax !== "") && (
+            {(mobileFilters.type !== "all" || mobileFilters.category !== "all" || mobileFilters.branch !== "all" || mobilePriceRanges.sellPriceMin !== "" || mobilePriceRanges.sellPriceMax !== "" || mobilePriceRanges.costPriceMin !== "" || mobilePriceRanges.costPriceMax !== "") && (
               <Button variant="outline" onClick={() => {
                 setMobileFilters({
                   category: "all",
@@ -577,9 +545,7 @@ export default function Products() {
                   sellPriceMin: "",
                   sellPriceMax: "",
                   costPriceMin: "",
-                  costPriceMax: "",
-                  servicePriceMin: "",
-                  servicePriceMax: "",
+                  costPriceMax: ""
                 });
               }}>
                 Reset Filters

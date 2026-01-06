@@ -53,7 +53,6 @@ export function ProductsTable({
               <TableHead>Category</TableHead>
               <TableHead>Sell Price</TableHead>
               <TableHead>Cost Price</TableHead>
-              <TableHead>Service Price</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>UOM</TableHead>
               <TableHead>Branch</TableHead>
@@ -85,11 +84,7 @@ export function ProductsTable({
                     ? `Rs. ${Math.floor(product.cost_price)}`
                     : "-"}
                 </TableCell>
-                <TableCell className="text-xs">
-                  {product.price !== undefined && product.price !== null
-                    ? `Rs. ${Math.floor(product.price)}`
-                    : "-"}
-                </TableCell>
+               
                 <TableCell className="text-xs">
                   {product.quantity || product.in_stock || "-"}
                 </TableCell>
@@ -175,12 +170,6 @@ export function ProductsTable({
                 </div>
               )}
               
-              {product.price !== undefined && product.price !== null && (
-                <div>
-                  <span className="text-muted-foreground">Service Price:</span>
-                  <span className="ml-1 font-medium">Rs. {Math.floor(product.price)}</span>
-                </div>
-              )}
               
               {(product.quantity || product.in_stock) && (
                 <div>

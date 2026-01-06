@@ -25,8 +25,6 @@ interface ProductFiltersProps {
     sellPriceMax: string;
     costPriceMin: string;
     costPriceMax: string;
-    servicePriceMin: string;
-    servicePriceMax: string;
   };
   categories: string[];
   branches: string[];
@@ -59,9 +57,7 @@ export function ProductFilters({
     priceRanges.sellPriceMin !== "" ||
     priceRanges.sellPriceMax !== "" ||
     priceRanges.costPriceMin !== "" ||
-    priceRanges.costPriceMax !== "" ||
-    priceRanges.servicePriceMin !== "" ||
-    priceRanges.servicePriceMax !== "";
+    priceRanges.costPriceMax !== ""
 
   return (
     <div className={isMobileDialog ? "flex flex-col gap-3 w-full" : "flex items-center gap-2 w-full md:w-auto overflow-x-auto"}>
@@ -222,25 +218,7 @@ export function ProductFilters({
                 />
               </div>
             </div>
-            <div>
-              <Label className="text-xs font-semibold mb-2 block">Service Price Range</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="Min"
-                  value={priceRanges.servicePriceMin}
-                  onChange={(e) => onPriceRangeChange("servicePriceMin", e.target.value)}
-                  className="h-8 text-xs"
-                />
-                <Input
-                  type="number"
-                  placeholder="Max"
-                  value={priceRanges.servicePriceMax}
-                  onChange={(e) => onPriceRangeChange("servicePriceMax", e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
+        
           </div>
         </DropdownMenuContent>
       </DropdownMenu>

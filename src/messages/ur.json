@@ -23,8 +23,8 @@
   "navigation": {
     "dashboard": "ڈیش بورڈ",
     "dashboardDescription": "جائزہ اور تجزیات دیکھیں",
-    "sales": "فروخت",
-    "salesDescription": "فروخت کی لین دین کا انتظام",
+    "invoice": "انوائس",
+    "invoiceDescription": "انوائس کی لین دین کا انتظام",
     "products": "مصنوعات",
     "productsDescription": "انوینٹری اور اشیاء کا انتظام",
     "customers": "گاہک",
@@ -126,9 +126,9 @@
     "paymentMethod": "ادائیگی کا طریقہ",
     "status": "حالت"
   },
-  "sales": {
-    "title": "فروخت",
-    "pageDescription": "فروخت کی لین دین کا انتظام کریں",
+  "invoice": {
+    "title": "انوائس",
+    "pageDescription": "انوائس کی لین دین کا انتظام کریں",
     "addItem": "چیز شامل کریں",
     "total": "کل",
     "checkout": "چیک آؤٹ"

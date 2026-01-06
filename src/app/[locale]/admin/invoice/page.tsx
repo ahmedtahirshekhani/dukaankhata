@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -15,12 +16,22 @@ import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/components/invoice-preview-dialog";
+import { calculateLineTotal } from "@/lib/invoice-calculations";
 
 type Product = {
   id: number;
   name: string;
-  price: number;
+  description?: string;
+  sell_price: number;
+  unit_of_measurement?: string;
 };
 
 type Customer = {
@@ -35,10 +46,14 @@ type PaymentMethod = {
 
 interface POSProduct extends Product {
   quantity: number;
+  discount?: number;
+  discountType?: "value" | "percentage";
+  discountInput?: string;
 }
 
-export default function POSPage() {
-  const t = useTranslations("sales");
+export default function InvoicePage() {
+  const t = useTranslations("invoice");
+  const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -58,8 +73,15 @@ export default function POSPage() {
   const [newChargeItem, setNewChargeItem] = useState<string>("");
   const [newChargeValue, setNewChargeValue] = useState<string>("");
   const [showInvoicePreview, setShowInvoicePreview] = useState<boolean>(false);
+  const [overallDiscount, setOverallDiscount] = useState<number>(0);
+  const [shippingCharges, setShippingCharges] = useState<number>(0);
+  const [customerNotes, setCustomerNotes] = useState<string>("Thanks for your business");
+
+  const getSalePrice = (product: POSProduct) => product.sell_price;
+
 
   useEffect(() => {
+    generateInvoiceNo();
     fetchProducts();
     fetchCustomers();
     fetchPaymentMethods();
@@ -114,7 +136,10 @@ export default function POSPage() {
         )
       );
     } else {
-      setSelectedProducts([...selectedProducts, { ...product, quantity: 1 }]);
+      setSelectedProducts([
+        ...selectedProducts,
+        { ...product, quantity: 1, discount: 0, discountType: "value", discountInput: "0" },
+      ]);
     }
   };
 
@@ -140,28 +165,31 @@ export default function POSPage() {
     );
   };
 
+  const handleDiscountChange = (productId: number, newDiscount: number) => {
+    const safeDiscount = Number.isNaN(newDiscount) ? 0 : Math.max(0, newDiscount);
+    setSelectedProducts(
+      selectedProducts.map((p) =>
+        p.id === productId ? { ...p, discount: safeDiscount } : p
+      )
+    );
+  };
+
+  const handleDiscountTypeChange = (productId: number, newType: "value" | "percentage") => {
+    setSelectedProducts(
+      selectedProducts.map((p) =>
+        p.id === productId ? { ...p, discountType: newType } : p
+      )
+    );
+  };
+
   const handleRemoveProduct = (productId: number) => {
     setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
   };
 
   const total = selectedProducts.reduce(
-    (sum, product) => sum + product.price * (product.quantity || 1),
+    (sum, product) => sum + calculateLineTotal(product),
     0
   );
-
-  const handleChargeChange = (id: string, field: "item" | "value", val: string | number) => {
-    setCharges(
-      charges.map((charge) =>
-        charge.id === id
-          ? { ...charge, [field]: field === "value" ? parseFloat(val.toString()) || 0 : val }
-          : charge
-      )
-    );
-  };
-
-  const handleRemoveCharge = (id: string) => {
-    setCharges(charges.filter((charge) => charge.id !== id));
-  };
 
   const handleAddNewCharge = () => {
     if (newChargeItem.trim() && newChargeValue) {
@@ -178,8 +206,24 @@ export default function POSPage() {
     }
   };
 
+  const handleChargeChange = (id: string, field: "item" | "value", val: string | number) => {
+    setCharges(
+      charges.map((charge) =>
+        charge.id === id
+          ? { ...charge, [field]: field === "value" ? parseFloat(val.toString()) || 0 : val }
+          : charge
+      )
+    );
+  };
+
+  const handleRemoveCharge = (id: string) => {
+    setCharges(charges.filter((charge) => charge.id !== id));
+  };
+
   const chargesTotal = charges.reduce((sum, charge) => sum + charge.value, 0);
-  const finalTotal = total + chargesTotal;
+  const overallDiscountNum = overallDiscount || 0;
+  const shippingChargesNum = shippingCharges || 0;
+  const finalTotal = Math.max(0, total - Math.min(overallDiscountNum, total) + shippingChargesNum + chargesTotal);
 
   const handleSaveOrder = async () => {
     if (!selectedCustomer || selectedProducts.length === 0 || !invoiceNo) {
@@ -187,12 +231,6 @@ export default function POSPage() {
     }
     // Show the invoice preview dialog instead of directly saving
     setShowInvoicePreview(true);
-  };
-
-  const handleMakePayment = () => {
-    console.log("Make payment clicked");
-    // Add payment logic here
-    setShowInvoicePreview(false);
   };
 
   const handleCreateOrder = async (paymentDetails: {
@@ -216,7 +254,7 @@ export default function POSPage() {
           customerId: selectedCustomer.id,
           saleDate: selectedDate,
           dueDate: addDueDate ? dueDate : null,
-          products: selectedProducts.map(p => ({ id: p.id, quantity: p.quantity, price: p.price })),
+          products: selectedProducts.map(p => ({ id: p.id, quantity: p.quantity, price: p.sell_price })),
           subtotal: total,
           charges: charges.map(c => ({ item: c.item, value: c.value })),
           total: finalTotal,
@@ -273,9 +311,7 @@ export default function POSPage() {
                 className="h-8 text-sm"
               />
             </div>
-            <Button onClick={generateInvoiceNo} variant="outline" size="sm" className="h-8 col-span-1">
-              Generate
-            </Button>
+  
 
             {/* Customer Selection */}
             <div className="col-span-3">
@@ -333,22 +369,17 @@ export default function POSPage() {
       <Card>
         <CardHeader>
           <CardTitle>Items</CardTitle>
-          <Combobox
-            items={products}
-            placeholder="Select Item"
-            noSelect
-            onSelect={handleSelectProduct}
-            className="!mt-5"
-          />
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
-                <TableHead>Price</TableHead>
+                <TableHead>Sell Price</TableHead>
                 <TableHead>Quantity</TableHead>
-                <TableHead>Total</TableHead>
+                <TableHead>UOM</TableHead>
+                <TableHead>Discount</TableHead>
+                <TableHead>Amount</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -357,7 +388,7 @@ export default function POSPage() {
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>
-                    Rs. {Math.floor(product.price)}
+                    Rs. {Math.floor(getSalePrice(product))}
                   </TableCell>
                   <TableCell>
                     <input
@@ -373,8 +404,44 @@ export default function POSPage() {
                       className="w-16 p-1 border rounded"
                     />
                   </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {product.unit_of_measurement || "-"}
+                  </TableCell>
                   <TableCell>
-                    Rs. {Math.floor((product.quantity || 1) * product.price)}
+                    <div className="flex items-center gap-1">
+                     <Input
+                        type="number"
+                        placeholder="0"
+                        value={product.discount || ""}
+                        onChange={(e) =>
+                          handleDiscountChange(
+                            product.id,
+                            parseFloat(e.target.value)
+                          )
+                        }
+                        className="w-24 p-1 border rounded"
+                      />
+                      <Select
+                        value={product.discountType || "value"}
+                        onValueChange={(val) =>
+                          handleDiscountTypeChange(
+                            product.id,
+                            val as "value" | "percentage"
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-16 h-8 text-xs">
+                          <SelectValue placeholder="PKR" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="value">PKR</SelectItem>
+                          <SelectItem value="percentage">%</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    Rs. {Math.floor(calculateLineTotal(product))}
                   </TableCell>
                   <TableCell>
                     <Button
@@ -387,13 +454,61 @@ export default function POSPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              <TableRow>
+                <TableCell>
+                  <Combobox
+                    items={products}
+                    placeholder="Add Item"
+                    noSelect
+                    onSelect={handleSelectProduct}
+                  />
+                </TableCell>
+                <TableCell colSpan={6}></TableCell>
+              </TableRow>
             </TableBody>
           </Table>
-          
-          {/* Summary Section - Bottom Right */}
+
+          {/* Summary Section */}
           <div className="mt-4">
             <div className="text-right mb-2">
               <strong>Sub Total: Rs. {Math.floor(total)}</strong>
+            </div>
+
+            {/* Fixed Summary Fields */}
+            <div className="space-y-2 mb-2">
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-sm">Overall Discount</span>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  className="w-24 h-8 text-sm"
+                  value={overallDiscount}
+                  onChange={(e) => setOverallDiscount(parseFloat(e.target.value))}
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-sm">Shipping charges</span>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  className="w-24 h-8 text-sm"
+                  value={shippingCharges}
+                  onChange={(e) => setShippingCharges(parseFloat(e.target.value))}
+                />
+              </div>
+            </div>
+
+            {/* Customer Notes */}
+            <div className="mt-4 flex justify-start">
+              <div className="flex flex-col gap-1 w-full max-w-md">
+                <Label className="text-sm font-medium">Customer Notes</Label>
+                <textarea
+                  className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  value={customerNotes}
+                  onChange={(e) => setCustomerNotes(e.target.value)}
+                />
+                <span className="text-xs text-muted-foreground">Will be displayed on invoice</span>
+              </div>
             </div>
 
             {/* Additional/Discount Charges Button */}
@@ -506,8 +621,11 @@ export default function POSPage() {
         products={selectedProducts}
         subtotal={total}
         charges={charges}
+        overallDiscount={overallDiscountNum}
+        shippingCharges={shippingChargesNum}
         total={finalTotal}
-        onMakePayment={handleMakePayment}
+        companyName={session?.user?.company || session?.user?.name || ""}
+        customerNotes={customerNotes}
         onCreateOrder={handleCreateOrder}
       />
     </div>

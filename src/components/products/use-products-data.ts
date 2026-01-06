@@ -23,8 +23,6 @@ interface UseProductsDataProps {
     sellPriceMax: string;
     costPriceMin: string;
     costPriceMax: string;
-    servicePriceMin: string;
-    servicePriceMax: string;
   };
 }
 
@@ -60,13 +58,6 @@ export function useProductsData({ filters, priceRanges }: UseProductsDataProps):
       if (priceRanges.costPriceMax) {
         url.searchParams.append("costPriceMax", priceRanges.costPriceMax);
       }
-      if (priceRanges.servicePriceMin) {
-        url.searchParams.append("servicePriceMin", priceRanges.servicePriceMin);
-      }
-      if (priceRanges.servicePriceMax) {
-        url.searchParams.append("servicePriceMax", priceRanges.servicePriceMax);
-      }
-
       const productsResponse = await fetch(url.toString());
       if (!productsResponse.ok) {
         throw new Error("Failed to fetch products");

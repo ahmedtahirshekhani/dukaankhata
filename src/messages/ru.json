@@ -23,8 +23,8 @@
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "Overview aur analytics dekhen",
-    "sales": "Sales",
-    "salesDescription": "Frookhat ke transaction ka intezaam",
+    "invoice": "Invoicing",
+    "invoiceDescription": "Frookhat ke transaction ka intezaam",
     "products": "Mausoolaat",
     "productsDescription": "Inventory aur items ka intezaam",
     "customers": "Gahak",
@@ -126,8 +126,8 @@
     "paymentMethod": "Adaigi ka Tareeka",
     "status": "Halat"
   },
-  "sales": {
-    "title": "Sales",
+  "invoice": {
+    "title": "Invoicing",
     "pageDescription": "Frookhat ke transactions ka intezaam karain",
     "addItem": "Item Shamil Karain",
     "total": "Total",
