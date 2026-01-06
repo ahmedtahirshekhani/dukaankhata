@@ -45,8 +45,6 @@ export async function GET(request: Request) {
     id: transaction._id.toString(),
     _id: undefined,
     user_id: transaction.user_id.toString(),
-    order_id: transaction.order_id?.toString(),
-    payment_method_id: transaction.payment_method_id?.toString(),
   }));
 
   return NextResponse.json({
@@ -71,8 +69,6 @@ export async function POST(request: Request) {
   const result = await transactionsCollection.insertOne({
     ...newTransaction,
     user_id: toObjectId(user.id),
-    order_id: newTransaction.order_id ? toObjectId(newTransaction.order_id) : undefined,
-    payment_method_id: newTransaction.payment_method_id ? toObjectId(newTransaction.payment_method_id) : undefined,
     created_at: newTransaction.created_at ? new Date(newTransaction.created_at) : new Date(),
   });
 
@@ -87,7 +83,5 @@ export async function POST(request: Request) {
     id: transaction?._id.toString(),
     _id: undefined,
     user_id: transaction?.user_id.toString(),
-    order_id: transaction?.order_id?.toString(),
-    payment_method_id: transaction?.payment_method_id?.toString(),
   })
 }

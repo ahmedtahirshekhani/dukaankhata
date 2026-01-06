@@ -42,9 +42,7 @@ export async function PUT(
     ...result,
     id: result._id.toString(),
     _id: undefined,
-    user_id: result.user_id.toString(),
-    order_id: result.order_id?.toString(),
-    payment_method_id: result.payment_method_id?.toString(),
+    user_id: result.user_id.toString()
   })
 }
 

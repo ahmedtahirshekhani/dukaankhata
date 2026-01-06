@@ -863,9 +863,6 @@ export default function CounterSale() {
                         <p className="text-sm font-semibold text-gray-900 dark:text-white break-words">
                           {transaction.description}
                         </p>
-                        <span className="text-[11px] text-muted-foreground">
-                          S.No {getSerialNumber(transaction)}
-                        </span>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
