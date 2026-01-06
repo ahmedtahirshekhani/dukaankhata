@@ -70,6 +70,7 @@ export function InvoicePreviewDialog({
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [includeSignature, setIncludeSignature] = useState(true);
+  const [requestCustomerSignature, setRequestCustomerSignature] = useState(false);
   const getToday = () => {
     const d = new Date();
     const y = d.getFullYear();
@@ -184,6 +185,7 @@ export function InvoicePreviewDialog({
                 companyLogo={companyLogo}
                 signatureImage={signatureImage}
                 includeSignature={includeSignature}
+                requestCustomerSignature={requestCustomerSignature}
                 companyName={companyName}
                 customerNotes={customerNotes}
               />
@@ -256,6 +258,21 @@ export function InvoicePreviewDialog({
                     >
                       <span
                         className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${includeSignature ? "translate-x-5" : "translate-x-1"}`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between px-1 gap-3">
+                    <Label className="text-sm">Request customer signature</Label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={requestCustomerSignature}
+                      onClick={() => setRequestCustomerSignature((v) => !v)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${requestCustomerSignature ? "bg-primary" : "bg-gray-300"}`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${requestCustomerSignature ? "translate-x-5" : "translate-x-1"}`}
                       />
                     </button>
                   </div>

@@ -37,6 +37,7 @@ export interface InvoicePreviewProps {
   companyLogo?: string | null
   signatureImage?: string | null
   includeSignature?: boolean
+  requestCustomerSignature?: boolean
   companyName?: string
   customerNotes?: string
 }
@@ -72,6 +73,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
       companyLogo,
       signatureImage,
       includeSignature = true,
+      requestCustomerSignature = false,
       companyName,
       customerNotes = "",
     },
@@ -191,13 +193,26 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               </div>
             </div>
 
-            {signatureImage && includeSignature && (
-              <div className="mt-6 flex flex-col items-end gap-2">
-                <img src={signatureImage} alt="Signature" className="h-20 w-auto" />
-                <div className="w-40 border-t border-gray-300" />
-                <span className="text-xs text-muted-foreground">{companyName}</span>
+            {(signatureImage && includeSignature) || requestCustomerSignature ? (
+              <div className="mt-6 flex justify-between items-end gap-6">
+                {signatureImage && includeSignature && (
+                  <div className="flex flex-col items-start gap-2">
+                    <img src={signatureImage} alt="Company Signature" className="h-20 w-auto" />
+                    <div className="w-40 border-t border-gray-300" />
+                    <span className="text-xs text-muted-foreground">{companyName}</span>
+                  </div>
+                )}
+                {requestCustomerSignature && (
+                  <div className="flex flex-col items-end gap-2 flex-1">
+                    <div className="h-20 w-48 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                      <span className="text-xs text-muted-foreground">Customer Signature</span>
+                    </div>
+                    <div className="w-40 border-t border-gray-300" />
+                    <span className="text-xs text-muted-foreground">{customerName}</span>
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
 
             {customerNotes && (
               <div className="mt-4 text-sm text-muted-foreground">
