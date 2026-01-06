@@ -12,13 +12,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import Select, { type SingleValue } from "react-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -47,7 +41,9 @@ interface ProductDialogProps {
   onSuccess: (product: Product, isEdit: boolean) => void;
 }
 
-const UNITS_OF_MEASUREMENT = [
+type UnitOption = { value: string; label: string };
+
+const UNITS_OF_MEASUREMENT: UnitOption[] = [
   { value: "piece", label: "Piece" },
   { value: "kg", label: "Kilogram (kg)" },
   { value: "gram", label: "Gram (g)" },
@@ -85,6 +81,34 @@ const UNITS_OF_MEASUREMENT = [
   { value: "packet", label: "Packet" },
   { value: "strip", label: "Strip" },
 ];
+
+const SORTED_UNITS_OF_MEASUREMENT = [...UNITS_OF_MEASUREMENT].sort((a, b) =>
+  a.label.localeCompare(b.label)
+);
+
+const selectStyles = {
+  control: (base: any) => ({
+    ...base,
+    minHeight: "36px",
+    fontSize: "14px",
+    borderColor: "#d1d5db",
+    boxShadow: "none",
+    "&:hover": {
+      borderColor: "#9ca3af",
+    },
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    backgroundColor: state.isSelected ? "#111827" : state.isFocused ? "#f3f4f6" : "white",
+    color: state.isSelected ? "white" : "black",
+    cursor: "pointer",
+    fontSize: "14px",
+  }),
+  menu: (base: any) => ({
+    ...base,
+    zIndex: 20,
+  }),
+};
 
 export function ProductDialog({
   open,
@@ -330,6 +354,67 @@ export function ProductDialog({
 
           {itemType === "goods" ? (
             <>
+            <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="quantity" className="">
+                      Quantity
+                    </Label>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="cursor-help">
+                          <Info className="w-3 h-3 text-gray-400" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Current stock or quantity available
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    value={productInStock}
+                    onChange={(e) => {
+                      const val = e.target.value === "" ? "" : Number(e.target.value);
+                      setProductInStock(val === "" ? "" : Math.max(0, val));
+                    }}
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="unitOfMeasurement" className="">
+                      Unit of Measurement
+                    </Label>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="cursor-help">
+                          <Info className="w-3 h-3 text-gray-400" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Choose the unit for measuring quantity (kg, liter, piece, etc.)
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select
+                    inputId="unitOfMeasurement"
+                    isClearable
+                    isSearchable
+                    options={SORTED_UNITS_OF_MEASUREMENT}
+                    placeholder="Select unit"
+                    styles={selectStyles}
+                    value={SORTED_UNITS_OF_MEASUREMENT.find((unit) => unit.value === unitOfMeasurement) || null}
+                    onChange={(option: SingleValue<UnitOption>) =>
+                      setUnitOfMeasurement(option?.value || "")
+                    }
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -390,67 +475,7 @@ export function ProductDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="quantity" className="">
-                      Quantity
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Current stock or quantity available
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={productInStock}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? "" : Number(e.target.value);
-                      setProductInStock(val === "" ? "" : Math.max(0, val));
-                    }}
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="unitOfMeasurement" className="">
-                      Unit of Measurement
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Choose the unit for measuring quantity (kg, liter, piece, etc.)
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select value={unitOfMeasurement} onValueChange={(value) => setUnitOfMeasurement(value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {UNITS_OF_MEASUREMENT.map((unit) => (
-                        <SelectItem key={unit.value} value={unit.value}>
-                          {unit.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
+              
               <div className="grid grid-cols-2 gap-6">
                 <CategorySelector value={productCategory} onChange={setProductCategory} />
 
