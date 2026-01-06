@@ -302,7 +302,7 @@ export default function Products() {
               />
               <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-3 flex-shrink-0 ml-auto">
                 <PlusIcon className="w-3 h-3 mr-1" />
-                Add Product
+                {t("addProduct")}
               </Button>
             </div>
             

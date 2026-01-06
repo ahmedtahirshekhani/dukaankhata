@@ -283,6 +283,7 @@ export function ProductDialog({
                 <Label htmlFor="name" className="">
                   Name
                 </Label>
+                  <span className="text-red-500 text-xs">* (Required)</span>
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
                     <button type="button" className="cursor-help">
@@ -298,6 +299,8 @@ export function ProductDialog({
                 id="name"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
+                required
+                aria-required="true"
               />
             </div>
 
@@ -494,7 +497,7 @@ export function ProductDialog({
         <DialogFooter>
           <Button
             onClick={isEditMode ? handleEditProduct : handleAddProduct}
-            disabled={loading}
+            disabled={loading || productName.trim() === ""}
           >
             {loading
               ? "Processing..."
