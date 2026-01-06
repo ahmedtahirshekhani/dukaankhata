@@ -332,10 +332,10 @@ export default function POSPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Products</CardTitle>
+          <CardTitle>Items</CardTitle>
           <Combobox
             items={products}
-            placeholder="Select Product"
+            placeholder="Select Item"
             noSelect
             onSelect={handleSelectProduct}
             className="!mt-5"
@@ -345,7 +345,7 @@ export default function POSPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product</TableHead>
+                <TableHead>Item</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Quantity</TableHead>
                 <TableHead>Total</TableHead>

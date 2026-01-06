@@ -213,7 +213,7 @@ export function InvoicePreviewDialog({
                 <table className="w-full text-sm">
                   <thead className="border-b">
                     <tr>
-                      <th className="text-left py-2">Product</th>
+                      <th className="text-left py-2">Item</th>
                       <th className="text-right py-2">Price</th>
                       <th className="text-right py-2">Qty</th>
                       <th className="text-right py-2">Total</th>
