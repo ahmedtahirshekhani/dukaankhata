@@ -23,9 +23,7 @@ jobs:
           cd backup-repo
           DATE=$(date +%F)
 
-          # --- PROD BACKUP ---
-          mongodump --uri="${{ secrets.MONGODB_URI_PROD }}" --archive=prod/prod-$DATE.gz --gzip
-
+       
           # --- DEV BACKUP ---
           mongodump --uri="${{ secrets.MONGODB_URI_DEV }}" --archive=dev/dev-$DATE.gz --gzip
 
