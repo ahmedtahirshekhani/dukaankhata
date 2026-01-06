@@ -31,6 +31,30 @@ jobs:
           rm -f dev/*.gz
           mongodump --uri="${{ secrets.MONGODB_URI_DEV }}" --archive=dev/dev-$DATE.gz --gzip
 
+      - name: Cleanup Old Snapshots
+        run: |
+          cd backup-repo
+          RETENTION_DAYS=7
+          CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%F)
+          
+          # Remove old prod backups
+          find prod/ -name "prod-*.gz" -type f | while read file; do
+            FILE_DATE=$(basename "$file" | sed 's/prod-\(.*\)\.gz/\1/')
+            if [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
+              rm -f "$file"
+              echo "Removed old prod backup: $file"
+            fi
+          done
+          
+          # Remove old dev backups
+          find dev/ -name "dev-*.gz" -type f | while read file; do
+            FILE_DATE=$(basename "$file" | sed 's/dev-\(.*\)\.gz/\1/')
+            if [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
+              rm -f "$file"
+              echo "Removed old dev backup: $file"
+            fi
+          done
+
       - name: Push to Backup Repo
         run: |
           cd backup-repo
