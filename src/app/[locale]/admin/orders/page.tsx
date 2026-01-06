@@ -69,7 +69,7 @@ type Order = {
   items?: Array<{
     name: string;
     quantity: number;
-    price: number;
+    sell_price: number;
   }>;
   charges?: Array<{
     item: string;
@@ -491,7 +491,7 @@ export default function OrdersPage() {
             id: index,
             name: item.name,
             quantity: item.quantity,
-            price: item.price,
+            sell_price: item.sell_price,
           }))}
           subtotal={selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount}
           charges={selectedInvoiceOrder.charges || []}
