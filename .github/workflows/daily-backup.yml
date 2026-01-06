@@ -16,7 +16,7 @@ jobs:
 
       - name: Clone Backup Repo
         run: |
-          git clone https://x-access-token:${{ secrets.BACKUP_REPO_TOKEN }}@github.com/${{ github.repository_owner }}/dukaankhata-backup.git backup-repo
+          git clone https://x-access-token:${{ secrets.BACKUP_REPO_TOKEN }}@github.com/${{ github.repository_owner }}/dukaankhata-db-backup.git backup-repo
 
       - name: Perform Backups
         run: |
