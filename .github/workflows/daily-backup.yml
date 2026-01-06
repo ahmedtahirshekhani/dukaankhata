@@ -24,11 +24,9 @@ jobs:
           DATE=$(date +%F)
 
           # --- PROD BACKUP ---
-          rm -f prod/*.gz
           mongodump --uri="${{ secrets.MONGODB_URI_PROD }}" --archive=prod/prod-$DATE.gz --gzip
 
           # --- DEV BACKUP ---
-          rm -f dev/*.gz
           mongodump --uri="${{ secrets.MONGODB_URI_DEV }}" --archive=dev/dev-$DATE.gz --gzip
 
       - name: Cleanup Old Snapshots
