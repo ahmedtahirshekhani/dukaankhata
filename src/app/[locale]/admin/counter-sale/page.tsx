@@ -175,6 +175,13 @@ export default function CounterSale() {
     });
   };
 
+  const getSerialNumber = (transaction: Transaction) => {
+    const sorted = getSortedTransactions();
+    const index = sorted.indexOf(transaction);
+    // S.No = total count - index (so newest has highest number)
+    return sorted.length - index;
+  };
+
   const getSortIcon = (column: keyof Transaction) => {
     if (sortColumn !== column) {
       return <ArrowUpDown className="ml-1 h-4 w-4 inline opacity-50" />;
@@ -262,26 +269,34 @@ export default function CounterSale() {
 
   const handleDeleteTransaction = useCallback(async () => {
     if (!transactionToDelete) return;
-    try {
-      const response = await fetch(
-        `/api/transactions/${transactionToDelete.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+    const idToDelete = transactionToDelete.id;
 
-      if (response.ok) {
-        // Refresh current page after deletion
-        setCurrentPage(1);
-        setIsDeleteConfirmationOpen(false);
-        setTransactionToDelete(null);
-      } else {
+    // Optimistic update: remove item from UI immediately and adjust totals
+    const previousTransactions = transactions;
+    const previousPageInfo = pageInfo;
+    setTransactions((prev) => prev.filter((t) => t.id !== idToDelete));
+    setPageInfo((prev) => ({ ...prev, total: Math.max(prev.total - 1, 0) }));
+    setIsDeleteConfirmationOpen(false);
+    setTransactionToDelete(null);
+
+    try {
+      const response = await fetch(`/api/transactions/${idToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        // Rollback on failure
+        setTransactions(previousTransactions);
+        setPageInfo(previousPageInfo);
         console.error("Failed to delete transaction");
       }
     } catch (error) {
+      // Rollback on error
+      setTransactions(previousTransactions);
+      setPageInfo(previousPageInfo);
       console.error("Error deleting transaction:", error);
     }
-  }, [transactionToDelete]);
+  }, [transactionToDelete, transactions, pageInfo]);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -334,13 +349,17 @@ export default function CounterSale() {
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="text-lg md:text-2xl">{t("title")}</CardTitle>
-            <CardDescription className="text-xs md:text-sm">{t("pageDescription")}</CardDescription>
+            <CardDescription className="text-xs md:text-sm">
+              {t("pageDescription")}
+            </CardDescription>
           </div>
 
           {/* Desktop controls */}
           <div className="hidden md:flex flex-col items-end gap-1 md:ml-auto">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium whitespace-nowrap">Year:</label>
+              <label className="text-sm font-medium whitespace-nowrap">
+                Year:
+              </label>
               <Select
                 value={selectedYear.toString()}
                 onValueChange={(value) => setSelectedYear(parseInt(value))}
@@ -366,7 +385,9 @@ export default function CounterSale() {
           <div className="md:hidden w-full">
             <div className="flex items-center gap-2 justify-between">
               <div className="flex items-center gap-1">
-                <label className="text-xs font-medium whitespace-nowrap">Year:</label>
+                <label className="text-xs font-medium whitespace-nowrap">
+                  Year:
+                </label>
                 <Select
                   value={selectedYear.toString()}
                   onValueChange={(value) => setSelectedYear(parseInt(value))}
@@ -383,7 +404,9 @@ export default function CounterSale() {
                   </SelectContent>
                 </Select>
               </div>
-              <span className="text-[11px] text-muted-foreground whitespace-nowrap">Total: {pageInfo.total.toLocaleString()}</span>
+              <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                Total: {pageInfo.total.toLocaleString()}
+              </span>
               <Button
                 size="sm"
                 className="h-8 text-xs whitespace-nowrap"
@@ -397,253 +420,273 @@ export default function CounterSale() {
         <CardContent>
           {/* Desktop Table View */}
           <div className="hidden md:block">
-          <div className="overflow-x-auto -mx-4 md:mx-0">
-          <div className="inline-block min-w-full align-middle">
-          <div className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead
-                  className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
-                  onClick={() => handleSort("id")}
-                >
-                  ID {getSortIcon("id")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4 min-w-[150px]"
-                  onClick={() => handleSort("description")}
-                >
-                  Description {getSortIcon("description")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
-                  onClick={() => handleSort("type")}
-                >
-                  Type {getSortIcon("type")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
-                  onClick={() => handleSort("created_at")}
-                >
-                  Date {getSortIcon("created_at")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
-                  onClick={() => handleSort("amount")}
-                >
-                  Amount {getSortIcon("amount")}
-                </TableHead>
-                <TableHead className="px-2 sm:px-4"></TableHead>
-                <TableHead className="px-2 sm:px-4">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-              <TableRow>
-                <TableCell className="text-xs sm:text-sm px-2 sm:px-4">New</TableCell>
-                <TableCell className="px-2 sm:px-4">
-                  <Input
-                    name="description"
-                    value={newTransaction.description}
-                    onChange={handleInputChange}
-                    placeholder="Description"
-                    required
-                    className="text-xs sm:text-sm h-8 sm:h-10 min-w-[120px]"
-                  />
-                </TableCell>
-                <TableCell className="px-2 sm:px-4">
-                  <Select
-                    defaultValue={newTransaction.type}
-                    onValueChange={(value) =>
-                      setNewTransaction({
-                        ...newTransaction,
-                        type: value as TransactionType,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="income">Income</SelectItem>
-                      <SelectItem value="expense">Expense</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell className="px-2 sm:px-4">
-                  <Input
-                    name="created_at"
-                    type="date"
-                    value={isoToDateInput(newTransaction.created_at)}
-                    onChange={handleInputChange}
-                    required
-                    className="text-xs sm:text-sm h-8 sm:h-10 w-[120px] sm:w-[140px]"
-                  />
-                </TableCell>
-                <TableCell className="px-2 sm:px-4">
-                  <Input
-                    name="amount"
-                    type="number"
-                    value={newTransaction.amount}
-                    onChange={handleInputChange}
-                    placeholder="Amount"
-                    required
-                    className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]"
-                  />
-                </TableCell>
-                <TableCell className="px-2 sm:px-4">
-                  <Button
-                    onClick={handleAddTransaction}
-                    disabled={!isAddFormValid()}
-                    size="sm"
-                    className="text-xs sm:text-sm h-8 sm:h-10"
-                  >
-                    Add
-                  </Button>
-                </TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {getSortedTransactions().map((transaction) => (
-                <React.Fragment key={transaction.id}>
-                  {/* Desktop Edit Row */}
-                  {editingId === transaction.id ? (
-                    <TableRow className="hidden md:table-row">
-                      <TableCell className="text-xs sm:text-sm px-2 sm:px-4">{transaction.id}</TableCell>
-                      <TableCell className="px-2 sm:px-4">
-                        <Input
-                          name="description"
-                          value={editFormData.description || ""}
-                          onChange={handleEditInputChange}
-                          placeholder="Description"
-                          className="text-xs sm:text-sm h-8 sm:h-10 min-w-[120px]"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2 sm:px-4">
-                        <Select
-                          value={editFormData.type || "income"}
-                          onValueChange={(value) =>
-                            setEditFormData({
-                              ...editFormData,
-                              type: value as TransactionType,
-                            })
-                          }
+            <div className="overflow-x-auto -mx-4 md:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <div className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead
+                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          onClick={() => handleSort("id")}
                         >
-                          <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="income">Income</SelectItem>
-                            <SelectItem value="expense">Expense</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="px-2 sm:px-4">
-                        <Input
-                          name="created_at"
-                          type="date"
-                          value={isoToDateInput(
-                            editFormData.created_at || transaction.created_at
-                          )}
-                          onChange={handleEditInputChange}
-                          className="text-xs sm:text-sm h-8 sm:h-10 w-[120px] sm:w-[140px] px-1"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2 sm:px-4">
-                        <Input
-                          name="amount"
-                          type="number"
-                          value={editFormData.amount || ""}
-                          onChange={handleEditInputChange}
-                          placeholder="Amount"
-                          className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2 sm:px-4">
-                        <div className="flex gap-1 sm:gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              handleUpdateTransaction(transaction.id)
+                          S.No {getSortIcon("id")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4 min-w-[150px]"
+                          onClick={() => handleSort("description")}
+                        >
+                          Description {getSortIcon("description")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          onClick={() => handleSort("type")}
+                        >
+                          Type {getSortIcon("type")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          onClick={() => handleSort("created_at")}
+                        >
+                          Date {getSortIcon("created_at")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          onClick={() => handleSort("amount")}
+                        >
+                          Amount {getSortIcon("amount")}
+                        </TableHead>
+                        <TableHead className="px-2 sm:px-4"></TableHead>
+                        <TableHead className="px-2 sm:px-4">
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs sm:text-sm px-2 sm:px-4">
+                          -
+                        </TableCell>
+                        <TableCell className="px-2 sm:px-4">
+                          <Input
+                            name="description"
+                            value={newTransaction.description}
+                            onChange={handleInputChange}
+                            placeholder="Description"
+                            required
+                            className="text-xs sm:text-sm h-8 sm:h-10 min-w-[120px]"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 sm:px-4">
+                          <Select
+                            defaultValue={newTransaction.type}
+                            onValueChange={(value) =>
+                              setNewTransaction({
+                                ...newTransaction,
+                                type: value as TransactionType,
+                              })
                             }
-                            className="text-xs sm:text-sm h-8 px-2 sm:px-3"
                           >
-                            Save
-                          </Button>
+                            <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="income">Income</SelectItem>
+                              <SelectItem value="expense">Expense</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="px-2 sm:px-4">
+                          <Input
+                            name="created_at"
+                            type="date"
+                            value={isoToDateInput(newTransaction.created_at)}
+                            onChange={handleInputChange}
+                            required
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-[120px] sm:w-[140px]"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 sm:px-4">
+                          <Input
+                            name="amount"
+                            type="number"
+                            value={newTransaction.amount}
+                            onChange={handleInputChange}
+                            placeholder="Amount"
+                            required
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 sm:px-4">
                           <Button
+                            onClick={handleAddTransaction}
+                            disabled={!isAddFormValid()}
                             size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingId(null);
-                              setEditFormData({});
-                            }}
-                            className="text-xs sm:text-sm h-8 px-2 sm:px-3"
+                            className="text-xs sm:text-sm h-8 sm:h-10"
                           >
-                            Cancel
+                            Add
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <>
-                      {/* Desktop View */}
-                      <TableRow className="hidden md:table-row">
-                        <TableCell className="text-xs sm:text-sm px-2 sm:px-4">{transaction.id}</TableCell>
-                        <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-normal break-words min-w-[150px]">{transaction.description}</TableCell>
-                        <TableCell className="px-2 sm:px-4">
-                          <Badge variant={transaction.type} className="text-xs">
-                            {transaction.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                          {formatDate(transaction.created_at, false, {
-                            year: "numeric",
-                            month: "short",
-                            day: "2-digit",
-                          })}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                          Rs. {Math.floor(transaction.amount)}
-                        </TableCell>
-                        <TableCell className="px-2 sm:px-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                aria-haspopup="true"
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                              >
-                                <EllipsisVerticalIcon className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => handleOpenEdit(transaction)}
-                              >
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setTransactionToDelete(transaction);
-                                  setIsDeleteConfirmationOpen(true);
-                                }}
-                              >
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    </>
-                  )}
-                </React.Fragment>
-              ))}
-            </TableBody>
-          </Table>
-          </div>
-          </div>
-          </div>
+                    </TableHeader>
+                    <TableBody>
+                      {getSortedTransactions().map((transaction) => (
+                        <React.Fragment key={transaction.id}>
+                          {/* Desktop Edit Row */}
+                          {editingId === transaction.id ? (
+                            <TableRow className="hidden md:table-row">
+                              <TableCell className="text-xs sm:text-sm px-2 sm:px-4">
+                                {getSerialNumber(transaction)}
+                              </TableCell>
+                              <TableCell className="px-2 sm:px-4">
+                                <Input
+                                  name="description"
+                                  value={editFormData.description || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Description"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 min-w-[120px]"
+                                />
+                              </TableCell>
+                              <TableCell className="px-2 sm:px-4">
+                                <Select
+                                  value={editFormData.type || "income"}
+                                  onValueChange={(value) =>
+                                    setEditFormData({
+                                      ...editFormData,
+                                      type: value as TransactionType,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]">
+                                    <SelectValue placeholder="Type" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="income">
+                                      Income
+                                    </SelectItem>
+                                    <SelectItem value="expense">
+                                      Expense
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className="px-2 sm:px-4">
+                                <Input
+                                  name="created_at"
+                                  type="date"
+                                  value={isoToDateInput(
+                                    editFormData.created_at ||
+                                      transaction.created_at
+                                  )}
+                                  onChange={handleEditInputChange}
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-[120px] sm:w-[140px] px-1"
+                                />
+                              </TableCell>
+                              <TableCell className="px-2 sm:px-4">
+                                <Input
+                                  name="amount"
+                                  type="number"
+                                  value={editFormData.amount || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Amount"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]"
+                                />
+                              </TableCell>
+                              <TableCell className="px-2 sm:px-4">
+                                <div className="flex gap-1 sm:gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      handleUpdateTransaction(transaction.id)
+                                    }
+                                    className="text-xs sm:text-sm h-8 px-2 sm:px-3"
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingId(null);
+                                      setEditFormData({});
+                                    }}
+                                    className="text-xs sm:text-sm h-8 px-2 sm:px-3"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            <>
+                              {/* Desktop View */}
+                              <TableRow className="hidden md:table-row">
+                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4">
+                                  {getSerialNumber(transaction)}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-normal break-words min-w-[150px]">
+                                  {transaction.description}
+                                </TableCell>
+                                <TableCell className="px-2 sm:px-4">
+                                  <Badge
+                                    variant={transaction.type}
+                                    className="text-xs"
+                                  >
+                                    {transaction.type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                  {formatDate(transaction.created_at, false, {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "2-digit",
+                                  })}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                  Rs. {Math.floor(transaction.amount)}
+                                </TableCell>
+                                <TableCell className="px-2 sm:px-4">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        aria-haspopup="true"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8"
+                                      >
+                                        <EllipsisVerticalIcon className="h-4 w-4" />
+                                        <span className="sr-only">
+                                          Toggle menu
+                                        </span>
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          handleOpenEdit(transaction)
+                                        }
+                                      >
+                                        Edit
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setTransactionToDelete(transaction);
+                                          setIsDeleteConfirmationOpen(true);
+                                        }}
+                                      >
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            </>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Mobile View - Cards */}
@@ -725,7 +768,9 @@ export default function CounterSale() {
                   // Mobile Edit Card
                   <div className="bg-white dark:bg-slate-900 border rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-semibold text-sm">Edit Transaction #{transaction.id}</h4>
+                      <h4 className="font-semibold text-sm">
+                        Edit Transaction S.No {getSerialNumber(transaction)}
+                      </h4>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -793,9 +838,7 @@ export default function CounterSale() {
                     </div>
                     <div className="flex gap-2">
                       <Button
-                        onClick={() =>
-                          handleUpdateTransaction(transaction.id)
-                        }
+                        onClick={() => handleUpdateTransaction(transaction.id)}
                         className="flex-1 text-sm"
                       >
                         Save
@@ -820,7 +863,9 @@ export default function CounterSale() {
                         <p className="text-sm font-semibold text-gray-900 dark:text-white break-words">
                           {transaction.description}
                         </p>
-                        <span className="text-[11px] text-muted-foreground">Txn #{transaction.id}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          S.No {getSerialNumber(transaction)}
+                        </span>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -852,15 +897,22 @@ export default function CounterSale() {
                       </DropdownMenu>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                      <span>{formatDate(transaction.created_at, false, {
-                        year: "numeric",
-                        month: "short",
-                        day: "2-digit",
-                      })}</span>
+                      <span>
+                        {formatDate(transaction.created_at, false, {
+                          year: "numeric",
+                          month: "short",
+                          day: "2-digit",
+                        })}
+                      </span>
                       <span className="text-gray-400">|</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">Rs. {Math.floor(transaction.amount)}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        Rs. {Math.floor(transaction.amount)}
+                      </span>
                       <span className="text-gray-400">|</span>
-                      <Badge variant={transaction.type} className="text-[10px] px-2 py-0.5 capitalize">
+                      <Badge
+                        variant={transaction.type}
+                        className="text-[10px] px-2 py-0.5 capitalize"
+                      >
                         {transaction.type}
                       </Badge>
                     </div>
@@ -924,7 +976,9 @@ export default function CounterSale() {
                       ) {
                         return (
                           <PaginationItem key={`ellipsis-${pageNum}`}>
-                            <span className="px-1 sm:px-1.5 py-2 text-xs sm:text-sm">...</span>
+                            <span className="px-1 sm:px-1.5 py-2 text-xs sm:text-sm">
+                              ...
+                            </span>
                           </PaginationItem>
                         );
                       }
@@ -961,7 +1015,9 @@ export default function CounterSale() {
       >
         <DialogContent className="sm:max-w-[425px] max-w-[90vw]">
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Confirm Deletion</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
+              Confirm Deletion
+            </DialogTitle>
             <DialogDescription className="text-sm">
               Are you sure you want to delete this transaction? This action
               cannot be undone.
@@ -975,8 +1031,8 @@ export default function CounterSale() {
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeleteTransaction}
               className="w-full sm:w-auto"
             >
