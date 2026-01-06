@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "DukaanKhata",
-    "appDescription": "Point of Sale & Business Management System",
+    "appDescription": "Sales & Business Management System",
     "welcome": "Welcome",
     "logout": "Logout",
     "login": "Login",
@@ -23,8 +23,8 @@
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "View overview and analytics",
-    "pos": "Point of Sale",
-    "posDescription": "Manage sales transactions",
+    "sales": "Sales",
+    "salesDescription": "Manage sales transactions",
     "products": "Items",
     "productsDescription": "Manage inventory and items",
     "customers": "Customers",
@@ -77,15 +77,15 @@
   "products": {
     "title": "Items",
     "pageDescription": "Manage your inventory and items",
-    "productName": "Product Name",
+    "productName": "Item Name",
     "price": "Price",
     "quantity": "Quantity",
     "description": "Description",
     "category": "Category",
     "addProduct": "Add Item",
-    "editProduct": "Edit Product",
-    "deleteProduct": "Delete Product",
-    "noProducts": "No products found",
+    "editProduct": "Edit Item",
+    "deleteProduct": "Delete Item",
+    "noProducts": "No items found",
     "sku": "SKU",
     "stock": "Stock"
   },
@@ -126,8 +126,8 @@
     "paymentMethod": "Payment Method",
     "status": "Status"
   },
-  "pos": {
-    "title": "Point of Sale",
+  "sales": {
+    "title": "Sales",
     "pageDescription": "Manage sales transactions",
     "addItem": "Add Item",
     "total": "Total",
@@ -149,7 +149,7 @@
     "totalExpenses": "Total Expenses",
     "netProfit": "Net Profit",
     "profitMargin": "Profit Margin",
-    "topProducts": "Top Products",
+    "topProducts": "Top Items",
     "topCustomers": "Top Customers",
     "dateRange": "Date Range",
     "generateReport": "Generate Report",
@@ -171,7 +171,7 @@
     "totalExpenses": "Total Expenses",
     "totalProfit": "Total Profit (selling)",
     "revenueTrend": "Revenue Trend (30 Days)",
-    "topProducts": "Top 5 Products by Sales",
+    "topProducts": "Top 5 Items by Sales",
     "paymentMethods": "Payment Methods",
     "orderStatus": "Orders by Status",
     "needHelp": "Need help with DukaanKhata? Reach out:"

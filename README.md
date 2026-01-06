@@ -64,7 +64,7 @@ This particular iteration embraces the spirit of open-source development, making
 - `/admin/products`: Product management
 - `/admin/customers`: Customer management
 - `/admin/orders`: Order management
-- `/admin/pos`: Point of Sale interface
+- `/admin/sales`: Sales interface
 
 ## Database Schema
 

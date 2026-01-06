@@ -23,8 +23,8 @@
   "navigation": {
     "dashboard": "ڈیش بورڈ",
     "dashboardDescription": "جائزہ اور تجزیات دیکھیں",
-    "pos": "نقد رجسٹر",
-    "posDescription": "فروخت کی لین دین کا انتظام",
+    "sales": "فروخت",
+    "salesDescription": "فروخت کی لین دین کا انتظام",
     "products": "مصنوعات",
     "productsDescription": "انوینٹری اور اشیاء کا انتظام",
     "customers": "گاہک",
@@ -77,7 +77,7 @@
   "products": {
     "title": "مصنوعات",
     "pageDescription": "اپنی انوینٹری اور اشیاء کا انتظام کریں",
-    "productName": "مصنوع کا نام",
+    "productName": "چیز کا نام",
     "price": "قیمت",
     "quantity": "مقدار",
     "description": "تفصیل",
@@ -126,8 +126,8 @@
     "paymentMethod": "ادائیگی کا طریقہ",
     "status": "حالت"
   },
-  "pos": {
-    "title": "نقد رجسٹر",
+  "sales": {
+    "title": "فروخت",
     "pageDescription": "فروخت کی لین دین کا انتظام کریں",
     "addItem": "چیز شامل کریں",
     "total": "کل",
@@ -149,7 +149,7 @@
     "totalExpenses": "کل اخراجات",
     "netProfit": "خالص منافع",
     "profitMargin": "منافع کا مارجن",
-    "topProducts": "بہترین مصنوعات",
+    "topProducts": "بہترین اشیاء",
     "topCustomers": "بہترین گاہک",
     "dateRange": "تاریخ کی حد",
     "generateReport": "رپورٹ تیار کریں",
@@ -171,7 +171,7 @@
     "totalExpenses": "کل اخراجات",
     "totalProfit": "کل منافع (فروخت)",
     "revenueTrend": "آمدنی کا رجحان (30 دن)",
-    "topProducts": "فروخت کے لحاظ سے ٹاپ 5 مصنوعات",
+    "topProducts": "فروخت کے لحاظ سے ٹاپ 5 اشیاء",
     "paymentMethods": "ادائیگی کے طریقے",
     "orderStatus": "آرڈرز کی صورتحال",
     "needHelp": "DukaanKhata کے ساتھ مدد چاہیے؟ ہم سے رابطہ کریں:"

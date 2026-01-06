@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "DukaanKhata",
-    "appDescription": "Point of Sale aur Business Management System",
+    "appDescription": "Sales aur Business Management System",
     "welcome": "Khush Amdeed",
     "logout": "Logout Karain",
     "login": "Login Karain",
@@ -23,8 +23,8 @@
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "Overview aur analytics dekhen",
-    "pos": "Point of Sale",
-    "posDescription": "Frookhat ke transaction ka intezaam",
+    "sales": "Sales",
+    "salesDescription": "Frookhat ke transaction ka intezaam",
     "products": "Mausoolaat",
     "productsDescription": "Inventory aur items ka intezaam",
     "customers": "Gahak",
@@ -77,7 +77,7 @@
   "products": {
     "title": "Mausoolaat",
     "pageDescription": "Apni inventory aur items ka intezaam karain",
-    "productName": "Mausool ka Naam",
+    "productName": "Item ka Naam",
     "price": "Qeemat",
     "quantity": "Magdar",
     "description": "Tafseelaat",
@@ -126,8 +126,8 @@
     "paymentMethod": "Adaigi ka Tareeka",
     "status": "Halat"
   },
-  "pos": {
-    "title": "Point of Sale",
+  "sales": {
+    "title": "Sales",
     "pageDescription": "Frookhat ke transactions ka intezaam karain",
     "addItem": "Item Shamil Karain",
     "total": "Total",
@@ -149,7 +149,7 @@
     "totalExpenses": "Total Kharchen",
     "netProfit": "Khaalis Munafa",
     "profitMargin": "Munafa ka Margin",
-    "topProducts": "Beharin Mausoolaat",
+    "topProducts": "Beharin Items",
     "topCustomers": "Beharin Gahak",
     "dateRange": "Tareekh ki Had",
     "generateReport": "Report Tayyar Karain",
@@ -171,7 +171,7 @@
     "totalExpenses": "Kul Kharche",
     "totalProfit": "Kul Munafa (Farokht)",
     "revenueTrend": "Aamidni ka Rujhan (30 Din)",
-    "topProducts": "Farokht k Lihaaz Say Top 5 Products",
+    "topProducts": "Farokht k Lihaaz Say Top 5 Items",
     "paymentMethods": "Payment k Tareeqe",
     "orderStatus": "Orders ki Sorat-e-Haal",
     "needHelp": "DukaanKhata k saath Madad Chahe? Ham say Rabta Karain:"

@@ -38,7 +38,7 @@ interface POSProduct extends Product {
 }
 
 export default function POSPage() {
-  const t = useTranslations("pos");
+  const t = useTranslations("sales");
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);

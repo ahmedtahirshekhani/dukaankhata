@@ -46,7 +46,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/customers": tNav("customers"),
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
-    "/admin/pos": tNav("pos"),
+    "/admin/sales": tNav("sales"),
     "/admin/counter-sale": tNav("counterSale"),
   };
 
@@ -214,18 +214,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <Link
-                href={`/${locale}/admin/pos`}
+                href={`/${locale}/admin/sales`}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/pos"
+                  pathWithoutLocale === "/admin/sales"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <ShoppingCartIcon className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("pos")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("posDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">{tNav("sales")}</span>
+                  <span className="text-xs opacity-70 hidden md:block">{tNav("salesDescription")}</span>
                 </div>
               </Link>
             </div>
