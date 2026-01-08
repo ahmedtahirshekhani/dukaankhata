@@ -333,6 +333,7 @@ export function ProductDialog({
                 <Label htmlFor="description" className="">
                   Description
                 </Label>
+                <span className="text-xs text-muted-foreground">(max 100 chars)</span>
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
                     <button type="button" className="cursor-help">
@@ -348,6 +349,7 @@ export function ProductDialog({
                 id="description"
                 value={productDescription}
                 onChange={(e) => setProductDescription(e.target.value)}
+                maxLength={100}
               />
             </div>
           </div>

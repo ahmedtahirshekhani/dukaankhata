@@ -40,6 +40,11 @@ export function ProductsTable({
   onDelete,
   capitalizeFirstLetter,
 }: ProductsTableProps) {
+  const truncateDescription = (desc?: string, limit = 100) => {
+    if (!desc) return "";
+    return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
+  };
+
   return (
     <>
       {/* Desktop Table View */}
@@ -47,14 +52,13 @@ export function ProductsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Type</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Category</TableHead>
               <TableHead>Sell Price</TableHead>
               <TableHead>Cost Price</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>UOM</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Branch</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -62,17 +66,15 @@ export function ProductsTable({
           <TableBody>
             {products.map((product) => (
               <TableRow key={product.id}>
-                <TableCell className="text-xs font-medium capitalize">
-                  {capitalizeFirstLetter(product.type || "goods")}
-                </TableCell>
                 <TableCell className="font-medium text-sm">
-                  {product.name}
-                </TableCell>
-                <TableCell className="text-xs">
-                  {capitalizeFirstLetter(product.description)}
-                </TableCell>
-                <TableCell className="text-xs">
-                  {capitalizeFirstLetter(product.category)}
+                  <div className="flex flex-col gap-1">
+                    <span>{product.name}</span>
+                    {product.description && (
+                      <span className="text-xs text-muted-foreground leading-snug">
+                        {capitalizeFirstLetter(truncateDescription(product.description))}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs">
                   {product.sell_price !== undefined && product.sell_price !== null
@@ -90,6 +92,12 @@ export function ProductsTable({
                 </TableCell>
                 <TableCell className="text-xs">
                   {capitalizeFirstLetter(product.unit_of_measurement)}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {capitalizeFirstLetter(product.category)}
+                </TableCell>
+                <TableCell className="text-xs font-medium capitalize">
+                  {capitalizeFirstLetter(product.type || "goods")}
                 </TableCell>
                 <TableCell className="text-xs">
                   {capitalizeFirstLetter(product.branch)}
@@ -129,7 +137,7 @@ export function ProductsTable({
               <div className="flex-1">
                 <h3 className="font-semibold text-sm">{product.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {capitalizeFirstLetter(product.description)}
+                  {capitalizeFirstLetter(truncateDescription(product.description))}
                 </p>
               </div>
               <Button

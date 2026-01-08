@@ -4,6 +4,13 @@ import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import { InvoicePreview, type InvoiceCharge, type InvoiceProduct } from "@/components/invoice/invoice-preview";
 import { PaymentDialog } from "@/components/invoice/payment-dialog";
 
@@ -11,7 +18,11 @@ interface InvoicePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceNo: string;
-  customerName: string;
+  customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+  };
   saleDate: string;
   dueDate: string | null;
   products: InvoiceProduct[];
@@ -42,7 +53,7 @@ export function InvoicePreviewDialog({
   open,
   onOpenChange,
   invoiceNo,
-  customerName,
+  customer,
   saleDate,
   dueDate,
   products,
@@ -71,6 +82,7 @@ export function InvoicePreviewDialog({
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [includeSignature, setIncludeSignature] = useState(true);
   const [requestCustomerSignature, setRequestCustomerSignature] = useState(false);
+  const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">("a4");
   const getToday = () => {
     const d = new Date();
     const y = d.getFullYear();
@@ -131,13 +143,43 @@ export function InvoicePreviewDialog({
     if (!invoiceRef.current) return;
     const mod = await import("html2pdf.js");
     const html2pdf = mod.default || mod;
-    const opt = {
-      margin: 10,
-      filename: `${invoiceNo || "preview"}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    } as any;
+    
+    let opt: any;
+    
+    switch (printFormat) {
+      case "thermal":
+        // Thermal printer (80mm width, common for receipts)
+        opt = {
+          margin: 5,
+          filename: `${invoiceNo || "preview"}_receipt.pdf`,
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: { scale: 1.5 },
+          jsPDF: { unit: "mm", format: [80, 297], orientation: "portrait" },
+        };
+        break;
+      case "letter":
+        // US Letter size
+        opt = {
+          margin: 10,
+          filename: `${invoiceNo || "preview"}_letter.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
+        };
+        break;
+      case "a4":
+      default:
+        // A4 size (default)
+        opt = {
+          margin: 10,
+          filename: `${invoiceNo || "preview"}_a4.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        };
+        break;
+    }
+    
     html2pdf().set(opt).from(invoiceRef.current).save();
   };
 
@@ -160,7 +202,9 @@ export function InvoicePreviewDialog({
   return (
     <React.Fragment>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={`max-h-[90vh] overflow-y-auto ${
+          printFormat === "thermal" ? "max-w-md" : "max-w-4xl"
+        }`}>
           <DialogHeader>
             <DialogTitle>Invoice Preview</DialogTitle>
           </DialogHeader>
@@ -170,7 +214,7 @@ export function InvoicePreviewDialog({
               <InvoicePreview
                 ref={invoiceRef}
                 invoiceNo={invoiceNo}
-                customerName={customerName}
+                customer={customer}
                 saleDate={saleDate}
                 dueDate={dueDate}
                 products={products}
@@ -188,13 +232,52 @@ export function InvoicePreviewDialog({
                 requestCustomerSignature={requestCustomerSignature}
                 companyName={companyName}
                 customerNotes={customerNotes}
+                printFormat={printFormat}
               />
             </div>
 
             {hidePaymentActions ? (
-              <div className="flex justify-center pt-4">
+              <div className="flex flex-col gap-4 pt-4">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Print Format</Label>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="printFormat"
+                        value="a4"
+                        checked={printFormat === "a4"}
+                        onChange={(e) => setPrintFormat("a4")}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">A4 Size (Standard)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="printFormat"
+                        value="thermal"
+                        checked={printFormat === "thermal"}
+                        onChange={(e) => setPrintFormat("thermal")}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">Thermal Receipt (80mm)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="printFormat"
+                        value="letter"
+                        checked={printFormat === "letter"}
+                        onChange={(e) => setPrintFormat("letter")}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">Letter Size (US)</span>
+                    </label>
+                  </div>
+                </div>
                 <Button onClick={handleDownloadPdf} variant="default">
-                  Download Invoice (PDF)
+                  Download Invoice
                 </Button>
               </div>
             ) : (
@@ -295,13 +378,51 @@ export function InvoicePreviewDialog({
                     </Button>
                   </div>
 
-                  <div className="pt-2">
+                  <div className="pt-2 border-t">
+                    <div className="space-y-2 mb-3">
+                      <Label className="text-xs font-medium">Print Format</Label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="printFormat"
+                            value="a4"
+                            checked={printFormat === "a4"}
+                            onChange={(e) => setPrintFormat("a4")}
+                            className="w-3 h-3"
+                          />
+                          <span className="text-xs">A4 Size</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="printFormat"
+                            value="thermal"
+                            checked={printFormat === "thermal"}
+                            onChange={(e) => setPrintFormat("thermal")}
+                            className="w-3 h-3"
+                          />
+                          <span className="text-xs">Thermal Receipt</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="printFormat"
+                            value="letter"
+                            checked={printFormat === "letter"}
+                            onChange={(e) => setPrintFormat("letter")}
+                            className="w-3 h-3"
+                          />
+                          <span className="text-xs">Letter Size</span>
+                        </label>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={handleDownloadPdf}
                       className="text-xs underline text-muted-foreground hover:text-foreground"
                     >
-                      Download Invoice (PDF)
+                      Download Invoice
                     </button>
                   </div>
                 </div>

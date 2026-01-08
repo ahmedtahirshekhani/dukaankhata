@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { InvoicePreviewDialog } from "@/components/invoice-preview-dialog";
+import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
 import { calculateLineTotal } from "@/lib/invoice-calculations";
 
 type Product = {
@@ -37,6 +37,8 @@ type Product = {
 type Customer = {
   id: number;
   name: string;
+  email?: string;
+  phone?: string;
 };
 
 type PaymentMethod = {
@@ -74,10 +76,16 @@ export default function InvoicePage() {
   const [newChargeValue, setNewChargeValue] = useState<string>("");
   const [showInvoicePreview, setShowInvoicePreview] = useState<boolean>(false);
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
+  const [overallDiscountType, setOverallDiscountType] = useState<"value" | "percentage">("value");
   const [shippingCharges, setShippingCharges] = useState<number>(0);
   const [customerNotes, setCustomerNotes] = useState<string>("Thanks for your business");
 
   const getSalePrice = (product: POSProduct) => product.sell_price;
+  const formatUom = (uom?: string) => (uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-");
+  const truncateDescription = (desc?: string, limit = 100) => {
+    if (!desc) return "";
+    return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
+  };
 
 
   useEffect(() => {
@@ -222,8 +230,11 @@ export default function InvoicePage() {
 
   const chargesTotal = charges.reduce((sum, charge) => sum + charge.value, 0);
   const overallDiscountNum = overallDiscount || 0;
+  const overallDiscountAmount = overallDiscountType === "percentage" 
+    ? Math.round((total * overallDiscountNum) / 100)
+    : overallDiscountNum;
   const shippingChargesNum = shippingCharges || 0;
-  const finalTotal = Math.max(0, total - Math.min(overallDiscountNum, total) + shippingChargesNum + chargesTotal);
+  const finalTotal = Math.max(0, total - Math.min(overallDiscountAmount, total) + shippingChargesNum + chargesTotal);
 
   const handleSaveOrder = async () => {
     if (!selectedCustomer || selectedProducts.length === 0 || !invoiceNo) {
@@ -386,7 +397,14 @@ export default function InvoicePage() {
             <TableBody>
               {selectedProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{product.name}</div>
+                      {product.description && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{truncateDescription(product.description)}</div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     Rs. {Math.floor(getSalePrice(product))}
                   </TableCell>
@@ -405,7 +423,7 @@ export default function InvoicePage() {
                     />
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {product.unit_of_measurement || "-"}
+                    {formatUom(product.unit_of_measurement)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
@@ -470,31 +488,117 @@ export default function InvoicePage() {
 
           {/* Summary Section */}
           <div className="mt-4">
-            <div className="text-right mb-2">
-              <strong>Sub Total: Rs. {Math.floor(total)}</strong>
-            </div>
+            {/* All Summary Fields in One Grid */}
+            <div className="flex justify-end mb-4">
+              <div className="space-y-3">
+                <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-2 items-center">
+                  <span className="text-sm text-right">Sub Total:</span>
+                  <span className="text-left font-semibold">Rs. {Math.round(total)}</span>
+                  
+                  <span className="text-sm text-right">Overall Discount:</span>
+                  <div className="flex gap-1 items-center">
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      min="0"
+                      className="w-16 h-8 text-sm"
+                      value={overallDiscount || ""}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        setOverallDiscount(isNaN(value) ? 0 : Math.abs(value));
+                      }}
+                    />
+                    <Select
+                      value={overallDiscountType}
+                      onValueChange={(val) => setOverallDiscountType(val as "value" | "percentage")}
+                    >
+                      <SelectTrigger className="w-16 h-8 text-xs">
+                        <SelectValue placeholder="PKR" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="value">PKR</SelectItem>
+                        <SelectItem value="percentage">%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <span className="text-sm text-right">Shipping charges:</span>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    min="0"
+                    className="w-full h-8 text-sm"
+                    value={shippingCharges || ""}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
+                    }}
+                  />
+                </div>
 
-            {/* Fixed Summary Fields */}
-            <div className="space-y-2 mb-2">
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-sm">Overall Discount</span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  className="w-24 h-8 text-sm"
-                  value={overallDiscount}
-                  onChange={(e) => setOverallDiscount(parseFloat(e.target.value))}
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-sm">Shipping charges</span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  className="w-24 h-8 text-sm"
-                  value={shippingCharges}
-                  onChange={(e) => setShippingCharges(parseFloat(e.target.value))}
-                />
+                {/* Add Charge Form */}
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      id="new-charge-item"
+                      placeholder="Adjustment"
+                      className="w-32 h-8 text-sm"
+                      value={newChargeItem}
+                      onChange={(e) => setNewChargeItem(e.target.value)}
+                    />
+                    <span className="text-sm">:</span>
+                    <Input
+                      id="new-charge-value"
+                      type="number"
+                      placeholder="Value"
+                      className="w-24 h-8 text-sm"
+                      value={newChargeValue}
+                      onChange={(e) => setNewChargeValue(e.target.value)}
+                    />
+                    <Button
+                      onClick={handleAddNewCharge}
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      +
+                    </Button>
+                  </div>
+                  
+                  {/* Display Added Charges */}
+                  {charges.map((charge) => (
+                    <div key={charge.id} className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Adjustment"
+                        value={charge.item}
+                        onChange={(e) => handleChargeChange(charge.id, "item", e.target.value)}
+                        className="w-32 h-8 text-sm"
+                      />
+                      <span className="text-sm">:</span>
+                      <Input
+                        type="number"
+                        placeholder="Value"
+                        value={charge.value || ""}
+                        onChange={(e) => handleChargeChange(charge.id, "value", e.target.value)}
+                        className="w-24 h-8 text-sm"
+                      />
+                      <Button
+                        onClick={() => handleRemoveCharge(charge.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Final Total */}
+                <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
+                  <span className="text-lg text-right font-bold">Total:</span>
+                  <span className="text-left text-lg font-bold">Rs. {Math.floor(finalTotal)}</span>
+                </div>
               </div>
             </div>
 
@@ -511,94 +615,7 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            {/* Additional/Discount Charges Button */}
-            <div className="text-right mb-2">
-              <Button
-                onClick={() => setShowAddCharge(!showAddCharge)}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                + Any additional/discount charges
-              </Button>
-            </div>
-
-            {/* Add Charge Form */}
-            {showAddCharge && (
-              <div className="flex justify-end mb-2">
-                <div className="p-2 bg-gray-50 rounded-md border">
-                  <div className="flex gap-2">
-                    <Input
-                      id="new-charge-item"
-                      placeholder="Item name"
-                      className="w-32 h-8 text-sm"
-                      value={newChargeItem}
-                      onChange={(e) => setNewChargeItem(e.target.value)}
-                    />
-                    <Input
-                      id="new-charge-value"
-                      type="number"
-                      placeholder="Value"
-                      className="w-24 h-8 text-sm"
-                      value={newChargeValue}
-                      onChange={(e) => setNewChargeValue(e.target.value)}
-                    />
-                    <Button
-                      onClick={handleAddNewCharge}
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Display Added Charges */}
-            {charges.length > 0 && (
-              <div className="flex justify-end mb-2">
-                <div className="text-right space-y-2">
-                  {charges.map((charge) => (
-                    <div key={charge.id} className="flex gap-2 items-center">
-                      <Input
-                        placeholder="Item name"
-                        value={charge.item}
-                        onChange={(e) => handleChargeChange(charge.id, "item", e.target.value)}
-                        className="w-32 h-8 text-xs"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Value"
-                        value={charge.value || ""}
-                        onChange={(e) => handleChargeChange(charge.id, "value", e.target.value)}
-                        className="w-24 h-8 text-xs"
-                      />
-                      <Button
-                        onClick={() => handleRemoveCharge(charge.id)}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Final Totals */}
-            {chargesTotal !== 0 && (
-              <div className="text-right mb-2">
-                <strong>Additional Charges: Rs. {Math.floor(chargesTotal)}</strong>
-              </div>
-            )}
-            <div className="text-right border-t pt-2 mb-2">
-              <strong className="text-lg">Total: Rs. {Math.floor(finalTotal)}</strong>
-            </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end mt-4">
               <Button
                 onClick={handleSaveOrder}
                 disabled={selectedProducts.length === 0 || !selectedCustomer || !invoiceNo}
@@ -615,13 +632,26 @@ export default function InvoicePage() {
         open={showInvoicePreview}
         onOpenChange={setShowInvoicePreview}
         invoiceNo={invoiceNo}
-        customerName={selectedCustomer?.name || ""}
+        customer={{
+          name: selectedCustomer?.name || "",
+          email: selectedCustomer?.email,
+          phone: selectedCustomer?.phone,
+        }}
         saleDate={selectedDate}
         dueDate={addDueDate ? dueDate : null}
-        products={selectedProducts}
+        products={selectedProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          quantity: p.quantity,
+          sell_price: p.sell_price,
+          unit_of_measurement: p.unit_of_measurement,
+          discount: p.discount,
+          discountType: p.discountType
+        }))}
         subtotal={total}
         charges={charges}
-        overallDiscount={overallDiscountNum}
+        overallDiscount={overallDiscountAmount}
         shippingCharges={shippingChargesNum}
         total={finalTotal}
         companyName={session?.user?.company || session?.user?.name || ""}

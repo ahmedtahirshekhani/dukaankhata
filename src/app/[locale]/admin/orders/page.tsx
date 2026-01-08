@@ -51,7 +51,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
-import { InvoicePreviewDialog } from "@/components/invoice-preview-dialog";
+import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
 
 type Order = {
   id: number;
@@ -65,6 +65,8 @@ type Order = {
   due_date?: string | null;
   customer: {
     name: string;
+    email?: string;
+    phone?: string;
   };
   items?: Array<{
     name: string;
@@ -484,7 +486,7 @@ export default function OrdersPage() {
           open={invoiceDialogOpen}
           onOpenChange={setInvoiceDialogOpen}
           invoiceNo={selectedInvoiceOrder.invoice_no || `ORD-${selectedInvoiceOrder.id}`}
-          customerName={selectedInvoiceOrder.customer.name}
+          customer={selectedInvoiceOrder.customer}
           saleDate={selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at}
           dueDate={selectedInvoiceOrder.due_date || null}
           products={(selectedInvoiceOrder.items || []).map((item, index) => ({

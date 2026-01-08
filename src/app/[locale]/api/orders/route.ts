@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     orders.map(async (order) => {
       const customer = await customersCollection.findOne(
         { _id: order.customer_id },
-        { projection: { name: 1 } }
+        { projection: { name: 1, email: 1, phone: 1 } }
       );
       
       return {
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
         invoice_no: order.invoice_no || null,
         items: order.items || [],
         charges: order.charges || [],
-        customer: customer ? { name: customer.name } : null,
+        customer: customer ? { name: customer.name, email: customer.email, phone: customer.phone } : null,
         payment: order.payment || null,
       };
     })
