@@ -40,6 +40,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Combobox } from "@/components/ui/combobox";
 import {
   EllipsisVerticalIcon,
   Loader2Icon,
@@ -60,14 +61,26 @@ import {
 
 type TransactionType = "income" | "expense";
 
+interface Product {
+  id: number;
+  name: string;
+  sell_price?: number;
+  unit_of_measurement?: string;
+  description?: string;
+}
+
 const ITEMS_PER_PAGE = 25;
 
 interface Transaction {
   id: number;
-  description: string;
+  productId?: number;
+  productName?: string;
+  productDescription?: string;
   type: TransactionType;
   created_at: string;
   amount: number;
+  customerName?: string;
+  customerNumber?: string;
 }
 
 interface PaginatedResponse {
@@ -81,6 +94,7 @@ interface PaginatedResponse {
 export default function CounterSale() {
   const t = useTranslations("counterSale");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [transactionToDelete, setTransactionToDelete] =
@@ -95,12 +109,19 @@ export default function CounterSale() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [allYears, setAllYears] = useState<number[]>([]);
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
-    description: "",
     type: "income",
     amount: 0,
     created_at: new Date().toISOString(),
   });
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
+  const [isCustomItemDialogOpen, setIsCustomItemDialogOpen] = useState(false);
+  const [customItemData, setCustomItemData] = useState({
+    name: "",
+    description: "",
+  });
+  const [selectedComboboxContext, setSelectedComboboxContext] = useState<
+    "add" | "edit"
+  >("add");
 
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
@@ -141,7 +162,7 @@ export default function CounterSale() {
 
   const isAddFormValid = () => {
     return (
-      newTransaction.description?.trim() &&
+      newTransaction.productId &&
       newTransaction.amount &&
       newTransaction.amount > 0
     );
@@ -150,9 +171,13 @@ export default function CounterSale() {
   const handleOpenEdit = (transaction: Transaction) => {
     setEditingId(transaction.id);
     setEditFormData({
-      description: transaction.description,
+      productId: transaction.productId,
+      productName: transaction.productName,
       type: transaction.type,
+      created_at: transaction.created_at,
       amount: transaction.amount,
+      customerName: transaction.customerName,
+      customerNumber: transaction.customerNumber,
     });
   };
 
@@ -175,13 +200,6 @@ export default function CounterSale() {
     });
   };
 
-  const getSerialNumber = (transaction: Transaction) => {
-    const sorted = getSortedTransactions();
-    const index = sorted.indexOf(transaction);
-    // S.No = total count - index (so newest has highest number)
-    return sorted.length - index;
-  };
-
   const getSortIcon = (column: keyof Transaction) => {
     if (sortColumn !== column) {
       return <ArrowUpDown className="ml-1 h-4 w-4 inline opacity-50" />;
@@ -193,10 +211,43 @@ export default function CounterSale() {
     );
   };
 
+  const handleAddCustomItem = () => {
+    if (!customItemData.name.trim()) {
+      alert("Item name is required");
+      return;
+    }
+
+    // Create a temporary product object with a negative ID for custom items
+    const customProduct: Product = {
+      id: -Date.now(), // Use negative timestamp as unique ID
+      name: customItemData.name,
+      description: customItemData.description || undefined,
+    };
+
+    if (selectedComboboxContext === "add") {
+      setNewTransaction((prev) => ({
+        ...prev,
+        productId: customProduct.id as number,
+        productName: customProduct.name,
+        productDescription: customProduct.description,
+      }));
+    } else {
+      setEditFormData((prev) => ({
+        ...prev,
+        productId: customProduct.id as number,
+        productName: customProduct.name,
+        productDescription: customProduct.description,
+      }));
+    }
+
+    setIsCustomItemDialogOpen(false);
+    setCustomItemData({ name: "", description: "" });
+  };
+
   const handleUpdateTransaction = async (id: number) => {
     // Validate required fields
-    if (!editFormData.description?.trim()) {
-      alert("Description is required");
+    if (!editFormData.productId) {
+      alert("Product is required");
       return;
     }
     if (!editFormData.amount || editFormData.amount <= 0) {
@@ -229,8 +280,8 @@ export default function CounterSale() {
 
   const handleAddTransaction = async () => {
     // Validate required fields
-    if (!newTransaction.description?.trim()) {
-      alert("Description is required");
+    if (!newTransaction.productId) {
+      alert("Product is required");
       return;
     }
     if (!newTransaction.amount || newTransaction.amount <= 0) {
@@ -254,7 +305,6 @@ export default function CounterSale() {
         // Also reset to first page in case pagination is active
         setCurrentPage(1);
         setNewTransaction({
-          description: "",
           type: "income",
           amount: 0,
           created_at: new Date().toISOString(),
@@ -298,6 +348,26 @@ export default function CounterSale() {
     }
   }, [transactionToDelete, transactions, pageInfo]);
 
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch("/api/products");
+      if (!response.ok) throw new Error("Failed to fetch products");
+      const data = await response.json();
+      // Add "Others" option at the end
+      const productsWithOthers: Product[] = [
+        ...data,
+        {
+          id: 0, // Special ID for "Others"
+          name: "Others",
+          description: "Add a custom item",
+        },
+      ];
+      setProducts(productsWithOthers);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
+
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
@@ -333,6 +403,7 @@ export default function CounterSale() {
     };
 
     fetchTransactions();
+    fetchProducts();
   }, [currentPage, sortColumn, sortDirection, selectedYear]);
 
   if (loading) {
@@ -426,85 +497,97 @@ export default function CounterSale() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
-                          onClick={() => handleSort("id")}
-                        >
-                          S.No {getSortIcon("id")}
+                        <TableHead className="w-56 whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4">
+                          Item
                         </TableHead>
                         <TableHead
-                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4 min-w-[150px]"
-                          onClick={() => handleSort("description")}
-                        >
-                          Description {getSortIcon("description")}
-                        </TableHead>
-                        <TableHead
-                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          className="w-32 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
                           onClick={() => handleSort("type")}
                         >
                           Type {getSortIcon("type")}
                         </TableHead>
                         <TableHead
-                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          className="w-40 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
                           onClick={() => handleSort("created_at")}
                         >
                           Date {getSortIcon("created_at")}
                         </TableHead>
                         <TableHead
-                          className="cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          className="w-28 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
                           onClick={() => handleSort("amount")}
                         >
                           Amount {getSortIcon("amount")}
                         </TableHead>
-                        <TableHead className="px-2 sm:px-4"></TableHead>
-                        <TableHead className="px-2 sm:px-4">
+                        <TableHead className="w-40 whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4">
+                          Customer Name
+                        </TableHead>
+                        <TableHead className="w-40 whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4">
+                          Customer Number
+                        </TableHead>
+                        <TableHead className="w-20 px-2 sm:px-4"></TableHead>
+                        <TableHead className="w-20 px-2 sm:px-4">
                           <span className="sr-only">Actions</span>
                         </TableHead>
                       </TableRow>
                       <TableRow>
-                        <TableCell className="text-xs sm:text-sm px-2 sm:px-4">
-                          -
-                        </TableCell>
-                        <TableCell className="px-2 sm:px-4">
-                          <Input
-                            name="description"
-                            value={newTransaction.description}
-                            onChange={handleInputChange}
-                            placeholder="Description"
-                            required
-                            className="text-xs sm:text-sm h-8 sm:h-10 min-w-[120px]"
+                        <TableCell className="w-56 px-2 sm:px-4 overflow-hidden">
+                          <Combobox
+                            items={products}
+                            placeholder="Select Item"
+                            className="w-56 truncate"
+                            value={newTransaction.productName}
+                            onSelect={(productId) => {
+                              if (productId === 0) {
+                                // "Others" option selected
+                                setSelectedComboboxContext("add");
+                                setIsCustomItemDialogOpen(true);
+                              } else {
+                                setNewTransaction((prev) => ({
+                                  ...prev,
+                                  productId: productId as number,
+                                  productName: products.find(
+                                    (p) => p.id === productId
+                                  )?.name,
+                                  productDescription: products.find(
+                                    (p) => p.id === productId
+                                  )?.description,
+                                }));
+                              }
+                            }}
                           />
                         </TableCell>
-                        <TableCell className="px-2 sm:px-4">
-                          <Select
-                            defaultValue={newTransaction.type}
-                            onValueChange={(value) =>
-                              setNewTransaction({
-                                ...newTransaction,
-                                type: value as TransactionType,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]">
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="income">Income</SelectItem>
-                              <SelectItem value="expense">Expense</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                          <div className="w-full overflow-hidden">
+                            <Select
+                              defaultValue={newTransaction.type}
+                              onValueChange={(value) =>
+                                setNewTransaction({
+                                  ...newTransaction,
+                                  type: value as TransactionType,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-32">
+                                <SelectValue placeholder="Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="income">Income</SelectItem>
+                                <SelectItem value="expense">Expense</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
-                        <TableCell className="px-2 sm:px-4">
+                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                           <Input
                             name="created_at"
                             type="date"
                             value={isoToDateInput(newTransaction.created_at)}
                             onChange={handleInputChange}
                             required
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-[120px] sm:w-[140px]"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-40"
                           />
                         </TableCell>
-                        <TableCell className="px-2 sm:px-4">
+                        <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
                           <Input
                             name="amount"
                             type="number"
@@ -512,10 +595,28 @@ export default function CounterSale() {
                             onChange={handleInputChange}
                             placeholder="Amount"
                             required
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-28"
                           />
                         </TableCell>
-                        <TableCell className="px-2 sm:px-4">
+                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                          <Input
+                            name="customerName"
+                            value={newTransaction.customerName || ""}
+                            onChange={handleInputChange}
+                            placeholder="Name"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                          />
+                        </TableCell>
+                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                          <Input
+                            name="customerNumber"
+                            value={newTransaction.customerNumber || ""}
+                            onChange={handleInputChange}
+                            placeholder="Number"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                          />
+                        </TableCell>
+                        <TableCell className="w-20 px-2 sm:px-4">
                           <Button
                             onClick={handleAddTransaction}
                             disabled={!isAddFormValid()}
@@ -533,42 +634,58 @@ export default function CounterSale() {
                           {/* Desktop Edit Row */}
                           {editingId === transaction.id ? (
                             <TableRow className="hidden md:table-row">
-                              <TableCell className="text-xs sm:text-sm px-2 sm:px-4">
-                                {getSerialNumber(transaction)}
-                              </TableCell>
-                              <TableCell className="px-2 sm:px-4">
-                                <Input
-                                  name="description"
-                                  value={editFormData.description || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder="Description"
-                                  className="text-xs sm:text-sm h-8 sm:h-10 min-w-[120px]"
+                              <TableCell className="w-56 px-2 sm:px-4 overflow-hidden">
+                                <Combobox
+                                  items={products}
+                                  placeholder="Select Item"
+                                  className="w-56 truncate"
+                                  value={editFormData.productName}
+                                  onSelect={(productId) => {
+                                    if (productId === 0) {
+                                      // "Others" option selected
+                                      setSelectedComboboxContext("edit");
+                                      setIsCustomItemDialogOpen(true);
+                                    } else {
+                                      setEditFormData((prev) => ({
+                                        ...prev,
+                                        productId: productId as number,
+                                        productName: products.find(
+                                          (p) => p.id === productId
+                                        )?.name,
+                                        productDescription: products.find(
+                                          (p) => p.id === productId
+                                        )?.description,
+                                      }));
+                                    }
+                                  }}
                                 />
                               </TableCell>
-                              <TableCell className="px-2 sm:px-4">
-                                <Select
-                                  value={editFormData.type || "income"}
-                                  onValueChange={(value) =>
-                                    setEditFormData({
-                                      ...editFormData,
-                                      type: value as TransactionType,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]">
-                                    <SelectValue placeholder="Type" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="income">
-                                      Income
-                                    </SelectItem>
-                                    <SelectItem value="expense">
-                                      Expense
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
+                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                                <div className="w-full overflow-hidden">
+                                  <Select
+                                    value={editFormData.type || "income"}
+                                    onValueChange={(value) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        type: value as TransactionType,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-32">
+                                      <SelectValue placeholder="Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="income">
+                                        Income
+                                      </SelectItem>
+                                      <SelectItem value="expense">
+                                        Expense
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </TableCell>
-                              <TableCell className="px-2 sm:px-4">
+                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                                 <Input
                                   name="created_at"
                                   type="date"
@@ -577,20 +694,38 @@ export default function CounterSale() {
                                       transaction.created_at
                                   )}
                                   onChange={handleEditInputChange}
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-[120px] sm:w-[140px] px-1"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-40"
                                 />
                               </TableCell>
-                              <TableCell className="px-2 sm:px-4">
+                              <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
                                 <Input
                                   name="amount"
                                   type="number"
                                   value={editFormData.amount || ""}
                                   onChange={handleEditInputChange}
                                   placeholder="Amount"
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-[90px] sm:w-[110px]"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-28"
                                 />
                               </TableCell>
-                              <TableCell className="px-2 sm:px-4">
+                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                                <Input
+                                  name="customerName"
+                                  value={editFormData.customerName || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Name"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                                />
+                              </TableCell>
+                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                                <Input
+                                  name="customerNumber"
+                                  value={editFormData.customerNumber || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Number"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                                />
+                              </TableCell>
+                              <TableCell className="w-20 px-2 sm:px-4">
                                 <div className="flex gap-1 sm:gap-2">
                                   <Button
                                     size="sm"
@@ -619,31 +754,49 @@ export default function CounterSale() {
                             <>
                               {/* Desktop View */}
                               <TableRow className="hidden md:table-row">
-                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4">
-                                  {getSerialNumber(transaction)}
+                                <TableCell className="w-56 px-2 sm:px-4 overflow-hidden">
+                                  <div className="flex flex-col items-start py-1">
+                                    <span className="text-xs sm:text-sm font-medium leading-tight">
+                                      {transaction.productName || "-"}
+                                    </span>
+                                    {transaction.productDescription && (
+                                      <span className="text-xs text-muted-foreground leading-snug">
+                                        {transaction.productDescription}
+                                      </span>
+                                    )}
+                                  </div>
                                 </TableCell>
-                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-normal break-words min-w-[150px]">
-                                  {transaction.description}
-                                </TableCell>
-                                <TableCell className="px-2 sm:px-4">
+                                <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
                                   <Badge
                                     variant={transaction.type}
-                                    className="text-xs"
+                                    className="text-xs truncate"
                                   >
                                     {transaction.type}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                <TableCell className="w-40 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
                                   {formatDate(transaction.created_at, false, {
                                     year: "numeric",
                                     month: "short",
                                     day: "2-digit",
                                   })}
                                 </TableCell>
-                                <TableCell className="text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                <TableCell className="w-28 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
                                   Rs. {Math.floor(transaction.amount)}
                                 </TableCell>
-                                <TableCell className="px-2 sm:px-4">
+                                <TableCell
+                                  className="w-40 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
+                                  title={transaction.customerName || "-"}
+                                >
+                                  {transaction.customerName || "-"}
+                                </TableCell>
+                                <TableCell
+                                  className="w-40 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
+                                  title={transaction.customerNumber || "-"}
+                                >
+                                  {transaction.customerNumber || "-"}
+                                </TableCell>
+                                <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button
@@ -693,18 +846,30 @@ export default function CounterSale() {
           <div className="md:hidden space-y-3">
             {isAddFormOpen && (
               <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-3 border">
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2 space-y-2">
-                    <label className="text-xs font-medium">Description</label>
-                    <Input
-                      name="description"
-                      value={newTransaction.description}
-                      onChange={handleInputChange}
-                      placeholder="Description"
-                      required
-                      className="text-sm h-9"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">Item</label>
+                  <Combobox
+                    items={products}
+                    placeholder="Select Item"
+                    value={newTransaction.productName}
+                    onSelect={(productId) => {
+                      if (productId === 0) {
+                        setSelectedComboboxContext("add");
+                        setIsCustomItemDialogOpen(true);
+                      } else {
+                        setNewTransaction((prev) => ({
+                          ...prev,
+                          productId: productId as number,
+                          productName: products.find((p) => p.id === productId)
+                            ?.name,
+                          productDescription: products.find((p) => p.id === productId)
+                            ?.description,
+                        }));
+                      }
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Amount</label>
                     <Input
@@ -717,20 +882,7 @@ export default function CounterSale() {
                       className="text-sm h-9"
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  <div className="col-span-3 space-y-2">
-                    <label className="text-xs font-medium">Date</label>
-                    <Input
-                      name="created_at"
-                      type="date"
-                      value={isoToDateInput(newTransaction.created_at)}
-                      onChange={handleInputChange}
-                      required
-                      className="text-sm h-9 w-full px-1"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-2">
+                  <div className="space-y-2">
                     <label className="text-xs font-medium">Type</label>
                     <Select
                       defaultValue={newTransaction.type}
@@ -751,6 +903,39 @@ export default function CounterSale() {
                     </Select>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Date</label>
+                    <Input
+                      name="created_at"
+                      type="date"
+                      value={isoToDateInput(newTransaction.created_at)}
+                      onChange={handleInputChange}
+                      required
+                      className="text-sm h-9 w-full px-1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Customer Name</label>
+                    <Input
+                      name="customerName"
+                      value={newTransaction.customerName || ""}
+                      onChange={handleInputChange}
+                      placeholder="Name (Optional)"
+                      className="text-sm h-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">Customer Number</label>
+                  <Input
+                    name="customerNumber"
+                    value={newTransaction.customerNumber || ""}
+                    onChange={handleInputChange}
+                    placeholder="Number (Optional)"
+                    className="text-sm h-9"
+                  />
+                </div>
                 <Button
                   onClick={handleAddTransaction}
                   disabled={!isAddFormValid()}
@@ -769,7 +954,7 @@ export default function CounterSale() {
                   <div className="bg-white dark:bg-slate-900 border rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
                       <h4 className="font-semibold text-sm">
-                        Edit Transaction S.No {getSerialNumber(transaction)}
+                        Edit Transaction
                       </h4>
                       <Button
                         size="icon"
@@ -784,13 +969,28 @@ export default function CounterSale() {
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-medium">Description</label>
-                      <Input
-                        name="description"
-                        value={editFormData.description || ""}
-                        onChange={handleEditInputChange}
-                        placeholder="Description"
-                        className="text-sm h-9"
+                      <label className="text-xs font-medium">Item</label>
+                      <Combobox
+                        items={products}
+                        placeholder="Select Item"
+                        value={editFormData.productName}
+                        onSelect={(productId) => {
+                          if (productId === 0) {
+                            setSelectedComboboxContext("edit");
+                            setIsCustomItemDialogOpen(true);
+                          } else {
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              productId: productId as number,
+                              productName: products.find(
+                                (p) => p.id === productId
+                              )?.name,
+                              productDescription: products.find(
+                                (p) => p.id === productId
+                              )?.description,
+                            }));
+                          }
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
@@ -836,6 +1036,30 @@ export default function CounterSale() {
                         className="text-sm h-9"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">
+                        Customer Name
+                      </label>
+                      <Input
+                        name="customerName"
+                        value={editFormData.customerName || ""}
+                        onChange={handleEditInputChange}
+                        placeholder="Name (Optional)"
+                        className="text-sm h-9"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">
+                        Customer Number
+                      </label>
+                      <Input
+                        name="customerNumber"
+                        value={editFormData.customerNumber || ""}
+                        onChange={handleEditInputChange}
+                        placeholder="Number (Optional)"
+                        className="text-sm h-9"
+                      />
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         onClick={() => handleUpdateTransaction(transaction.id)}
@@ -858,12 +1082,17 @@ export default function CounterSale() {
                 ) : (
                   // Mobile Transaction Card
                   <div className="bg-white dark:bg-slate-900 border rounded-lg p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 space-y-0.5">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white break-words">
-                          {transaction.description}
-                        </p>
+                    <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded space-y-1">
+                      <div className="font-medium">
+                        {transaction.productName || "-"}
                       </div>
+                      {transaction.productDescription && (
+                        <div className="text-muted-foreground text-xs">
+                          {transaction.productDescription}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-start justify-between gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -893,6 +1122,21 @@ export default function CounterSale() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+                    {(transaction.customerName ||
+                      transaction.customerNumber) && (
+                      <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                        {transaction.customerName && (
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {transaction.customerName}
+                          </p>
+                        )}
+                        {transaction.customerNumber && (
+                          <p className="text-muted-foreground">
+                            {transaction.customerNumber}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                       <span>
                         {formatDate(transaction.created_at, false, {
@@ -1034,6 +1278,68 @@ export default function CounterSale() {
               className="w-full sm:w-auto"
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Item Dialog */}
+      <Dialog
+        open={isCustomItemDialogOpen}
+        onOpenChange={setIsCustomItemDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[425px] max-w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">
+              Add Custom Item
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Enter the name and description for your custom item.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Item Name *</label>
+              <Input
+                placeholder="Enter item name"
+                value={customItemData.name}
+                onChange={(e) =>
+                  setCustomItemData((prev) => ({
+                    ...prev,
+                    name: e.target.value,
+                  }))
+                }
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description</label>
+              <Input
+                placeholder="Enter item description (optional)"
+                value={customItemData.description}
+                onChange={(e) =>
+                  setCustomItemData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCustomItemDialogOpen(false);
+                setCustomItemData({ name: "", description: "" });
+              }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddCustomItem} className="w-full sm:w-auto">
+              Add Item
             </Button>
           </DialogFooter>
         </DialogContent>

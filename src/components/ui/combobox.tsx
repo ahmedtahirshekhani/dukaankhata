@@ -24,12 +24,23 @@ interface ComboboxProps {
   onSelect: (id: number | string) => void;
   noSelect?: boolean;
   className?: string;
+  value?: string;
 }
 
-export function Combobox({ items, placeholder, onSelect, noSelect, className }: ComboboxProps) {
+export function Combobox({
+  items,
+  placeholder,
+  onSelect,
+  noSelect,
+  className,
+  value: externalValue,
+}: ComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  const [internalValue, setInternalValue] = useState("");
   const [popoverWidth, setPopoverWidth] = useState(0);
+
+  // Use external value if provided, otherwise use internal value
+  const displayValue = externalValue || internalValue;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -45,15 +56,19 @@ export function Combobox({ items, placeholder, onSelect, noSelect, className }: 
             }
           }}
         >
-          {value || placeholder}
+          {displayValue || placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0" align="start"
+      <PopoverContent
+        className="p-0"
+        align="start"
         style={{ width: popoverWidth }}
       >
         <Command>
-          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
+          <CommandInput
+            placeholder={`Search ${placeholder.toLowerCase()}...`}
+          />
           <CommandEmpty>No item found.</CommandEmpty>
           <CommandList>
             <CommandGroup>
@@ -70,7 +85,7 @@ export function Combobox({ items, placeholder, onSelect, noSelect, className }: 
                     }
                     setOpen(false);
                     if (noSelect) return;
-                    setValue(item.name);
+                    setInternalValue(item.name);
                   }}
                 >
                   <div className="flex flex-col items-start">
