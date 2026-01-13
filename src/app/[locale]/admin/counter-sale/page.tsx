@@ -47,9 +47,11 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  FileDown,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
+import { exportTransactionsToExcel } from "@/lib/excel-utils";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -122,6 +124,12 @@ export default function CounterSale() {
   const [selectedComboboxContext, setSelectedComboboxContext] = useState<
     "add" | "edit"
   >("add");
+  const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    fromDate: "",
+    toDate: "",
+  });
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
@@ -317,6 +325,72 @@ export default function CounterSale() {
     }
   };
 
+  const handleDownloadExcel = useCallback(async () => {
+    try {
+      setIsDownloading(true);
+      // Fetch all transactions for the selected year (without pagination)
+      const response = await fetch(
+        `/api/transactions?year=${selectedYear}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
+      const result: PaginatedResponse = await response.json();
+
+      // Generate filename with year
+      const filename = `counter-sale-transactions-${selectedYear}.xlsx`;
+
+      // Export to Excel
+      exportTransactionsToExcel(result.data, filename);
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      alert(t("downloadError"));
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [selectedYear, sortColumn, sortDirection, t]);
+
+  // const handleDownloadDateRange = useCallback(async () => {
+  //   if (!dateRange.fromDate || !dateRange.toDate) {
+  //     alert(t("invalidDateRange"));
+  //     return;
+  //   }
+
+  //   if (new Date(dateRange.fromDate) > new Date(dateRange.toDate)) {
+  //     alert(t("invalidDateRange"));
+  //     return;
+  //   }
+
+  //   try {
+  //     setIsDownloading(true);
+  //     // Fetch all transactions for the date range (without pagination)
+  //     const response = await fetch(
+  //       `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+  //     );
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch transactions");
+  //     }
+  //     const result: PaginatedResponse = await response.json();
+
+  //     // Generate filename with date range
+  //     const fromDateStr = dateRange.fromDate.replace(/-/g, "");
+  //     const toDateStr = dateRange.toDate.replace(/-/g, "");
+  //     const filename = `counter-sale-transactions-${fromDateStr}-${toDateStr}.xlsx`;
+
+  //     // Export to Excel
+  //     exportTransactionsToExcel(result.data, filename);
+
+  //     // Close dialog and reset date range
+  //     setIsDateRangeDialogOpen(false);
+  //     setDateRange({ fromDate: "", toDate: "" });
+  //   } catch (error) {
+  //     console.error("Error downloading Excel:", error);
+  //     alert(t("downloadError"));
+  //   } finally {
+  //     setIsDownloading(false);
+  //   }
+  // }, [dateRange, sortColumn, sortDirection, t]);
+
   const handleDeleteTransaction = useCallback(async () => {
     if (!transactionToDelete) return;
     const idToDelete = transactionToDelete.id;
@@ -426,7 +500,7 @@ export default function CounterSale() {
           </div>
 
           {/* Desktop controls */}
-          <div className="hidden md:flex flex-col items-end gap-1 md:ml-auto">
+          <div className="hidden md:flex flex-col items-end gap-2 md:ml-auto">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium whitespace-nowrap">
                 Year:
@@ -446,6 +520,26 @@ export default function CounterSale() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {isDownloading ? t("downloading") : t("downloadExcel")}
+              </Button>
+              {/* <Button
+                onClick={() => setIsDateRangeDialogOpen(true)}
+                disabled={isDownloading}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {t("downloadDateRange")}
+              </Button> */}
             </div>
             <div className="text-xs text-muted-foreground whitespace-nowrap">
               Total: {pageInfo.total.toLocaleString()}
@@ -454,7 +548,7 @@ export default function CounterSale() {
 
           {/* Mobile controls */}
           <div className="md:hidden w-full">
-            <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2 justify-between mb-2">
               <div className="flex items-center gap-1">
                 <label className="text-xs font-medium whitespace-nowrap">
                   Year:
@@ -485,6 +579,28 @@ export default function CounterSale() {
               >
                 {isAddFormOpen ? "Close" : "Add"}
               </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1"
+              >
+                <FileDown className="mr-1 h-3 w-3" />
+                {isDownloading ? t("downloading") : t("downloadExcel")}
+              </Button>
+              {/* <Button
+                onClick={() => setIsDateRangeDialogOpen(true)}
+                disabled={isDownloading}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1"
+              >
+                <FileDown className="mr-1 h-3 w-3" />
+                {t("downloadDateRange")}
+              </Button> */}
             </div>
           </div>
         </CardHeader>
@@ -862,8 +978,9 @@ export default function CounterSale() {
                           productId: productId as number,
                           productName: products.find((p) => p.id === productId)
                             ?.name,
-                          productDescription: products.find((p) => p.id === productId)
-                            ?.description,
+                          productDescription: products.find(
+                            (p) => p.id === productId
+                          )?.description,
                         }));
                       }
                     }}
@@ -1344,6 +1461,75 @@ export default function CounterSale() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Date Range Download Dialog */}
+      {/* <Dialog
+        open={isDateRangeDialogOpen}
+        onOpenChange={setIsDateRangeDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[425px] max-w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">
+              {t("selectDateRange")}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {t("downloadDateRange")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("fromDate")}</label>
+              <Input
+                type="date"
+                value={dateRange.fromDate}
+                onChange={(e) =>
+                  setDateRange((prev) => ({
+                    ...prev,
+                    fromDate: e.target.value,
+                  }))
+                }
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("toDate")}</label>
+              <Input
+                type="date"
+                value={dateRange.toDate}
+                onChange={(e) =>
+                  setDateRange((prev) => ({
+                    ...prev,
+                    toDate: e.target.value,
+                  }))
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDateRangeDialogOpen(false);
+                setDateRange({ fromDate: "", toDate: "" });
+              }}
+              className="w-full sm:w-auto"
+              disabled={isDownloading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDownloadDateRange}
+              disabled={
+                isDownloading || !dateRange.fromDate || !dateRange.toDate
+              }
+              className="w-full sm:w-auto"
+            >
+              {isDownloading ? t("downloading") : t("download")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog> */}
     </>
   );
 }

@@ -124,7 +124,17 @@
     "date": "Date",
     "amount": "Amount",
     "paymentMethod": "Payment Method",
-    "status": "Status"
+    "status": "Status",
+    "downloadExcel": "Download Excel Sheet",
+    "downloadDateRange": "Date Range Download",
+    "fromDate": "From Date",
+    "toDate": "To Date",
+    "download": "Download",
+    "selectDateRange": "Select Date Range",
+    "downloading": "Downloading...",
+    "downloadSuccess": "Excel file downloaded successfully",
+    "downloadError": "Failed to download Excel file",
+    "invalidDateRange": "Please select a valid date range"
   },
   "invoice": {
     "title": "Invoicing",
@@ -176,7 +186,8 @@
     "orderStatus": "Orders by Status",
     "needHelp": "Need help with DukaanKhata? Reach out:"
   },
-    "language": {"english": "English",
+  "language": {
+    "english": "English",
     "urdu": "اردو",
     "romanUrdu": "Urdu (Roman)"
   },
