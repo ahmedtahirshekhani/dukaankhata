@@ -194,7 +194,7 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
               Thanks for joining!
             </h3>
             <p className="text-sm text-muted-foreground mt-2">
-              We'll contact you on WhatsApp soon with exclusive launch details.
+              We&apos;ll contact you on WhatsApp soon with exclusive launch details.
             </p>
           </div>
         ) : (

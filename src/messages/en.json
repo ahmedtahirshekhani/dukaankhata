@@ -174,9 +174,14 @@
     "topProducts": "Top 5 Items by Sales",
     "paymentMethods": "Payment Methods",
     "orderStatus": "Orders by Status",
-    "needHelp": "Need help with DukaanKhata? Reach out:"
+    "needHelp": "Need help with DukaanKhata? Reach out:",
+    "privacyOn": "Privacy: ON",
+    "privacyOff": "Privacy: OFF",
+    "hideNumbers": "Hide numbers",
+    "showNumbers": "Show numbers"
   },
-    "language": {"english": "English",
+  "language": {
+    "english": "English",
     "urdu": "اردو",
     "romanUrdu": "Urdu (Roman)"
   },
