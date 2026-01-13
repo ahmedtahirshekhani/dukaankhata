@@ -174,7 +174,11 @@
     "topProducts": "Farokht k Lihaaz Say Top 5 Items",
     "paymentMethods": "Payment k Tareeqe",
     "orderStatus": "Orders ki Sorat-e-Haal",
-    "needHelp": "DukaanKhata k saath Madad Chahe? Ham say Rabta Karain:"
+    "needHelp": "DukaanKhata k saath Madad Chahe? Ham say Rabta Karain:",
+    "privacyOn": "Privacy: On",
+    "privacyOff": "Privacy: Off",
+    "hideNumbers": "Numbers Chhupain",
+    "showNumbers": "Numbers Dikhain"
   },
   "language": {
     "english": "English",
