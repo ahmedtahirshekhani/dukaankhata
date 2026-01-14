@@ -350,46 +350,46 @@ export default function CounterSale() {
     }
   }, [selectedYear, sortColumn, sortDirection, t]);
 
-  // const handleDownloadDateRange = useCallback(async () => {
-  //   if (!dateRange.fromDate || !dateRange.toDate) {
-  //     alert(t("invalidDateRange"));
-  //     return;
-  //   }
+  const handleDownloadDateRange = useCallback(async () => {
+    if (!dateRange.fromDate || !dateRange.toDate) {
+      alert(t("invalidDateRange"));
+      return;
+    }
 
-  //   if (new Date(dateRange.fromDate) > new Date(dateRange.toDate)) {
-  //     alert(t("invalidDateRange"));
-  //     return;
-  //   }
+    if (new Date(dateRange.fromDate) > new Date(dateRange.toDate)) {
+      alert(t("invalidDateRange"));
+      return;
+    }
 
-  //   try {
-  //     setIsDownloading(true);
-  //     // Fetch all transactions for the date range (without pagination)
-  //     const response = await fetch(
-  //       `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
-  //     );
-  //     if (!response.ok) {
-  //       throw new Error("Failed to fetch transactions");
-  //     }
-  //     const result: PaginatedResponse = await response.json();
+    try {
+      setIsDownloading(true);
+      // Fetch all transactions for the date range (without pagination)
+      const response = await fetch(
+        `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
+      const result: PaginatedResponse = await response.json();
 
-  //     // Generate filename with date range
-  //     const fromDateStr = dateRange.fromDate.replace(/-/g, "");
-  //     const toDateStr = dateRange.toDate.replace(/-/g, "");
-  //     const filename = `counter-sale-transactions-${fromDateStr}-${toDateStr}.xlsx`;
+      // Generate filename with date range
+      const fromDateStr = dateRange.fromDate.replace(/-/g, "");
+      const toDateStr = dateRange.toDate.replace(/-/g, "");
+      const filename = `counter-sale-transactions-${fromDateStr}-${toDateStr}.xlsx`;
 
-  //     // Export to Excel
-  //     exportTransactionsToExcel(result.data, filename);
+      // Export to Excel
+      exportTransactionsToExcel(result.data, filename);
 
-  //     // Close dialog and reset date range
-  //     setIsDateRangeDialogOpen(false);
-  //     setDateRange({ fromDate: "", toDate: "" });
-  //   } catch (error) {
-  //     console.error("Error downloading Excel:", error);
-  //     alert(t("downloadError"));
-  //   } finally {
-  //     setIsDownloading(false);
-  //   }
-  // }, [dateRange, sortColumn, sortDirection, t]);
+      // Close dialog and reset date range
+      setIsDateRangeDialogOpen(false);
+      setDateRange({ fromDate: "", toDate: "" });
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      alert(t("downloadError"));
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [dateRange, sortColumn, sortDirection, t]);
 
   const handleDeleteTransaction = useCallback(async () => {
     if (!transactionToDelete) return;
@@ -530,7 +530,7 @@ export default function CounterSale() {
                 <FileDown className="mr-2 h-4 w-4" />
                 {isDownloading ? t("downloading") : t("downloadExcel")}
               </Button>
-              {/* <Button
+              <Button
                 onClick={() => setIsDateRangeDialogOpen(true)}
                 disabled={isDownloading}
                 variant="outline"
@@ -539,7 +539,7 @@ export default function CounterSale() {
               >
                 <FileDown className="mr-2 h-4 w-4" />
                 {t("downloadDateRange")}
-              </Button> */}
+              </Button>
             </div>
             <div className="text-xs text-muted-foreground whitespace-nowrap">
               Total: {pageInfo.total.toLocaleString()}
@@ -591,7 +591,7 @@ export default function CounterSale() {
                 <FileDown className="mr-1 h-3 w-3" />
                 {isDownloading ? t("downloading") : t("downloadExcel")}
               </Button>
-              {/* <Button
+              <Button
                 onClick={() => setIsDateRangeDialogOpen(true)}
                 disabled={isDownloading}
                 variant="outline"
@@ -600,7 +600,7 @@ export default function CounterSale() {
               >
                 <FileDown className="mr-1 h-3 w-3" />
                 {t("downloadDateRange")}
-              </Button> */}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -1463,7 +1463,7 @@ export default function CounterSale() {
       </Dialog>
 
       {/* Date Range Download Dialog */}
-      {/* <Dialog
+      <Dialog
         open={isDateRangeDialogOpen}
         onOpenChange={setIsDateRangeDialogOpen}
       >
@@ -1529,7 +1529,7 @@ export default function CounterSale() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog> */}
+      </Dialog>
     </>
   );
 }

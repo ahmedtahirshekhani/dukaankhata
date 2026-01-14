@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import Image from "next/image";
+import Logo from "../../../public/images/DukaanKhataLogo.svg";
+
 
 export function LandingFooter() {
   const locale = useLocale();
@@ -31,14 +34,18 @@ export function LandingFooter() {
           <div className="space-y-4">
             <Link
               href={`/${locale}`}
-              className="flex items-center gap-2 font-bold"
+              className="flex items-center gap-2 font-bold text-xl"
             >
-              <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                <span className="text-primary-foreground text-sm font-bold">
-                  D
-                </span>
+              <div className=" flex items-center justify-center">
+                {/* <span className="text-primary-foreground text-sm font-bold">D</span> */}
+                <Image
+                  src={Logo}
+                  alt="DukaanKhata Logo"
+                  width={120}
+                  height={120}
+                />
               </div>
-              <span>DukaanKhata</span>
+              {/* <span className="hidden sm:inline">DukaanKhata</span> */}
             </Link>
             <p className="text-sm text-muted-foreground">
               Your complete business management solution for South Asia.

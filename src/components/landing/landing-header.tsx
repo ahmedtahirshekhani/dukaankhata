@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import Logo from "../../../public/images/DukaanKhataLogo.svg";
 
 export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
   const locale = useLocale();
@@ -20,17 +21,18 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 min-h-24 flex items-center">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link
           href={`/${locale}`}
           className="flex items-center gap-2 font-bold text-xl"
         >
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-            <span className="text-primary-foreground text-sm font-bold">D</span>
+          <div className=" flex items-center justify-center">
+            {/* <span className="text-primary-foreground text-sm font-bold">D</span> */}
+            <Image src={Logo}  alt="DukaanKhata Logo" width={120} height={120}/>
           </div>
-          <span className="hidden sm:inline">DukaanKhata</span>
+          {/* <span className="hidden sm:inline">DukaanKhata</span> */}
         </Link>
 
         {/* Desktop Navigation */}
