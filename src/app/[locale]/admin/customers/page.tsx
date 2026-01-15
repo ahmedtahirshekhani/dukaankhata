@@ -1,8 +1,12 @@
 "use client";
 
-"use client";
-
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   Card,
@@ -17,6 +21,8 @@ import {
   SearchIcon,
   FilterIcon,
   FilePenIcon,
+  FileDown,
+  Upload,
 } from "lucide-react";
 import {
   Table,
@@ -51,6 +57,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  exportCustomersToExcel,
+  exportCustomersTemplate,
+} from "@/lib/excel-utils";
 
 type Customer = {
   id: number;
@@ -86,6 +96,9 @@ export default function CustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
     null
   );
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -107,7 +120,7 @@ export default function CustomersPage() {
   }, []);
 
   const filteredCustomers = useMemo(() => {
-    if(customers.length === 0) return [];
+    if (customers.length === 0) return [];
     return customers.filter((customer) => {
       console.log("Filtering customer:", customer);
       if (filters.status !== "all" && customer.status !== filters.status) {
@@ -236,6 +249,102 @@ export default function CustomersPage() {
     }));
   };
 
+  const handleDownloadExcel = useCallback(async () => {
+    try {
+      setIsDownloading(true);
+      // Fetch all customers
+      const response = await fetch("/api/customers");
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers");
+      }
+      const allCustomers = await response.json();
+
+      // Generate filename
+      const filename = `customers.xlsx`;
+
+      // Export to Excel
+      exportCustomersToExcel(allCustomers, filename);
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      alert(t("downloadError"));
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [t]);
+
+  const handleDownloadTemplate = useCallback(() => {
+    exportCustomersTemplate("customers-template.xlsx");
+  }, []);
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls") &&
+        !file.type.includes("spreadsheet")
+      ) {
+        alert(t("importValidationError"));
+        return;
+      }
+
+      try {
+        setIsImporting(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/customers/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || t("importError"));
+        }
+
+        const result = await response.json();
+        const message = `${t("importSuccess")}: ${
+          result.successCount
+        } customer(s) imported.${
+          result.errorCount > 0
+            ? ` ${result.errorCount} error(s) occurred.`
+            : ""
+        }${
+          result.errors && result.errors.length > 0
+            ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
+            : ""
+        }`;
+        alert(message);
+
+        // Refresh customers
+        const refreshResponse = await fetch("/api/customers");
+        if (refreshResponse.ok) {
+          const refreshedCustomers = await refreshResponse.json();
+          setCustomers(refreshedCustomers);
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error importing Excel:", error);
+        alert(error instanceof Error ? error.message : t("importError"));
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [t]
+  );
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   if (loading) {
     return (
       <div className="h-[80vh] flex items-center justify-center">
@@ -277,211 +386,252 @@ export default function CustomersPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <FilterIcon className="w-4 h-4" />
-                  <span>Filters</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "all"}
-                  onCheckedChange={() => handleFilterChange("all")}
-                >
-                  All Statuses
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "active"}
-                  onCheckedChange={() => handleFilterChange("active")}
-                >
-                  Active
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "inactive"}
-                  onCheckedChange={() => handleFilterChange("inactive")}
-                >
-                  Inactive
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <FilterIcon className="w-4 h-4" />
+                    <span>Filters</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "all"}
+                    onCheckedChange={() => handleFilterChange("all")}
+                  >
+                    All Statuses
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "active"}
+                    onCheckedChange={() => handleFilterChange("active")}
+                  >
+                    Active
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "inactive"}
+                    onCheckedChange={() => handleFilterChange("inactive")}
+                  >
+                    Inactive
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs whitespace-nowrap"
+              >
+                <FileDown className="mr-2 h-3 w-3" />
+                {isDownloading ? t("downloading") : t("downloadExcel")}
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs whitespace-nowrap"
+              >
+                <FileDown className="mr-2 h-3 w-3" />
+                {t("downloadTemplate")}
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs whitespace-nowrap"
+              >
+                <Upload className="mr-2 h-3 w-3" />
+                {isImporting ? t("importing") : t("import")}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Customer
+              </Button>
+            </div>
           </div>
-          <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>{customer.name}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell>{customer.status}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedCustomerId(customer.id);
-                          setNewCustomerName(customer.name);
-                          setNewCustomerEmail(customer.email);
-                          setNewCustomerPhone(customer.phone);
-                          setNewCustomerStatus(customer.status);
-                          setIsEditCustomerDialogOpen(true);
-                        }}
-                      >
-                        <FilePenIcon className="w-4 h-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setCustomerToDelete(customer);
-                          setIsDeleteConfirmationOpen(true);
-                        }}
-                        style={{ display: "none" }} 
-                      > 
-                        {/* Hide  trashicon*/}
-                        <Trash2 className="w-4 h-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
-                  </TableCell>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        {/* Pagination can be added here if needed */}
-      </CardFooter>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>{customer.name}</TableCell>
+                    <TableCell>{customer.email}</TableCell>
+                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell>{customer.status}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedCustomerId(customer.id);
+                            setNewCustomerName(customer.name);
+                            setNewCustomerEmail(customer.email);
+                            setNewCustomerPhone(customer.phone);
+                            setNewCustomerStatus(customer.status);
+                            setIsEditCustomerDialogOpen(true);
+                          }}
+                        >
+                          <FilePenIcon className="w-4 h-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setCustomerToDelete(customer);
+                            setIsDeleteConfirmationOpen(true);
+                          }}
+                          style={{ display: "none" }}
+                        >
+                          {/* Hide  trashicon*/}
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between items-center">
+          {/* Pagination can be added here if needed */}
+        </CardFooter>
 
-      <Dialog
-        open={showNewCustomerDialog || isEditCustomerDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setShowNewCustomerDialog(false);
-            setIsEditCustomerDialogOpen(false);
-            resetSelectedCustomer();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {showNewCustomerDialog ? "Create New Customer" : "Edit Customer"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={newCustomerName}
-                onChange={(e) => setNewCustomerName(e.target.value)}
-                className="col-span-3"
-              />
+        <Dialog
+          open={showNewCustomerDialog || isEditCustomerDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowNewCustomerDialog(false);
+              setIsEditCustomerDialogOpen(false);
+              resetSelectedCustomer();
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {showNewCustomerDialog
+                  ? "Create New Customer"
+                  : "Edit Customer"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={newCustomerEmail}
+                  onChange={(e) => setNewCustomerEmail(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={newCustomerPhone}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={newCustomerStatus}
+                  onValueChange={(value: "active" | "inactive") =>
+                    setNewCustomerStatus(value)
+                  }
+                >
+                  <SelectTrigger id="status" className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={newCustomerEmail}
-                onChange={(e) => setNewCustomerEmail(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={newCustomerPhone}
-                onChange={(e) => setNewCustomerPhone(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newCustomerStatus}
-                onValueChange={(value: "active" | "inactive") =>
-                  setNewCustomerStatus(value)
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowNewCustomerDialog(false);
+                  setIsEditCustomerDialogOpen(false);
+                  resetSelectedCustomer();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={
+                  showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
                 }
               >
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowNewCustomerDialog(false);
-                setIsEditCustomerDialogOpen(false);
-                resetSelectedCustomer();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={
-                showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
-              }
-            >
-              {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog
-        open={isDeleteConfirmationOpen}
-        onOpenChange={setIsDeleteConfirmationOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-          </DialogHeader>
-          Are you sure you want to delete this customer? This action cannot be
-          undone.
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setIsDeleteConfirmationOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteCustomer}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog
+          open={isDeleteConfirmationOpen}
+          onOpenChange={setIsDeleteConfirmationOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            Are you sure you want to delete this customer? This action cannot be
+            undone.
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => setIsDeleteConfirmationOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteCustomer}>
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Card>
     </div>
   );

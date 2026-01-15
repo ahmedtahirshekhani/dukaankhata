@@ -51,12 +51,12 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
         {/* Right Side Actions */}
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
-          <Link
+          {/* <Link
             href={`/login`}
             className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Login
-          </Link>
+          </Link> */}
           <Button
             onClick={onJoinClick}
             className="hidden sm:inline-flex"

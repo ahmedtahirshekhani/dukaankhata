@@ -1,10 +1,25 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { PlusIcon, Loader2Icon, SearchIcon } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import {
+  PlusIcon,
+  Loader2Icon,
+  SearchIcon,
+  FileDown,
+  Upload,
+} from "lucide-react";
+import {
+  exportProductsToExcel,
+  exportProductsTemplate,
+} from "@/lib/excel-utils";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +40,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ProductDialog } from "@/components/product-dialog";
 import { ProductFilters } from "@/components/products/product-filters";
-import { ProductsTable, type Product } from "@/components/products/products-table";
+import {
+  ProductsTable,
+  type Product,
+} from "@/components/products/products-table";
 import { useProductsData } from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
 
@@ -47,13 +65,14 @@ export default function Products() {
     sellPriceMin: "",
     sellPriceMax: "",
     costPriceMin: "",
-    costPriceMax: ""
+    costPriceMax: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(100);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [mobileFilters, setMobileFilters] = useState({
@@ -66,20 +85,22 @@ export default function Products() {
     sellPriceMin: "",
     sellPriceMax: "",
     costPriceMin: "",
-    costPriceMax: ""
+    costPriceMax: "",
   });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use custom hook for data fetching
-  const { products, categories, branches, loading, setProducts } = useProductsData({
-    filters,
-    priceRanges,
-  });
+  const { products, categories, branches, loading, setProducts, refetchData } =
+    useProductsData({
+      filters,
+      priceRanges,
+    });
 
   const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
     if (isEdit) {
-      setProducts(
-        products.map((p) => (p.id === product.id ? product : p))
-      );
+      setProducts(products.map((p) => (p.id === product.id ? product : p)));
     } else {
       setProducts([...products, product]);
     }
@@ -118,25 +139,42 @@ export default function Products() {
       if (
         filters.inStock !== "all" &&
         filters.inStock === "in-stock" &&
-        (product.quantity === 0 || (product.in_stock === 0 && !product.quantity))
+        (product.quantity === 0 ||
+          (product.in_stock === 0 && !product.quantity))
       ) {
         return false;
       }
       // Sell price range filter
-      if (priceRanges.sellPriceMin && product.sell_price !== undefined && product.sell_price < Number(priceRanges.sellPriceMin)) {
+      if (
+        priceRanges.sellPriceMin &&
+        product.sell_price !== undefined &&
+        product.sell_price < Number(priceRanges.sellPriceMin)
+      ) {
         return false;
       }
-      if (priceRanges.sellPriceMax && product.sell_price !== undefined && product.sell_price > Number(priceRanges.sellPriceMax)) {
+      if (
+        priceRanges.sellPriceMax &&
+        product.sell_price !== undefined &&
+        product.sell_price > Number(priceRanges.sellPriceMax)
+      ) {
         return false;
       }
       // Cost price range filter
-      if (priceRanges.costPriceMin && product.cost_price !== undefined && product.cost_price < Number(priceRanges.costPriceMin)) {
+      if (
+        priceRanges.costPriceMin &&
+        product.cost_price !== undefined &&
+        product.cost_price < Number(priceRanges.costPriceMin)
+      ) {
         return false;
       }
-      if (priceRanges.costPriceMax && product.cost_price !== undefined && product.cost_price > Number(priceRanges.costPriceMax)) {
+      if (
+        priceRanges.costPriceMax &&
+        product.cost_price !== undefined &&
+        product.cost_price > Number(priceRanges.costPriceMax)
+      ) {
         return false;
       }
-  
+
       // Search filter
       return product.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -160,7 +198,10 @@ export default function Products() {
     setCurrentPage(1);
   };
 
-  const handleFilterChange = (type: "category" | "type" | "branch", value: string) => {
+  const handleFilterChange = (
+    type: "category" | "type" | "branch",
+    value: string
+  ) => {
     setFilters((prevFilters) => ({
       ...prevFilters,
       [type]: value,
@@ -176,7 +217,10 @@ export default function Products() {
     setCurrentPage(1);
   };
 
-  const handleMobileFilterChange = (type: "category" | "type" | "branch", value: string) => {
+  const handleMobileFilterChange = (
+    type: "category" | "type" | "branch",
+    value: string
+  ) => {
     setMobileFilters((prevFilters) => ({
       ...prevFilters,
       [type]: value,
@@ -208,7 +252,7 @@ export default function Products() {
       sellPriceMin: "",
       sellPriceMax: "",
       costPriceMin: "",
-      costPriceMax: ""
+      costPriceMax: "",
     };
     setMobileFilters(clearedFilters);
     setMobilePriceRanges(clearedPriceRanges);
@@ -228,12 +272,104 @@ export default function Products() {
       sellPriceMin: "",
       sellPriceMax: "",
       costPriceMin: "",
-      costPriceMax: ""
+      costPriceMax: "",
     };
     setFilters(clearedFilters);
     setPriceRanges(clearedPriceRanges);
     setCurrentPage(1);
   };
+
+  const handleDownloadExcel = useCallback(async () => {
+    try {
+      setIsDownloading(true);
+      // Fetch all products (without filters for export)
+      const response = await fetch("/api/products?type=all");
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+      const allProducts = await response.json();
+
+      // Generate filename
+      const filename = `products.xlsx`;
+
+      // Export to Excel
+      exportProductsToExcel(allProducts, filename);
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      alert(t("downloadError"));
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [t]);
+
+  const handleDownloadTemplate = useCallback(() => {
+    exportProductsTemplate("products-template.xlsx");
+  }, []);
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls") &&
+        !file.type.includes("spreadsheet")
+      ) {
+        alert(t("importValidationError"));
+        return;
+      }
+
+      try {
+        setIsImporting(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/products/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || t("importError"));
+        }
+
+        const result = await response.json();
+        const message = `${t("importSuccess")}: ${
+          result.successCount
+        } product(s) imported.${
+          result.errorCount > 0
+            ? ` ${result.errorCount} error(s) occurred.`
+            : ""
+        }${
+          result.errors && result.errors.length > 0
+            ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
+            : ""
+        }`;
+        alert(message);
+
+        // Refresh products
+        await refetchData();
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error importing Excel:", error);
+        alert(error instanceof Error ? error.message : t("importError"));
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [t, refetchData]
+  );
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   if (loading) {
     return (
@@ -248,7 +384,9 @@ export default function Products() {
       <div className="hidden sm:flex flex-col gap-4 mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">{t("title")}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            {t("pageDescription")}
+          </p>
         </div>
       </div>
       <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6">
@@ -266,12 +404,57 @@ export default function Products() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-2">
+              <Button
+                size="sm"
+                onClick={() => setIsProductDialogOpen(true)}
+                className="h-9 text-xs px-2"
+              >
                 <PlusIcon className="w-3 h-3 mr-1" />
                 Add
               </Button>
             </div>
-            
+
+            {/* Mobile: Excel buttons */}
+            <div className="flex md:hidden items-center gap-2 flex-wrap">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1 min-w-[100px]"
+              >
+                <FileDown className="mr-1 h-3 w-3" />
+                {isDownloading ? t("downloading") : t("downloadExcel")}
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1 min-w-[100px]"
+              >
+                <FileDown className="mr-1 h-3 w-3" />
+                {t("downloadTemplate")}
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1 min-w-[100px]"
+              >
+                <Upload className="mr-1 h-3 w-3" />
+                {isImporting ? t("importing") : t("import")}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+            </div>
+
             {/* Desktop: Filters with Add Button */}
             <div className="hidden md:flex items-center gap-2">
               <ProductFilters
@@ -286,12 +469,55 @@ export default function Products() {
                 onClearAll={clearAllFilters}
                 capitalizeFirstLetter={capitalizeFirstLetter}
               />
-              <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-3 flex-shrink-0 ml-auto">
-                <PlusIcon className="w-3 h-3 mr-1" />
-                {t("addProduct")}
-              </Button>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  onClick={handleDownloadExcel}
+                  disabled={isDownloading || isImporting}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs whitespace-nowrap"
+                >
+                  <FileDown className="mr-2 h-3 w-3" />
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </Button>
+                <Button
+                  onClick={handleDownloadTemplate}
+                  disabled={isDownloading || isImporting}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs whitespace-nowrap"
+                >
+                  <FileDown className="mr-2 h-3 w-3" />
+                  {t("downloadTemplate")}
+                </Button>
+                <Button
+                  onClick={handleImportClick}
+                  disabled={isDownloading || isImporting}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs whitespace-nowrap"
+                >
+                  <Upload className="mr-2 h-3 w-3" />
+                  {isImporting ? t("importing") : t("import")}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  onChange={handleFileSelect}
+                  style={{ display: "none" }}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => setIsProductDialogOpen(true)}
+                  className="h-9 text-xs px-3 flex-shrink-0"
+                >
+                  <PlusIcon className="w-3 h-3 mr-1" />
+                  {t("addProduct")}
+                </Button>
+              </div>
             </div>
-            
+
             {/* Mobile: Filters Button */}
             <div className="flex md:hidden items-center gap-2">
               <Button
@@ -311,7 +537,7 @@ export default function Products() {
                 Total: {filteredProducts.length.toLocaleString()}
               </div>
             </div>
-            
+
             {/* Desktop Total */}
             <div className="hidden md:flex text-xs text-muted-foreground justify-end">
               Total: {filteredProducts.length.toLocaleString()}
@@ -385,10 +611,18 @@ export default function Products() {
               {/* Type Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 text-xs justify-start w-full"
+                  >
                     <span className="text-muted-foreground">Type:</span>
                     <span>
-                      {mobileFilters.type === "all" ? "All" : mobileFilters.type === "goods" ? "Goods" : "Services"}
+                      {mobileFilters.type === "all"
+                        ? "All"
+                        : mobileFilters.type === "goods"
+                        ? "Goods"
+                        : "Services"}
                     </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
                   </Button>
@@ -398,19 +632,25 @@ export default function Products() {
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.type === "all"}
-                    onCheckedChange={() => handleMobileFilterChange("type", "all")}
+                    onCheckedChange={() =>
+                      handleMobileFilterChange("type", "all")
+                    }
                   >
                     All
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.type === "goods"}
-                    onCheckedChange={() => handleMobileFilterChange("type", "goods")}
+                    onCheckedChange={() =>
+                      handleMobileFilterChange("type", "goods")
+                    }
                   >
                     Goods
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.type === "services"}
-                    onCheckedChange={() => handleMobileFilterChange("type", "services")}
+                    onCheckedChange={() =>
+                      handleMobileFilterChange("type", "services")
+                    }
                   >
                     Services
                   </DropdownMenuCheckboxItem>
@@ -420,18 +660,31 @@ export default function Products() {
               {/* Category Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 text-xs justify-start w-full"
+                  >
                     <span className="text-muted-foreground">Category:</span>
-                    <span className="truncate">{mobileFilters.category === "all" ? "All" : mobileFilters.category}</span>
+                    <span className="truncate">
+                      {mobileFilters.category === "all"
+                        ? "All"
+                        : mobileFilters.category}
+                    </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 max-h-64 overflow-y-auto">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-40 max-h-64 overflow-y-auto"
+                >
                   <DropdownMenuLabel>Category</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.category === "all"}
-                    onCheckedChange={() => handleMobileFilterChange("category", "all")}
+                    onCheckedChange={() =>
+                      handleMobileFilterChange("category", "all")
+                    }
                   >
                     All
                   </DropdownMenuCheckboxItem>
@@ -439,7 +692,9 @@ export default function Products() {
                     <DropdownMenuCheckboxItem
                       key={cat}
                       checked={mobileFilters.category === cat}
-                      onCheckedChange={() => handleMobileFilterChange("category", cat)}
+                      onCheckedChange={() =>
+                        handleMobileFilterChange("category", cat)
+                      }
                     >
                       {capitalizeFirstLetter(cat)}
                     </DropdownMenuCheckboxItem>
@@ -450,18 +705,31 @@ export default function Products() {
               {/* Branch Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 text-xs justify-start w-full"
+                  >
                     <span className="text-muted-foreground">Branch:</span>
-                    <span className="truncate">{mobileFilters.branch === "all" ? "All" : mobileFilters.branch}</span>
+                    <span className="truncate">
+                      {mobileFilters.branch === "all"
+                        ? "All"
+                        : mobileFilters.branch}
+                    </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 max-h-64 overflow-y-auto">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-40 max-h-64 overflow-y-auto"
+                >
                   <DropdownMenuLabel>Branch</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.branch === "all"}
-                    onCheckedChange={() => handleMobileFilterChange("branch", "all")}
+                    onCheckedChange={() =>
+                      handleMobileFilterChange("branch", "all")
+                    }
                   >
                     All
                   </DropdownMenuCheckboxItem>
@@ -469,7 +737,9 @@ export default function Products() {
                     <DropdownMenuCheckboxItem
                       key={branch}
                       checked={mobileFilters.branch === branch}
-                      onCheckedChange={() => handleMobileFilterChange("branch", branch)}
+                      onCheckedChange={() =>
+                        handleMobileFilterChange("branch", branch)
+                      }
                     >
                       {capitalizeFirstLetter(branch)}
                     </DropdownMenuCheckboxItem>
@@ -480,7 +750,11 @@ export default function Products() {
               {/* Price Range Filters */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 h-9 text-xs justify-start w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 text-xs justify-start w-full"
+                  >
                     <FilterIcon className="w-3 h-3" />
                     <span>Price Ranges</span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
@@ -489,71 +763,101 @@ export default function Products() {
                 <DropdownMenuContent align="end" className="w-72 p-4">
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-xs font-semibold mb-2 block">Sell Price Range</Label>
+                      <Label className="text-xs font-semibold mb-2 block">
+                        Sell Price Range
+                      </Label>
                       <div className="flex gap-2">
                         <Input
                           type="number"
                           placeholder="Min"
                           value={mobilePriceRanges.sellPriceMin}
-                          onChange={(e) => handleMobilePriceRangeChange("sellPriceMin", e.target.value)}
+                          onChange={(e) =>
+                            handleMobilePriceRangeChange(
+                              "sellPriceMin",
+                              e.target.value
+                            )
+                          }
                           className="h-8 text-xs"
                         />
                         <Input
                           type="number"
                           placeholder="Max"
                           value={mobilePriceRanges.sellPriceMax}
-                          onChange={(e) => handleMobilePriceRangeChange("sellPriceMax", e.target.value)}
+                          onChange={(e) =>
+                            handleMobilePriceRangeChange(
+                              "sellPriceMax",
+                              e.target.value
+                            )
+                          }
                           className="h-8 text-xs"
                         />
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold mb-2 block">Cost Price Range</Label>
+                      <Label className="text-xs font-semibold mb-2 block">
+                        Cost Price Range
+                      </Label>
                       <div className="flex gap-2">
                         <Input
                           type="number"
                           placeholder="Min"
                           value={mobilePriceRanges.costPriceMin}
-                          onChange={(e) => handleMobilePriceRangeChange("costPriceMin", e.target.value)}
+                          onChange={(e) =>
+                            handleMobilePriceRangeChange(
+                              "costPriceMin",
+                              e.target.value
+                            )
+                          }
                           className="h-8 text-xs"
                         />
                         <Input
                           type="number"
                           placeholder="Max"
                           value={mobilePriceRanges.costPriceMax}
-                          onChange={(e) => handleMobilePriceRangeChange("costPriceMax", e.target.value)}
+                          onChange={(e) =>
+                            handleMobilePriceRangeChange(
+                              "costPriceMax",
+                              e.target.value
+                            )
+                          }
                           className="h-8 text-xs"
                         />
                       </div>
                     </div>
-                   
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            {(mobileFilters.type !== "all" || mobileFilters.category !== "all" || mobileFilters.branch !== "all" || mobilePriceRanges.sellPriceMin !== "" || mobilePriceRanges.sellPriceMax !== "" || mobilePriceRanges.costPriceMin !== "" || mobilePriceRanges.costPriceMax !== "") && (
-              <Button variant="outline" onClick={() => {
-                setMobileFilters({
-                  category: "all",
-                  inStock: "all",
-                  type: "all",
-                  branch: "all",
-                });
-                setMobilePriceRanges({
-                  sellPriceMin: "",
-                  sellPriceMax: "",
-                  costPriceMin: "",
-                  costPriceMax: ""
-                });
-              }}>
+            {(mobileFilters.type !== "all" ||
+              mobileFilters.category !== "all" ||
+              mobileFilters.branch !== "all" ||
+              mobilePriceRanges.sellPriceMin !== "" ||
+              mobilePriceRanges.sellPriceMax !== "" ||
+              mobilePriceRanges.costPriceMin !== "" ||
+              mobilePriceRanges.costPriceMax !== "") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMobileFilters({
+                    category: "all",
+                    inStock: "all",
+                    type: "all",
+                    branch: "all",
+                  });
+                  setMobilePriceRanges({
+                    sellPriceMin: "",
+                    sellPriceMax: "",
+                    costPriceMin: "",
+                    costPriceMax: "",
+                  });
+                }}
+              >
                 Reset Filters
               </Button>
             )}
-            <Button onClick={handleApplyMobileFilters}>
-              Apply Filters
-            </Button>
+            <Button onClick={handleApplyMobileFilters}>Apply Filters</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

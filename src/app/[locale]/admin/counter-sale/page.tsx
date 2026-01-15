@@ -48,10 +48,14 @@ import {
   ArrowUp,
   ArrowDown,
   FileDown,
+  Upload,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
-import { exportTransactionsToExcel } from "@/lib/excel-utils";
+import {
+  exportTransactionsToExcel,
+  exportTransactionsTemplate,
+} from "@/lib/excel-utils";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -130,6 +134,8 @@ export default function CounterSale() {
     toDate: "",
   });
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
@@ -391,6 +397,106 @@ export default function CounterSale() {
     }
   }, [dateRange, sortColumn, sortDirection, t]);
 
+  const handleDownloadTemplate = useCallback(() => {
+    exportTransactionsTemplate("counter-sale-template.xlsx");
+  }, []);
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls") &&
+        !file.type.includes("spreadsheet")
+      ) {
+        alert(t("importValidationError"));
+        return;
+      }
+
+      try {
+        setIsImporting(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/transactions/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || t("importError"));
+        }
+
+        const result = await response.json();
+        const message = `${t("importSuccess")}: ${
+          result.successCount
+        } transaction(s) imported.${
+          result.errorCount > 0
+            ? ` ${result.errorCount} error(s) occurred.`
+            : ""
+        }${
+          result.errors && result.errors.length > 0
+            ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
+            : ""
+        }`;
+        alert(message);
+
+        // Refresh transactions by resetting to page 1 and triggering refetch
+        const wasOnPage1 = currentPage === 1;
+        setCurrentPage(1);
+
+        // Force refetch if already on page 1
+        if (wasOnPage1) {
+          try {
+            const refreshResponse = await fetch(
+              `/api/transactions?page=1&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`
+            );
+            if (refreshResponse.ok) {
+              const refreshResult: PaginatedResponse =
+                await refreshResponse.json();
+              setTransactions(refreshResult.data);
+              const computedTotalPages = Math.max(
+                1,
+                Math.ceil(refreshResult.total / ITEMS_PER_PAGE)
+              );
+              setPageInfo({
+                total: refreshResult.total,
+                totalPages: computedTotalPages,
+              });
+              const years = getYearsFromDates(
+                refreshResult.data.map((t) => t.created_at)
+              );
+              const currentYear = new Date().getFullYear();
+              const yearsSet = new Set([currentYear, ...years]);
+              setAllYears(Array.from(yearsSet).sort((a, b) => b - a));
+            }
+          } catch (refreshError) {
+            console.error("Error refreshing transactions:", refreshError);
+          }
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error importing Excel:", error);
+        alert(error instanceof Error ? error.message : t("importError"));
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [t, currentPage, sortColumn, sortDirection, selectedYear]
+  );
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   const handleDeleteTransaction = useCallback(async () => {
     if (!transactionToDelete) return;
     const idToDelete = transactionToDelete.id;
@@ -522,7 +628,7 @@ export default function CounterSale() {
               </Select>
               <Button
                 onClick={handleDownloadExcel}
-                disabled={isDownloading}
+                disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
                 className="h-10 text-sm whitespace-nowrap"
@@ -531,8 +637,35 @@ export default function CounterSale() {
                 {isDownloading ? t("downloading") : t("downloadExcel")}
               </Button>
               <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {t("downloadTemplate")}
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {isImporting ? t("importing") : t("import")}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Button
                 onClick={() => setIsDateRangeDialogOpen(true)}
-                disabled={isDownloading}
+                disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
                 className="h-10 text-sm whitespace-nowrap"
@@ -580,23 +713,50 @@ export default function CounterSale() {
                 {isAddFormOpen ? "Close" : "Add"}
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 onClick={handleDownloadExcel}
-                disabled={isDownloading}
+                disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs flex-1"
+                className="h-8 text-xs flex-1 min-w-[100px]"
               >
                 <FileDown className="mr-1 h-3 w-3" />
                 {isDownloading ? t("downloading") : t("downloadExcel")}
               </Button>
               <Button
-                onClick={() => setIsDateRangeDialogOpen(true)}
-                disabled={isDownloading}
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs flex-1"
+                className="h-8 text-xs flex-1 min-w-[100px]"
+              >
+                <FileDown className="mr-1 h-3 w-3" />
+                {t("downloadTemplate")}
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1 min-w-[100px]"
+              >
+                <Upload className="mr-1 h-3 w-3" />
+                {isImporting ? t("importing") : t("import")}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Button
+                onClick={() => setIsDateRangeDialogOpen(true)}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs flex-1 min-w-[100px]"
               >
                 <FileDown className="mr-1 h-3 w-3" />
                 {t("downloadDateRange")}

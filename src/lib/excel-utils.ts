@@ -60,3 +60,240 @@ export function exportTransactionsToExcel(
   // Write the file
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports an Excel template with column headers only (no data)
+ * @param filename Name of the file to download
+ */
+export function exportTransactionsTemplate(
+  filename: string = "counter-sale-template.xlsx"
+): void {
+  // Create headers only
+  const headers = [
+    "Item Name",
+    "Description",
+    "Type",
+    "Date",
+    "Amount (Rs.)",
+    "Customer Name",
+    "Customer Number",
+  ];
+
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Create worksheet with headers only
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+
+  // Set column widths for better readability
+  const columnWidths = [
+    { wch: 25 }, // Item Name
+    { wch: 30 }, // Description
+    { wch: 12 }, // Type
+    { wch: 15 }, // Date
+    { wch: 15 }, // Amount
+    { wch: 20 }, // Customer Name
+    { wch: 18 }, // Customer Number
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+  // Write the file
+  XLSX.writeFile(workbook, filename);
+}
+
+interface Product {
+  id: number;
+  type?: string;
+  name: string;
+  description?: string;
+  sell_price?: number;
+  cost_price?: number;
+  quantity?: number;
+  in_stock?: number;
+  category?: string;
+  unit_of_measurement?: string;
+  branch?: string;
+}
+
+/**
+ * Exports products to an Excel file
+ * @param products Array of products to export
+ * @param filename Name of the file to download
+ */
+export function exportProductsToExcel(
+  products: Product[],
+  filename: string = "products.xlsx"
+): void {
+  // Prepare data for Excel
+  const excelData = products.map((product) => ({
+    Name: product.name || "-",
+    Description: product.description || "-",
+    Type: product.type ? product.type.charAt(0).toUpperCase() + product.type.slice(1) : "Goods",
+    "Sell Price (Rs.)": product.sell_price !== undefined && product.sell_price !== null ? Math.floor(product.sell_price) : "-",
+    "Cost Price (Rs.)": product.cost_price !== undefined && product.cost_price !== null ? Math.floor(product.cost_price) : "-",
+    Quantity: product.quantity !== undefined ? product.quantity : (product.in_stock !== undefined ? product.in_stock : "-"),
+    "Unit of Measurement": product.unit_of_measurement || "-",
+    Category: product.category || "-",
+    Branch: product.branch || "-",
+  }));
+
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Convert data to worksheet
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  // Set column widths for better readability
+  const columnWidths = [
+    { wch: 25 }, // Name
+    { wch: 30 }, // Description
+    { wch: 12 }, // Type
+    { wch: 15 }, // Sell Price
+    { wch: 15 }, // Cost Price
+    { wch: 12 }, // Quantity
+    { wch: 20 }, // Unit of Measurement
+    { wch: 20 }, // Category
+    { wch: 18 }, // Branch
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+
+  // Write the file
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports a products Excel template with column headers only (no data)
+ * @param filename Name of the file to download
+ */
+export function exportProductsTemplate(
+  filename: string = "products-template.xlsx"
+): void {
+  // Create headers only
+  const headers = [
+    "Name",
+    "Description",
+    "Type",
+    "Sell Price (Rs.)",
+    "Cost Price (Rs.)",
+    "Quantity",
+    "Unit of Measurement",
+    "Category",
+    "Branch",
+  ];
+
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Create worksheet with headers only
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+
+  // Set column widths for better readability
+  const columnWidths = [
+    { wch: 25 }, // Name
+    { wch: 30 }, // Description
+    { wch: 12 }, // Type
+    { wch: 15 }, // Sell Price
+    { wch: 15 }, // Cost Price
+    { wch: 12 }, // Quantity
+    { wch: 20 }, // Unit of Measurement
+    { wch: 20 }, // Category
+    { wch: 18 }, // Branch
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+
+  // Write the file
+  XLSX.writeFile(workbook, filename);
+}
+
+interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status?: "active" | "inactive";
+}
+
+/**
+ * Exports customers to an Excel file
+ * @param customers Array of customers to export
+ * @param filename Name of the file to download
+ */
+export function exportCustomersToExcel(
+  customers: Customer[],
+  filename: string = "customers.xlsx"
+): void {
+  // Prepare data for Excel
+  const excelData = customers.map((customer) => ({
+    Name: customer.name || "-",
+    Email: customer.email || "-",
+    Phone: customer.phone || "-",
+    Status: customer.status ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1) : "Active",
+  }));
+
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Convert data to worksheet
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  // Set column widths for better readability
+  const columnWidths = [
+    { wch: 25 }, // Name
+    { wch: 30 }, // Email
+    { wch: 20 }, // Phone
+    { wch: 12 }, // Status
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+
+  // Write the file
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports a customers Excel template with column headers only (no data)
+ * @param filename Name of the file to download
+ */
+export function exportCustomersTemplate(
+  filename: string = "customers-template.xlsx"
+): void {
+  // Create headers only
+  const headers = [
+    "Name",
+    "Email",
+    "Phone",
+    "Status",
+  ];
+
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Create worksheet with headers only
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+
+  // Set column widths for better readability
+  const columnWidths = [
+    { wch: 25 }, // Name
+    { wch: 30 }, // Email
+    { wch: 20 }, // Phone
+    { wch: 12 }, // Status
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+
+  // Write the file
+  XLSX.writeFile(workbook, filename);
+}
