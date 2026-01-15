@@ -42,11 +42,13 @@ import {
 } from "@/components/ui/pagination";
 import { Combobox } from "@/components/ui/combobox";
 import {
-  EllipsisVerticalIcon,
   Loader2Icon,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Edit2Icon,
+  DownloadIcon,
+  Trash2Icon,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
@@ -266,14 +268,21 @@ export default function CounterSale() {
 
       if (response.ok) {
         const updatedTransaction = await response.json();
-        // Refresh current page after update
-        setCurrentPage(1);
+
+        // Update the transaction in the local state
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === id ? updatedTransaction : t))
+        );
+
+        // Close edit mode
         setEditingId(null);
         setEditFormData({});
       } else {
+        alert("Failed to update transaction");
         console.error("Failed to update transaction");
       }
     } catch (error) {
+      alert("Error updating transaction");
       console.error("Error updating transaction:", error);
     }
   };
@@ -347,6 +356,295 @@ export default function CounterSale() {
       console.error("Error deleting transaction:", error);
     }
   }, [transactionToDelete, transactions, pageInfo]);
+
+  const handleDownloadPDF = (transaction: Transaction) => {
+    // Import html2pdf dynamically to avoid SSR issues
+    const html2pdf = require("html2pdf.js");
+
+    // Format date as "12 January, 2026"
+    const date = new Date(transaction.created_at);
+    const formattedDate = date.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    // Format time based on locale
+    const transactionTime = date.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Create professional receipt HTML
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Courier New', monospace;
+              background-color: #fff;
+              color: #333;
+            }
+            
+            .receipt-container {
+              max-width: 400px;
+              margin: 0 auto;
+              padding: 20px;
+              background: white;
+            }
+            
+            .receipt-header {
+              text-align: center;
+              border-bottom: 2px solid #333;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            
+            .receipt-title {
+              font-size: 18px;
+              font-weight: bold;
+              letter-spacing: 2px;
+              margin-bottom: 8px;
+            }
+            
+            .receipt-subtitle {
+              font-size: 11px;
+              color: #666;
+              letter-spacing: 1px;
+            }
+            
+            .receipt-section {
+              margin-bottom: 20px;
+            }
+            
+            .section-title {
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-bottom: 10px;
+              padding-bottom: 8px;
+              border-bottom: 1px dashed #999;
+            }
+            
+            .detail-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+              font-size: 12px;
+            }
+            
+            .detail-label {
+              font-weight: bold;
+              color: #555;
+              flex: 0 0 auto;
+            }
+            
+            .detail-value {
+              text-align: right;
+              flex: 1;
+              margin-left: 10px;
+              word-break: break-word;
+            }
+            
+            .item-name {
+              font-size: 13px;
+              font-weight: bold;
+              margin-bottom: 4px;
+            }
+            
+            .item-description {
+              font-size: 11px;
+              color: #777;
+              font-style: italic;
+              margin-bottom: 8px;
+            }
+            
+            .amount-box {
+              background-color: #f5f5f5;
+              border: 1px solid #ddd;
+              padding: 12px;
+              text-align: center;
+              margin: 15px 0;
+              border-radius: 4px;
+            }
+            
+            .amount-label {
+              font-size: 11px;
+              color: #777;
+              margin-bottom: 5px;
+            }
+            
+            .amount-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: ${transaction.type === "income" ? "#10b981" : "#ef4444"};
+            }
+            
+            .type-badge {
+              display: inline-block;
+              background-color: ${
+                transaction.type === "income" ? "#d1fae5" : "#fee2e2"
+              };
+              color: ${transaction.type === "income" ? "#065f46" : "#991b1b"};
+              padding: 4px 8px;
+              border-radius: 3px;
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            
+            .receipt-footer {
+              text-align: center;
+              border-top: 2px solid #333;
+              padding-top: 15px;
+              margin-top: 20px;
+              font-size: 10px;
+              color: #666;
+            }
+            
+            .footer-text {
+              margin-bottom: 4px;
+              line-height: 1.4;
+            }
+            
+            .footer-timestamp {
+              font-size: 10px;
+              color: #999;
+              margin-top: 8px;
+            }
+            
+            .divider {
+              border: none;
+              border-bottom: 1px dashed #999;
+              margin: 12px 0;
+            }
+            
+            .customer-section {
+              background-color: #fafafa;
+              padding: 10px;
+              border-radius: 4px;
+              margin-bottom: 15px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-container">
+            <!-- Receipt Header -->
+            <div class="receipt-header">
+              <div class="receipt-title">${t("receipt")}</div>
+              <div class="receipt-subtitle">${t("transactionRecord")}</div>
+            </div>
+            
+            <!-- Transaction Details -->
+            <div class="receipt-section">
+              <div class="section-title">${t("transactionId")}</div>
+              <div class="detail-row">
+                <span class="detail-label">${t("receiptId")}:</span>
+                <span class="detail-value">#${transaction.id}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">${t("date")}:</span>
+                <span class="detail-value">${formattedDate}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">${t("time")}:</span>
+                <span class="detail-value">${transactionTime}</span>
+              </div>
+            </div>
+            
+            <hr class="divider">
+            
+            <!-- Item Details -->
+            <div class="receipt-section">
+              <div class="section-title">${t("itemDetails")}</div>
+              <div class="item-name">${transaction.productName || "N/A"}</div>
+              ${
+                transaction.productDescription
+                  ? `<div class="item-description">${transaction.productDescription}</div>`
+                  : ""
+              }
+            </div>
+            
+            <hr class="divider">
+            
+            <!-- Amount Section -->
+            <div class="amount-box">
+              <div class="amount-label">${t("amount")}</div>
+              <div class="amount-value">Rs. ${Math.floor(
+                transaction.amount
+              )}</div>
+            </div>
+            
+            <!-- Type Badge -->
+            <div style="text-align: center; margin-bottom: 15px;">
+              <span class="type-badge">${transaction.type}</span>
+            </div>
+            
+            ${
+              transaction.customerName || transaction.customerNumber
+                ? `
+            <div class="customer-section">
+              <div class="section-title" style="border-bottom: none; margin-bottom: 8px;">Customer Details</div>
+              ${
+                transaction.customerName
+                  ? `
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value">${transaction.customerName}</span>
+              </div>
+              `
+                  : ""
+              }
+              ${
+                transaction.customerNumber
+                  ? `
+              <div class="detail-row">
+                <span class="detail-label">Contact:</span>
+                <span class="detail-value">${transaction.customerNumber}</span>
+              </div>
+              `
+                  : ""
+              }
+            </div>
+            `
+                : ""
+            }
+            
+            <!-- Footer -->
+            <div class="receipt-footer">
+              <div class="footer-text">${t("thankyou")}</div>
+              <hr class="divider" style="margin: 8px 0;">
+              <div class="footer-timestamp">
+                ${t("generated")}: ${new Date().toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // PDF options for receipt-style formatting
+    const options = {
+      margin: 5,
+      filename: `receipt-${transaction.id}-${new Date().getTime()}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+    };
+
+    // Generate and download PDF
+    html2pdf().set(options).from(htmlContent).save();
+  };
 
   const fetchProducts = async () => {
     try {
@@ -797,38 +1095,48 @@ export default function CounterSale() {
                                   {transaction.customerNumber || "-"}
                                 </TableCell>
                                 <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        aria-haspopup="true"
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8"
-                                      >
-                                        <EllipsisVerticalIcon className="h-4 w-4" />
-                                        <span className="sr-only">
-                                          Toggle menu
-                                        </span>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleOpenEdit(transaction)
-                                        }
-                                      >
-                                        Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() => {
-                                          setTransactionToDelete(transaction);
-                                          setIsDeleteConfirmationOpen(true);
-                                        }}
-                                      >
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      aria-haspopup="true"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        handleOpenEdit(transaction)
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Edit2Icon className="h-4 w-4" />
+                                      <span className="sr-only">Edit</span>
+                                    </Button>
+                                    <Button
+                                      aria-haspopup="true"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        handleDownloadPDF(transaction)
+                                      }
+                                      title="Download"
+                                    >
+                                      <DownloadIcon className="h-4 w-4" />
+                                      <span className="sr-only">Download</span>
+                                    </Button>
+                                    <Button
+                                      aria-haspopup="true"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        setTransactionToDelete(transaction);
+                                        setIsDeleteConfirmationOpen(true);
+                                      }}
+                                      title="Delete"
+                                    >
+                                      <Trash2Icon className="h-4 w-4" />
+                                      <span className="sr-only">Delete</span>
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             </>
@@ -862,8 +1170,9 @@ export default function CounterSale() {
                           productId: productId as number,
                           productName: products.find((p) => p.id === productId)
                             ?.name,
-                          productDescription: products.find((p) => p.id === productId)
-                            ?.description,
+                          productDescription: products.find(
+                            (p) => p.id === productId
+                          )?.description,
                         }));
                       }
                     }}
@@ -1093,34 +1402,44 @@ export default function CounterSale() {
                       )}
                     </div>
                     <div className="flex items-start justify-between gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            aria-haspopup="true"
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                          >
-                            <EllipsisVerticalIcon className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleOpenEdit(transaction)}
-                          >
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setTransactionToDelete(transaction);
-                              setIsDeleteConfirmationOpen(true);
-                            }}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex gap-2">
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleOpenEdit(transaction)}
+                          title="Edit"
+                        >
+                          <Edit2Icon className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleDownloadPDF(transaction)}
+                          title="Download"
+                        >
+                          <DownloadIcon className="h-4 w-4" />
+                          <span className="sr-only">Download</span>
+                        </Button>
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setTransactionToDelete(transaction);
+                            setIsDeleteConfirmationOpen(true);
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2Icon className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
                     </div>
                     {(transaction.customerName ||
                       transaction.customerNumber) && (

@@ -124,7 +124,14 @@
     "date": "Date",
     "amount": "Amount",
     "paymentMethod": "Payment Method",
-    "status": "Status"
+    "status": "Status",
+    "receipt": "RECEIPT",
+    "transactionRecord": "Transaction Record",
+    "receiptId": "Receipt ID",
+    "time": "Time",
+    "itemDetails": "Item Details",
+    "thankyou": "Thank you for your business",
+    "generated": "Generated"
   },
   "invoice": {
     "title": "Invoicing",

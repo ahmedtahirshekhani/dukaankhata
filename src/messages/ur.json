@@ -124,7 +124,14 @@
     "date": "تاریخ",
     "amount": "رقم",
     "paymentMethod": "ادائیگی کا طریقہ",
-    "status": "حالت"
+    "status": "حالت",
+    "receipt": "رسید",
+    "transactionRecord": "ٹرانزیکشن ریکارڈ",
+    "receiptId": "رسید ID",
+    "time": "وقت",
+    "itemDetails": "چیز کی تفصیلات",
+    "thankyou": "آپ کے کاروبار کے لیے شکریہ",
+    "generated": "تیار کردہ"
   },
   "invoice": {
     "title": "انوائس",

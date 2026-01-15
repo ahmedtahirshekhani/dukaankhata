@@ -124,7 +124,14 @@
     "date": "Tareekh",
     "amount": "Ragaam",
     "paymentMethod": "Adaigi ka Tareeka",
-    "status": "Halat"
+    "status": "Halat",
+    "receipt": "Raseed",
+    "transactionRecord": "Transaction Record",
+    "receiptId": "Raseed ID",
+    "time": "Waqt",
+    "itemDetails": "Cheez ki Tafseelaat",
+    "thankyou": "Aapke kaarobaar ke liye shukriya",
+    "generated": "Tayyar Kardah"
   },
   "invoice": {
     "title": "Invoicing",
