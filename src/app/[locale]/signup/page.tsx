@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -182,6 +182,31 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     }));
   };
 
+  // Check if all form fields are filled
+  const isFormComplete = () => {
+    return (
+      formData.name.trim() !== "" &&
+      formData.companyName.trim() !== "" &&
+      formData.email.trim() !== "" &&
+      formData.password.trim() !== "" &&
+      formData.confirmPassword.trim() !== ""
+    );
+  };
+
+  // Check if passwords match
+  const doPasswordsMatch = () => {
+    return formData.password === formData.confirmPassword;
+  };
+
+  // Show mismatch icon when both fields have content but don't match
+  const showPasswordMismatch = () => {
+    return (
+      formData.password.length > 0 &&
+      formData.confirmPassword.length > 0 &&
+      !doPasswordsMatch()
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -259,8 +284,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   onChange={handleChange}
                   required
                   disabled={isLoading}
-                  className="pr-10"
+                  className={showPasswordMismatch() ? "pr-20" : "pr-10"}
                 />
+                {showPasswordMismatch() && (
+                  <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                    <X size={18} />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -284,8 +314,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   onChange={handleChange}
                   required
                   disabled={isLoading}
-                  className="pr-10"
+                  className={showPasswordMismatch() ? "pr-20" : "pr-10"}
                 />
+                {showPasswordMismatch() && (
+                  <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                    <X size={18} />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -301,7 +336,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !isFormComplete()}
+            >
               {isLoading ? t("creatingAccount") : t("signUp")}
             </Button>
 
