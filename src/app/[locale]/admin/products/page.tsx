@@ -46,6 +46,7 @@ import {
 } from "@/components/products/products-table";
 import { useProductsData } from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
+import { ErrorDialog } from "@/components/error-dialog";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -90,6 +91,15 @@ export default function Products() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errorDialog, setErrorDialog] = useState<{
+    open: boolean;
+    title?: string;
+    message: string;
+    isSuccess?: boolean;
+  }>({
+    open: false,
+    message: "",
+  });
 
   // Use custom hook for data fetching
   const { products, categories, branches, loading, setProducts, refetchData } =
@@ -296,7 +306,11 @@ export default function Products() {
       exportProductsToExcel(allProducts, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
-      alert(t("downloadError"));
+      setErrorDialog({
+        open: true,
+        title: t("downloadError"),
+        message: t("downloadError"),
+      });
     } finally {
       setIsDownloading(false);
     }
@@ -317,7 +331,11 @@ export default function Products() {
         !file.name.endsWith(".xls") &&
         !file.type.includes("spreadsheet")
       ) {
-        alert(t("importValidationError"));
+        setErrorDialog({
+          open: true,
+          title: t("importValidationError"),
+          message: t("importValidationError"),
+        });
         return;
       }
 
@@ -341,14 +359,20 @@ export default function Products() {
           result.successCount
         } product(s) imported.${
           result.errorCount > 0
-            ? ` ${result.errorCount} error(s) occurred.`
+            ? `\n\n${result.errorCount} error(s) occurred.`
             : ""
         }${
           result.errors && result.errors.length > 0
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
         }`;
-        alert(message);
+        
+        setErrorDialog({
+          open: true,
+          title: t("importSuccess"),
+          message: message,
+          isSuccess: result.errorCount === 0,
+        });
 
         // Refresh products
         await refetchData();
@@ -359,7 +383,11 @@ export default function Products() {
         }
       } catch (error) {
         console.error("Error importing Excel:", error);
-        alert(error instanceof Error ? error.message : t("importError"));
+        setErrorDialog({
+          open: true,
+          title: t("importError"),
+          message: error instanceof Error ? error.message : t("importError"),
+        });
       } finally {
         setIsImporting(false);
       }
@@ -861,6 +889,15 @@ export default function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ErrorDialog
+        open={errorDialog.open}
+        onOpenChange={(open) =>
+          setErrorDialog((prev) => ({ ...prev, open }))
+        }
+        title={errorDialog.title}
+        message={errorDialog.message}
+        isSuccess={errorDialog.isSuccess}
+      />
     </>
   );
 }

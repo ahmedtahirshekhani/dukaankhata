@@ -57,6 +57,7 @@ import {
   exportTransactionsTemplate,
 } from "@/lib/excel-utils";
 import { Input } from "@/components/ui/input";
+import { ErrorDialog } from "@/components/error-dialog";
 import {
   Select,
   SelectContent,
@@ -136,6 +137,15 @@ export default function CounterSale() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errorDialog, setErrorDialog] = useState<{
+    open: boolean;
+    title?: string;
+    message: string;
+    isSuccess?: boolean;
+  }>({
+    open: false,
+    message: "",
+  });
 
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
@@ -227,7 +237,11 @@ export default function CounterSale() {
 
   const handleAddCustomItem = () => {
     if (!customItemData.name.trim()) {
-      alert("Item name is required");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Item name is required",
+      });
       return;
     }
 
@@ -261,11 +275,19 @@ export default function CounterSale() {
   const handleUpdateTransaction = async (id: number) => {
     // Validate required fields
     if (!editFormData.productId) {
-      alert("Product is required");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Product is required",
+      });
       return;
     }
     if (!editFormData.amount || editFormData.amount <= 0) {
-      alert("Amount must be greater than 0");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Amount must be greater than 0",
+      });
       return;
     }
 
@@ -295,11 +317,19 @@ export default function CounterSale() {
   const handleAddTransaction = async () => {
     // Validate required fields
     if (!newTransaction.productId) {
-      alert("Product is required");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Product is required",
+      });
       return;
     }
     if (!newTransaction.amount || newTransaction.amount <= 0) {
-      alert("Amount must be greater than 0");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Amount must be greater than 0",
+      });
       return;
     }
 
@@ -350,7 +380,11 @@ export default function CounterSale() {
       exportTransactionsToExcel(result.data, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
-      alert(t("downloadError"));
+      setErrorDialog({
+        open: true,
+        title: t("downloadError"),
+        message: t("downloadError"),
+      });
     } finally {
       setIsDownloading(false);
     }
@@ -358,12 +392,20 @@ export default function CounterSale() {
 
   const handleDownloadDateRange = useCallback(async () => {
     if (!dateRange.fromDate || !dateRange.toDate) {
-      alert(t("invalidDateRange"));
+      setErrorDialog({
+        open: true,
+        title: t("invalidDateRange"),
+        message: t("invalidDateRange"),
+      });
       return;
     }
 
     if (new Date(dateRange.fromDate) > new Date(dateRange.toDate)) {
-      alert(t("invalidDateRange"));
+      setErrorDialog({
+        open: true,
+        title: t("invalidDateRange"),
+        message: t("invalidDateRange"),
+      });
       return;
     }
 
@@ -391,7 +433,11 @@ export default function CounterSale() {
       setDateRange({ fromDate: "", toDate: "" });
     } catch (error) {
       console.error("Error downloading Excel:", error);
-      alert(t("downloadError"));
+      setErrorDialog({
+        open: true,
+        title: t("downloadError"),
+        message: t("downloadError"),
+      });
     } finally {
       setIsDownloading(false);
     }
@@ -412,7 +458,11 @@ export default function CounterSale() {
         !file.name.endsWith(".xls") &&
         !file.type.includes("spreadsheet")
       ) {
-        alert(t("importValidationError"));
+        setErrorDialog({
+          open: true,
+          title: t("importValidationError"),
+          message: t("importValidationError"),
+        });
         return;
       }
 
@@ -436,14 +486,20 @@ export default function CounterSale() {
           result.successCount
         } transaction(s) imported.${
           result.errorCount > 0
-            ? ` ${result.errorCount} error(s) occurred.`
+            ? `\n\n${result.errorCount} error(s) occurred.`
             : ""
         }${
           result.errors && result.errors.length > 0
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
         }`;
-        alert(message);
+        
+        setErrorDialog({
+          open: true,
+          title: t("importSuccess"),
+          message: message,
+          isSuccess: result.errorCount === 0,
+        });
 
         // Refresh transactions by resetting to page 1 and triggering refetch
         const wasOnPage1 = currentPage === 1;
@@ -485,7 +541,11 @@ export default function CounterSale() {
         }
       } catch (error) {
         console.error("Error importing Excel:", error);
-        alert(error instanceof Error ? error.message : t("importError"));
+        setErrorDialog({
+          open: true,
+          title: t("importError"),
+          message: error instanceof Error ? error.message : t("importError"),
+        });
       } finally {
         setIsImporting(false);
       }
@@ -1690,6 +1750,15 @@ export default function CounterSale() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ErrorDialog
+        open={errorDialog.open}
+        onOpenChange={(open) =>
+          setErrorDialog((prev) => ({ ...prev, open }))
+        }
+        title={errorDialog.title}
+        message={errorDialog.message}
+        isSuccess={errorDialog.isSuccess}
+      />
     </>
   );
 }
