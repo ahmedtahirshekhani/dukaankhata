@@ -38,20 +38,61 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
     setError("");
     setIsLoading(true);
 
+    // Basic client-side validation
+    if (!email || !password) {
+      setError(t("requiredField"));
+      setIsLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError(t("invalidEmail"));
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await signIn("credentials", {
-        email,
+        email: email.trim(),
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError(t("invalidCredentials"));
+        // NextAuth returns different error types
+        // "CredentialsSignin" is the standard error for invalid credentials
+        // Other errors might indicate server issues
+        if (
+          result.error === "CredentialsSignin" ||
+          result.error.toLowerCase().includes("credential")
+        ) {
+          setError(t("invalidCredentials"));
+        } else {
+          // For other errors (network, server, etc.), show generic error
+          setError(t("loginError"));
+        }
       } else if (result?.ok) {
+        // Successful login - redirect to admin
         router.push(`/${params.locale}/admin`);
+      } else {
+        // Unexpected result state
+        setError(t("loginError"));
       }
     } catch (err) {
-      setError(t("loginError"));
+      // Handle network errors, fetch failures, or other exceptions
+      if (
+        err instanceof TypeError &&
+        (err.message.includes("fetch") || err.message.includes("network"))
+      ) {
+        setError(t("networkError"));
+      } else if (err instanceof Error) {
+        // Log unexpected errors for debugging
+        console.error("Login error:", err);
+        setError(t("loginError"));
+      } else {
+        setError(t("loginError"));
+      }
     } finally {
       setIsLoading(false);
     }

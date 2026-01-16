@@ -89,10 +89,63 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         }),
       });
 
-      const data = await response.json();
-
+      // Handle network errors or non-JSON responses
       if (!response.ok) {
-        setError(data.error || t("signUpError"));
+        let errorMessage = t("signUpError");
+
+        try {
+          const data = await response.json();
+
+          // Map API error messages to translation keys
+          if (data.error) {
+            const apiError = data.error.toLowerCase();
+
+            if (
+              apiError.includes("missing required fields") ||
+              apiError.includes("missing required")
+            ) {
+              errorMessage = t("missingFields");
+            } else if (
+              apiError.includes("password must be at least 8") ||
+              (apiError.includes("password") && apiError.includes("8"))
+            ) {
+              errorMessage = t("passwordTooShort");
+            } else if (
+              apiError.includes("email already registered") ||
+              apiError.includes("email already")
+            ) {
+              errorMessage = t("emailAlreadyExists");
+            } else if (
+              apiError.includes("failed to create user") ||
+              apiError.includes("internal server error")
+            ) {
+              errorMessage = t("serverError");
+            } else {
+              // Use the API error message if it doesn't match known patterns
+              errorMessage = data.error;
+            }
+          }
+        } catch (parseError) {
+          // If response is not JSON, use status-based error messages
+          if (response.status >= 500) {
+            errorMessage = t("serverError");
+          } else if (response.status === 400) {
+            errorMessage = t("signUpError");
+          }
+        }
+
+        setError(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      // Parse successful response
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        setError(t("signUpError"));
+        setIsLoading(false);
         return;
       }
 
@@ -110,7 +163,12 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         router.push(`/${params.locale}/login`);
       }, 2000);
     } catch (err) {
-      setError(t("signUpError"));
+      // Handle network errors, fetch failures, etc.
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError(t("networkError"));
+      } else {
+        setError(t("signUpError"));
+      }
     } finally {
       setIsLoading(false);
     }

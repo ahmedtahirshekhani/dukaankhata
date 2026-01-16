@@ -72,7 +72,10 @@
     "creatingAccount": "Creating account...",
     "signUpSuccess": "Account created successfully! Please sign in.",
     "loginError": "Failed to sign in. Please try again.",
-    "signUpError": "Failed to create account. Please try again."
+    "signUpError": "Failed to create account. Please try again.",
+    "networkError": "Network error. Please check your connection and try again.",
+    "serverError": "Server error. Please try again later.",
+    "missingFields": "Please fill in all required fields."
   },
   "products": {
     "title": "Items",

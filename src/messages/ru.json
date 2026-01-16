@@ -72,7 +72,10 @@
     "creatingAccount": "Account banya ja raha hai...",
     "signUpSuccess": "Account kamyabi se bnya gya! Baraye Mehrbani sign in karain.",
     "loginError": "Sign in mein nakam. Baraye Mehrbani dobara koshish karain.",
-    "signUpError": "Account banne mein nakam. Baraye Mehrbani dobara koshish karain."
+    "signUpError": "Account banne mein nakam. Baraye Mehrbani dobara koshish karain.",
+    "networkError": "Network kharabi. Baraye Mehrbani apna connection check karain aur dobara koshish karain.",
+    "serverError": "Server kharabi. Baraye Mehrbani baad mein dobara koshish karain.",
+    "missingFields": "Baraye Mehrbani tamam zaroori fields bharain."
   },
   "products": {
     "title": "Mausoolaat",
