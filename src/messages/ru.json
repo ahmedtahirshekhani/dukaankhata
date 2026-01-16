@@ -87,7 +87,16 @@
     "deleteProduct": "Item Delete Karain",
     "noProducts": "Koi Item Nahi Mili",
     "sku": "SKU",
-    "stock": "Stock"
+    "stock": "Stock",
+    "downloadExcel": "Excel Sheet Download Karain",
+    "downloadTemplate": "Template Excel File Download Karain",
+    "import": "Import Karain",
+    "importing": "Import ho raha hai...",
+    "importSuccess": "Items kamyabi se import ho gaye",
+    "importError": "Items import karne mein nakam",
+    "importValidationError": "Baraye Mehrbani Excel file format check karain aur dobara koshish karain",
+    "downloading": "Download ho raha hai...",
+    "downloadError": "Excel file download karne mein nakam"
   },
   "customers": {
     "title": "Gahak",
@@ -99,7 +108,16 @@
     "addCustomer": "Gahak Shamil Karain",
     "editCustomer": "Gahak mein Tarmeem Karain",
     "deleteCustomer": "Gahak Delete Karain",
-    "noCustomers": "Koi Gahak Nahi Mila"
+    "noCustomers": "Koi Gahak Nahi Mila",
+    "downloadExcel": "Excel Sheet Download Karain",
+    "downloadTemplate": "Template Excel File Download Karain",
+    "import": "Import Karain",
+    "importing": "Import ho raha hai...",
+    "importSuccess": "Gahak kamyabi se import ho gaye",
+    "importError": "Gahak import karne mein nakam",
+    "importValidationError": "Baraye Mehrbani Excel file format check karain aur dobara koshish karain",
+    "downloading": "Download ho raha hai...",
+    "downloadError": "Excel file download karne mein nakam"
   },
   "orders": {
     "title": "Orders",
@@ -124,7 +142,23 @@
     "date": "Tareekh",
     "amount": "Ragaam",
     "paymentMethod": "Adaigi ka Tareeka",
-    "status": "Halat"
+    "status": "Halat",
+    "downloadExcel": "Excel Sheet Download Karain",
+    "downloadDateRange": "Tareekh ki Had mein Download Karain",
+    "fromDate": "Shuru ki Tareekh",
+    "toDate": "Khatam ki Tareekh",
+    "download": "Download Karain",
+    "selectDateRange": "Tareekh ki Had Chunain",
+    "downloading": "Download ho raha hai...",
+    "downloadSuccess": "Excel file kamyabi se download ho gayi",
+    "downloadError": "Excel file download karne mein nakam",
+    "invalidDateRange": "Baraye Mehrbani ek sahi tareekh ki had chunain",
+    "downloadTemplate": "Template Excel File Download Karain",
+    "import": "Import Karain",
+    "importing": "Import ho raha hai...",
+    "importSuccess": "Transactions kamyabi se import ho gaye",
+    "importError": "Transactions import karne mein nakam",
+    "importValidationError": "Baraye Mehrbani Excel file format check karain aur dobara koshish karain"
   },
   "invoice": {
     "title": "Invoicing",

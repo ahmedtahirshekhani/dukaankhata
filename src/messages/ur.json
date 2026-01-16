@@ -87,7 +87,16 @@
     "deleteProduct": "آئٹم ڈیلیٹ کریں",
     "noProducts": "کوئی آئٹم نہیں ملا",
     "sku": "SKU",
-    "stock": "اسٹاک"
+    "stock": "اسٹاک",
+    "downloadExcel": "ایکسل شیٹ ڈاؤن لوڈ کریں",
+    "downloadTemplate": "ٹیمپلیٹ ایکسل فائل ڈاؤن لوڈ کریں",
+    "import": "درآمد کریں",
+    "importing": "درآمد ہو رہا ہے...",
+    "importSuccess": "اشیاء کامیابی سے درآمد ہو گئیں",
+    "importError": "اشیاء درآمد کرنے میں ناکام",
+    "importValidationError": "براہ کرم ایکسل فائل کی شکل چیک کریں اور دوبارہ کوشش کریں",
+    "downloading": "ڈاؤن لوڈ ہو رہا ہے...",
+    "downloadError": "ایکسل فائل ڈاؤن لوڈ کرنے میں ناکام"
   },
   "customers": {
     "title": "گاہک",
@@ -99,7 +108,16 @@
     "addCustomer": "گاہک شامل کریں",
     "editCustomer": "گاہک میں ترمیم کریں",
     "deleteCustomer": "گاہک ڈیلیٹ کریں",
-    "noCustomers": "کوئی گاہک نہیں ملا"
+    "noCustomers": "کوئی گاہک نہیں ملا",
+    "downloadExcel": "ایکسل شیٹ ڈاؤن لوڈ کریں",
+    "downloadTemplate": "ٹیمپلیٹ ایکسل فائل ڈاؤن لوڈ کریں",
+    "import": "درآمد کریں",
+    "importing": "درآمد ہو رہا ہے...",
+    "importSuccess": "گاہک کامیابی سے درآمد ہو گئے",
+    "importError": "گاہک درآمد کرنے میں ناکام",
+    "importValidationError": "براہ کرم ایکسل فائل کی شکل چیک کریں اور دوبارہ کوشش کریں",
+    "downloading": "ڈاؤن لوڈ ہو رہا ہے...",
+    "downloadError": "ایکسل فائل ڈاؤن لوڈ کرنے میں ناکام"
   },
   "orders": {
     "title": "آرڈرز",
@@ -124,7 +142,23 @@
     "date": "تاریخ",
     "amount": "رقم",
     "paymentMethod": "ادائیگی کا طریقہ",
-    "status": "حالت"
+    "status": "حالت",
+    "downloadExcel": "ایکسل شیٹ ڈاؤن لوڈ کریں",
+    "downloadDateRange": "تاریخ کی حد میں ڈاؤن لوڈ کریں",
+    "fromDate": "شروع کی تاریخ",
+    "toDate": "ختم کی تاریخ",
+    "download": "ڈاؤن لوڈ کریں",
+    "selectDateRange": "تاریخ کی حد چنیں",
+    "downloading": "ڈاؤن لوڈ ہو رہا ہے...",
+    "downloadSuccess": "ایکسل فائل کامیابی سے ڈاؤن لوڈ ہو گئی",
+    "downloadError": "ایکسل فائل ڈاؤن لوڈ کرنے میں ناکام",
+    "invalidDateRange": "براہ کرم ایک درست تاریخ کی حد چنیں",
+    "downloadTemplate": "ٹیمپلیٹ ایکسل فائل ڈاؤن لوڈ کریں",
+    "import": "درآمد کریں",
+    "importing": "درآمد ہو رہا ہے...",
+    "importSuccess": "لین دین کامیابی سے درآمد ہو گئے",
+    "importError": "لین دین درآمد کرنے میں ناکام",
+    "importValidationError": "براہ کرم ایکسل فائل کی شکل چیک کریں اور دوبارہ کوشش کریں"
   },
   "invoice": {
     "title": "انوائس",
