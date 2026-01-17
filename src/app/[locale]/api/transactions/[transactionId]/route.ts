@@ -28,6 +28,8 @@ export async function PUT(
     {
       $set: {
         ...updatedTransaction,
+        amount: Number(updatedTransaction.amount),
+        created_at: new Date(updatedTransaction.created_at),
         user_id: toObjectId(user.id)
       }
     },
