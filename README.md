@@ -7,7 +7,7 @@ As a developer with extensive experience in creating similar applications, this 
 This particular iteration embraces the spirit of open-source development, making it freely available for the community to use, modify, and improve upon.
 
 ## Features
-
+changes done
 - **Dashboard**: Overview of key metrics and charts
 - **Products Management**: Add, edit, delete, and view products
 - **Customer Management**: Manage customer information and status
