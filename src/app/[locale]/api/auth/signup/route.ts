@@ -34,6 +34,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const existingCompany = await usersCollection.findOne({ company_name: companyName });
+
+    if (existingCompany)
+    {
+      return NextResponse.json(
+        { error: "Company name already registered" },
+        { status: 400 }
+      );
+    }
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
