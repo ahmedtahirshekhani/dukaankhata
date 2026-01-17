@@ -443,36 +443,40 @@ export default function Products() {
             </div>
 
             {/* Mobile: Excel buttons */}
-            <div className="flex md:hidden items-center gap-2 flex-wrap">
+            <div className="grid grid-cols-2 gap-2 md:hidden">
               <Button
                 onClick={handleDownloadExcel}
                 disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs flex-1 min-w-[100px]"
+                className="h-10 text-xs min-h-[44px]"
               >
-                <FileDown className="mr-1 h-3 w-3" />
-                {isDownloading ? t("downloading") : t("downloadExcel")}
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
               </Button>
               <Button
                 onClick={handleDownloadTemplate}
                 disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs flex-1 min-w-[100px]"
+                className="h-10 text-xs min-h-[44px]"
               >
-                <FileDown className="mr-1 h-3 w-3" />
-                {t("downloadTemplate")}
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
               </Button>
               <Button
                 onClick={handleImportClick}
                 disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs flex-1 min-w-[100px]"
+                className="h-10 text-xs min-h-[44px] col-span-2"
               >
-                <Upload className="mr-1 h-3 w-3" />
-                {isImporting ? t("importing") : t("import")}
+                <Upload className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
               </Button>
               <input
                 ref={fileInputRef}
@@ -497,36 +501,40 @@ export default function Products() {
                 onClearAll={clearAllFilters}
                 capitalizeFirstLetter={capitalizeFirstLetter}
               />
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
                 <Button
                   onClick={handleDownloadExcel}
                   disabled={isDownloading || isImporting}
                   variant="outline"
                   size="sm"
-                  className="h-9 text-xs whitespace-nowrap"
+                  className="h-9 text-xs whitespace-nowrap min-w-[120px]"
                 >
-                  <FileDown className="mr-2 h-3 w-3" />
-                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                  <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">
+                    {isDownloading ? t("downloading") : t("downloadExcel")}
+                  </span>
                 </Button>
                 <Button
                   onClick={handleDownloadTemplate}
                   disabled={isDownloading || isImporting}
                   variant="outline"
                   size="sm"
-                  className="h-9 text-xs whitespace-nowrap"
+                  className="h-9 text-xs whitespace-nowrap min-w-[140px]"
                 >
-                  <FileDown className="mr-2 h-3 w-3" />
-                  {t("downloadTemplate")}
+                  <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{t("downloadTemplate")}</span>
                 </Button>
                 <Button
                   onClick={handleImportClick}
                   disabled={isDownloading || isImporting}
                   variant="outline"
                   size="sm"
-                  className="h-9 text-xs whitespace-nowrap"
+                  className="h-9 text-xs whitespace-nowrap min-w-[100px]"
                 >
-                  <Upload className="mr-2 h-3 w-3" />
-                  {isImporting ? t("importing") : t("import")}
+                  <Upload className="mr-2 h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">
+                    {isImporting ? t("importing") : t("import")}
+                  </span>
                 </Button>
                 <input
                   ref={fileInputRef}

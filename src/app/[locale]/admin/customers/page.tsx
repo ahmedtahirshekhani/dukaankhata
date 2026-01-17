@@ -402,7 +402,8 @@ export default function CustomersPage() {
       </div>
       <Card className="flex flex-col gap-6 p-6">
         <CardHeader className="p-0">
-          <div className="flex items-center justify-between">
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Input
@@ -445,36 +446,40 @@ export default function CustomersPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <Button
                 onClick={handleDownloadExcel}
                 disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-9 text-xs whitespace-nowrap"
+                className="h-9 text-xs whitespace-nowrap min-w-[120px]"
               >
-                <FileDown className="mr-2 h-3 w-3" />
-                {isDownloading ? t("downloading") : t("downloadExcel")}
+                <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
               </Button>
               <Button
                 onClick={handleDownloadTemplate}
                 disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-9 text-xs whitespace-nowrap"
+                className="h-9 text-xs whitespace-nowrap min-w-[140px]"
               >
-                <FileDown className="mr-2 h-3 w-3" />
-                {t("downloadTemplate")}
+                <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
               </Button>
               <Button
                 onClick={handleImportClick}
                 disabled={isDownloading || isImporting}
                 variant="outline"
                 size="sm"
-                className="h-9 text-xs whitespace-nowrap"
+                className="h-9 text-xs whitespace-nowrap min-w-[100px]"
               >
-                <Upload className="mr-2 h-3 w-3" />
-                {isImporting ? t("importing") : t("import")}
+                <Upload className="mr-2 h-3 w-3 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
               </Button>
               <input
                 ref={fileInputRef}
@@ -487,6 +492,103 @@ export default function CustomersPage() {
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Add Customer
               </Button>
+            </div>
+          </div>
+
+          {/* Mobile/Tablet Layout */}
+          <div className="md:hidden flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pr-8"
+                />
+                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9">
+                    <FilterIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Filters</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "all"}
+                    onCheckedChange={() => handleFilterChange("all")}
+                  >
+                    All Statuses
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "active"}
+                    onCheckedChange={() => handleFilterChange("active")}
+                  >
+                    Active
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "inactive"}
+                    onCheckedChange={() => handleFilterChange("inactive")}
+                  >
+                    Inactive
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="sm"
+                onClick={() => setShowNewCustomerDialog(true)}
+                className="h-9 min-h-[44px]"
+              >
+                <PlusCircle className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add</span>
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px] col-span-2"
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
             </div>
           </div>
         </CardHeader>

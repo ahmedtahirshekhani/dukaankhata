@@ -9,7 +9,7 @@ import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import Logo from "../../../public/images/DukaanKhataLogo.svg";
 
-export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
+export function LandingHeader() {
   const locale = useLocale();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -57,13 +57,14 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
           >
             Login
           </Link> */}
-          <Button
-            onClick={onJoinClick}
-            className="hidden sm:inline-flex"
-            size="sm"
-          >
-            Join Waitlist
-          </Button>
+          <Link href={`/${locale}/waitlist`}>
+            <Button
+              className="hidden sm:inline-flex"
+              size="sm"
+            >
+              Join Waitlist
+            </Button>
+          </Link>
 
           {/* Mobile Menu Toggle */}
           <button
@@ -96,9 +97,11 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
             >
               Dashboard
             </Link>
-            <Button onClick={onJoinClick} className="w-full">
-              Join Waitlist
-            </Button>
+            <Link href={`/${locale}/waitlist`} className="w-full">
+              <Button className="w-full">
+                Join Waitlist
+              </Button>
+            </Link>
           </nav>
         </div>
       )}
