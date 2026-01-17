@@ -6,6 +6,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,10 +52,15 @@ import {
   Edit2Icon,
   DownloadIcon,
   Trash2Icon,
+  SearchIcon,
+  FilterIcon,
+  ChevronDownIcon,
+  XIcon,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -125,6 +133,16 @@ export default function CounterSale() {
     "add" | "edit"
   >("add");
 
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    type: "all",
+  });
+  const [amountRange, setAmountRange] = useState({
+    min: "",
+    max: "",
+  });
+
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
     if (!isoString) return "";
@@ -194,13 +212,42 @@ export default function CounterSale() {
     }
   };
 
-  const getSortedTransactions = () => {
-    // Filter transactions by selected year
+  const filteredTransactions = useMemo(() => {
+    // Filter transactions by selected year, type, amount range, and item name
     return transactions.filter((transaction) => {
       const transactionYear = new Date(transaction.created_at).getFullYear();
-      return transactionYear === selectedYear;
+
+      // Year filter
+      if (transactionYear !== selectedYear) {
+        return false;
+      }
+
+      // Type filter
+      if (filters.type !== "all" && transaction.type !== filters.type) {
+        return false;
+      }
+
+      // Amount range filter
+      if (amountRange.min && transaction.amount < Number(amountRange.min)) {
+        return false;
+      }
+      if (amountRange.max && transaction.amount > Number(amountRange.max)) {
+        return false;
+      }
+
+      // Item name search filter
+      if (
+        searchTerm &&
+        !transaction.productName
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      ) {
+        return false;
+      }
+
+      return true;
     });
-  };
+  }, [transactions, selectedYear, filters, amountRange, searchTerm]);
 
   const getSortIcon = (column: keyof Transaction) => {
     if (sortColumn !== column) {
@@ -356,6 +403,45 @@ export default function CounterSale() {
       console.error("Error deleting transaction:", error);
     }
   }, [transactionToDelete, transactions, pageInfo]);
+
+  const handleFilterChange = (type: "type", value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [type]: value,
+    }));
+    setCurrentPage(1);
+  };
+
+  const handleAmountRangeChange = (field: "min" | "max", value: string) => {
+    setAmountRange((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setCurrentPage(1);
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleClearAllFilters = () => {
+    setSearchTerm("");
+    setFilters({
+      type: "all",
+    });
+    setAmountRange({
+      min: "",
+      max: "",
+    });
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    filters.type !== "all" ||
+    amountRange.min !== "" ||
+    amountRange.max !== "";
 
   const handleDownloadPDF = (transaction: Transaction) => {
     // Import html2pdf dynamically to avoid SSR issues
@@ -786,7 +872,123 @@ export default function CounterSale() {
             </div>
           </div>
         </CardHeader>
+
         <CardContent>
+          {/* Filter Section - Desktop */}
+          <div className="hidden md:block -mx-6 -mt-6 mb-6 px-6 py-4 border-b">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Search */}
+              <div className="relative w-48 flex-shrink-0">
+                <Input
+                  type="text"
+                  placeholder="Search items..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pr-8 h-9 text-sm"
+                />
+                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+
+              {/* Type Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 text-xs flex-shrink-0"
+                  >
+                    <span className="text-muted-foreground hidden sm:inline">
+                      Type:
+                    </span>
+                    <span>{filters.type === "all" ? "All" : filters.type}</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuLabel>Type</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "all"}
+                    onCheckedChange={() => handleFilterChange("type", "all")}
+                  >
+                    All
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "income"}
+                    onCheckedChange={() => handleFilterChange("type", "income")}
+                  >
+                    Income
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "expense"}
+                    onCheckedChange={() =>
+                      handleFilterChange("type", "expense")
+                    }
+                  >
+                    Expense
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Amount Range Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 flex-shrink-0"
+                  >
+                    <FilterIcon className="w-3 h-3" />
+                    <span className="text-xs hidden sm:inline">Amount</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 sm:w-80 p-4">
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold">
+                      Amount Range
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={amountRange.min}
+                        onChange={(e) =>
+                          handleAmountRangeChange("min", e.target.value)
+                        }
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={amountRange.max}
+                        onChange={(e) =>
+                          handleAmountRangeChange("max", e.target.value)
+                        }
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Reset Filters Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearAllFilters}
+                  className="h-9 w-9 md:w-auto md:px-3 p-0 flex-shrink-0"
+                >
+                  <XIcon className="w-4 h-4" />
+                  <span className="hidden md:inline md:ml-1 text-xs">
+                    Clear
+                  </span>
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Desktop Table View */}
           <div className="hidden md:block">
             <div className="overflow-x-auto -mx-4 md:mx-0">
@@ -927,7 +1129,7 @@ export default function CounterSale() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {getSortedTransactions().map((transaction) => (
+                      {filteredTransactions.map((transaction) => (
                         <React.Fragment key={transaction.id}>
                           {/* Desktop Edit Row */}
                           {editingId === transaction.id ? (
@@ -1255,8 +1457,119 @@ export default function CounterSale() {
               </div>
             )}
 
+            {/* Mobile Filter Section */}
+            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border">
+              <div className="flex flex-col gap-3">
+                {/* Search */}
+                <div className="relative w-full">
+                  <Input
+                    type="text"
+                    placeholder="Search items..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="pr-8 h-9 text-sm w-full"
+                  />
+                  <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {/* Type Filter */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 h-9 text-xs flex-shrink-0"
+                      >
+                        <span className="text-muted-foreground">Type:</span>
+                        <span>{filters.type === "all" ? "All" : filters.type}</span>
+                        <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[200px]">
+                      <DropdownMenuLabel>Type</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "all"}
+                        onCheckedChange={() => handleFilterChange("type", "all")}
+                      >
+                        All
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "income"}
+                        onCheckedChange={() => handleFilterChange("type", "income")}
+                      >
+                        Income
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "expense"}
+                        onCheckedChange={() => handleFilterChange("type", "expense")}
+                      >
+                        Expense
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Amount Range Filter */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 h-9 flex-shrink-0"
+                      >
+                        <FilterIcon className="w-3 h-3" />
+                        <span className="text-xs">Amount</span>
+                        <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[280px] p-4">
+                      <div className="space-y-3">
+                        <Label className="text-xs font-semibold">
+                          Amount Range
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Min"
+                            value={amountRange.min}
+                            onChange={(e) =>
+                              handleAmountRangeChange("min", e.target.value)
+                            }
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Max"
+                            value={amountRange.max}
+                            onChange={(e) =>
+                              handleAmountRangeChange("max", e.target.value)
+                            }
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Reset Filters Button */}
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearAllFilters}
+                      className="h-9 px-2 flex-shrink-0 text-xs"
+                    >
+                      <XIcon className="w-4 h-4 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Transaction Cards */}
-            {getSortedTransactions().map((transaction) => (
+            {filteredTransactions.map((transaction) => (
               <div key={transaction.id}>
                 {editingId === transaction.id ? (
                   // Mobile Edit Card
