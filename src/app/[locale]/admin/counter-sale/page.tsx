@@ -56,6 +56,7 @@ import {
   FilterIcon,
   ChevronDownIcon,
   XIcon,
+  CalendarIcon,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
@@ -68,6 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UNITS_OF_MEASUREMENT } from "@/components/product-dialog";
 
 type TransactionType = "income" | "expense";
 
@@ -91,6 +93,9 @@ interface Transaction {
   amount: number;
   customerName?: string;
   customerNumber?: string;
+  unitPrice?: number;
+  uom?: string;
+  quantity?: number;
 }
 
 interface PaginatedResponse {
@@ -121,6 +126,7 @@ export default function CounterSale() {
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     type: "income",
     amount: 0,
+    quantity: 1,
     created_at: new Date().toISOString(),
   });
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
@@ -166,8 +172,26 @@ export default function CounterSale() {
     const { name, value } = e.target;
     if (name === "created_at") {
       setNewTransaction((prev) => ({ ...prev, [name]: dateInputToIso(value) }));
+    } else if (name === "unitPrice" || name === "quantity") {
+      const numValue = parseFloat(value) || 0;
+      setNewTransaction((prev) => {
+        const updated = { ...prev, [name]: numValue };
+        // Auto-calculate amount
+        const price = name === "unitPrice" ? numValue : (prev.unitPrice || 0);
+        const qty = name === "quantity" ? numValue : (prev.quantity || 0);
+        updated.amount = price * qty;
+        return updated;
+      });
     } else {
       setNewTransaction((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleUOMChange = (value: string, isEdit: boolean) => {
+    if (isEdit) {
+      setEditFormData((prev) => ({ ...prev, uom: value }));
+    } else {
+      setNewTransaction((prev) => ({ ...prev, uom: value }));
     }
   };
 
@@ -175,6 +199,16 @@ export default function CounterSale() {
     const { name, value } = e.target;
     if (name === "created_at") {
       setEditFormData((prev) => ({ ...prev, [name]: dateInputToIso(value) }));
+    } else if (name === "unitPrice" || name === "quantity") {
+      const numValue = parseFloat(value) || 0;
+      setEditFormData((prev) => {
+        const updated = { ...prev, [name]: numValue };
+        // Auto-calculate amount
+        const price = name === "unitPrice" ? numValue : (prev.unitPrice || 0);
+        const qty = name === "quantity" ? numValue : (prev.quantity || 0);
+        updated.amount = price * qty;
+        return updated;
+      });
     } else {
       setEditFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -184,7 +218,11 @@ export default function CounterSale() {
     return (
       newTransaction.productId &&
       newTransaction.amount &&
-      newTransaction.amount > 0
+      newTransaction.amount > 0 &&
+      newTransaction.unitPrice !== undefined &&
+      newTransaction.uom &&
+      newTransaction.quantity &&
+      newTransaction.quantity > 0
     );
   };
 
@@ -198,6 +236,9 @@ export default function CounterSale() {
       amount: transaction.amount,
       customerName: transaction.customerName,
       customerNumber: transaction.customerNumber,
+      unitPrice: transaction.unitPrice,
+      uom: transaction.uom,
+      quantity: transaction.quantity,
     });
   };
 
@@ -659,28 +700,28 @@ export default function CounterSale() {
                   ? `<div class="item-description">${transaction.productDescription}</div>`
                   : ""
               }
-            </div>
-            
-            <hr class="divider">
-            
-            <!-- Amount Section -->
-            <div class="amount-box">
-              <div class="amount-label">${t("amount")}</div>
-              <div class="amount-value">Rs. ${Math.floor(
-                transaction.amount
-              )}</div>
-            </div>
-            
-            <!-- Type Badge -->
-            <div style="text-align: center; margin-bottom: 15px;">
-              <span class="type-badge">${transaction.type}</span>
+              <div class="detail-row">
+                <span class="detail-label">Unit Price:</span>
+                <span class="detail-value">Rs. ${transaction.unitPrice || 0}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">UOM:</span>
+                <span class="detail-value">${transaction.uom || "N/A"}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Quantity:</span>
+                <span class="detail-value">${transaction.quantity || 1}</span>
+              </div>
             </div>
             
             ${
               transaction.customerName || transaction.customerNumber
                 ? `
-            <div class="customer-section">
-              <div class="section-title" style="border-bottom: none; margin-bottom: 8px;">Customer Details</div>
+            <hr class="divider">
+            
+            <!-- Customer Details -->
+            <div class="receipt-section">
+              <div class="section-title">Customer Details</div>
               ${
                 transaction.customerName
                   ? `
@@ -705,6 +746,21 @@ export default function CounterSale() {
             `
                 : ""
             }
+            
+            <hr class="divider">
+            
+            <!-- Amount Section -->
+            <div class="amount-box">
+              <div class="amount-label">${t("amount")}</div>
+              <div class="amount-value">Rs. ${Math.floor(
+                transaction.amount
+              )}</div>
+            </div>
+            
+            <!-- Type Badge -->
+            <div style="text-align: center; margin-bottom: 15px;">
+              <span class="type-badge">${transaction.type}</span>
+            </div>
             
             <!-- Footer -->
             <div class="receipt-footer">
@@ -997,31 +1053,40 @@ export default function CounterSale() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-56 whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4">
+                        <TableHead className="w-48 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
                           Item
                         </TableHead>
+                        <TableHead className="w-28 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                          Unit Price
+                        </TableHead>
+                        <TableHead className="w-24 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                          UOM
+                        </TableHead>
+                        <TableHead className="w-20 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                          Qty
+                        </TableHead>
                         <TableHead
-                          className="w-32 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          className="w-32 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
+                          onClick={() => handleSort("amount")}
+                        >
+                          Amount {getSortIcon("amount")}
+                        </TableHead>
+                        <TableHead
+                          className="w-28 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
                           onClick={() => handleSort("type")}
                         >
                           Type {getSortIcon("type")}
                         </TableHead>
                         <TableHead
-                          className="w-40 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
+                          className="w-36 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
                           onClick={() => handleSort("created_at")}
                         >
                           Date {getSortIcon("created_at")}
                         </TableHead>
-                        <TableHead
-                          className="w-28 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4"
-                          onClick={() => handleSort("amount")}
-                        >
-                          Amount {getSortIcon("amount")}
-                        </TableHead>
-                        <TableHead className="w-40 whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4">
+                        <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
                           Customer Name
                         </TableHead>
-                        <TableHead className="w-40 whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4">
+                        <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
                           Customer Number
                         </TableHead>
                         <TableHead className="w-20 px-2 sm:px-4"></TableHead>
@@ -1030,16 +1095,23 @@ export default function CounterSale() {
                         </TableHead>
                       </TableRow>
                       <TableRow>
-                        <TableCell className="w-56 px-2 sm:px-4 overflow-hidden">
+                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                           <Combobox
                             items={products}
                             placeholder="Select Item"
-                            className="w-56 truncate"
+                            className="w-40 truncate"
                             value={newTransaction.productName}
                             onSelect={(productId) => {
                               if (productId === 0) {
                                 // "Others" option selected
                                 setSelectedComboboxContext("add");
+                                setNewTransaction((prev) => ({
+                                  ...prev,
+                                  unitPrice: 0,
+                                  quantity: 1,
+                                  amount: 0,
+                                  uom: "unit",
+                                }));
                                 setIsCustomItemDialogOpen(true);
                               } else {
                                 setNewTransaction((prev) => ({
@@ -1051,12 +1123,73 @@ export default function CounterSale() {
                                   productDescription: products.find(
                                     (p) => p.id === productId
                                   )?.description,
+                                  unitPrice: products.find(
+                                    (p) => p.id === productId
+                                  )?.sell_price || 0,
+                                  uom: products.find(
+                                (p) => p.id === productId
+                              )?.unit_of_measurement || "unit",
+                                  quantity: 1, // Default quantity
+                                  amount: (products.find(
+                                    (p) => p.id === productId
+                                  )?.sell_price || 0) * 1,
                                 }));
                               }
                             }}
                           />
                         </TableCell>
-                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                        <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                          <Input
+                            name="unitPrice"
+                            type="number"
+                            value={newTransaction.unitPrice || ""}
+                            onChange={handleInputChange}
+                            placeholder="Price"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                            required
+                          />
+                        </TableCell>
+                        <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
+                          <Select
+                            value={newTransaction.uom}
+                            onValueChange={(value) => handleUOMChange(value, false)}
+                          >
+                            <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
+                              <SelectValue placeholder="UOM" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {UNITS_OF_MEASUREMENT.map((unit) => (
+                                <SelectItem key={unit.value} value={unit.value}>
+                                  {unit.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
+                          <Input
+                            name="quantity"
+                            type="number"
+                            value={newTransaction.quantity || ""}
+                            onChange={handleInputChange}
+                            placeholder="Qty"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-16"
+                            required
+                          />
+                        </TableCell>
+                        <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                          <Input
+                            name="amount"
+                            type="number"
+                            value={newTransaction.amount}
+                            onChange={handleInputChange}
+                            placeholder="Amount"
+                            required
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                            readOnly
+                          />
+                        </TableCell>
+                        <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
                           <div className="w-full overflow-hidden">
                             <Select
                               defaultValue={newTransaction.type}
@@ -1067,7 +1200,7 @@ export default function CounterSale() {
                                 })
                               }
                             >
-                              <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-32">
+                              <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
                                 <SelectValue placeholder="Type" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1077,43 +1210,35 @@ export default function CounterSale() {
                             </Select>
                           </div>
                         </TableCell>
-                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                          <Input
-                            name="created_at"
-                            type="date"
-                            value={isoToDateInput(newTransaction.created_at)}
-                            onChange={handleInputChange}
-                            required
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-40"
-                          />
+                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                          <div className="relative w-32">
+                            <Input
+                              name="created_at"
+                              type="date"
+                              value={isoToDateInput(newTransaction.created_at)}
+                              onChange={handleInputChange}
+                              required
+                              className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                            />
+                            <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                          </div>
                         </TableCell>
-                        <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
-                          <Input
-                            name="amount"
-                            type="number"
-                            value={newTransaction.amount}
-                            onChange={handleInputChange}
-                            placeholder="Amount"
-                            required
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-28"
-                          />
-                        </TableCell>
-                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
                           <Input
                             name="customerName"
                             value={newTransaction.customerName || ""}
                             onChange={handleInputChange}
                             placeholder="Name"
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                           />
                         </TableCell>
-                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
                           <Input
                             name="customerNumber"
                             value={newTransaction.customerNumber || ""}
                             onChange={handleInputChange}
                             placeholder="Number"
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                            className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                           />
                         </TableCell>
                         <TableCell className="w-20 px-2 sm:px-4">
@@ -1134,16 +1259,23 @@ export default function CounterSale() {
                           {/* Desktop Edit Row */}
                           {editingId === transaction.id ? (
                             <TableRow className="hidden md:table-row">
-                              <TableCell className="w-56 px-2 sm:px-4 overflow-hidden">
+                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                                 <Combobox
                                   items={products}
                                   placeholder="Select Item"
-                                  className="w-56 truncate"
+                                  className="w-40 truncate"
                                   value={editFormData.productName}
                                   onSelect={(productId) => {
                                     if (productId === 0) {
                                       // "Others" option selected
                                       setSelectedComboboxContext("edit");
+                                      setEditFormData((prev) => ({
+                                        ...prev,
+                                        unitPrice: 0,
+                                        quantity: 1,
+                                        amount: 0,
+                                        uom: "unit",
+                                      }));
                                       setIsCustomItemDialogOpen(true);
                                     } else {
                                       setEditFormData((prev) => ({
@@ -1155,12 +1287,72 @@ export default function CounterSale() {
                                         productDescription: products.find(
                                           (p) => p.id === productId
                                         )?.description,
+                                        unitPrice: products.find(
+                                          (p) => p.id === productId
+                                        )?.sell_price || 0,
+                                        uom: products.find(
+                                          (p) => p.id === productId
+                                        )?.unit_of_measurement || "unit",
+                                        quantity: 1,
+                                        amount: (products.find(
+                                          (p) => p.id === productId
+                                        )?.sell_price || 0) * 1,
                                       }));
                                     }
                                   }}
                                 />
                               </TableCell>
-                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                              <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                                <Input
+                                  name="unitPrice"
+                                  type="number"
+                                  value={editFormData.unitPrice || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Price"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                                  required
+                                />
+                              </TableCell>
+                              <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
+                                <Select
+                                  value={editFormData.uom}
+                                  onValueChange={(value) => handleUOMChange(value, true)}
+                                >
+                                  <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
+                                    <SelectValue placeholder="UOM" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {UNITS_OF_MEASUREMENT.map((unit) => (
+                                      <SelectItem key={unit.value} value={unit.value}>
+                                        {unit.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
+                                <Input
+                                  name="quantity"
+                                  type="number"
+                                  value={editFormData.quantity || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Qty"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-16"
+                                  required
+                                />
+                              </TableCell>
+                              <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
+                                <Input
+                                  name="amount"
+                                  type="number"
+                                  value={editFormData.amount || ""}
+                                  onChange={handleEditInputChange}
+                                  placeholder="Amount"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-28"
+                                  readOnly
+                                />
+                              </TableCell>
+                              <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
                                 <div className="w-full overflow-hidden">
                                   <Select
                                     value={editFormData.type || "income"}
@@ -1171,7 +1363,7 @@ export default function CounterSale() {
                                       })
                                     }
                                   >
-                                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-32">
+                                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
                                       <SelectValue placeholder="Type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1185,44 +1377,37 @@ export default function CounterSale() {
                                   </Select>
                                 </div>
                               </TableCell>
-                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="created_at"
-                                  type="date"
-                                  value={isoToDateInput(
-                                    editFormData.created_at ||
-                                      transaction.created_at
-                                  )}
-                                  onChange={handleEditInputChange}
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-40"
-                                />
+                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                                <div className="relative w-32">
+                                  <Input
+                                    name="created_at"
+                                    type="date"
+                                    value={isoToDateInput(
+                                      editFormData.created_at ||
+                                        transaction.created_at
+                                    )}
+                                    onChange={handleEditInputChange}
+                                    className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                                  />
+                                  <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                                </div>
                               </TableCell>
-                              <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="amount"
-                                  type="number"
-                                  value={editFormData.amount || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder="Amount"
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-28"
-                                />
-                              </TableCell>
-                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
                                 <Input
                                   name="customerName"
                                   value={editFormData.customerName || ""}
                                   onChange={handleEditInputChange}
                                   placeholder="Name"
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                                 />
                               </TableCell>
-                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
                                 <Input
                                   name="customerNumber"
                                   value={editFormData.customerNumber || ""}
                                   onChange={handleEditInputChange}
                                   placeholder="Number"
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-40"
+                                  className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                                 />
                               </TableCell>
                               <TableCell className="w-20 px-2 sm:px-4">
@@ -1254,7 +1439,7 @@ export default function CounterSale() {
                             <>
                               {/* Desktop View */}
                               <TableRow className="hidden md:table-row">
-                                <TableCell className="w-56 px-2 sm:px-4 overflow-hidden">
+                                <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                                   <div className="flex flex-col items-start py-1">
                                     <span className="text-xs sm:text-sm font-medium leading-tight">
                                       {transaction.productName || "-"}
@@ -1266,7 +1451,19 @@ export default function CounterSale() {
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                                <TableCell className="w-24 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                  Rs. {transaction.unitPrice}
+                                </TableCell>
+                                <TableCell className="w-20 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                  {transaction.uom}
+                                </TableCell>
+                                <TableCell className="w-16 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                  {transaction.quantity}
+                                </TableCell>
+                                <TableCell className="w-28 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                  Rs. {Math.floor(transaction.amount)}
+                                </TableCell>
+                                <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
                                   <Badge
                                     variant={transaction.type}
                                     className="text-xs truncate"
@@ -1274,30 +1471,27 @@ export default function CounterSale() {
                                     {transaction.type}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="w-40 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                <TableCell className="w-32 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
                                   {formatDate(transaction.created_at, false, {
                                     year: "numeric",
                                     month: "short",
                                     day: "2-digit",
                                   })}
                                 </TableCell>
-                                <TableCell className="w-28 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                  Rs. {Math.floor(transaction.amount)}
-                                </TableCell>
                                 <TableCell
-                                  className="w-40 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
+                                  className="w-32 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
                                   title={transaction.customerName || "-"}
                                 >
                                   {transaction.customerName || "-"}
                                 </TableCell>
                                 <TableCell
-                                  className="w-40 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
+                                  className="w-32 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
                                   title={transaction.customerNumber || "-"}
                                 >
                                   {transaction.customerNumber || "-"}
                                 </TableCell>
                                 <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-1">
                                     <Button
                                       aria-haspopup="true"
                                       size="icon"
@@ -1365,6 +1559,13 @@ export default function CounterSale() {
                     onSelect={(productId) => {
                       if (productId === 0) {
                         setSelectedComboboxContext("add");
+                        setNewTransaction((prev) => ({
+                          ...prev,
+                          unitPrice: 0,
+                          quantity: 1,
+                          amount: 0,
+                          uom: "unit",
+                        }));
                         setIsCustomItemDialogOpen(true);
                       } else {
                         setNewTransaction((prev) => ({
@@ -1375,12 +1576,66 @@ export default function CounterSale() {
                           productDescription: products.find(
                             (p) => p.id === productId
                           )?.description,
+                          unitPrice: products.find(
+                            (p) => p.id === productId
+                          )?.sell_price || 0,
+                          uom: products.find(
+                            (p) => p.id === productId
+                          )?.unit_of_measurement || "unit",
+                          quantity: 1,
+                          amount: (products.find(
+                            (p) => p.id === productId
+                          )?.sell_price || 0) * 1,
                         }));
                       }
                     }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Unit Price</label>
+                    <Input
+                      name="unitPrice"
+                      type="number"
+                      value={newTransaction.unitPrice || ""}
+                      onChange={handleInputChange}
+                      placeholder="Price"
+                      className="text-sm h-9"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">UOM</label>
+                    <Select
+                      value={newTransaction.uom}
+                      onValueChange={(value) => handleUOMChange(value, false)}
+                    >
+                      <SelectTrigger className="text-sm h-9">
+                        <SelectValue placeholder="UOM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNITS_OF_MEASUREMENT.map((unit) => (
+                          <SelectItem key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Quantity</label>
+                    <Input
+                      name="quantity"
+                      type="number"
+                      value={newTransaction.quantity || ""}
+                      onChange={handleInputChange}
+                      placeholder="Qty"
+                      className="text-sm h-9"
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Amount</label>
                     <Input
@@ -1391,8 +1646,10 @@ export default function CounterSale() {
                       placeholder="Amount"
                       required
                       className="text-sm h-9"
+                      readOnly
                     />
                   </div>
+                </div>
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Type</label>
                     <Select
@@ -1413,18 +1670,21 @@ export default function CounterSale() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Date</label>
-                    <Input
-                      name="created_at"
-                      type="date"
-                      value={isoToDateInput(newTransaction.created_at)}
-                      onChange={handleInputChange}
-                      required
-                      className="text-sm h-9 w-full px-1"
-                    />
+                    <div className="relative">
+                      <Input
+                        name="created_at"
+                        type="date"
+                        value={isoToDateInput(newTransaction.created_at)}
+                        onChange={handleInputChange}
+                        required
+                        className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                      />
+                      <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Customer Name</label>
@@ -1599,6 +1859,13 @@ export default function CounterSale() {
                         onSelect={(productId) => {
                           if (productId === 0) {
                             setSelectedComboboxContext("edit");
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              unitPrice: 0,
+                              quantity: 1,
+                              amount: 0,
+                              uom: "unit",
+                            }));
                             setIsCustomItemDialogOpen(true);
                           } else {
                             setEditFormData((prev) => ({
@@ -1610,6 +1877,16 @@ export default function CounterSale() {
                               productDescription: products.find(
                                 (p) => p.id === productId
                               )?.description,
+                              unitPrice: products.find(
+                                (p) => p.id === productId
+                              )?.sell_price || 0,
+                              uom: products.find(
+                                (p) => p.id === productId
+                              )?.unit_of_measurement || "unit",
+                              quantity: 1,
+                              amount: (products.find(
+                                (p) => p.id === productId
+                              )?.sell_price || 0) * 1,
                             }));
                           }
                         }}
@@ -1635,29 +1912,80 @@ export default function CounterSale() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                       <div className="space-y-2">
+                        <label className="text-xs font-medium">Unit Price</label>
+                        <Input
+                          name="unitPrice"
+                          type="number"
+                          value={editFormData.unitPrice || ""}
+                          onChange={handleEditInputChange}
+                          placeholder="Price"
+                          className="text-sm h-9"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">UOM</label>
+                        <Select
+                          value={editFormData.uom}
+                          onValueChange={(value) => handleUOMChange(value, true)}
+                        >
+                          <SelectTrigger className="text-sm h-9">
+                          <SelectValue placeholder="UOM" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNITS_OF_MEASUREMENT.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Quantity</label>
+                        <Input
+                          name="quantity"
+                          type="number"
+                          value={editFormData.quantity || ""}
+                          onChange={handleEditInputChange}
+                          placeholder="Qty"
+                          className="text-sm h-9"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Amount</label>
+                        <Input
+                          name="amount"
+                          type="number"
+                          value={editFormData.amount || ""}
+                          onChange={handleEditInputChange}
+                          placeholder="Amount"
+                          className="text-sm h-9"
+                          readOnly
+                        />
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium">Date</label>
-                      <Input
-                        name="created_at"
-                        type="date"
-                        value={isoToDateInput(
-                          editFormData.created_at || transaction.created_at
-                        )}
-                        onChange={handleEditInputChange}
-                        className="text-sm h-9 w-full px-1"
-                      />
+                      <div className="relative">
+                        <Input
+                          name="created_at"
+                          type="date"
+                          value={isoToDateInput(
+                            editFormData.created_at || transaction.created_at
+                          )}
+                          onChange={handleEditInputChange}
+                          className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                        />
+                        <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium">Amount</label>
-                      <Input
-                        name="amount"
-                        type="number"
-                        value={editFormData.amount || ""}
-                        onChange={handleEditInputChange}
-                        placeholder="Amount"
-                        className="text-sm h-9"
-                      />
-                    </div>
+
                     <div className="space-y-2">
                       <label className="text-xs font-medium">
                         Customer Name
@@ -1713,6 +2041,17 @@ export default function CounterSale() {
                           {transaction.productDescription}
                         </div>
                       )}
+                       <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
+                        {transaction.unitPrice && (
+                          <span>
+                            Price: Rs. {transaction.unitPrice}
+                            {transaction.uom ? `/${transaction.uom}` : ""}
+                          </span>
+                        )}
+                        {transaction.quantity && (
+                          <span>Qty: {transaction.quantity}</span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex gap-2">
