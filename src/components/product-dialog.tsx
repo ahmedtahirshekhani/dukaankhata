@@ -41,9 +41,9 @@ interface ProductDialogProps {
   onSuccess: (product: Product, isEdit: boolean) => void;
 }
 
-type UnitOption = { value: string; label: string };
+export type UnitOption = { value: string; label: string };
 
-const UNITS_OF_MEASUREMENT: UnitOption[] = [
+export const UNITS_OF_MEASUREMENT: UnitOption[] = [
   { value: "piece", label: "Piece" },
   { value: "kg", label: "Kilogram (kg)" },
   { value: "gram", label: "Gram (g)" },
