@@ -15,6 +15,7 @@ import {
   SearchIcon,
   FileDown,
   Upload,
+  MoreVertical,
 } from "lucide-react";
 import {
   exportProductsToExcel,
@@ -47,6 +48,7 @@ import {
 import { useProductsData } from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
 import { ErrorDialog } from "@/components/error-dialog";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -366,7 +368,7 @@ export default function Products() {
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
         }`;
-        
+
         setErrorDialog({
           open: true,
           title: t("importSuccess"),
@@ -443,41 +445,44 @@ export default function Products() {
             </div>
 
             {/* Mobile: Excel buttons */}
-            <div className="grid grid-cols-2 gap-2 md:hidden">
-              <Button
-                onClick={handleDownloadExcel}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px]"
-              >
-                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">
-                  {isDownloading ? t("downloading") : t("downloadExcel")}
-                </span>
-              </Button>
-              <Button
-                onClick={handleDownloadTemplate}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px]"
-              >
-                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">{t("downloadTemplate")}</span>
-              </Button>
-              <Button
-                onClick={handleImportClick}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px] col-span-2"
-              >
-                <Upload className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">
-                  {isImporting ? t("importing") : t("import")}
-                </span>
-              </Button>
+            <div className="flex justify-end md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 min-h-[44px]"
+                    disabled={isDownloading || isImporting}
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDownloadExcel}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {isDownloading ? t("downloading") : t("downloadExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDownloadTemplate}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadTemplate")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleImportClick}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isImporting ? t("importing") : t("import")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -502,40 +507,43 @@ export default function Products() {
                 capitalizeFirstLetter={capitalizeFirstLetter}
               />
               <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
-                <Button
-                  onClick={handleDownloadExcel}
-                  disabled={isDownloading || isImporting}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 text-xs whitespace-nowrap min-w-[120px]"
-                >
-                  <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">
-                    {isDownloading ? t("downloading") : t("downloadExcel")}
-                  </span>
-                </Button>
-                <Button
-                  onClick={handleDownloadTemplate}
-                  disabled={isDownloading || isImporting}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 text-xs whitespace-nowrap min-w-[140px]"
-                >
-                  <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">{t("downloadTemplate")}</span>
-                </Button>
-                <Button
-                  onClick={handleImportClick}
-                  disabled={isDownloading || isImporting}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 text-xs whitespace-nowrap min-w-[100px]"
-                >
-                  <Upload className="mr-2 h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">
-                    {isImporting ? t("importing") : t("import")}
-                  </span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      disabled={isDownloading || isImporting}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleDownloadExcel}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {isDownloading ? t("downloading") : t("downloadExcel")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleDownloadTemplate}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {t("downloadTemplate")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleImportClick}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {isImporting ? t("importing") : t("import")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -899,9 +907,7 @@ export default function Products() {
       </Dialog>
       <ErrorDialog
         open={errorDialog.open}
-        onOpenChange={(open) =>
-          setErrorDialog((prev) => ({ ...prev, open }))
-        }
+        onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
         title={errorDialog.title}
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
