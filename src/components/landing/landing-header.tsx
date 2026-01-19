@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import Logo from "../../../public/images/DukaanKhataLogo.svg";
 
-export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
+export function LandingHeader() {
   const locale = useLocale();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -20,17 +21,18 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 min-h-24 flex items-center">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link
           href={`/${locale}`}
           className="flex items-center gap-2 font-bold text-xl"
         >
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-            <span className="text-primary-foreground text-sm font-bold">D</span>
+          <div className=" flex items-center justify-center">
+            {/* <span className="text-primary-foreground text-sm font-bold">D</span> */}
+            <Image src={Logo}  alt="DukaanKhata Logo" width={120} height={120}/>
           </div>
-          <span className="hidden sm:inline">DukaanKhata</span>
+          {/* <span className="hidden sm:inline">DukaanKhata</span> */}
         </Link>
 
         {/* Desktop Navigation */}
@@ -49,19 +51,20 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
         {/* Right Side Actions */}
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
-          <Link
+          {/* <Link
             href={`/login`}
             className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Login
+          </Link> */}
+          <Link href={`/${locale}/waitlist`}>
+            <Button
+              className="hidden sm:inline-flex"
+              size="sm"
+            >
+              Join Waitlist
+            </Button>
           </Link>
-          <Button
-            onClick={onJoinClick}
-            className="hidden sm:inline-flex"
-            size="sm"
-          >
-            Join Waitlist
-          </Button>
 
           {/* Mobile Menu Toggle */}
           <button
@@ -94,9 +97,11 @@ export function LandingHeader({ onJoinClick }: { onJoinClick: () => void }) {
             >
               Dashboard
             </Link>
-            <Button onClick={onJoinClick} className="w-full">
-              Join Waitlist
-            </Button>
+            <Link href={`/${locale}/waitlist`} className="w-full">
+              <Button className="w-full">
+                Join Waitlist
+              </Button>
+            </Link>
           </nav>
         </div>
       )}

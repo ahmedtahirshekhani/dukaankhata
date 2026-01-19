@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const data = await customersCollection
     .find(
       { user_id: toObjectId(user.id) },
-      { projection: { _id: 1, name: 1, email: 1, phone: 1 } }
+      { projection: { _id: 1, name: 1, email: 1, phone: 1, status: 1 } }
     )
     .toArray();
 
@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     name: customer.name,
     email: customer.email,
     phone: customer.phone,
+    status: customer.status || "active",
   }));
 
   return NextResponse.json(customers)

@@ -1,14 +1,13 @@
 "use client";
 
 import { ArrowRight, CheckCircle2, Zap, Users, TrendingUp } from "lucide-react";
+import { useLocale } from "next-intl";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-interface LandingHeroProps {
-  onJoinClick: () => void;
-}
-
-export function LandingHero({ onJoinClick }: LandingHeroProps) {
+export function LandingHero() {
+  const locale = useLocale();
   const features = [
     {
       icon: Zap,
@@ -51,10 +50,12 @@ export function LandingHero({ onJoinClick }: LandingHeroProps) {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" onClick={onJoinClick} className="gap-2">
-                  Join the Waitlist
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                <Link href={`/${locale}/waitlist`}>
+                  <Button size="lg" className="gap-2">
+                    Join the Waitlist
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
                 <Button size="lg" variant="outline">
                   Learn More
                 </Button>
@@ -169,10 +170,12 @@ export function LandingHero({ onJoinClick }: LandingHeroProps) {
               Join hundreds of businesses already using DukaanKhata to
               streamline their operations and boost their growth.
             </p>
-            <Button size="lg" onClick={onJoinClick} className="gap-2">
-              Join the Waitlist Now
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+            <Link href={`/${locale}/waitlist`}>
+              <Button size="lg" className="gap-2">
+                Join the Waitlist Now
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

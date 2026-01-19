@@ -1,8 +1,12 @@
 "use client";
 
-"use client";
-
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   Card,
@@ -17,6 +21,8 @@ import {
   SearchIcon,
   FilterIcon,
   FilePenIcon,
+  FileDown,
+  Upload,
 } from "lucide-react";
 import {
   Table,
@@ -51,6 +57,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  exportCustomersToExcel,
+  exportCustomersTemplate,
+} from "@/lib/excel-utils";
+import { ErrorDialog } from "@/components/error-dialog";
 
 type Customer = {
   id: number;
@@ -86,6 +97,18 @@ export default function CustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
     null
   );
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errorDialog, setErrorDialog] = useState<{
+    open: boolean;
+    title?: string;
+    message: string;
+    isSuccess?: boolean;
+  }>({
+    open: false,
+    message: "",
+  });
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -107,7 +130,7 @@ export default function CustomersPage() {
   }, []);
 
   const filteredCustomers = useMemo(() => {
-    if(customers.length === 0) return [];
+    if (customers.length === 0) return [];
     return customers.filter((customer) => {
       console.log("Filtering customer:", customer);
       if (filters.status !== "all" && customer.status !== filters.status) {
@@ -236,6 +259,120 @@ export default function CustomersPage() {
     }));
   };
 
+  const handleDownloadExcel = useCallback(async () => {
+    try {
+      setIsDownloading(true);
+      // Fetch all customers
+      const response = await fetch("/api/customers");
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers");
+      }
+      const allCustomers = await response.json();
+
+      // Generate filename
+      const filename = `customers.xlsx`;
+
+      // Export to Excel
+      exportCustomersToExcel(allCustomers, filename);
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      setErrorDialog({
+        open: true,
+        title: t("downloadError"),
+        message: t("downloadError"),
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [t]);
+
+  const handleDownloadTemplate = useCallback(() => {
+    exportCustomersTemplate("customers-template.xlsx");
+  }, []);
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls") &&
+        !file.type.includes("spreadsheet")
+      ) {
+        setErrorDialog({
+          open: true,
+          title: t("importValidationError"),
+          message: t("importValidationError"),
+        });
+        return;
+      }
+
+      try {
+        setIsImporting(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/customers/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || t("importError"));
+        }
+
+        const result = await response.json();
+        const message = `${t("importSuccess")}: ${
+          result.successCount
+        } customer(s) imported.${
+          result.errorCount > 0
+            ? `\n\n${result.errorCount} error(s) occurred.`
+            : ""
+        }${
+          result.errors && result.errors.length > 0
+            ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
+            : ""
+        }`;
+        
+        setErrorDialog({
+          open: true,
+          title: t("importSuccess"),
+          message: message,
+          isSuccess: result.errorCount === 0,
+        });
+
+        // Refresh customers
+        const refreshResponse = await fetch("/api/customers");
+        if (refreshResponse.ok) {
+          const refreshedCustomers = await refreshResponse.json();
+          setCustomers(refreshedCustomers);
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error importing Excel:", error);
+        setErrorDialog({
+          open: true,
+          title: t("importError"),
+          message: error instanceof Error ? error.message : t("importError"),
+        });
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [t]
+  );
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   if (loading) {
     return (
       <div className="h-[80vh] flex items-center justify-center">
@@ -265,7 +402,8 @@ export default function CustomersPage() {
       </div>
       <Card className="flex flex-col gap-6 p-6">
         <CardHeader className="p-0">
-          <div className="flex items-center justify-between">
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Input
@@ -277,211 +415,362 @@ export default function CustomersPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <FilterIcon className="w-4 h-4" />
-                  <span>Filters</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "all"}
-                  onCheckedChange={() => handleFilterChange("all")}
-                >
-                  All Statuses
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "active"}
-                  onCheckedChange={() => handleFilterChange("active")}
-                >
-                  Active
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "inactive"}
-                  onCheckedChange={() => handleFilterChange("inactive")}
-                >
-                  Inactive
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <FilterIcon className="w-4 h-4" />
+                    <span>Filters</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "all"}
+                    onCheckedChange={() => handleFilterChange("all")}
+                  >
+                    All Statuses
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "active"}
+                    onCheckedChange={() => handleFilterChange("active")}
+                  >
+                    Active
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "inactive"}
+                    onCheckedChange={() => handleFilterChange("inactive")}
+                  >
+                    Inactive
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs whitespace-nowrap min-w-[120px]"
+              >
+                <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs whitespace-nowrap min-w-[140px]"
+              >
+                <FileDown className="mr-2 h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs whitespace-nowrap min-w-[100px]"
+              >
+                <Upload className="mr-2 h-3 w-3 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Customer
+              </Button>
+            </div>
           </div>
-          <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>{customer.name}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell>{customer.status}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedCustomerId(customer.id);
-                          setNewCustomerName(customer.name);
-                          setNewCustomerEmail(customer.email);
-                          setNewCustomerPhone(customer.phone);
-                          setNewCustomerStatus(customer.status);
-                          setIsEditCustomerDialogOpen(true);
-                        }}
-                      >
-                        <FilePenIcon className="w-4 h-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setCustomerToDelete(customer);
-                          setIsDeleteConfirmationOpen(true);
-                        }}
-                        style={{ display: "none" }} 
-                      > 
-                        {/* Hide  trashicon*/}
-                        <Trash2 className="w-4 h-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        {/* Pagination can be added here if needed */}
-      </CardFooter>
 
-      <Dialog
-        open={showNewCustomerDialog || isEditCustomerDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setShowNewCustomerDialog(false);
-            setIsEditCustomerDialogOpen(false);
-            resetSelectedCustomer();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {showNewCustomerDialog ? "Create New Customer" : "Edit Customer"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={newCustomerName}
-                onChange={(e) => setNewCustomerName(e.target.value)}
-                className="col-span-3"
+          {/* Mobile/Tablet Layout */}
+          <div className="md:hidden flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pr-8"
+                />
+                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9">
+                    <FilterIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Filters</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "all"}
+                    onCheckedChange={() => handleFilterChange("all")}
+                  >
+                    All Statuses
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "active"}
+                    onCheckedChange={() => handleFilterChange("active")}
+                  >
+                    Active
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "inactive"}
+                    onCheckedChange={() => handleFilterChange("inactive")}
+                  >
+                    Inactive
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="sm"
+                onClick={() => setShowNewCustomerDialog(true)}
+                className="h-9 min-h-[44px]"
+              >
+                <PlusCircle className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add</span>
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px] col-span-2"
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={newCustomerEmail}
-                onChange={(e) => setNewCustomerEmail(e.target.value)}
-                className="col-span-3"
-              />
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>{customer.name}</TableCell>
+                    <TableCell>{customer.email}</TableCell>
+                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell>{customer.status}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedCustomerId(customer.id);
+                            setNewCustomerName(customer.name);
+                            setNewCustomerEmail(customer.email);
+                            setNewCustomerPhone(customer.phone);
+                            setNewCustomerStatus(customer.status);
+                            setIsEditCustomerDialogOpen(true);
+                          }}
+                        >
+                          <FilePenIcon className="w-4 h-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setCustomerToDelete(customer);
+                            setIsDeleteConfirmationOpen(true);
+                          }}
+                          style={{ display: "none" }}
+                        >
+                          {/* Hide  trashicon*/}
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between items-center">
+          {/* Pagination can be added here if needed */}
+        </CardFooter>
+
+        <Dialog
+          open={showNewCustomerDialog || isEditCustomerDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowNewCustomerDialog(false);
+              setIsEditCustomerDialogOpen(false);
+              resetSelectedCustomer();
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {showNewCustomerDialog
+                  ? "Create New Customer"
+                  : "Edit Customer"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={newCustomerEmail}
+                  onChange={(e) => setNewCustomerEmail(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={newCustomerPhone}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={newCustomerStatus}
+                  onValueChange={(value: "active" | "inactive") =>
+                    setNewCustomerStatus(value)
+                  }
+                >
+                  <SelectTrigger id="status" className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={newCustomerPhone}
-                onChange={(e) => setNewCustomerPhone(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newCustomerStatus}
-                onValueChange={(value: "active" | "inactive") =>
-                  setNewCustomerStatus(value)
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowNewCustomerDialog(false);
+                  setIsEditCustomerDialogOpen(false);
+                  resetSelectedCustomer();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={
+                  showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
                 }
               >
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowNewCustomerDialog(false);
-                setIsEditCustomerDialogOpen(false);
-                resetSelectedCustomer();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={
-                showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
-              }
-            >
-              {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog
-        open={isDeleteConfirmationOpen}
-        onOpenChange={setIsDeleteConfirmationOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-          </DialogHeader>
-          Are you sure you want to delete this customer? This action cannot be
-          undone.
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setIsDeleteConfirmationOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteCustomer}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog
+          open={isDeleteConfirmationOpen}
+          onOpenChange={setIsDeleteConfirmationOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            Are you sure you want to delete this customer? This action cannot be
+            undone.
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => setIsDeleteConfirmationOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteCustomer}>
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <ErrorDialog
+          open={errorDialog.open}
+          onOpenChange={(open) =>
+            setErrorDialog((prev) => ({ ...prev, open }))
+          }
+          title={errorDialog.title}
+          message={errorDialog.message}
+          isSuccess={errorDialog.isSuccess}
+        />
       </Card>
     </div>
   );

@@ -49,6 +49,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+    FileDown,
+  Upload,
   Edit2Icon,
   DownloadIcon,
   Trash2Icon,
@@ -57,10 +59,16 @@ import {
   ChevronDownIcon,
   XIcon,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo,useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
+import {
+  exportTransactionsToExcel,
+  exportTransactionsTemplate,
+} from "@/lib/excel-utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ErrorDialog } from "@/components/error-dialog";
+
 import {
   Select,
   SelectContent,
@@ -142,6 +150,23 @@ export default function CounterSale() {
     min: "",
     max: "",
   });
+  const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    fromDate: "",
+    toDate: "",
+  });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errorDialog, setErrorDialog] = useState<{
+    open: boolean;
+    title?: string;
+    message: string;
+    isSuccess?: boolean;
+  }>({
+    open: false,
+    message: "",
+  });
 
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
@@ -212,6 +237,15 @@ export default function CounterSale() {
     }
   };
 
+  
+  const getSortedTransactions = () => {
+    // Filter transactions by selected year
+    return transactions.filter((transaction) => {
+      const transactionYear = new Date(transaction.created_at).getFullYear();
+      return transactionYear === selectedYear;
+    });
+  };
+
   const filteredTransactions = useMemo(() => {
     // Filter transactions by selected year, type, amount range, and item name
     return transactions.filter((transaction) => {
@@ -262,7 +296,11 @@ export default function CounterSale() {
 
   const handleAddCustomItem = () => {
     if (!customItemData.name.trim()) {
-      alert("Item name is required");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Item name is required",
+      });
       return;
     }
 
@@ -296,11 +334,19 @@ export default function CounterSale() {
   const handleUpdateTransaction = async (id: number) => {
     // Validate required fields
     if (!editFormData.productId) {
-      alert("Product is required");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Product is required",
+      });
       return;
     }
     if (!editFormData.amount || editFormData.amount <= 0) {
-      alert("Amount must be greater than 0");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Amount must be greater than 0",
+      });
       return;
     }
 
@@ -337,11 +383,19 @@ export default function CounterSale() {
   const handleAddTransaction = async () => {
     // Validate required fields
     if (!newTransaction.productId) {
-      alert("Product is required");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Product is required",
+      });
       return;
     }
     if (!newTransaction.amount || newTransaction.amount <= 0) {
-      alert("Amount must be greater than 0");
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Amount must be greater than 0",
+      });
       return;
     }
 
@@ -372,6 +426,202 @@ export default function CounterSale() {
       console.error("Error adding transaction:", error);
     }
   };
+
+  const handleDownloadExcel = useCallback(async () => {
+    try {
+      setIsDownloading(true);
+      // Fetch all transactions for the selected year (without pagination)
+      const response = await fetch(
+        `/api/transactions?year=${selectedYear}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
+      const result: PaginatedResponse = await response.json();
+
+      // Generate filename with year
+      const filename = `counter-sale-transactions-${selectedYear}.xlsx`;
+
+      // Export to Excel
+      exportTransactionsToExcel(result.data, filename);
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      setErrorDialog({
+        open: true,
+        title: t("downloadError"),
+        message: t("downloadError"),
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [selectedYear, sortColumn, sortDirection, t]);
+
+  const handleDownloadDateRange = useCallback(async () => {
+    if (!dateRange.fromDate || !dateRange.toDate) {
+      setErrorDialog({
+        open: true,
+        title: t("invalidDateRange"),
+        message: t("invalidDateRange"),
+      });
+      return;
+    }
+
+    if (new Date(dateRange.fromDate) > new Date(dateRange.toDate)) {
+      setErrorDialog({
+        open: true,
+        title: t("invalidDateRange"),
+        message: t("invalidDateRange"),
+      });
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+      // Fetch all transactions for the date range (without pagination)
+      const response = await fetch(
+        `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
+      const result: PaginatedResponse = await response.json();
+
+      // Generate filename with date range
+      const fromDateStr = dateRange.fromDate.replace(/-/g, "");
+      const toDateStr = dateRange.toDate.replace(/-/g, "");
+      const filename = `counter-sale-transactions-${fromDateStr}-${toDateStr}.xlsx`;
+
+      // Export to Excel
+      exportTransactionsToExcel(result.data, filename);
+
+      // Close dialog and reset date range
+      setIsDateRangeDialogOpen(false);
+      setDateRange({ fromDate: "", toDate: "" });
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      setErrorDialog({
+        open: true,
+        title: t("downloadError"),
+        message: t("downloadError"),
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [dateRange, sortColumn, sortDirection, t]);
+
+  const handleDownloadTemplate = useCallback(() => {
+    exportTransactionsTemplate("counter-sale-template.xlsx");
+  }, []);
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls") &&
+        !file.type.includes("spreadsheet")
+      ) {
+        setErrorDialog({
+          open: true,
+          title: t("importValidationError"),
+          message: t("importValidationError"),
+        });
+        return;
+      }
+
+      try {
+        setIsImporting(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/transactions/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || t("importError"));
+        }
+
+        const result = await response.json();
+        const message = `${t("importSuccess")}: ${
+          result.successCount
+        } transaction(s) imported.${
+          result.errorCount > 0
+            ? `\n\n${result.errorCount} error(s) occurred.`
+            : ""
+        }${
+          result.errors && result.errors.length > 0
+            ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
+            : ""
+        }`;
+        
+        setErrorDialog({
+          open: true,
+          title: t("importSuccess"),
+          message: message,
+          isSuccess: result.errorCount === 0,
+        });
+
+        // Refresh transactions by resetting to page 1 and triggering refetch
+        const wasOnPage1 = currentPage === 1;
+        setCurrentPage(1);
+
+        // Force refetch if already on page 1
+        if (wasOnPage1) {
+          try {
+            const refreshResponse = await fetch(
+              `/api/transactions?page=1&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`
+            );
+            if (refreshResponse.ok) {
+              const refreshResult: PaginatedResponse =
+                await refreshResponse.json();
+              setTransactions(refreshResult.data);
+              const computedTotalPages = Math.max(
+                1,
+                Math.ceil(refreshResult.total / ITEMS_PER_PAGE)
+              );
+              setPageInfo({
+                total: refreshResult.total,
+                totalPages: computedTotalPages,
+              });
+              const years = getYearsFromDates(
+                refreshResult.data.map((t) => t.created_at)
+              );
+              const currentYear = new Date().getFullYear();
+              const yearsSet = new Set([currentYear, ...years]);
+              setAllYears(Array.from(yearsSet).sort((a, b) => b - a));
+            }
+          } catch (refreshError) {
+            console.error("Error refreshing transactions:", refreshError);
+          }
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error importing Excel:", error);
+        setErrorDialog({
+          open: true,
+          title: t("importError"),
+          message: error instanceof Error ? error.message : t("importError"),
+        });
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [t, currentPage, sortColumn, sortDirection, selectedYear]
+  );
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   const handleDeleteTransaction = useCallback(async () => {
     if (!transactionToDelete) return;
@@ -810,8 +1060,8 @@ export default function CounterSale() {
           </div>
 
           {/* Desktop controls */}
-          <div className="hidden md:flex flex-col items-end gap-1 md:ml-auto">
-            <div className="flex items-center gap-2">
+          <div className="hidden md:flex flex-col items-end gap-2 md:ml-auto">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <label className="text-sm font-medium whitespace-nowrap">
                 Year:
               </label>
@@ -830,6 +1080,57 @@ export default function CounterSale() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap min-w-[120px]"
+              >
+                <FileDown className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap min-w-[140px]"
+              >
+                <FileDown className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap min-w-[100px]"
+              >
+                <Upload className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Button
+                onClick={() => setIsDateRangeDialogOpen(true)}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-sm whitespace-nowrap min-w-[140px]"
+              >
+                <FileDown className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{t("downloadDateRange")}</span>
+              </Button>
             </div>
             <div className="text-xs text-muted-foreground whitespace-nowrap">
               Total: {pageInfo.total.toLocaleString()}
@@ -838,7 +1139,7 @@ export default function CounterSale() {
 
           {/* Mobile controls */}
           <div className="md:hidden w-full">
-            <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2 justify-between mb-2">
               <div className="flex items-center gap-1">
                 <label className="text-xs font-medium whitespace-nowrap">
                   Year:
@@ -868,6 +1169,59 @@ export default function CounterSale() {
                 onClick={() => setIsAddFormOpen((prev) => !prev)}
               >
                 {isAddFormOpen ? "Close" : "Add"}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </span>
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{t("downloadTemplate")}</span>
+              </Button>
+              <Button
+                onClick={handleImportClick}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px]"
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {isImporting ? t("importing") : t("import")}
+                </span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Button
+                onClick={() => setIsDateRangeDialogOpen(true)}
+                disabled={isDownloading || isImporting}
+                variant="outline"
+                size="sm"
+                className="h-10 text-xs min-h-[44px] col-span-2"
+              >
+                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{t("downloadDateRange")}</span>
               </Button>
             </div>
           </div>
@@ -1976,6 +2330,84 @@ export default function CounterSale() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Date Range Download Dialog */}
+      <Dialog
+        open={isDateRangeDialogOpen}
+        onOpenChange={setIsDateRangeDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[425px] max-w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">
+              {t("selectDateRange")}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {t("downloadDateRange")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("fromDate")}</label>
+              <Input
+                type="date"
+                value={dateRange.fromDate}
+                onChange={(e) =>
+                  setDateRange((prev) => ({
+                    ...prev,
+                    fromDate: e.target.value,
+                  }))
+                }
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("toDate")}</label>
+              <Input
+                type="date"
+                value={dateRange.toDate}
+                onChange={(e) =>
+                  setDateRange((prev) => ({
+                    ...prev,
+                    toDate: e.target.value,
+                  }))
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDateRangeDialogOpen(false);
+                setDateRange({ fromDate: "", toDate: "" });
+              }}
+              className="w-full sm:w-auto"
+              disabled={isDownloading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDownloadDateRange}
+              disabled={
+                isDownloading || !dateRange.fromDate || !dateRange.toDate
+              }
+              className="w-full sm:w-auto"
+            >
+              {isDownloading ? t("downloading") : t("download")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ErrorDialog
+        open={errorDialog.open}
+        onOpenChange={(open) =>
+          setErrorDialog((prev) => ({ ...prev, open }))
+        }
+        title={errorDialog.title}
+        message={errorDialog.message}
+        isSuccess={errorDialog.isSuccess}
+      />
     </>
   );
 }

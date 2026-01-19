@@ -9,16 +9,12 @@ This directory contains all the components for the DukaanKhata landing page.
 Main landing page container component that orchestrates all sub-components.
 
 **Props:** None  
-**State:**
-
-- `waitlistModalOpen` - Controls modal visibility
 
 **Children:**
 
 - LandingHeader
 - LandingHero
 - LandingFooter
-- WaitlistModal
 
 ---
 
@@ -26,9 +22,7 @@ Main landing page container component that orchestrates all sub-components.
 
 Sticky header with logo, navigation, and action buttons.
 
-**Props:**
-
-- `onJoinClick: () => void` - Callback when Join Waitlist button is clicked
+**Props:** None
 
 **Features:**
 
@@ -36,7 +30,7 @@ Sticky header with logo, navigation, and action buttons.
 - Mobile hamburger menu
 - Language switcher
 - Dashboard link
-- Join Waitlist button
+- Join Waitlist button (navigates to `/waitlist` page)
 - Sticky positioning with backdrop blur
 
 **Responsive Breakpoints:**
@@ -50,9 +44,7 @@ Sticky header with logo, navigation, and action buttons.
 
 Main hero section with features, benefits, and call-to-action.
 
-**Props:**
-
-- `onJoinClick: () => void` - Callback when Join Waitlist button is clicked
+**Props:** None
 
 **Sections:**
 
@@ -95,14 +87,13 @@ Professional footer with links and social media.
 
 ---
 
-### `waitlist-modal.tsx`
+### Waitlist Page
 
-Modal dialog with waitlist signup form.
+The waitlist functionality has been moved to a dedicated page at `src/app/[locale]/waitlist/page.tsx`.
 
-**Props:**
+**Route:** `/[locale]/waitlist`
 
-- `open: boolean` - Controls modal visibility
-- `onOpenChange: (open: boolean) => void` - Callback for open/close
+**Features:**
 
 **Form Fields:**
 
@@ -191,7 +182,7 @@ Edit `landing-hero.tsx` features array (line ~12-24)
 
 ### Modify Categories
 
-Edit `waitlist-modal.tsx` CATEGORIES constant (line ~21-30)
+Edit `src/app/[locale]/waitlist/page.tsx` CATEGORIES constant
 
 ### Update Footer Links
 
@@ -225,10 +216,10 @@ Edit `landing-footer.tsx` links object (line ~6-18)
 - **Tablet:** 2-column grid
 - **Mobile:** Single column
 
-### Modal
+### Waitlist Page
 
-- **Desktop:** Max width 500px centered
-- **Tablet:** Responsive width
+- **Desktop:** Centered card layout (max-width 500px)
+- **Tablet:** Responsive card width
 - **Mobile:** Full width with padding
 
 ---
@@ -250,7 +241,7 @@ npm run dev
 1. Open `http://localhost:3000`
 2. Test responsive design (resize window)
 3. Test mobile menu (< 768px)
-4. Test waitlist modal
+4. Test waitlist page navigation
 5. Test form validation
 6. Test dynamic fields
 7. Test language switcher
@@ -270,33 +261,19 @@ interface LandingPageProps {}
 ### LandingHeader
 
 ```typescript
-interface LandingHeaderProps {
-  onJoinClick: () => void;
-}
+// No props required
 ```
 
 ### LandingHero
 
 ```typescript
-interface LandingHeroProps {
-  onJoinClick: () => void;
-}
+// No props required
 ```
 
 ### LandingFooter
 
 ```typescript
-interface LandingFooterProps {}
 // No props required
-```
-
-### WaitlistModal
-
-```typescript
-interface WaitlistModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
 ```
 
 ---
@@ -346,11 +323,11 @@ interface WaitlistFormData {
 
 ## 🆘 Troubleshooting
 
-### Modal Won't Open
+### Waitlist Page Navigation Issues
 
-- Check `open` prop is controlled properly
-- Verify `onOpenChange` callback is connected
-- Check browser console for errors
+- Verify Next.js routing is configured correctly
+- Check locale parameter in URL
+- Verify Link components are properly imported
 
 ### Form Validation Not Working
 
@@ -374,10 +351,9 @@ interface WaitlistFormData {
 
 ## 📝 Notes
 
-- Form currently uses mock API (1 second delay)
-- To implement real API, replace delay with fetch call
+- Waitlist form is now a dedicated page at `/[locale]/waitlist`
+- Form uses real API endpoint at `/[locale]/api/waitlist`
 - All components are client-side (`"use client"`)
-- No server-side rendering required
 - Fully compatible with Next.js 14+
 
 ---

@@ -90,7 +90,16 @@
     "deleteProduct": "Delete Item",
     "noProducts": "No items found",
     "sku": "SKU",
-    "stock": "Stock"
+    "stock": "Stock",
+    "downloadExcel": "Download Excel Sheet",
+    "downloadTemplate": "Download Template Excel File",
+    "import": "Import",
+    "importing": "Importing...",
+    "importSuccess": "Products imported successfully",
+    "importError": "Failed to import products",
+    "importValidationError": "Please check the Excel file format and try again",
+    "downloading": "Downloading...",
+    "downloadError": "Failed to download Excel file"
   },
   "customers": {
     "title": "Customers",
@@ -102,7 +111,16 @@
     "addCustomer": "Add Customer",
     "editCustomer": "Edit Customer",
     "deleteCustomer": "Delete Customer",
-    "noCustomers": "No customers found"
+    "noCustomers": "No customers found",
+    "downloadExcel": "Download Excel Sheet",
+    "downloadTemplate": "Download Template Excel File",
+    "import": "Import",
+    "importing": "Importing...",
+    "importSuccess": "Customers imported successfully",
+    "importError": "Failed to import customers",
+    "importValidationError": "Please check the Excel file format and try again",
+    "downloading": "Downloading...",
+    "downloadError": "Failed to download Excel file"
   },
   "orders": {
     "title": "Orders",
@@ -134,7 +152,23 @@
     "time": "Time",
     "itemDetails": "Item Details",
     "thankyou": "Thank you for your business",
-    "generated": "Generated"
+    "generated": "Generated",
+    "downloadExcel": "Download Excel Sheet",
+    "downloadDateRange": "Date Range Download",
+    "fromDate": "From Date",
+    "toDate": "To Date",
+    "download": "Download",
+    "selectDateRange": "Select Date Range",
+    "downloading": "Downloading...",
+    "downloadSuccess": "Excel file downloaded successfully",
+    "downloadError": "Failed to download Excel file",
+    "invalidDateRange": "Please select a valid date range",
+    "downloadTemplate": "Download Template Excel File",
+    "import": "Import",
+    "importing": "Importing...",
+    "importSuccess": "Transactions imported successfully",
+    "importError": "Failed to import transactions",
+    "importValidationError": "Please check the Excel file format and try again"
   },
   "invoice": {
     "title": "Invoicing",
