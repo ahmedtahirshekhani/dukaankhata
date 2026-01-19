@@ -6,6 +6,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,22 +45,30 @@ import {
 } from "@/components/ui/pagination";
 import { Combobox } from "@/components/ui/combobox";
 import {
-  EllipsisVerticalIcon,
   Loader2Icon,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  FileDown,
+    FileDown,
   Upload,
+  Edit2Icon,
+  DownloadIcon,
+  Trash2Icon,
+  SearchIcon,
+  FilterIcon,
+  ChevronDownIcon,
+  XIcon,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo,useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
 import {
   exportTransactionsToExcel,
   exportTransactionsTemplate,
 } from "@/lib/excel-utils";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ErrorDialog } from "@/components/error-dialog";
+
 import {
   Select,
   SelectContent,
@@ -129,6 +140,16 @@ export default function CounterSale() {
   const [selectedComboboxContext, setSelectedComboboxContext] = useState<
     "add" | "edit"
   >("add");
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    type: "all",
+  });
+  const [amountRange, setAmountRange] = useState({
+    min: "",
+    max: "",
+  });
   const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState({
     fromDate: "",
@@ -216,6 +237,7 @@ export default function CounterSale() {
     }
   };
 
+  
   const getSortedTransactions = () => {
     // Filter transactions by selected year
     return transactions.filter((transaction) => {
@@ -223,6 +245,43 @@ export default function CounterSale() {
       return transactionYear === selectedYear;
     });
   };
+
+  const filteredTransactions = useMemo(() => {
+    // Filter transactions by selected year, type, amount range, and item name
+    return transactions.filter((transaction) => {
+      const transactionYear = new Date(transaction.created_at).getFullYear();
+
+      // Year filter
+      if (transactionYear !== selectedYear) {
+        return false;
+      }
+
+      // Type filter
+      if (filters.type !== "all" && transaction.type !== filters.type) {
+        return false;
+      }
+
+      // Amount range filter
+      if (amountRange.min && transaction.amount < Number(amountRange.min)) {
+        return false;
+      }
+      if (amountRange.max && transaction.amount > Number(amountRange.max)) {
+        return false;
+      }
+
+      // Item name search filter
+      if (
+        searchTerm &&
+        !transaction.productName
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [transactions, selectedYear, filters, amountRange, searchTerm]);
 
   const getSortIcon = (column: keyof Transaction) => {
     if (sortColumn !== column) {
@@ -302,14 +361,21 @@ export default function CounterSale() {
 
       if (response.ok) {
         const updatedTransaction = await response.json();
-        // Refresh current page after update
-        setCurrentPage(1);
+
+        // Update the transaction in the local state
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === id ? updatedTransaction : t))
+        );
+
+        // Close edit mode
         setEditingId(null);
         setEditFormData({});
       } else {
+        alert("Failed to update transaction");
         console.error("Failed to update transaction");
       }
     } catch (error) {
+      alert("Error updating transaction");
       console.error("Error updating transaction:", error);
     }
   };
@@ -588,6 +654,334 @@ export default function CounterSale() {
     }
   }, [transactionToDelete, transactions, pageInfo]);
 
+  const handleFilterChange = (type: "type", value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [type]: value,
+    }));
+    setCurrentPage(1);
+  };
+
+  const handleAmountRangeChange = (field: "min" | "max", value: string) => {
+    setAmountRange((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setCurrentPage(1);
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleClearAllFilters = () => {
+    setSearchTerm("");
+    setFilters({
+      type: "all",
+    });
+    setAmountRange({
+      min: "",
+      max: "",
+    });
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    filters.type !== "all" ||
+    amountRange.min !== "" ||
+    amountRange.max !== "";
+
+  const handleDownloadPDF = (transaction: Transaction) => {
+    // Import html2pdf dynamically to avoid SSR issues
+    const html2pdf = require("html2pdf.js");
+
+    // Format date as "12 January, 2026"
+    const date = new Date(transaction.created_at);
+    const formattedDate = date.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    // Format time based on locale
+    const transactionTime = date.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Create professional receipt HTML
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Courier New', monospace;
+              background-color: #fff;
+              color: #333;
+            }
+            
+            .receipt-container {
+              max-width: 400px;
+              margin: 0 auto;
+              padding: 20px;
+              background: white;
+            }
+            
+            .receipt-header {
+              text-align: center;
+              border-bottom: 2px solid #333;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            
+            .receipt-title {
+              font-size: 18px;
+              font-weight: bold;
+              letter-spacing: 2px;
+              margin-bottom: 8px;
+            }
+            
+            .receipt-subtitle {
+              font-size: 11px;
+              color: #666;
+              letter-spacing: 1px;
+            }
+            
+            .receipt-section {
+              margin-bottom: 20px;
+            }
+            
+            .section-title {
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-bottom: 10px;
+              padding-bottom: 8px;
+              border-bottom: 1px dashed #999;
+            }
+            
+            .detail-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+              font-size: 12px;
+            }
+            
+            .detail-label {
+              font-weight: bold;
+              color: #555;
+              flex: 0 0 auto;
+            }
+            
+            .detail-value {
+              text-align: right;
+              flex: 1;
+              margin-left: 10px;
+              word-break: break-word;
+            }
+            
+            .item-name {
+              font-size: 13px;
+              font-weight: bold;
+              margin-bottom: 4px;
+            }
+            
+            .item-description {
+              font-size: 11px;
+              color: #777;
+              font-style: italic;
+              margin-bottom: 8px;
+            }
+            
+            .amount-box {
+              background-color: #f5f5f5;
+              border: 1px solid #ddd;
+              padding: 12px;
+              text-align: center;
+              margin: 15px 0;
+              border-radius: 4px;
+            }
+            
+            .amount-label {
+              font-size: 11px;
+              color: #777;
+              margin-bottom: 5px;
+            }
+            
+            .amount-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: ${transaction.type === "income" ? "#10b981" : "#ef4444"};
+            }
+            
+            .type-badge {
+              display: inline-block;
+              background-color: ${
+                transaction.type === "income" ? "#d1fae5" : "#fee2e2"
+              };
+              color: ${transaction.type === "income" ? "#065f46" : "#991b1b"};
+              padding: 4px 8px;
+              border-radius: 3px;
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            
+            .receipt-footer {
+              text-align: center;
+              border-top: 2px solid #333;
+              padding-top: 15px;
+              margin-top: 20px;
+              font-size: 10px;
+              color: #666;
+            }
+            
+            .footer-text {
+              margin-bottom: 4px;
+              line-height: 1.4;
+            }
+            
+            .footer-timestamp {
+              font-size: 10px;
+              color: #999;
+              margin-top: 8px;
+            }
+            
+            .divider {
+              border: none;
+              border-bottom: 1px dashed #999;
+              margin: 12px 0;
+            }
+            
+            .customer-section {
+              background-color: #fafafa;
+              padding: 10px;
+              border-radius: 4px;
+              margin-bottom: 15px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-container">
+            <!-- Receipt Header -->
+            <div class="receipt-header">
+              <div class="receipt-title">${t("receipt")}</div>
+              <div class="receipt-subtitle">${t("transactionRecord")}</div>
+            </div>
+            
+            <!-- Transaction Details -->
+            <div class="receipt-section">
+              <div class="section-title">${t("transactionId")}</div>
+              <div class="detail-row">
+                <span class="detail-label">${t("receiptId")}:</span>
+                <span class="detail-value">#${transaction.id}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">${t("date")}:</span>
+                <span class="detail-value">${formattedDate}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">${t("time")}:</span>
+                <span class="detail-value">${transactionTime}</span>
+              </div>
+            </div>
+            
+            <hr class="divider">
+            
+            <!-- Item Details -->
+            <div class="receipt-section">
+              <div class="section-title">${t("itemDetails")}</div>
+              <div class="item-name">${transaction.productName || "N/A"}</div>
+              ${
+                transaction.productDescription
+                  ? `<div class="item-description">${transaction.productDescription}</div>`
+                  : ""
+              }
+            </div>
+            
+            <hr class="divider">
+            
+            <!-- Amount Section -->
+            <div class="amount-box">
+              <div class="amount-label">${t("amount")}</div>
+              <div class="amount-value">Rs. ${Math.floor(
+                transaction.amount
+              )}</div>
+            </div>
+            
+            <!-- Type Badge -->
+            <div style="text-align: center; margin-bottom: 15px;">
+              <span class="type-badge">${transaction.type}</span>
+            </div>
+            
+            ${
+              transaction.customerName || transaction.customerNumber
+                ? `
+            <div class="customer-section">
+              <div class="section-title" style="border-bottom: none; margin-bottom: 8px;">Customer Details</div>
+              ${
+                transaction.customerName
+                  ? `
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value">${transaction.customerName}</span>
+              </div>
+              `
+                  : ""
+              }
+              ${
+                transaction.customerNumber
+                  ? `
+              <div class="detail-row">
+                <span class="detail-label">Contact:</span>
+                <span class="detail-value">${transaction.customerNumber}</span>
+              </div>
+              `
+                  : ""
+              }
+            </div>
+            `
+                : ""
+            }
+            
+            <!-- Footer -->
+            <div class="receipt-footer">
+              <div class="footer-text">${t("thankyou")}</div>
+              <hr class="divider" style="margin: 8px 0;">
+              <div class="footer-timestamp">
+                ${t("generated")}: ${new Date().toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // PDF options for receipt-style formatting
+    const options = {
+      margin: 5,
+      filename: `receipt-${transaction.id}-${new Date().getTime()}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+    };
+
+    // Generate and download PDF
+    html2pdf().set(options).from(htmlContent).save();
+  };
+
   const fetchProducts = async () => {
     try {
       const response = await fetch("/api/products");
@@ -832,7 +1226,123 @@ export default function CounterSale() {
             </div>
           </div>
         </CardHeader>
+
         <CardContent>
+          {/* Filter Section - Desktop */}
+          <div className="hidden md:block -mx-6 -mt-6 mb-6 px-6 py-4 border-b">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Search */}
+              <div className="relative w-48 flex-shrink-0">
+                <Input
+                  type="text"
+                  placeholder="Search items..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pr-8 h-9 text-sm"
+                />
+                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+
+              {/* Type Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 text-xs flex-shrink-0"
+                  >
+                    <span className="text-muted-foreground hidden sm:inline">
+                      Type:
+                    </span>
+                    <span>{filters.type === "all" ? "All" : filters.type}</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuLabel>Type</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "all"}
+                    onCheckedChange={() => handleFilterChange("type", "all")}
+                  >
+                    All
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "income"}
+                    onCheckedChange={() => handleFilterChange("type", "income")}
+                  >
+                    Income
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "expense"}
+                    onCheckedChange={() =>
+                      handleFilterChange("type", "expense")
+                    }
+                  >
+                    Expense
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Amount Range Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9 flex-shrink-0"
+                  >
+                    <FilterIcon className="w-3 h-3" />
+                    <span className="text-xs hidden sm:inline">Amount</span>
+                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 sm:w-80 p-4">
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold">
+                      Amount Range
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={amountRange.min}
+                        onChange={(e) =>
+                          handleAmountRangeChange("min", e.target.value)
+                        }
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={amountRange.max}
+                        onChange={(e) =>
+                          handleAmountRangeChange("max", e.target.value)
+                        }
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Reset Filters Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearAllFilters}
+                  className="h-9 w-9 md:w-auto md:px-3 p-0 flex-shrink-0"
+                >
+                  <XIcon className="w-4 h-4" />
+                  <span className="hidden md:inline md:ml-1 text-xs">
+                    Clear
+                  </span>
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Desktop Table View */}
           <div className="hidden md:block">
             <div className="overflow-x-auto -mx-4 md:mx-0">
@@ -973,7 +1483,7 @@ export default function CounterSale() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {getSortedTransactions().map((transaction) => (
+                      {filteredTransactions.map((transaction) => (
                         <React.Fragment key={transaction.id}>
                           {/* Desktop Edit Row */}
                           {editingId === transaction.id ? (
@@ -1141,38 +1651,48 @@ export default function CounterSale() {
                                   {transaction.customerNumber || "-"}
                                 </TableCell>
                                 <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        aria-haspopup="true"
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8"
-                                      >
-                                        <EllipsisVerticalIcon className="h-4 w-4" />
-                                        <span className="sr-only">
-                                          Toggle menu
-                                        </span>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleOpenEdit(transaction)
-                                        }
-                                      >
-                                        Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() => {
-                                          setTransactionToDelete(transaction);
-                                          setIsDeleteConfirmationOpen(true);
-                                        }}
-                                      >
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      aria-haspopup="true"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        handleOpenEdit(transaction)
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Edit2Icon className="h-4 w-4" />
+                                      <span className="sr-only">Edit</span>
+                                    </Button>
+                                    <Button
+                                      aria-haspopup="true"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        handleDownloadPDF(transaction)
+                                      }
+                                      title="Download"
+                                    >
+                                      <DownloadIcon className="h-4 w-4" />
+                                      <span className="sr-only">Download</span>
+                                    </Button>
+                                    <Button
+                                      aria-haspopup="true"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        setTransactionToDelete(transaction);
+                                        setIsDeleteConfirmationOpen(true);
+                                      }}
+                                      title="Delete"
+                                    >
+                                      <Trash2Icon className="h-4 w-4" />
+                                      <span className="sr-only">Delete</span>
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             </>
@@ -1291,8 +1811,119 @@ export default function CounterSale() {
               </div>
             )}
 
+            {/* Mobile Filter Section */}
+            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border">
+              <div className="flex flex-col gap-3">
+                {/* Search */}
+                <div className="relative w-full">
+                  <Input
+                    type="text"
+                    placeholder="Search items..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="pr-8 h-9 text-sm w-full"
+                  />
+                  <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {/* Type Filter */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 h-9 text-xs flex-shrink-0"
+                      >
+                        <span className="text-muted-foreground">Type:</span>
+                        <span>{filters.type === "all" ? "All" : filters.type}</span>
+                        <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[200px]">
+                      <DropdownMenuLabel>Type</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "all"}
+                        onCheckedChange={() => handleFilterChange("type", "all")}
+                      >
+                        All
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "income"}
+                        onCheckedChange={() => handleFilterChange("type", "income")}
+                      >
+                        Income
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "expense"}
+                        onCheckedChange={() => handleFilterChange("type", "expense")}
+                      >
+                        Expense
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Amount Range Filter */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 h-9 flex-shrink-0"
+                      >
+                        <FilterIcon className="w-3 h-3" />
+                        <span className="text-xs">Amount</span>
+                        <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[280px] p-4">
+                      <div className="space-y-3">
+                        <Label className="text-xs font-semibold">
+                          Amount Range
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Min"
+                            value={amountRange.min}
+                            onChange={(e) =>
+                              handleAmountRangeChange("min", e.target.value)
+                            }
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Max"
+                            value={amountRange.max}
+                            onChange={(e) =>
+                              handleAmountRangeChange("max", e.target.value)
+                            }
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Reset Filters Button */}
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearAllFilters}
+                      className="h-9 px-2 flex-shrink-0 text-xs"
+                    >
+                      <XIcon className="w-4 h-4 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Transaction Cards */}
-            {getSortedTransactions().map((transaction) => (
+            {filteredTransactions.map((transaction) => (
               <div key={transaction.id}>
                 {editingId === transaction.id ? (
                   // Mobile Edit Card
@@ -1438,34 +2069,44 @@ export default function CounterSale() {
                       )}
                     </div>
                     <div className="flex items-start justify-between gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            aria-haspopup="true"
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                          >
-                            <EllipsisVerticalIcon className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleOpenEdit(transaction)}
-                          >
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setTransactionToDelete(transaction);
-                              setIsDeleteConfirmationOpen(true);
-                            }}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex gap-2">
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleOpenEdit(transaction)}
+                          title="Edit"
+                        >
+                          <Edit2Icon className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleDownloadPDF(transaction)}
+                          title="Download"
+                        >
+                          <DownloadIcon className="h-4 w-4" />
+                          <span className="sr-only">Download</span>
+                        </Button>
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setTransactionToDelete(transaction);
+                            setIsDeleteConfirmationOpen(true);
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2Icon className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
                     </div>
                     {(transaction.customerName ||
                       transaction.customerNumber) && (

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,10 +89,63 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         }),
       });
 
-      const data = await response.json();
-
+      // Handle network errors or non-JSON responses
       if (!response.ok) {
-        setError(data.error || t("signUpError"));
+        let errorMessage = t("signUpError");
+
+        try {
+          const data = await response.json();
+
+          // Map API error messages to translation keys
+          if (data.error) {
+            const apiError = data.error.toLowerCase();
+
+            if (
+              apiError.includes("missing required fields") ||
+              apiError.includes("missing required")
+            ) {
+              errorMessage = t("missingFields");
+            } else if (
+              apiError.includes("password must be at least 8") ||
+              (apiError.includes("password") && apiError.includes("8"))
+            ) {
+              errorMessage = t("passwordTooShort");
+            } else if (
+              apiError.includes("email already registered") ||
+              apiError.includes("email already")
+            ) {
+              errorMessage = t("emailAlreadyExists");
+            } else if (
+              apiError.includes("failed to create user") ||
+              apiError.includes("internal server error")
+            ) {
+              errorMessage = t("serverError");
+            } else {
+              // Use the API error message if it doesn't match known patterns
+              errorMessage = data.error;
+            }
+          }
+        } catch (parseError) {
+          // If response is not JSON, use status-based error messages
+          if (response.status >= 500) {
+            errorMessage = t("serverError");
+          } else if (response.status === 400) {
+            errorMessage = t("signUpError");
+          }
+        }
+
+        setError(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      // Parse successful response
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        setError(t("signUpError"));
+        setIsLoading(false);
         return;
       }
 
@@ -110,7 +163,12 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         router.push(`/${params.locale}/login`);
       }, 2000);
     } catch (err) {
-      setError(t("signUpError"));
+      // Handle network errors, fetch failures, etc.
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError(t("networkError"));
+      } else {
+        setError(t("signUpError"));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +180,31 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       ...prev,
       [name]: value,
     }));
+  };
+
+  // Check if all form fields are filled
+  const isFormComplete = () => {
+    return (
+      formData.name.trim() !== "" &&
+      formData.companyName.trim() !== "" &&
+      formData.email.trim() !== "" &&
+      formData.password.trim() !== "" &&
+      formData.confirmPassword.trim() !== ""
+    );
+  };
+
+  // Check if passwords match
+  const doPasswordsMatch = () => {
+    return formData.password === formData.confirmPassword;
+  };
+
+  // Show mismatch icon when both fields have content but don't match
+  const showPasswordMismatch = () => {
+    return (
+      formData.password.length > 0 &&
+      formData.confirmPassword.length > 0 &&
+      !doPasswordsMatch()
+    );
   };
 
   return (
@@ -201,8 +284,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   onChange={handleChange}
                   required
                   disabled={isLoading}
-                  className="pr-10"
+                  className={showPasswordMismatch() ? "pr-20" : "pr-10"}
                 />
+                {showPasswordMismatch() && (
+                  <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                    <X size={18} />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -226,8 +314,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   onChange={handleChange}
                   required
                   disabled={isLoading}
-                  className="pr-10"
+                  className={showPasswordMismatch() ? "pr-20" : "pr-10"}
                 />
+                {showPasswordMismatch() && (
+                  <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                    <X size={18} />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -243,7 +336,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !isFormComplete()}
+            >
               {isLoading ? t("creatingAccount") : t("signUp")}
             </Button>
 

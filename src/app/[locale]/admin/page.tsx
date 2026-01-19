@@ -29,21 +29,50 @@ import {
   LineChart,
   Legend,
 } from "recharts";
+import { Switch } from "@/components/ui/switch";
 
 export default function Page() {
   const t = useTranslations();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const params = useParams();
-  const locale = typeof params?.locale === "string" ? params.locale : Array.isArray(params?.locale) ? params?.locale?.[0] : "en";
+  const locale =
+    typeof params?.locale === "string"
+      ? params.locale
+      : Array.isArray(params?.locale)
+      ? params?.locale?.[0]
+      : "en";
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
-  const [revenueTrend, setRevenueTrend] = useState<{ date: string; revenue: number }[]>([]);
-  const [topProducts, setTopProducts] = useState<{ name: string; quantity: number; revenue: number }[]>([]);
+  const [revenueTrend, setRevenueTrend] = useState<
+    { date: string; revenue: number }[]
+  >([]);
+  const [topProducts, setTopProducts] = useState<
+    { name: string; quantity: number; revenue: number }[]
+  >([]);
   const [paymentDistribution, setPaymentDistribution] = useState({});
   const [ordersByStatus, setOrdersByStatus] = useState({});
   const [loading, setLoading] = useState(true);
+  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+
+  // Load privacy preference from localStorage on mount
+  useEffect(() => {
+    const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
+    if (savedPrivacyMode) {
+      setIsPrivacyMode(JSON.parse(savedPrivacyMode));
+    }
+  }, []);
+
+  // Save privacy preference to localStorage
+  const handlePrivacyToggle = () => {
+    const newPrivacyMode = !isPrivacyMode;
+    setIsPrivacyMode(newPrivacyMode);
+    localStorage.setItem(
+      "dashboardPrivacyMode",
+      JSON.stringify(newPrivacyMode)
+    );
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,15 +84,15 @@ export default function Page() {
           revenueTrendRes,
           topProductsRes,
           paymentDistRes,
-          ordersStatusRes
+          ordersStatusRes,
         ] = await Promise.all([
-          fetch('/api/admin/revenue/total'),
-          fetch('/api/admin/expenses/total'),
-          fetch('/api/admin/profit/total'),
-          fetch('/api/admin/revenue/trend'),
-          fetch('/api/admin/products/top'),
-          fetch('/api/admin/payments/distribution'),
-          fetch('/api/admin/orders/status')
+          fetch("/api/admin/revenue/total"),
+          fetch("/api/admin/expenses/total"),
+          fetch("/api/admin/profit/total"),
+          fetch("/api/admin/revenue/trend"),
+          fetch("/api/admin/products/top"),
+          fetch("/api/admin/payments/distribution"),
+          fetch("/api/admin/orders/status"),
         ]);
 
         // If any request returned 401, redirect to locale-aware login page
@@ -97,7 +126,7 @@ export default function Page() {
         setPaymentDistribution(paymentDistData.paymentDistribution || {});
         setOrdersByStatus(ordersStatusData.ordersByStatus || {});
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
@@ -116,17 +145,53 @@ export default function Page() {
 
   return (
     <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
+      {/* Privacy Toggle Header */}
+      <div className="flex items-center justify-end gap-1.5 sm:gap-3">
+        <label
+          htmlFor="privacy-toggle"
+          className="text-xs sm:text-sm font-medium"
+        >
+          {isPrivacyMode ? tDash("privacyOn") : tDash("privacyOff")}
+        </label>
+        <Switch
+          id="privacy-toggle"
+          checked={isPrivacyMode}
+          onCheckedChange={() => {
+            const newPrivacyMode = !isPrivacyMode;
+            setIsPrivacyMode(newPrivacyMode);
+            localStorage.setItem(
+              "dashboardPrivacyMode",
+              JSON.stringify(newPrivacyMode)
+            );
+          }}
+          className="h-5 w-9 sm:h-6 sm:w-11"
+          title={isPrivacyMode ? tDash("showNumbers") : tDash("hideNumbers")}
+        />
+      </div>
       <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-3">
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
-            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">{tDash("totalRevenue")}</CardTitle>
-            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">PKR</span>
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("totalRevenue")}
+            </CardTitle>
+            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">
+              PKR
+            </span>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex items-end">
             <div className="flex flex-col">
-              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">Rs.</span>
+              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">
+                Rs.
+              </span>
               <div className="text-xl sm:text-2xl font-bold">
-                <span className="hidden sm:inline">Rs. </span>{Math.floor(totalRevenue)}
+                {isPrivacyMode ? (
+                  <span className="text-muted-foreground">•••••</span>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Rs. </span>
+                    {Math.floor(totalRevenue)}
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
@@ -136,27 +201,51 @@ export default function Page() {
             <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
               {tDash("totalExpenses")}
             </CardTitle>
-            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">PKR</span>
+            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">
+              PKR
+            </span>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex items-end">
             <div className="flex flex-col">
-              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">Rs.</span>
+              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">
+                Rs.
+              </span>
               <div className="text-xl sm:text-2xl font-bold">
-                <span className="hidden sm:inline">Rs. </span>{Math.floor(totalExpenses)}
+                {isPrivacyMode ? (
+                  <span className="text-muted-foreground">•••••</span>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Rs. </span>
+                    {Math.floor(totalExpenses)}
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
-            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">{tDash("totalProfit")}</CardTitle>
-            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">PKR</span>
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("totalProfit")}
+            </CardTitle>
+            <span className="hidden sm:inline text-xs font-medium text-muted-foreground">
+              PKR
+            </span>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex items-end">
             <div className="flex flex-col">
-              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">Rs.</span>
+              <span className="text-[10px] sm:hidden text-muted-foreground mb-1">
+                Rs.
+              </span>
               <div className="text-xl sm:text-2xl font-bold">
-                <span className="hidden sm:inline">Rs. </span>{Math.floor(totalProfit)}
+                {isPrivacyMode ? (
+                  <span className="text-muted-foreground">•••••</span>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Rs. </span>
+                    {Math.floor(totalProfit)}
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
@@ -171,7 +260,10 @@ export default function Page() {
             <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
-            <LinechartChart data={revenueTrend} className="w-full h-48 sm:h-44 md:h-48" />
+            <LinechartChart
+              data={revenueTrend}
+              className="w-full h-48 sm:h-44 md:h-48"
+            />
           </CardContent>
         </Card>
         <Card className="flex flex-col">
@@ -182,7 +274,10 @@ export default function Page() {
             <BarChartIcon className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
-            <BarchartChart data={topProducts} className="w-full h-48 sm:h-44 md:h-48" />
+            <BarchartChart
+              data={topProducts}
+              className="w-full h-48 sm:h-44 md:h-48"
+            />
           </CardContent>
         </Card>
         <Card className="flex flex-col">
@@ -193,16 +288,24 @@ export default function Page() {
             <PieChartIcon className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
-            <PiechartcustomChart data={paymentDistribution} className="w-full h-48 sm:h-44 md:h-48" />
+            <PiechartcustomChart
+              data={paymentDistribution}
+              className="w-full h-48 sm:h-44 md:h-48"
+            />
           </CardContent>
         </Card>
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
-            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">{tDash("orderStatus")}</CardTitle>
+            <CardTitle className="text-[10px] leading-tight sm:text-sm font-medium">
+              {tDash("orderStatus")}
+            </CardTitle>
             <PieChartIcon className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-2 sm:p-3 md:p-4 pt-0 flex-1 flex items-center justify-center overflow-hidden">
-            <PiechartcustomChart data={ordersByStatus} className="w-full h-48 sm:h-44 md:h-48" />
+            <PiechartcustomChart
+              data={ordersByStatus}
+              className="w-full h-48 sm:h-44 md:h-48"
+            />
           </CardContent>
         </Card>
       </div>
@@ -212,16 +315,27 @@ export default function Page() {
           <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 items-start sm:items-center text-xs sm:text-sm text-muted-foreground">
             <span className="font-medium">{tDash("needHelp")}</span>
             <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
-              <a href={`mailto:${supportContact.email}`} className="text-blue-600 hover:underline" aria-label={`Email ${supportContact.email}`}>
+              <a
+                href={`mailto:${supportContact.email}`}
+                className="text-blue-600 hover:underline"
+                aria-label={`Email ${supportContact.email}`}
+              >
                 Email
               </a>
               <span className="hidden sm:inline text-muted-foreground">|</span>
-              <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline" aria-label={`Call ${supportContact.phone}`}>
+              <a
+                href={`tel:${supportContact.phone.replace(/\s/g, "")}`}
+                className="text-blue-600 hover:underline"
+                aria-label={`Call ${supportContact.phone}`}
+              >
                 Call
               </a>
               <span className="hidden sm:inline text-muted-foreground">|</span>
               <a
-                href={`https://wa.me/${supportContact.whatsapp.replace(/[^\d]/g, "")}`}
+                href={`https://wa.me/${supportContact.whatsapp.replace(
+                  /[^\d]/g,
+                  ""
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline"
@@ -268,18 +382,25 @@ function BarChartIcon(props: any) {
   );
 }
 
-function BarchartChart({ data, ...props }: { data: any[] } & React.HTMLAttributes<HTMLDivElement>) {
+function BarchartChart({
+  data,
+  ...props
+}: { data: any[] } & React.HTMLAttributes<HTMLDivElement>) {
   const chartConfig = {
     quantity: {
       label: "Quantity",
       color: "hsl(var(--chart-1))",
     },
   } satisfies ChartConfig;
-  
+
   return (
     <div {...props}>
       <ChartContainer config={chartConfig}>
-        <BarChart accessibilityLayer data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <BarChart
+          accessibilityLayer
+          data={data}
+          margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+        >
           <CartesianGrid vertical={false} />
           <XAxis
             dataKey="name"
@@ -293,7 +414,7 @@ function BarchartChart({ data, ...props }: { data: any[] } & React.HTMLAttribute
             cursor={false}
             content={<ChartTooltipContent indicator="dashed" />}
           />
-          <Legend wrapperStyle={{ fontSize: '10px' }} />
+          <Legend wrapperStyle={{ fontSize: "10px" }} />
           <Bar dataKey="quantity" fill="var(--color-quantity)" radius={4} />
         </BarChart>
       </ChartContainer>
@@ -301,9 +422,10 @@ function BarchartChart({ data, ...props }: { data: any[] } & React.HTMLAttribute
   );
 }
 
-
-
-function LinechartChart({ data, ...props }: { data: any[] } & React.HTMLAttributes<HTMLDivElement>) {
+function LinechartChart({
+  data,
+  ...props
+}: { data: any[] } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div {...props}>
       <ChartContainer
@@ -331,13 +453,18 @@ function LinechartChart({ data, ...props }: { data: any[] } & React.HTMLAttribut
             axisLine={false}
             tickMargin={5}
             tick={{ fontSize: 9 }}
-            tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            tickFormatter={(value) =>
+              new Date(value).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })
+            }
           />
           <ChartTooltip
             cursor={false}
             content={<ChartTooltipContent hideLabel />}
           />
-          <Legend wrapperStyle={{ fontSize: '10px' }} />
+          <Legend wrapperStyle={{ fontSize: "10px" }} />
           <Line
             dataKey="revenue"
             type="monotone"
@@ -371,7 +498,10 @@ function PieChartIcon(props: any) {
   );
 }
 
-function PiechartcustomChart({ data, ...props }: { data: Record<string, number> } & React.HTMLAttributes<HTMLDivElement>) {
+function PiechartcustomChart({
+  data,
+  ...props
+}: { data: Record<string, number> } & React.HTMLAttributes<HTMLDivElement>) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -379,8 +509,8 @@ function PiechartcustomChart({ data, ...props }: { data: Record<string, number> 
       setIsMobile(window.innerWidth < 640);
     };
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const chartData = Object.entries(data).map(([category, value]) => ({
@@ -407,8 +537,8 @@ function PiechartcustomChart({ data, ...props }: { data: Record<string, number> 
             cursor={false}
             content={<ChartTooltipContent hideLabel />}
           />
-          <Legend 
-            wrapperStyle={{ fontSize: '10px', paddingTop: '4px' }} 
+          <Legend
+            wrapperStyle={{ fontSize: "10px", paddingTop: "4px" }}
             iconSize={10}
             layout="horizontal"
             verticalAlign="bottom"
@@ -427,4 +557,3 @@ function PiechartcustomChart({ data, ...props }: { data: Record<string, number> 
     </div>
   );
 }
-

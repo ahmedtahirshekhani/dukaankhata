@@ -72,7 +72,10 @@
     "creatingAccount": "Creating account...",
     "signUpSuccess": "Account created successfully! Please sign in.",
     "loginError": "Failed to sign in. Please try again.",
-    "signUpError": "Failed to create account. Please try again."
+    "signUpError": "Failed to create account. Please try again.",
+    "networkError": "Network error. Please check your connection and try again.",
+    "serverError": "Server error. Please try again later.",
+    "missingFields": "Please fill in all required fields."
   },
   "products": {
     "title": "Items",
@@ -143,6 +146,13 @@
     "amount": "Amount",
     "paymentMethod": "Payment Method",
     "status": "Status",
+    "receipt": "RECEIPT",
+    "transactionRecord": "Transaction Record",
+    "receiptId": "Receipt ID",
+    "time": "Time",
+    "itemDetails": "Item Details",
+    "thankyou": "Thank you for your business",
+    "generated": "Generated",
     "downloadExcel": "Download Excel Sheet",
     "downloadDateRange": "Date Range Download",
     "fromDate": "From Date",
@@ -208,7 +218,11 @@
     "topProducts": "Top 5 Items by Sales",
     "paymentMethods": "Payment Methods",
     "orderStatus": "Orders by Status",
-    "needHelp": "Need help with DukaanKhata? Reach out:"
+    "needHelp": "Need help with DukaanKhata? Reach out:",
+    "privacyOn": "Privacy: ON",
+    "privacyOff": "Privacy: OFF",
+    "hideNumbers": "Hide numbers",
+    "showNumbers": "Show numbers"
   },
   "language": {
     "english": "English",

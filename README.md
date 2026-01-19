@@ -86,7 +86,7 @@ User authentication is handled through NextAuth.js with MongoDB. The login page 
 
 After seeding the database:
 - **Email**: test@example.com
-- **Password**: password123
+- **Password**: 12345678
 
 ## Error Handling
 
