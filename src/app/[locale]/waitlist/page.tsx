@@ -194,8 +194,8 @@ export default function WaitlistPage({ params }: { params: { locale: string } })
                   Thanks for joining!
                 </h3>
                 <p className="text-sm text-muted-foreground mt-2">
-                  We'll contact you on WhatsApp soon with exclusive launch details.
-                </p>
+  {"We'll contact you on WhatsApp soon with exclusive launch details."}
+</p>
                 <p className="text-xs text-muted-foreground mt-4">
                   Redirecting to home page...
                 </p>
