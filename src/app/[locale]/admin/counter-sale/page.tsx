@@ -49,7 +49,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-    FileDown,
+  FileDown,
   Upload,
   Edit2Icon,
   DownloadIcon,
@@ -58,9 +58,10 @@ import {
   FilterIcon,
   ChevronDownIcon,
   XIcon,
+  MoreVertical,
   CalendarIcon,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo,useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
 import {
   exportTransactionsToExcel,
@@ -278,7 +279,6 @@ export default function CounterSale() {
     }
   };
 
-  
   const getSortedTransactions = () => {
     // Filter transactions by selected year
     return transactions.filter((transaction) => {
@@ -600,7 +600,7 @@ export default function CounterSale() {
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
         }`;
-        
+
         setErrorDialog({
           open: true,
           title: t("importSuccess"),
@@ -1136,40 +1136,50 @@ export default function CounterSale() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                onClick={handleDownloadExcel}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-sm whitespace-nowrap min-w-[120px]"
-              >
-                <FileDown className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="truncate">
-                  {isDownloading ? t("downloading") : t("downloadExcel")}
-                </span>
-              </Button>
-              <Button
-                onClick={handleDownloadTemplate}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-sm whitespace-nowrap min-w-[140px]"
-              >
-                <FileDown className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="truncate">{t("downloadTemplate")}</span>
-              </Button>
-              <Button
-                onClick={handleImportClick}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-sm whitespace-nowrap min-w-[100px]"
-              >
-                <Upload className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="truncate">
-                  {isImporting ? t("importing") : t("import")}
-                </span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0"
+                    disabled={isDownloading || isImporting}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDownloadExcel}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {isDownloading ? t("downloading") : t("downloadExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsDateRangeDialogOpen(true)}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadDateRange")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDownloadTemplate}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadTemplate")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleImportClick}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isImporting ? t("importing") : t("import")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1177,16 +1187,6 @@ export default function CounterSale() {
                 onChange={handleFileSelect}
                 style={{ display: "none" }}
               />
-              <Button
-                onClick={() => setIsDateRangeDialogOpen(true)}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-sm whitespace-nowrap min-w-[140px]"
-              >
-                <FileDown className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="truncate">{t("downloadDateRange")}</span>
-              </Button>
             </div>
             <div className="text-xs text-muted-foreground whitespace-nowrap">
               Total: {pageInfo.total.toLocaleString()}
@@ -1227,41 +1227,51 @@ export default function CounterSale() {
                 {isAddFormOpen ? "Close" : "Add"}
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                onClick={handleDownloadExcel}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px]"
-              >
-                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">
-                  {isDownloading ? t("downloading") : t("downloadExcel")}
-                </span>
-              </Button>
-              <Button
-                onClick={handleDownloadTemplate}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px]"
-              >
-                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">{t("downloadTemplate")}</span>
-              </Button>
-              <Button
-                onClick={handleImportClick}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px]"
-              >
-                <Upload className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">
-                  {isImporting ? t("importing") : t("import")}
-                </span>
-              </Button>
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 min-h-[44px]"
+                    disabled={isDownloading || isImporting}
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDownloadExcel}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {isDownloading ? t("downloading") : t("downloadExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsDateRangeDialogOpen(true)}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadDateRange")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDownloadTemplate}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadTemplate")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleImportClick}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isImporting ? t("importing") : t("import")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1269,16 +1279,6 @@ export default function CounterSale() {
                 onChange={handleFileSelect}
                 style={{ display: "none" }}
               />
-              <Button
-                onClick={() => setIsDateRangeDialogOpen(true)}
-                disabled={isDownloading || isImporting}
-                variant="outline"
-                size="sm"
-                className="h-10 text-xs min-h-[44px] col-span-2"
-              >
-                <FileDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">{t("downloadDateRange")}</span>
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -2096,7 +2096,9 @@ export default function CounterSale() {
                         className="gap-1 h-9 text-xs flex-shrink-0"
                       >
                         <span className="text-muted-foreground">Type:</span>
-                        <span>{filters.type === "all" ? "All" : filters.type}</span>
+                        <span>
+                          {filters.type === "all" ? "All" : filters.type}
+                        </span>
                         <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -2105,19 +2107,25 @@ export default function CounterSale() {
                       <DropdownMenuSeparator />
                       <DropdownMenuCheckboxItem
                         checked={filters.type === "all"}
-                        onCheckedChange={() => handleFilterChange("type", "all")}
+                        onCheckedChange={() =>
+                          handleFilterChange("type", "all")
+                        }
                       >
                         All
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={filters.type === "income"}
-                        onCheckedChange={() => handleFilterChange("type", "income")}
+                        onCheckedChange={() =>
+                          handleFilterChange("type", "income")
+                        }
                       >
                         Income
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={filters.type === "expense"}
-                        onCheckedChange={() => handleFilterChange("type", "expense")}
+                        onCheckedChange={() =>
+                          handleFilterChange("type", "expense")
+                        }
                       >
                         Expense
                       </DropdownMenuCheckboxItem>
@@ -2137,7 +2145,10 @@ export default function CounterSale() {
                         <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[280px] p-4">
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-[280px] p-4"
+                    >
                       <div className="space-y-3">
                         <Label className="text-xs font-semibold">
                           Amount Range
@@ -2740,9 +2751,7 @@ export default function CounterSale() {
       </Dialog>
       <ErrorDialog
         open={errorDialog.open}
-        onOpenChange={(open) =>
-          setErrorDialog((prev) => ({ ...prev, open }))
-        }
+        onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
         title={errorDialog.title}
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
