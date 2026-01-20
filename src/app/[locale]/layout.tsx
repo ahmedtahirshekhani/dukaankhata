@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { AuthProvider } from "@/components/auth-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { LanguageInitializer } from "@/components/language-initializer";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { OfflineIndicator } from "@/components/offline-indicator";
 import "../globals.css";
 
 const locales = ["en", "ur", "ru"] as const;
@@ -45,6 +47,8 @@ export default async function LocalizedRootLayout({
   return (
     <AuthProvider>
       <LanguageInitializer />
+      <PWAInstallPrompt />
+      <OfflineIndicator />
       <NextIntlClientProvider locale={locale} messages={messages}>
         {children}
       </NextIntlClientProvider>

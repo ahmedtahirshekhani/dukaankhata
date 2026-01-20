@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You are offline - DukaanKhata</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 60px 40px;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    .icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 30px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    .icon svg {
+      width: 60px;
+      height: 60px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    h1 {
+      color: #1f2937;
+      font-size: 32px;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+
+    p {
+      color: #6b7280;
+      font-size: 18px;
+      line-height: 1.6;
+      margin-bottom: 30px;
+    }
+
+    .features {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 30px 0;
+      text-align: left;
+    }
+
+    .features h2 {
+      color: #1f2937;
+      font-size: 18px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .features ul {
+      list-style: none;
+    }
+
+    .features li {
+      color: #4b5563;
+      font-size: 15px;
+      padding: 8px 0;
+      padding-left: 28px;
+      position: relative;
+    }
+
+    .features li:before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .button {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .status.offline {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status.online {
+      background: #d1fae5;
+      color: #065f46;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24">
+        <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+        <path d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+      </svg>
+    </div>
+
+    <h1>You're Offline</h1>
+    <p>Don't worry! DukaanKhata works offline too. Your data is safe and will sync when you're back online.</p>
+
+    <div class="features">
+      <h2>Available Offline:</h2>
+      <ul>
+        <li>View cached invoices and orders</li>
+        <li>Access product information</li>
+        <li>View customer details</li>
+        <li>Check dashboard statistics</li>
+      </ul>
+    </div>
+
+    <button class="button" onclick="window.location.reload()">
+      Try Again
+    </button>
+
+    <div class="status offline" id="status">
+      <span>⚠️ No internet connection</span>
+    </div>
+  </div>
+
+  <script>
+    // Monitor connection status
+    function updateStatus() {
+      const statusEl = document.getElementById('status');
+      if (navigator.onLine) {
+        statusEl.className = 'status online';
+        statusEl.innerHTML = '<span>✓ Connection restored</span>';
+        
+        // Reload after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        statusEl.className = 'status offline';
+        statusEl.innerHTML = '<span>⚠️ No internet connection</span>';
+      }
+    }
+
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+
+    // Check status on load
+    updateStatus();
+  </script>
+</body>
+</html>
