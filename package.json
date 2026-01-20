@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed:mongodb": "tsx --env-file=.env.local scripts/seed-mongodb.ts",
-    "generate:icons": "node scripts/generate-pwa-icons.js && node scripts/convert-icons-to-png.js",
+    "generate:logo-icons": "node scripts/generate-logo-icons.js",
     "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view"
   },
   "dependencies": {

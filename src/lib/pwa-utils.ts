@@ -74,8 +74,10 @@ export async function showNotification(
   if (Notification.permission === 'granted') {
     const registration = await navigator.serviceWorker.ready;
     await registration.showNotification(title, {
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-96x96.png',
+      // icon: '/icons/icon-192x192.png',
+      // badge: '/icons/icon-96x96.png',
+      icon: "/DukaanKhataLogo.png",
+      badge: "/DukaanKhataLogo.png",
       ...options,
     });
   }
