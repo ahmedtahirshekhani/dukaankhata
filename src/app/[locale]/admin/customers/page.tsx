@@ -57,13 +57,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import {
   exportCustomersToExcel,
   exportCustomersTemplate,
 } from "@/lib/excel-utils";
 import { ErrorDialog } from "@/components/error-dialog";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 type Customer = {
   id: number;
@@ -90,14 +90,14 @@ export default function CustomersPage() {
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(
-    null
+    null,
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     status: "all",
   });
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
-    null
+    null,
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -214,8 +214,8 @@ export default function CustomersPage() {
       const updatedCustomerData = await response.json();
       setCustomers(
         customers.map((c) =>
-          c.id === updatedCustomerData.id ? updatedCustomerData : c
-        )
+          c.id === updatedCustomerData.id ? updatedCustomerData : c,
+        ),
       );
       setIsEditCustomerDialogOpen(false);
       resetSelectedCustomer();
@@ -368,7 +368,7 @@ export default function CustomersPage() {
         setIsImporting(false);
       }
     },
-    [t]
+    [t],
   );
 
   const handleImportClick = useCallback(() => {
