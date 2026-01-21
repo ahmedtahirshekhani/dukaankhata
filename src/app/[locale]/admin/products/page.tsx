@@ -36,6 +36,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,6 @@ import {
 import { useProductsData } from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
 import { ErrorDialog } from "@/components/error-dialog";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -196,7 +196,7 @@ export default function Products() {
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = filteredProducts.slice(
     indexOfFirstProduct,
-    indexOfLastProduct
+    indexOfLastProduct,
   );
 
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
@@ -212,7 +212,7 @@ export default function Products() {
 
   const handleFilterChange = (
     type: "category" | "type" | "branch",
-    value: string
+    value: string,
   ) => {
     setFilters((prevFilters) => ({
       ...prevFilters,
@@ -231,7 +231,7 @@ export default function Products() {
 
   const handleMobileFilterChange = (
     type: "category" | "type" | "branch",
-    value: string
+    value: string,
   ) => {
     setMobileFilters((prevFilters) => ({
       ...prevFilters,
@@ -394,7 +394,7 @@ export default function Products() {
         setIsImporting(false);
       }
     },
-    [t, refetchData]
+    [t, refetchData],
   );
 
   const handleImportClick = useCallback(() => {
@@ -665,8 +665,8 @@ export default function Products() {
                       {mobileFilters.type === "all"
                         ? "All"
                         : mobileFilters.type === "goods"
-                        ? "Goods"
-                        : "Services"}
+                          ? "Goods"
+                          : "Services"}
                     </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
                   </Button>
@@ -818,7 +818,7 @@ export default function Products() {
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
                               "sellPriceMin",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="h-8 text-xs"
@@ -830,7 +830,7 @@ export default function Products() {
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
                               "sellPriceMax",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="h-8 text-xs"
@@ -849,7 +849,7 @@ export default function Products() {
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
                               "costPriceMin",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="h-8 text-xs"
@@ -861,7 +861,7 @@ export default function Products() {
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
                               "costPriceMax",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="h-8 text-xs"

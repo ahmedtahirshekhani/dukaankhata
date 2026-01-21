@@ -60,33 +60,43 @@ export default function InvoicePage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<POSProduct[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
+    null,
+  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
   const [invoiceNo, setInvoiceNo] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [addDueDate, setAddDueDate] = useState<boolean>(false);
   const [dueDate, setDueDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
-  const [charges, setCharges] = useState<Array<{ id: string; item: string; value: number }>>([]);
+  const [charges, setCharges] = useState<
+    Array<{ id: string; item: string; value: number }>
+  >([]);
   const [showAddCharge, setShowAddCharge] = useState<boolean>(false);
   const [newChargeItem, setNewChargeItem] = useState<string>("");
   const [newChargeValue, setNewChargeValue] = useState<string>("");
   const [showInvoicePreview, setShowInvoicePreview] = useState<boolean>(false);
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
-  const [overallDiscountType, setOverallDiscountType] = useState<"value" | "percentage">("value");
+  const [overallDiscountType, setOverallDiscountType] = useState<
+    "value" | "percentage"
+  >("value");
   const [shippingCharges, setShippingCharges] = useState<number>(0);
-  const [customerNotes, setCustomerNotes] = useState<string>("Thanks for your business");
+  const [customerNotes, setCustomerNotes] = useState<string>(
+    "Thanks for your business",
+  );
 
   const getSalePrice = (product: POSProduct) => product.sell_price;
-  const formatUom = (uom?: string) => (uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-");
+  const formatUom = (uom?: string) =>
+    uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-";
   const truncateDescription = (desc?: string, limit = 100) => {
     if (!desc) return "";
     return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
   };
-
 
   useEffect(() => {
     generateInvoiceNo();
@@ -140,13 +150,19 @@ export default function InvoicePage() {
     if (selectedProducts.some((p) => p.id === productId)) {
       setSelectedProducts(
         selectedProducts.map((p) =>
-          p.id === productId ? { ...p, quantity: p.quantity + 1 } : p
-        )
+          p.id === productId ? { ...p, quantity: p.quantity + 1 } : p,
+        ),
       );
     } else {
       setSelectedProducts([
         ...selectedProducts,
-        { ...product, quantity: 1, discount: 0, discountType: "value", discountInput: "0" },
+        {
+          ...product,
+          quantity: 1,
+          discount: 0,
+          discountType: "value",
+          discountInput: "0",
+        },
       ]);
     }
   };
@@ -168,25 +184,30 @@ export default function InvoicePage() {
   const handleQuantityChange = (productId: number, newQuantity: number) => {
     setSelectedProducts(
       selectedProducts.map((p) =>
-        p.id === productId ? { ...p, quantity: newQuantity } : p
-      )
+        p.id === productId ? { ...p, quantity: newQuantity } : p,
+      ),
     );
   };
 
   const handleDiscountChange = (productId: number, newDiscount: number) => {
-    const safeDiscount = Number.isNaN(newDiscount) ? 0 : Math.max(0, newDiscount);
+    const safeDiscount = Number.isNaN(newDiscount)
+      ? 0
+      : Math.max(0, newDiscount);
     setSelectedProducts(
       selectedProducts.map((p) =>
-        p.id === productId ? { ...p, discount: safeDiscount } : p
-      )
+        p.id === productId ? { ...p, discount: safeDiscount } : p,
+      ),
     );
   };
 
-  const handleDiscountTypeChange = (productId: number, newType: "value" | "percentage") => {
+  const handleDiscountTypeChange = (
+    productId: number,
+    newType: "value" | "percentage",
+  ) => {
     setSelectedProducts(
       selectedProducts.map((p) =>
-        p.id === productId ? { ...p, discountType: newType } : p
-      )
+        p.id === productId ? { ...p, discountType: newType } : p,
+      ),
     );
   };
 
@@ -196,7 +217,7 @@ export default function InvoicePage() {
 
   const total = selectedProducts.reduce(
     (sum, product) => sum + calculateLineTotal(product),
-    0
+    0,
   );
 
   const handleAddNewCharge = () => {
@@ -214,13 +235,21 @@ export default function InvoicePage() {
     }
   };
 
-  const handleChargeChange = (id: string, field: "item" | "value", val: string | number) => {
+  const handleChargeChange = (
+    id: string,
+    field: "item" | "value",
+    val: string | number,
+  ) => {
     setCharges(
       charges.map((charge) =>
         charge.id === id
-          ? { ...charge, [field]: field === "value" ? parseFloat(val.toString()) || 0 : val }
-          : charge
-      )
+          ? {
+              ...charge,
+              [field]:
+                field === "value" ? parseFloat(val.toString()) || 0 : val,
+            }
+          : charge,
+      ),
     );
   };
 
@@ -228,13 +257,33 @@ export default function InvoicePage() {
     setCharges(charges.filter((charge) => charge.id !== id));
   };
 
-  const chargesTotal = charges.reduce((sum, charge) => sum + charge.value, 0);
+  const pendingCharge =
+    newChargeItem.trim() || newChargeValue
+      ? {
+          id: "pending",
+          item: newChargeItem.trim() || "Adjustment",
+          value: parseFloat(newChargeValue) || 0,
+        }
+      : null;
+  const displayCharges = pendingCharge ? [...charges, pendingCharge] : charges;
+
+  const chargesTotal = displayCharges.reduce(
+    (sum, charge) => sum + charge.value,
+    0,
+  );
   const overallDiscountNum = overallDiscount || 0;
-  const overallDiscountAmount = overallDiscountType === "percentage" 
-    ? Math.round((total * overallDiscountNum) / 100)
-    : overallDiscountNum;
+  const overallDiscountAmount =
+    overallDiscountType === "percentage"
+      ? Math.round((total * overallDiscountNum) / 100)
+      : overallDiscountNum;
   const shippingChargesNum = shippingCharges || 0;
-  const finalTotal = Math.max(0, total - Math.min(overallDiscountAmount, total) + shippingChargesNum + chargesTotal);
+  const finalTotal = Math.max(
+    0,
+    total -
+      Math.min(overallDiscountAmount, total) +
+      shippingChargesNum +
+      chargesTotal,
+  );
 
   const handleSaveOrder = async () => {
     if (!selectedCustomer || selectedProducts.length === 0 || !invoiceNo) {
@@ -265,9 +314,16 @@ export default function InvoicePage() {
           customerId: selectedCustomer.id,
           saleDate: selectedDate,
           dueDate: addDueDate ? dueDate : null,
-          products: selectedProducts.map(p => ({ id: p.id, quantity: p.quantity, price: p.sell_price })),
+          products: selectedProducts.map((p) => ({
+            id: p.id,
+            quantity: p.quantity,
+            price: p.sell_price,
+          })),
           subtotal: total,
-          charges: charges.map(c => ({ item: c.item, value: c.value })),
+          charges: displayCharges.map((c) => ({
+            item: c.item,
+            value: c.value,
+          })),
           total: finalTotal,
           payment: {
             method: paymentDetails.paymentMethod,
@@ -302,7 +358,9 @@ export default function InvoicePage() {
       <div className="flex flex-col gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("pageDescription")}
+          </p>
         </div>
       </div>
       <Card className="mb-4">
@@ -313,7 +371,9 @@ export default function InvoicePage() {
           <div className="grid grid-cols-12 gap-2 items-end">
             {/* Invoice No & Generate Button */}
             <div className="col-span-2">
-              <Label htmlFor="invoice-no" className="text-xs font-medium">Invoice No.</Label>
+              <Label htmlFor="invoice-no" className="text-xs font-medium">
+                Invoice No.
+              </Label>
               <Input
                 id="invoice-no"
                 placeholder="Enter/Generate"
@@ -322,11 +382,12 @@ export default function InvoicePage() {
                 className="h-8 text-sm"
               />
             </div>
-  
 
             {/* Customer Selection */}
             <div className="col-span-3">
-              <Label htmlFor="customer" className="text-xs font-medium">Customer</Label>
+              <Label htmlFor="customer" className="text-xs font-medium">
+                Customer
+              </Label>
               <Combobox
                 items={customers}
                 placeholder="Select Customer"
@@ -336,7 +397,9 @@ export default function InvoicePage() {
 
             {/* Sale Date */}
             <div className="col-span-2">
-              <Label htmlFor="sale-date" className="text-xs font-medium">Sale Date</Label>
+              <Label htmlFor="sale-date" className="text-xs font-medium">
+                Sale Date
+              </Label>
               <Input
                 id="sale-date"
                 type="date"
@@ -356,7 +419,10 @@ export default function InvoicePage() {
                 onChange={(e) => setAddDueDate(e.target.checked)}
                 className="w-3 h-3 rounded"
               />
-              <Label htmlFor="add-due-date" className="text-xs font-medium cursor-pointer whitespace-nowrap">
+              <Label
+                htmlFor="add-due-date"
+                className="text-xs font-medium cursor-pointer whitespace-nowrap"
+              >
                 Add Due Date
               </Label>
             </div>
@@ -401,13 +467,13 @@ export default function InvoicePage() {
                     <div>
                       <div className="font-medium">{product.name}</div>
                       {product.description && (
-                        <div className="text-xs text-muted-foreground mt-0.5">{truncateDescription(product.description)}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {truncateDescription(product.description)}
+                        </div>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    Rs. {Math.floor(getSalePrice(product))}
-                  </TableCell>
+                  <TableCell>Rs. {Math.floor(getSalePrice(product))}</TableCell>
                   <TableCell>
                     <input
                       type="number"
@@ -416,7 +482,7 @@ export default function InvoicePage() {
                       onChange={(e) =>
                         handleQuantityChange(
                           product.id,
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                       className="w-16 p-1 border rounded"
@@ -427,14 +493,14 @@ export default function InvoicePage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                     <Input
+                      <Input
                         type="number"
                         placeholder="0"
                         value={product.discount || ""}
                         onChange={(e) =>
                           handleDiscountChange(
                             product.id,
-                            parseFloat(e.target.value)
+                            parseFloat(e.target.value),
                           )
                         }
                         className="w-24 p-1 border rounded"
@@ -444,7 +510,7 @@ export default function InvoicePage() {
                         onValueChange={(val) =>
                           handleDiscountTypeChange(
                             product.id,
-                            val as "value" | "percentage"
+                            val as "value" | "percentage",
                           )
                         }
                       >
@@ -493,8 +559,10 @@ export default function InvoicePage() {
               <div className="space-y-3">
                 <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-2 items-center">
                   <span className="text-sm text-right">Sub Total:</span>
-                  <span className="text-left font-semibold">Rs. {Math.round(total)}</span>
-                  
+                  <span className="text-left font-semibold">
+                    Rs. {Math.round(total)}
+                  </span>
+
                   <span className="text-sm text-right">Overall Discount:</span>
                   <div className="flex gap-1 items-center">
                     <Input
@@ -510,7 +578,9 @@ export default function InvoicePage() {
                     />
                     <Select
                       value={overallDiscountType}
-                      onValueChange={(val) => setOverallDiscountType(val as "value" | "percentage")}
+                      onValueChange={(val) =>
+                        setOverallDiscountType(val as "value" | "percentage")
+                      }
                     >
                       <SelectTrigger className="w-16 h-8 text-xs">
                         <SelectValue placeholder="PKR" />
@@ -521,7 +591,7 @@ export default function InvoicePage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <span className="text-sm text-right">Shipping charges:</span>
                   <Input
                     type="number"
@@ -555,49 +625,72 @@ export default function InvoicePage() {
                       value={newChargeValue}
                       onChange={(e) => setNewChargeValue(e.target.value)}
                     />
+                  </div>
+
+                  {/* Add More Button */}
+                  {/* {(newChargeItem.trim() || newChargeValue) && ( */}
+                  <div className="flex justify-end mt-2">
                     <Button
                       onClick={handleAddNewCharge}
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-8 text-xs"
+                      disabled={!newChargeItem.trim() || !newChargeValue}
                     >
-                      +
+                      Add More
                     </Button>
                   </div>
-                  
-                  {/* Display Added Charges */}
-                  {charges.map((charge) => (
-                    <div key={charge.id} className="flex gap-2 items-center">
-                      <Input
-                        placeholder="Adjustment"
-                        value={charge.item}
-                        onChange={(e) => handleChargeChange(charge.id, "item", e.target.value)}
-                        className="w-32 h-8 text-sm"
-                      />
-                      <span className="text-sm">:</span>
-                      <Input
-                        type="number"
-                        placeholder="Value"
-                        value={charge.value || ""}
-                        onChange={(e) => handleChargeChange(charge.id, "value", e.target.value)}
-                        className="w-24 h-8 text-sm"
-                      />
-                      <Button
-                        onClick={() => handleRemoveCharge(charge.id)}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                      >
-                        ×
-                      </Button>
-                    </div>
-                  ))}
+                  {/* )} */}
+
+                  <div className="space-y-2">
+                    {/* Display Added Charges */}
+                    {charges.map((charge) => (
+                      <div key={charge.id} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Adjustment"
+                          value={charge.item}
+                          onChange={(e) =>
+                            handleChargeChange(
+                              charge.id,
+                              "item",
+                              e.target.value,
+                            )
+                          }
+                          className="w-32 h-8 text-sm"
+                        />
+                        <span className="text-sm">:</span>
+                        <Input
+                          type="number"
+                          placeholder="Value"
+                          value={charge.value || ""}
+                          onChange={(e) =>
+                            handleChargeChange(
+                              charge.id,
+                              "value",
+                              e.target.value,
+                            )
+                          }
+                          className="w-24 h-8 text-sm"
+                        />
+                        <Button
+                          onClick={() => handleRemoveCharge(charge.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Final Total */}
                 <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
                   <span className="text-lg text-right font-bold">Total:</span>
-                  <span className="text-left text-lg font-bold">Rs. {Math.floor(finalTotal)}</span>
+                  <span className="text-left text-lg font-bold">
+                    Rs. {Math.floor(finalTotal)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -611,14 +704,20 @@ export default function InvoicePage() {
                   value={customerNotes}
                   onChange={(e) => setCustomerNotes(e.target.value)}
                 />
-                <span className="text-xs text-muted-foreground">Will be displayed on invoice</span>
+                <span className="text-xs text-muted-foreground">
+                  Will be displayed on invoice
+                </span>
               </div>
             </div>
 
             <div className="flex justify-end mt-4">
               <Button
                 onClick={handleSaveOrder}
-                disabled={selectedProducts.length === 0 || !selectedCustomer || !invoiceNo}
+                disabled={
+                  selectedProducts.length === 0 ||
+                  !selectedCustomer ||
+                  !invoiceNo
+                }
               >
                 Save
               </Button>
@@ -639,7 +738,7 @@ export default function InvoicePage() {
         }}
         saleDate={selectedDate}
         dueDate={addDueDate ? dueDate : null}
-        products={selectedProducts.map(p => ({
+        products={selectedProducts.map((p) => ({
           id: p.id,
           name: p.name,
           description: p.description,
@@ -647,10 +746,13 @@ export default function InvoicePage() {
           sell_price: p.sell_price,
           unit_of_measurement: p.unit_of_measurement,
           discount: p.discount,
-          discountType: p.discountType
+          discountType: p.discountType,
         }))}
         subtotal={total}
-        charges={charges}
+        charges={displayCharges.map((charge) => ({
+          item: charge.item,
+          value: charge.value,
+        }))}
         overallDiscount={overallDiscountAmount}
         shippingCharges={shippingChargesNum}
         total={finalTotal}

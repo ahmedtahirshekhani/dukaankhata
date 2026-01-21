@@ -1,29 +1,41 @@
-"use client"
+"use client";
 
-import React, { useEffect, useMemo, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { formatCurrencyString } from "@/lib/utils"
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { formatCurrencyString } from "@/lib/utils";
 
-export type PaymentKind = "full" | "partial"
+export type PaymentKind = "full" | "partial";
 
 export interface PaymentDialogResult {
-  method: string
-  amount: number
-  date: string
-  type: PaymentKind
+  method: string;
+  amount: number;
+  date: string;
+  type: PaymentKind;
 }
 
 interface PaymentDialogProps {
-  open: boolean
-  total: number
-  defaultAmount: number
-  defaultMethod: string
-  defaultDate: string
-  onOpenChange: (open: boolean) => void
-  onConfirm: (data: PaymentDialogResult) => void
+  open: boolean;
+  total: number;
+  defaultAmount: number;
+  defaultMethod: string;
+  defaultDate: string;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (data: PaymentDialogResult) => void;
 }
 
 export function PaymentDialog({
@@ -35,26 +47,31 @@ export function PaymentDialog({
   onOpenChange,
   onConfirm,
 }: PaymentDialogProps) {
-  const [paymentType, setPaymentType] = useState<PaymentKind>("full")
-  const [paymentAmount, setPaymentAmount] = useState<number>(total)
-  const [paymentMethod, setPaymentMethod] = useState(defaultMethod)
-  const [paymentDate, setPaymentDate] = useState(defaultDate)
-  const [paymentErrors, setPaymentErrors] = useState<{ method?: string; amount?: string }>({})
+  const [paymentType, setPaymentType] = useState<PaymentKind>("full");
+  const [paymentAmount, setPaymentAmount] = useState<number>(total);
+  const [paymentMethod, setPaymentMethod] = useState(defaultMethod);
+  const [paymentDate, setPaymentDate] = useState(defaultDate);
+  const [paymentErrors, setPaymentErrors] = useState<{
+    method?: string;
+    amount?: string;
+  }>({});
 
   useEffect(() => {
-    if (!open) return
-    const nextType: PaymentKind = defaultAmount >= total ? "full" : "partial"
-    setPaymentType(nextType)
-    setPaymentAmount(nextType === "full" ? total : Math.max(0, Math.min(total, defaultAmount)))
-    setPaymentMethod(defaultMethod)
-    setPaymentDate(defaultDate)
-    setPaymentErrors({})
-  }, [open, defaultAmount, defaultDate, defaultMethod, total])
+    if (!open) return;
+    const nextType: PaymentKind = defaultAmount >= total ? "full" : "partial";
+    setPaymentType(nextType);
+    setPaymentAmount(
+      nextType === "full" ? total : Math.max(0, Math.min(total, defaultAmount)),
+    );
+    setPaymentMethod(defaultMethod);
+    setPaymentDate(defaultDate);
+    setPaymentErrors({});
+  }, [open, defaultAmount, defaultDate, defaultMethod, total]);
 
   const remainingBalance = useMemo(
     () => Math.max(0, total - paymentAmount),
-    [paymentAmount, total]
-  )
+    [paymentAmount, total],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,8 +91,8 @@ export function PaymentDialog({
                   value="full"
                   checked={paymentType === "full"}
                   onChange={() => {
-                    setPaymentType("full")
-                    setPaymentAmount(total)
+                    setPaymentType("full");
+                    setPaymentAmount(total);
                   }}
                 />
                 Full Payment
@@ -87,8 +104,10 @@ export function PaymentDialog({
                   value="partial"
                   checked={paymentType === "partial"}
                   onChange={() => {
-                    setPaymentType("partial")
-                    setPaymentAmount((amt) => Math.max(0, Math.min(total, amt || total)))
+                    setPaymentType("partial");
+                    setPaymentAmount((amt) =>
+                      Math.max(0, Math.min(total, amt || total)),
+                    );
                   }}
                 />
                 Partial Payment
@@ -104,11 +123,13 @@ export function PaymentDialog({
               placeholder="0"
               value={paymentAmount || ""}
               onChange={(e) => {
-                const val = Number(e.target.value)
-                const clamped = isNaN(val) ? 0 : Math.max(0, Math.min(total, val))
-                setPaymentAmount(clamped)
+                const val = Number(e.target.value);
+                const clamped = isNaN(val)
+                  ? 0
+                  : Math.max(0, Math.min(total, val));
+                setPaymentAmount(clamped);
                 if (paymentErrors.amount) {
-                  setPaymentErrors((prev) => ({ ...prev, amount: undefined }))
+                  setPaymentErrors((prev) => ({ ...prev, amount: undefined }));
                 }
               }}
               disabled={paymentType === "full"}
@@ -119,7 +140,9 @@ export function PaymentDialog({
               <p className="text-xs text-red-600">{paymentErrors.amount}</p>
             )}
             {paymentType === "full" && (
-              <p className="text-xs text-muted-foreground">Full amount is locked to total.</p>
+              <p className="text-xs text-muted-foreground">
+                Full amount is locked to total.
+              </p>
             )}
             {paymentType === "partial" && (
               <div className="flex justify-end">
@@ -132,18 +155,27 @@ export function PaymentDialog({
 
           <div className="space-y-1">
             <Label htmlFor="payment-method">Payment Method</Label>
-            <Input
-              id="payment-method"
-              placeholder="e.g., Cash, Card, Bank Transfer"
+            <Select
               value={paymentMethod}
-              onChange={(e) => {
-                setPaymentMethod(e.target.value)
+              onValueChange={(value) => {
+                setPaymentMethod(value);
                 if (paymentErrors.method) {
-                  setPaymentErrors((prev) => ({ ...prev, method: undefined }))
+                  setPaymentErrors((prev) => ({ ...prev, method: undefined }));
                 }
               }}
-              required
-            />
+            >
+              <SelectTrigger id="payment-method">
+                <SelectValue placeholder="Select Payment Method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Cash">Cash</SelectItem>
+                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                <SelectItem value="Cheque">Cheque</SelectItem>
+                <SelectItem value="Easypaisa">Easypaisa</SelectItem>
+                <SelectItem value="JazzCash">JazzCash</SelectItem>
+                <SelectItem value="Nayapay">Nayapay</SelectItem>
+              </SelectContent>
+            </Select>
             {paymentErrors.method && (
               <p className="text-xs text-red-600">{paymentErrors.method}</p>
             )}
@@ -165,27 +197,28 @@ export function PaymentDialog({
             </Button>
             <Button
               onClick={() => {
-                const amt = Number(paymentAmount)
-                const nextErrors: { method?: string; amount?: string } = {}
+                const amt = Number(paymentAmount);
+                const nextErrors: { method?: string; amount?: string } = {};
                 if (!paymentMethod.trim()) {
-                  nextErrors.method = "Payment method is required."
+                  nextErrors.method = "Payment method is required.";
                 }
                 if (paymentType === "partial") {
                   if (isNaN(amt) || amt <= 0 || amt > total) {
-                    nextErrors.amount = "Enter an amount between 1 and the total."
+                    nextErrors.amount =
+                      "Enter an amount between 1 and the total.";
                   }
                 }
-                setPaymentErrors(nextErrors)
+                setPaymentErrors(nextErrors);
                 if (nextErrors.method || nextErrors.amount) {
-                  return
+                  return;
                 }
                 onConfirm({
                   method: paymentMethod,
                   amount: Math.min(total, amt),
                   date: paymentDate,
                   type: paymentType,
-                })
-                onOpenChange(false)
+                });
+                onOpenChange(false);
               }}
             >
               Confirm Payment
@@ -194,5 +227,5 @@ export function PaymentDialog({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
