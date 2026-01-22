@@ -193,6 +193,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                     </tr>
                   )
                 })}
+                
               </tbody>
             </table>
           </div>
