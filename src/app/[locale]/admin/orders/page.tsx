@@ -70,13 +70,20 @@ type Order = {
   };
   items?: Array<{
     name: string;
+    description?: string;
     quantity: number;
-    sell_price: number;
+    price: number;
+    discount?: number;
+    unit_of_measurement?: string;
+    discountType?: "value" | "percentage";
+    discountInput?: string;
   }>;
   charges?: Array<{
     item: string;
     value: number;
   }>;
+  overallDiscount?: number;
+  shippingCharges?: number;
   payment?: {
     method: string;
     paid_amount: number;
@@ -93,9 +100,12 @@ export default function OrdersPage() {
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [newOrderCustomerName, setNewOrderCustomerName] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
-  const [newOrderStatus, setNewOrderStatus] = useState<"completed" | "pending" | "cancelled">("pending");
+  const [newOrderStatus, setNewOrderStatus] = useState<
+    "completed" | "pending" | "cancelled"
+  >("pending");
   const [isEditOrderDialogOpen, setIsEditOrderDialogOpen] = useState(false);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
@@ -103,12 +113,15 @@ export default function OrdersPage() {
   });
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] =
+    useState<Order | null>(null);
+  // console.log("Selected Invoice Order:", selectedInvoiceOrder);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const response = await fetch("/api/orders");
+        console.log("Fetch Orders Response:", response);
         if (!response.ok) {
           throw new Error("Failed to fetch orders");
         }
@@ -126,6 +139,7 @@ export default function OrdersPage() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      console.log("orders", order);
       if (filters.status !== "all" && order.status !== filters.status) {
         return false;
       }
@@ -148,7 +162,7 @@ export default function OrdersPage() {
       const newOrder = {
         total_amount: parseFloat(newOrderTotal),
         status: newOrderStatus,
-        created_at: new Date().toISOString().split('T')[0], // Current created_at in YYYY-MM-DD format
+        created_at: new Date().toISOString().split("T")[0], // Current created_at in YYYY-MM-DD format
       };
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -178,7 +192,7 @@ export default function OrdersPage() {
         id: selectedOrderId,
         total_amount: parseFloat(newOrderTotal),
         status: newOrderStatus,
-        created_at: orders.find(o => o.id === selectedOrderId)?.created_at, // Preserve the original created_at
+        created_at: orders.find((o) => o.id === selectedOrderId)?.created_at, // Preserve the original created_at
       };
       const response = await fetch(`/api/orders/${selectedOrderId}`, {
         method: "PUT",
@@ -193,7 +207,11 @@ export default function OrdersPage() {
       }
 
       const updatedOrderData = await response.json();
-      setOrders(orders.map((o) => (o.id === updatedOrderData.id ? updatedOrderData : o)));
+      setOrders(
+        orders.map((o) =>
+          o.id === updatedOrderData.id ? updatedOrderData : o,
+        ),
+      );
       setIsEditOrderDialogOpen(false);
       resetSelectedOrder();
     } catch (error) {
@@ -272,238 +290,258 @@ export default function OrdersPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <FilterIcon className="w-4 h-4" />
-                  <span>Filters</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "all"}
-                  onCheckedChange={() => handleFilterChange("all")}
-                >
-                  All Statuses
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "completed"}
-                  onCheckedChange={() => handleFilterChange("completed")}
-                >
-                  Completed
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "pending"}
-                  onCheckedChange={() => handleFilterChange("pending")}
-                >
-                  Pending
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.status === "cancelled"}
-                  onCheckedChange={() => handleFilterChange("cancelled")}
-                >
-                  Cancelled
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <FilterIcon className="w-4 h-4" />
+                    <span>Filters</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "all"}
+                    onCheckedChange={() => handleFilterChange("all")}
+                  >
+                    All Statuses
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "completed"}
+                    onCheckedChange={() => handleFilterChange("completed")}
+                  >
+                    Completed
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "pending"}
+                    onCheckedChange={() => handleFilterChange("pending")}
+                  >
+                    Pending
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "cancelled"}
+                    onCheckedChange={() => handleFilterChange("cancelled")}
+                  >
+                    Cancelled
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice No</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Paid</TableHead>
-                <TableHead>Balance</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
-                  <TableCell>{order.customer.name}</TableCell>
-                  <TableCell>
-                    Rs. {Math.floor(order.total_amount)}
-                  </TableCell>
-                  <TableCell>
-                    Rs. {Math.floor(order.payment?.paid_amount || 0)}
-                  </TableCell>
-                  <TableCell>
-                    Rs. {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(order.sale_date || order.created_at).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                     
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setOrderToDelete(order);
-                          setIsDeleteConfirmationOpen(true);
-                        }}
-                        style={{display: "none"}} 
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedInvoiceOrder(order);
-                          setInvoiceDialogOpen(true);
-                        }}
-                      >
-                        <EyeIcon className="w-4 h-4" />
-                        <span className="sr-only">Show Invoice</span>
-                      </Button>
-                    </div>
-                  </TableCell>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        {/* Pagination can be added here if needed */}
-      </CardFooter>
-
-      <Dialog
-        open={showNewOrderDialog || isEditOrderDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setShowNewOrderDialog(false);
-            setIsEditOrderDialogOpen(false);
-            resetSelectedOrder();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {showNewOrderDialog ? "Create New Order" : "Edit Order"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="customerName">Customer Name</Label>
-              <Input
-                id="customerName"
-                value={newOrderCustomerName}
-                onChange={(e) => setNewOrderCustomerName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="total">Total</Label>
-              <Input
-                id="total"
-                type="number"
-                value={newOrderTotal}
-                onChange={(e) => setNewOrderTotal(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newOrderStatus}
-                onValueChange={(value: "completed" | "pending" | "cancelled") =>
-                  setNewOrderStatus(value)
-                }
-              >
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>
+                      {order.invoice_no || `ORD-${order.id}`}
+                    </TableCell>
+                    <TableCell>{order.customer.name}</TableCell>
+                    <TableCell>Rs. {Math.floor(order.total_amount)}</TableCell>
+                    <TableCell>
+                      Rs. {Math.floor(order.payment?.paid_amount || 0)}
+                    </TableCell>
+                    <TableCell>
+                      Rs.{" "}
+                      {Math.floor(
+                        order.total_amount - (order.payment?.paid_amount || 0),
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(
+                        order.sale_date || order.created_at,
+                      ).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setOrderToDelete(order);
+                            setIsDeleteConfirmationOpen(true);
+                          }}
+                          style={{ display: "none" }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedInvoiceOrder(order);
+                            setInvoiceDialogOpen(true);
+                          }}
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                          <span className="sr-only">Show Invoice</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowNewOrderDialog(false);
-                setIsEditOrderDialogOpen(false);
-                resetSelectedOrder();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={showNewOrderDialog ? handleAddOrder : handleEditOrder}>
-              {showNewOrderDialog ? "Create Order" : "Update Order"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+        <CardFooter className="flex justify-between items-center">
+          {/* Pagination can be added here if needed */}
+        </CardFooter>
 
-      <Dialog
-        open={isDeleteConfirmationOpen}
-        onOpenChange={setIsDeleteConfirmationOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-          </DialogHeader>
-          Are you sure you want to delete this order? This action cannot be undone.
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setIsDeleteConfirmationOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteOrder}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog
+          open={showNewOrderDialog || isEditOrderDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowNewOrderDialog(false);
+              setIsEditOrderDialogOpen(false);
+              resetSelectedOrder();
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {showNewOrderDialog ? "Create New Order" : "Edit Order"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="customerName">Customer Name</Label>
+                <Input
+                  id="customerName"
+                  value={newOrderCustomerName}
+                  onChange={(e) => setNewOrderCustomerName(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="total">Total</Label>
+                <Input
+                  id="total"
+                  type="number"
+                  value={newOrderTotal}
+                  onChange={(e) => setNewOrderTotal(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={newOrderStatus}
+                  onValueChange={(
+                    value: "completed" | "pending" | "cancelled",
+                  ) => setNewOrderStatus(value)}
+                >
+                  <SelectTrigger id="status" className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowNewOrderDialog(false);
+                  setIsEditOrderDialogOpen(false);
+                  resetSelectedOrder();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={showNewOrderDialog ? handleAddOrder : handleEditOrder}
+              >
+                {showNewOrderDialog ? "Create Order" : "Update Order"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {selectedInvoiceOrder && (
-        <InvoicePreviewDialog
-          open={invoiceDialogOpen}
-          onOpenChange={setInvoiceDialogOpen}
-          invoiceNo={selectedInvoiceOrder.invoice_no || `ORD-${selectedInvoiceOrder.id}`}
-          customer={selectedInvoiceOrder.customer}
-          saleDate={selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at}
-          dueDate={selectedInvoiceOrder.due_date || null}
-          products={(selectedInvoiceOrder.items || []).map((item, index) => ({
-            id: index,
-            name: item.name,
-            quantity: item.quantity,
-            sell_price: item.sell_price,
-          }))}
-          subtotal={selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount}
-          charges={selectedInvoiceOrder.charges || []}
-          total={selectedInvoiceOrder.total_amount}
-          onMakePayment={() => {}}
-          onCreateOrder={() => {}}
-          hidePaymentActions={true}
-          initialPayment={selectedInvoiceOrder.payment}
-        />
-      )}
+        <Dialog
+          open={isDeleteConfirmationOpen}
+          onOpenChange={setIsDeleteConfirmationOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            Are you sure you want to delete this order? This action cannot be
+            undone.
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => setIsDeleteConfirmationOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteOrder}>
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {selectedInvoiceOrder && (
+          <InvoicePreviewDialog
+            open={invoiceDialogOpen}
+            onOpenChange={setInvoiceDialogOpen}
+            invoiceNo={
+              selectedInvoiceOrder.invoice_no ||
+              `ORD-${selectedInvoiceOrder.id}`
+            }
+            customer={selectedInvoiceOrder.customer}
+            saleDate={
+              selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at
+            }
+            dueDate={selectedInvoiceOrder.due_date || null}
+            products={(selectedInvoiceOrder.items || []).map((item, index) => ({
+              id: index,
+              name: item.name,
+              description: item.description,
+              quantity: item.quantity,
+              sell_price: item.price,
+              unit_of_measurement: item.unit_of_measurement,
+              discount: item.discount,
+              discountType: item.discountType,
+            }))}
+            subtotal={
+              selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount
+            }
+            charges={selectedInvoiceOrder.charges || []}
+            overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
+            shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
+            total={selectedInvoiceOrder.total_amount}
+            onMakePayment={() => {}}
+            onCreateOrder={() => {}}
+            hidePaymentActions={true}
+            initialPayment={selectedInvoiceOrder.payment}
+          />
+        )}
       </Card>
     </div>
   );
