@@ -70,6 +70,7 @@ type Order = {
   };
   items?: Array<{
     name: string;
+    description?: string;
     quantity: number;
     price: number;
     discount?: number;
@@ -81,6 +82,8 @@ type Order = {
     item: string;
     value: number;
   }>;
+  overallDiscount?: number;
+  shippingCharges?: number;
   payment?: {
     method: string;
     paid_amount: number;
@@ -112,12 +115,13 @@ export default function OrdersPage() {
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] =
     useState<Order | null>(null);
-// console.log("Selected Invoice Order:", selectedInvoiceOrder);
-  
+  // console.log("Selected Invoice Order:", selectedInvoiceOrder);
+
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const response = await fetch("/api/orders");
+        console.log("Fetch Orders Response:", response);
         if (!response.ok) {
           throw new Error("Failed to fetch orders");
         }
@@ -135,6 +139,7 @@ export default function OrdersPage() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      console.log("orders", order);
       if (filters.status !== "all" && order.status !== filters.status) {
         return false;
       }
@@ -517,6 +522,7 @@ export default function OrdersPage() {
             products={(selectedInvoiceOrder.items || []).map((item, index) => ({
               id: index,
               name: item.name,
+              description: item.description,
               quantity: item.quantity,
               sell_price: item.price,
               unit_of_measurement: item.unit_of_measurement,
@@ -527,6 +533,8 @@ export default function OrdersPage() {
               selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount
             }
             charges={selectedInvoiceOrder.charges || []}
+            overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
+            shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
             total={selectedInvoiceOrder.total_amount}
             onMakePayment={() => {}}
             onCreateOrder={() => {}}

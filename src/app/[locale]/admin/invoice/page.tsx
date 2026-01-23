@@ -316,14 +316,21 @@ export default function InvoicePage() {
           dueDate: addDueDate ? dueDate : null,
           products: selectedProducts.map((p) => ({
             id: p.id,
+            name: p.name,
+            description: p.description,
             quantity: p.quantity,
             price: p.sell_price,
+            discount: p.discount || 0,
+            discountType: p.discountType || "value",
+            unit_of_measurement: p.unit_of_measurement,
           })),
           subtotal: total,
           charges: displayCharges.map((c) => ({
             item: c.item,
             value: c.value,
           })),
+          overallDiscount: overallDiscountAmount,
+          shippingCharges: shippingChargesNum,
           total: finalTotal,
           payment: {
             method: paymentDetails.paymentMethod,
