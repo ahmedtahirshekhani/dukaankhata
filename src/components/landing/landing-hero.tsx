@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Zap, Users, TrendingUp } from "lucide-react";
+import { ArrowRight, CheckCircle2, Zap, Users, TrendingUp, Download } from "lucide-react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { usePWA } from "@/components/pwa-context";
 
 export function LandingHero() {
   const locale = useLocale();
+  const { deferredPrompt, triggerInstall } = usePWA();
   const features = [
     {
       icon: Zap,
@@ -56,8 +58,15 @@ export function LandingHero() {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline">
-                  Learn More
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={triggerInstall}
+                  disabled={!deferredPrompt}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download App
                 </Button>
               </div>
 

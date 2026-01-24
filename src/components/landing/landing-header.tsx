@@ -5,12 +5,14 @@ import Image from "next/image";
 import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Download } from "lucide-react";
 import { useState } from "react";
 import Logo from "../../../public/images/DukaanKhataLogo.svg";
+import { usePWA } from "@/components/pwa-context";
 
 export function LandingHeader() {
   const locale = useLocale();
+  const { dismissedBanner, deferredPrompt, triggerInstall } = usePWA();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigationLinks = [
@@ -51,6 +53,17 @@ export function LandingHeader() {
         {/* Right Side Actions */}
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
+          {dismissedBanner && deferredPrompt && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={triggerInstall}
+              className="hidden sm:inline-flex gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download App
+            </Button>
+          )}
           {/* <Link
             href={`/login`}
             className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"

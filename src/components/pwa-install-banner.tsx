@@ -1,131 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import { usePWA } from "@/components/pwa-context";
 
 export function PWAInstallBanner() {
-  const [showBanner, setShowBanner] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isInstalling, setIsInstalling] = useState(false);
-
-  useEffect(() => {
-    // Check if app is already installed
-    const checkInstalled = () => {
-      const isStandalone = window.matchMedia(
-        "(display-mode: standalone)",
-      ).matches;
-      const isIOSStandalone = (window.navigator as any).standalone === true;
-
-      if (isStandalone || isIOSStandalone) {
-        setIsInstalled(true);
-        return true;
-      }
-      return false;
-    };
-
-    // Check if previously dismissed
-    const wasRecentlyDismissed = () => {
-      const dismissTime = localStorage.getItem("pwa_banner_dismissed");
-      if (!dismissTime) return false;
-
-      const daysSinceDismissal =
-        (Date.now() - parseInt(dismissTime)) / (1000 * 60 * 60 * 24);
-      // Show banner again after 7 days
-      return daysSinceDismissal < 7;
-    };
-
-    // Check if device is mobile and Chrome
-    const isMobileChrome = () => {
-      const ua = navigator.userAgent;
-      const isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
-      const isMobile = /Mobile/.test(ua);
-      const isAndroid = /Android/.test(ua);
-      return isMobile && isChrome && isAndroid;
-    };
-
-    if (checkInstalled()) {
-      return;
-    }
-
-    // Handle beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-
-      // Only show banner on mobile Chrome
-      if (!isMobileChrome()) {
-        return;
-      }
-
-      // Don't show if recently dismissed
-      if (wasRecentlyDismissed()) {
-        return;
-      }
-
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowBanner(true);
-    };
-
-    // Handle app installed event
-    const handleAppInstalled = () => {
-      setShowBanner(false);
-      setDeferredPrompt(null);
-      setIsInstalled(true);
-      localStorage.removeItem("pwa_banner_dismissed");
-
-      // Analytics
-      if (typeof window !== "undefined" && (window as any).gtag) {
-        (window as any).gtag("event", "pwa_installed");
-      }
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt,
-      );
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-
-    setIsInstalling(true);
-    try {
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-
-      if (choiceResult.outcome === "accepted") {
-        // Analytics
-        if (typeof window !== "undefined" && (window as any).gtag) {
-          (window as any).gtag("event", "pwa_install_accepted");
-        }
-      } else {
-        // Analytics
-        if (typeof window !== "undefined" && (window as any).gtag) {
-          (window as any).gtag("event", "pwa_install_dismissed");
-        }
-      }
-
-      setDeferredPrompt(null);
-      setShowBanner(false);
-    } catch (error) {
-      console.error("PWA installation failed:", error);
-    } finally {
-      setIsInstalling(false);
-    }
-  };
+  const {
+    showBanner,
+    setShowBanner,
+    deferredPrompt,
+    isInstalled,
+    triggerInstall,
+  } = usePWA();
 
   const handleDismiss = () => {
     setShowBanner(false);
@@ -172,11 +58,11 @@ export function PWAInstallBanner() {
 
             <Button
               size="sm"
-              onClick={handleInstall}
-              disabled={isInstalling}
+              onClick={triggerInstall}
+              disabled={!deferredPrompt}
               className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
             >
-              {isInstalling ? "Installing..." : "Install"}
+              Install
             </Button>
           </div>
         </div>

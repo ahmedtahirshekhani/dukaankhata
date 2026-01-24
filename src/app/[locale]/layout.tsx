@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { LanguageInitializer } from "@/components/language-initializer";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { PWAInstallBanner } from "@/components/pwa-install-banner";
+import { PWAProvider } from "@/components/pwa-context";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import "../globals.css";
 
@@ -47,16 +48,18 @@ export default async function LocalizedRootLayout({
   // Important: Nested layouts must not render <html> or <body>.
   // The root layout at src/app/layout.tsx owns the document shell.
   return (
-    <AuthProvider>
-      <AnalyticsProvider>
-        <LanguageInitializer />
-        <PWAInstallPrompt />
-        <PWAInstallBanner />
-        <OfflineIndicator />
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-        </NextIntlClientProvider>
-      </AnalyticsProvider>
-    </AuthProvider>
+    <PWAProvider>
+      <AuthProvider>
+        <AnalyticsProvider>
+          <LanguageInitializer />
+          <PWAInstallPrompt />
+          <PWAInstallBanner />
+          <OfflineIndicator />
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            {children}
+          </NextIntlClientProvider>
+        </AnalyticsProvider>
+      </AuthProvider>
+    </PWAProvider>
   );
 }
