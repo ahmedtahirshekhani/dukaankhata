@@ -7,7 +7,9 @@ As a developer with extensive experience in creating similar applications, this 
 This particular iteration embraces the spirit of open-source development, making it freely available for the community to use, modify, and improve upon.
 
 ## Features
+
 changes done
+
 - **Dashboard**: Overview of key metrics and charts
 - **Products Management**: Add, edit, delete, and view products
 - **Customer Management**: Manage customer information and status
@@ -41,6 +43,12 @@ changes done
      NEXTAUTH_URL=http://localhost:3000
      ```
    - Replace `your_mongodb_connection_string` with your actual MongoDB Atlas connection string
+   - (Optional) Enable PostHog analytics by adding
+     ```
+     NEXT_PUBLIC_POSTHOG_KEY=<POSTHOG_PROJECT_API_KEY>
+     NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+     ```
+     Use your project API key from PostHog and set `NEXT_PUBLIC_POSTHOG_HOST` to your chosen PostHog host (US default shown above).
 4. Seed the database with sample data:
    ```
    npm run seed:mongodb
@@ -85,6 +93,7 @@ User authentication is handled through NextAuth.js with MongoDB. The login page 
 ## Default Test Credentials
 
 After seeding the database:
+
 - **Email**: test@example.com
 - **Password**: 12345678
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AuthProvider } from "@/components/auth-provider";
+import { AnalyticsProvider } from "@/components/analytics-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { LanguageInitializer } from "@/components/language-initializer";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
@@ -46,12 +47,14 @@ export default async function LocalizedRootLayout({
   // The root layout at src/app/layout.tsx owns the document shell.
   return (
     <AuthProvider>
-      <LanguageInitializer />
-      <PWAInstallPrompt />
-      <OfflineIndicator />
-      <NextIntlClientProvider locale={locale} messages={messages}>
-        {children}
-      </NextIntlClientProvider>
+      <AnalyticsProvider>
+        <LanguageInitializer />
+        <PWAInstallPrompt />
+        <OfflineIndicator />
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </AnalyticsProvider>
     </AuthProvider>
   );
 }
