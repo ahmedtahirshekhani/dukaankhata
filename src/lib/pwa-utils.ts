@@ -7,12 +7,12 @@
  * Check if the app is running as a PWA (installed)
  */
 export function isPWA(): boolean {
-  if (typeof window === 'undefined') return false;
-  
+  if (typeof window === "undefined") return false;
+
   return (
-    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as any).standalone === true ||
-    document.referrer.includes('android-app://')
+    document.referrer.includes("android-app://")
   );
 }
 
@@ -20,23 +20,47 @@ export function isPWA(): boolean {
  * Check if PWA installation is available
  */
 export function canInstallPWA(): boolean {
-  if (typeof window === 'undefined') return false;
-  return 'BeforeInstallPromptEvent' in window;
+  if (typeof window === "undefined") return false;
+  return "BeforeInstallPromptEvent" in window;
+}
+
+/**
+ * Check if device is mobile Chrome
+ */
+export function isMobileChrome(): boolean {
+  if (typeof navigator === "undefined") return false;
+
+  const ua = navigator.userAgent;
+  const isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
+  const isMobile = /Mobile/.test(ua);
+  const isAndroid = /Android/.test(ua);
+
+  return isMobile && isChrome && isAndroid;
+}
+
+/**
+ * Check if device is mobile (any browser)
+ */
+export function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+
+  const ua = navigator.userAgent;
+  return /Mobile|Android|iPhone|iPad|iPod/.test(ua);
 }
 
 /**
  * Check if service worker is supported
  */
 export function isServiceWorkerSupported(): boolean {
-  if (typeof window === 'undefined') return false;
-  return 'serviceWorker' in navigator;
+  if (typeof window === "undefined") return false;
+  return "serviceWorker" in navigator;
 }
 
 /**
  * Check if the browser is online
  */
 export function isOnline(): boolean {
-  if (typeof navigator === 'undefined') return true;
+  if (typeof navigator === "undefined") return true;
   return navigator.onLine;
 }
 
@@ -44,19 +68,19 @@ export function isOnline(): boolean {
  * Register for push notifications
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'denied';
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "denied";
   }
-  
-  if (Notification.permission === 'granted') {
-    return 'granted';
+
+  if (Notification.permission === "granted") {
+    return "granted";
   }
-  
-  if (Notification.permission !== 'denied') {
+
+  if (Notification.permission !== "denied") {
     const permission = await Notification.requestPermission();
     return permission;
   }
-  
+
   return Notification.permission;
 }
 
@@ -65,13 +89,13 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  */
 export async function showNotification(
   title: string,
-  options?: NotificationOptions
+  options?: NotificationOptions,
 ): Promise<void> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
+  if (typeof window === "undefined" || !("Notification" in window)) {
     return;
   }
 
-  if (Notification.permission === 'granted') {
+  if (Notification.permission === "granted") {
     const registration = await navigator.serviceWorker.ready;
     await registration.showNotification(title, {
       // icon: '/icons/icon-192x192.png',
@@ -93,7 +117,7 @@ export async function updateServiceWorker(): Promise<void> {
     const registration = await navigator.serviceWorker.ready;
     await registration.update();
   } catch (error) {
-    console.error('Failed to update service worker:', error);
+    console.error("Failed to update service worker:", error);
   }
 }
 
@@ -107,7 +131,7 @@ export async function unregisterServiceWorker(): Promise<boolean> {
     const registration = await navigator.serviceWorker.ready;
     return await registration.unregister();
   } catch (error) {
-    console.error('Failed to unregister service worker:', error);
+    console.error("Failed to unregister service worker:", error);
     return false;
   }
 }
@@ -116,13 +140,13 @@ export async function unregisterServiceWorker(): Promise<boolean> {
  * Clear all caches
  */
 export async function clearAllCaches(): Promise<void> {
-  if (typeof caches === 'undefined') return;
+  if (typeof caches === "undefined") return;
 
   try {
     const cacheNames = await caches.keys();
     await Promise.all(cacheNames.map((name) => caches.delete(name)));
   } catch (error) {
-    console.error('Failed to clear caches:', error);
+    console.error("Failed to clear caches:", error);
   }
 }
 
@@ -130,7 +154,7 @@ export async function clearAllCaches(): Promise<void> {
  * Get cache size
  */
 export async function getCacheSize(): Promise<number> {
-  if (typeof caches === 'undefined') return 0;
+  if (typeof caches === "undefined") return 0;
 
   try {
     const cacheNames = await caches.keys();
@@ -139,7 +163,7 @@ export async function getCacheSize(): Promise<number> {
     for (const name of cacheNames) {
       const cache = await caches.open(name);
       const requests = await cache.keys();
-      
+
       for (const request of requests) {
         const response = await cache.match(request);
         if (response) {
@@ -151,7 +175,7 @@ export async function getCacheSize(): Promise<number> {
 
     return totalSize;
   } catch (error) {
-    console.error('Failed to get cache size:', error);
+    console.error("Failed to get cache size:", error);
     return 0;
   }
 }
@@ -160,22 +184,22 @@ export async function getCacheSize(): Promise<number> {
  * Format bytes to human-readable size
  */
 export function formatBytes(bytes: number, decimals = 2): string {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
 /**
  * Share content using Web Share API
  */
 export async function shareContent(data: ShareData): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.share) {
+  if (typeof navigator === "undefined" || !navigator.share) {
     return false;
   }
 
@@ -183,8 +207,8 @@ export async function shareContent(data: ShareData): Promise<boolean> {
     await navigator.share(data);
     return true;
   } catch (error) {
-    if ((error as Error).name !== 'AbortError') {
-      console.error('Share failed:', error);
+    if ((error as Error).name !== "AbortError") {
+      console.error("Share failed:", error);
     }
     return false;
   }
@@ -194,8 +218,8 @@ export async function shareContent(data: ShareData): Promise<boolean> {
  * Check if Web Share API is supported
  */
 export function canShare(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return 'share' in navigator;
+  if (typeof navigator === "undefined") return false;
+  return "share" in navigator;
 }
 
 /**
@@ -207,9 +231,9 @@ export async function installPWA(promptEvent: any): Promise<boolean> {
   try {
     promptEvent.prompt();
     const { outcome } = await promptEvent.userChoice;
-    return outcome === 'accepted';
+    return outcome === "accepted";
   } catch (error) {
-    console.error('Installation failed:', error);
+    console.error("Installation failed:", error);
     return false;
   }
 }
@@ -225,7 +249,7 @@ export async function checkForUpdates(): Promise<boolean> {
     await registration.update();
     return !!registration.waiting;
   } catch (error) {
-    console.error('Update check failed:', error);
+    console.error("Update check failed:", error);
     return false;
   }
 }
@@ -239,17 +263,19 @@ export async function applyUpdate(): Promise<void> {
   try {
     const registration = await navigator.serviceWorker.ready;
     if (registration.waiting) {
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      registration.waiting.postMessage({ type: "SKIP_WAITING" });
       window.location.reload();
     }
   } catch (error) {
-    console.error('Failed to apply update:', error);
+    console.error("Failed to apply update:", error);
   }
 }
 
 export const pwaUtils = {
   isPWA,
   canInstallPWA,
+  isMobileChrome,
+  isMobileDevice,
   isServiceWorkerSupported,
   isOnline,
   requestNotificationPermission,
