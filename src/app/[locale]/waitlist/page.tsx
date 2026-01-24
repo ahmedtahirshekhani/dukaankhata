@@ -32,6 +32,7 @@ interface WaitlistFormData {
 }
 
 const CATEGORIES = [
+  "Wholesale & Importer",
   "Retail Store",
   "Restaurant",
   "Bakery",
