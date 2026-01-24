@@ -5,6 +5,7 @@ import { AnalyticsProvider } from "@/components/analytics-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { LanguageInitializer } from "@/components/language-initializer";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { PWAInstallBanner } from "@/components/pwa-install-banner";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import "../globals.css";
 
@@ -50,6 +51,7 @@ export default async function LocalizedRootLayout({
       <AnalyticsProvider>
         <LanguageInitializer />
         <PWAInstallPrompt />
+        <PWAInstallBanner />
         <OfflineIndicator />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}

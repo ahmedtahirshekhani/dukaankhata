@@ -24,6 +24,7 @@ import {
   FileDown,
   Upload,
   MoreVertical,
+  Eye,
 } from "lucide-react";
 import {
   Table,
@@ -66,10 +67,13 @@ import {
 import { ErrorDialog } from "@/components/error-dialog";
 
 type Customer = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
+  company_name?: string;
+  company_address?: string;
+  opening_balance?: number;
   status: "active" | "inactive";
 };
 
@@ -82,11 +86,17 @@ export default function CustomersPage() {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerCompanyName, setNewCustomerCompanyName] = useState("");
+  const [newCustomerCompanyAddress, setNewCustomerCompanyAddress] = useState("");
+  const [newCustomerOpeningBalance, setNewCustomerOpeningBalance] = useState("");
   const [newCustomerStatus, setNewCustomerStatus] = useState<
     "active" | "inactive"
   >("active");
   const [isEditCustomerDialogOpen, setIsEditCustomerDialogOpen] =
     useState(false);
+  const [isViewCustomerDialogOpen, setIsViewCustomerDialogOpen] =
+    useState(false);
+  const [viewCustomer, setViewCustomer] = useState<Customer | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(
@@ -96,11 +106,13 @@ export default function CustomersPage() {
   const [filters, setFilters] = useState({
     status: "all",
   });
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -151,15 +163,32 @@ export default function CustomersPage() {
     setNewCustomerName("");
     setNewCustomerEmail("");
     setNewCustomerPhone("");
+    setNewCustomerCompanyName("");
+    setNewCustomerCompanyAddress("");
+    setNewCustomerOpeningBalance("");
     setNewCustomerStatus("active");
   };
 
   const handleAddCustomer = useCallback(async () => {
+    // Validate required fields
+    if (!newCustomerName || newCustomerName.trim() === '') {
+      setErrorDialog({
+        open: true,
+        title: 'Validation Error',
+        message: 'Customer name is required',
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const newCustomer = {
         name: newCustomerName,
         email: newCustomerEmail,
         phone: newCustomerPhone,
+        company_name: newCustomerCompanyName,
+        company_address: newCustomerCompanyAddress,
+        opening_balance: newCustomerOpeningBalance ? parseFloat(newCustomerOpeningBalance) : 0,
         status: newCustomerStatus,
       };
       const response = await fetch("/api/customers", {
@@ -170,35 +199,75 @@ export default function CustomersPage() {
         body: JSON.stringify(newCustomer),
       });
 
-      if (!response.ok) {
-        throw new Error("Error creating customer");
+      const text = await response.text();
+      let createdCustomer;
+      try {
+        createdCustomer = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Server response error: ${text || response.statusText}`);
       }
 
-      const createdCustomer = await response.json();
+      if (!response.ok) {
+        throw new Error(createdCustomer.error || "Error creating customer");
+      }
+
       setCustomers([...customers, createdCustomer]);
       setShowNewCustomerDialog(false);
       resetSelectedCustomer();
+      
+      setErrorDialog({
+        open: true,
+        title: 'Success',
+        message: 'Customer created successfully',
+        isSuccess: true,
+      });
     } catch (error) {
       console.error(error);
+      setErrorDialog({
+        open: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to create customer',
+      });
+    } finally {
+      setIsSaving(false);
     }
   }, [
     newCustomerName,
     newCustomerEmail,
     newCustomerPhone,
+    newCustomerCompanyName,
+    newCustomerCompanyAddress,
+    newCustomerOpeningBalance,
     newCustomerStatus,
     customers,
   ]);
 
   const handleEditCustomer = useCallback(async () => {
     if (!selectedCustomerId) return;
+
+    // Validate required fields
+    if (!newCustomerName || newCustomerName.trim() === '') {
+      setErrorDialog({
+        open: true,
+        title: 'Validation Error',
+        message: 'Customer name is required',
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const updatedCustomer = {
         id: selectedCustomerId,
         name: newCustomerName,
         email: newCustomerEmail,
         phone: newCustomerPhone,
+        company_name: newCustomerCompanyName,
+        company_address: newCustomerCompanyAddress,
+        opening_balance: newCustomerOpeningBalance ? parseFloat(newCustomerOpeningBalance) : 0,
         status: newCustomerStatus,
       };
+      
       const response = await fetch(`/api/customers/${selectedCustomerId}`, {
         method: "PUT",
         headers: {
@@ -208,7 +277,8 @@ export default function CustomersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Error updating customer");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error updating customer");
       }
 
       const updatedCustomerData = await response.json();
@@ -219,34 +289,69 @@ export default function CustomersPage() {
       );
       setIsEditCustomerDialogOpen(false);
       resetSelectedCustomer();
+      
+      setErrorDialog({
+        open: true,
+        title: 'Success',
+        message: 'Customer updated successfully',
+        isSuccess: true,
+      });
     } catch (error) {
       console.error(error);
+      setErrorDialog({
+        open: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to update customer',
+      });
+    } finally {
+      setIsSaving(false);
     }
   }, [
     selectedCustomerId,
     newCustomerName,
     newCustomerEmail,
     newCustomerPhone,
+    newCustomerCompanyName,
+    newCustomerCompanyAddress,
+    newCustomerOpeningBalance,
     newCustomerStatus,
     customers,
   ]);
 
   const handleDeleteCustomer = useCallback(async () => {
     if (!customerToDelete) return;
+    
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/customers/${customerToDelete.id}`, {
         method: "DELETE",
       });
 
       if (!response.ok) {
-        throw new Error("Error deleting customer");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error deleting customer");
       }
 
+      // Optimistic update
       setCustomers(customers.filter((c) => c.id !== customerToDelete.id));
       setIsDeleteConfirmationOpen(false);
       setCustomerToDelete(null);
+      
+      setErrorDialog({
+        open: true,
+        title: 'Success',
+        message: 'Customer deleted successfully',
+        isSuccess: true,
+      });
     } catch (error) {
       console.error(error);
+      setErrorDialog({
+        open: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to delete customer',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   }, [customerToDelete, customers]);
 
@@ -606,9 +711,9 @@ export default function CustomersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Company Name</TableHead>
+                  <TableHead>Opening Balance</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -616,11 +721,22 @@ export default function CustomersPage() {
                 {filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell>{customer.name}</TableCell>
-                    <TableCell>{customer.email}</TableCell>
                     <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.status}</TableCell>
+                    <TableCell>{customer.company_name || '-'}</TableCell>
+                    <TableCell>Rs. {customer.opening_balance ? Math.round(customer.opening_balance) : '0'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setViewCustomer(customer);
+                            setIsViewCustomerDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span className="sr-only">View</span>
+                        </Button>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -629,6 +745,9 @@ export default function CustomersPage() {
                             setNewCustomerName(customer.name);
                             setNewCustomerEmail(customer.email);
                             setNewCustomerPhone(customer.phone);
+                            setNewCustomerCompanyName(customer.company_name || "");
+                            setNewCustomerCompanyAddress(customer.company_address || "");
+                            setNewCustomerOpeningBalance(customer.opening_balance?.toString() || "");
                             setNewCustomerStatus(customer.status);
                             setIsEditCustomerDialogOpen(true);
                           }}
@@ -643,9 +762,7 @@ export default function CustomersPage() {
                             setCustomerToDelete(customer);
                             setIsDeleteConfirmationOpen(true);
                           }}
-                          style={{ display: "none" }}
                         >
-                          {/* Hide  trashicon*/}
                           <Trash2 className="w-4 h-4" />
                           <span className="sr-only">Delete</span>
                         </Button>
@@ -681,48 +798,69 @@ export default function CustomersPage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name" className="text-right">
+                  Name<span className="text-red-500 ml-1">*</span>
+                </Label>
                 <Input
                   id="name"
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
                   className="col-span-3"
+                  required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="phone" className="text-right">Phone</Label>
+                <Input
+                  id="phone"
+                  value={newCustomerPhone}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    setNewCustomerPhone(value);
+                  }}
+                  maxLength={11}
+                  placeholder="03001234567"
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">Email</Label>
                 <Input
                   id="email"
+                  type="email"
                   value={newCustomerEmail}
                   onChange={(e) => setNewCustomerEmail(e.target.value)}
                   className="col-span-3"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="company_name" className="text-right">Company Name</Label>
                 <Input
-                  id="phone"
-                  value={newCustomerPhone}
-                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  id="company_name"
+                  value={newCustomerCompanyName}
+                  onChange={(e) => setNewCustomerCompanyName(e.target.value)}
                   className="col-span-3"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={newCustomerStatus}
-                  onValueChange={(value: "active" | "inactive") =>
-                    setNewCustomerStatus(value)
-                  }
-                >
-                  <SelectTrigger id="status" className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="company_address" className="text-right">Company Address</Label>
+                <Input
+                  id="company_address"
+                  value={newCustomerCompanyAddress}
+                  onChange={(e) => setNewCustomerCompanyAddress(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="opening_balance" className="text-right">Opening Balance (To Receive)</Label>
+                <Input
+                  id="opening_balance"
+                  type="number"
+                  value={newCustomerOpeningBalance}
+                  onChange={(e) => setNewCustomerOpeningBalance(e.target.value)}
+                  className="col-span-3"
+                  placeholder="0"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -740,8 +878,57 @@ export default function CustomersPage() {
                 onClick={
                   showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
                 }
+                disabled={!newCustomerName || newCustomerName.trim() === '' || isSaving}
               >
+                {isSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                 {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={isViewCustomerDialogOpen}
+          onOpenChange={setIsViewCustomerDialogOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Customer Details</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Name:</Label>
+                <div className="col-span-3">{viewCustomer?.name}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Phone:</Label>
+                <div className="col-span-3">{viewCustomer?.phone || '-'}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Email:</Label>
+                <div className="col-span-3">{viewCustomer?.email || '-'}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Company Name:</Label>
+                <div className="col-span-3">{viewCustomer?.company_name || '-'}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Company Address:</Label>
+                <div className="col-span-3">{viewCustomer?.company_address || '-'}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Opening Balance:</Label>
+                <div className="col-span-3">
+                  Rs. {viewCustomer?.opening_balance ? Math.round(viewCustomer.opening_balance) : '0'}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                onClick={() => setIsViewCustomerDialogOpen(false)}
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -761,10 +948,12 @@ export default function CustomersPage() {
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteConfirmationOpen(false)}
+                disabled={isDeleting}
               >
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteCustomer}>
+              <Button variant="destructive" onClick={handleDeleteCustomer} disabled={isDeleting}>
+                {isDeleting && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
               </Button>
             </DialogFooter>
