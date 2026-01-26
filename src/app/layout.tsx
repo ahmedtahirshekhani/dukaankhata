@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import Script from "next/script";
+import GATracker from "@/components/ga-tracker";
 import "./globals.css";
 
 const locales = ["en", "ur", "ru"];
@@ -53,6 +55,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   return (
     <html lang="en" dir="ltr">
       <head>
@@ -66,9 +69,26 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
         <link rel="manifest" href="/manifest.json" />
+        {GA_ID ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}', { page_path: window.location.pathname });
+              `}
+            </Script>
+          </>
+        ) : null}
       </head>
       <body>
         <main>{children}</main>
+        {GA_ID ? <GATracker measurementId={GA_ID} /> : null}
       </body>
     </html>
   );

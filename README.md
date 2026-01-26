@@ -7,7 +7,9 @@ As a developer with extensive experience in creating similar applications, this 
 This particular iteration embraces the spirit of open-source development, making it freely available for the community to use, modify, and improve upon.
 
 ## Features
+
 changes done
+
 - **Dashboard**: Overview of key metrics and charts
 - **Products Management**: Add, edit, delete, and view products
 - **Customer Management**: Manage customer information and status
@@ -40,7 +42,11 @@ changes done
      NEXTAUTH_SECRET=your_secret_key
      NEXTAUTH_URL=http://localhost:3000
      ```
+   # Optional: Google Analytics 4 measurement ID
+   NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+   ```
    - Replace `your_mongodb_connection_string` with your actual MongoDB Atlas connection string
+   ```
 4. Seed the database with sample data:
    ```
    npm run seed:mongodb
@@ -50,6 +56,12 @@ changes done
    npm run dev
    ```
 6. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Analytics
+
+- **Google Analytics (GA4)** is integrated using the official gtag.js snippet and client-side page view tracking for the Next.js App Router.
+- To enable tracking, set `NEXT_PUBLIC_GA_MEASUREMENT_ID` in `.env.local`. If the variable is absent, analytics scripts are not injected and no tracking occurs.
+- Page views are automatically sent on route changes. To track custom events, import `event` from [src/lib/gtag.ts](src/lib/gtag.ts) and call it with appropriate parameters.
 
 ## Project Structure
 
@@ -85,6 +97,7 @@ User authentication is handled through NextAuth.js with MongoDB. The login page 
 ## Default Test Credentials
 
 After seeding the database:
+
 - **Email**: test@example.com
 - **Password**: 12345678
 
