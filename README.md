@@ -41,12 +41,12 @@ changes done
      MONGODB_DB_NAME=dukaankhata
      NEXTAUTH_SECRET=your_secret_key
      NEXTAUTH_URL=http://localhost:3000
+     # Optional: Google Analytics 4 Measurement ID
+     NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+     # Optional: Google Tag Manager Container ID
+     NEXT_PUBLIC_GTM_ID=GTM-XXXXXXXXXX
      ```
-   # Optional: Google Analytics 4 measurement ID
-   NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
-   ```
    - Replace `your_mongodb_connection_string` with your actual MongoDB Atlas connection string
-   ```
 4. Seed the database with sample data:
    ```
    npm run seed:mongodb
@@ -59,9 +59,120 @@ changes done
 
 ## Analytics
 
-- **Google Analytics (GA4)** is integrated using the official gtag.js snippet and client-side page view tracking for the Next.js App Router.
-- To enable tracking, set `NEXT_PUBLIC_GA_MEASUREMENT_ID` in `.env.local`. If the variable is absent, analytics scripts are not injected and no tracking occurs.
-- Page views are automatically sent on route changes. To track custom events, import `event` from [src/lib/gtag.ts](src/lib/gtag.ts) and call it with appropriate parameters.
+This project integrates **Google Analytics 4 (GA4)** and **Google Tag Manager (GTM)** for comprehensive tracking. Both are **optional** and activated only when their respective environment variables are configured.
+
+### Configuration
+
+In `.env.local`, set:
+
+```bash
+# GA4 Measurement ID (direct GA4 tracking via gtag.js)
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+
+# GTM Container ID (container-based tag management)
+NEXT_PUBLIC_GTM_ID=GTM-XXXXXXXXXX
+```
+
+Both are opt-in. If either variable is omitted, that service is not initialized; **no scripts are injected and there is no performance impact**.
+
+### How It Works
+
+#### Automatic Page View Tracking
+
+- Page views are automatically sent on route changes via [src/components/ga-tracker.tsx](src/components/ga-tracker.tsx) (GA4) and [src/components/gtm-tracker.tsx](src/components/gtm-tracker.tsx) (GTM).
+
+#### User Authentication Tracking (GTM)
+
+- [src/components/gtm-tracker.tsx](src/components/gtm-tracker.tsx) pushes session state and user ID to the dataLayer on login/logout.
+
+#### Shared dataLayer
+
+- Both GA4 and GTM read from `window.dataLayer`, allowing them to work together seamlessly or independently.
+
+### Usage
+
+#### Direct GA4 Events
+
+Use [src/lib/gtag.ts](src/lib/gtag.ts) for GA4-only tracking:
+
+```typescript
+import { event } from "@/lib/gtag";
+
+event({
+  action: "purchase",
+  value: 1999,
+  params: { currency: "PKR" },
+});
+```
+
+#### GTM Events
+
+Use [src/lib/gtm.ts](src/lib/gtm.ts) for low-level dataLayer events:
+
+```typescript
+import { pushEvent } from "@/lib/gtm";
+
+pushEvent({
+  event: "custom_event",
+  custom_param: "value",
+});
+```
+
+#### Business Events (Recommended for POS)
+
+Use [src/lib/gtm-events.ts](src/lib/gtm-events.ts) for high-level business logic tracking. This layer provides semantic helpers that integrate with both GA4 and GTM:
+
+```typescript
+import {
+  trackInvoiceCreated,
+  trackLogin,
+  trackProductSearch,
+  trackCustomerAction,
+  trackOrderCreated,
+} from "@/lib/gtm-events";
+
+// Track invoice creation
+trackInvoiceCreated({
+  id: "INV-001",
+  total: 5000,
+  tax: 500,
+  items: [{ id: "P1", name: "Product A", quantity: 2, price: 2250 }],
+});
+
+// Track login
+trackLogin();
+
+// Track product search
+trackProductSearch("shirt", 24);
+
+// Track customer actions
+trackCustomerAction("add", "CUST-123");
+
+// Track order creation
+trackOrderCreated({
+  id: "ORD-456",
+  total: 10000,
+  itemCount: 5,
+});
+```
+
+### Architecture
+
+| Component                                                        | Purpose                                       |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| [src/lib/gtag.ts](src/lib/gtag.ts)                               | GA4 utilities for direct measurement tracking |
+| [src/components/ga-tracker.tsx](src/components/ga-tracker.tsx)   | GA4 client-side page view and route tracking  |
+| [src/lib/gtm.ts](src/lib/gtm.ts)                                 | GTM utilities for dataLayer event pushing     |
+| [src/components/gtm-tracker.tsx](src/components/gtm-tracker.tsx) | GTM client-side page view and user tracking   |
+| [src/lib/gtm-events.ts](src/lib/gtm-events.ts)                   | High-level business event helpers for POS     |
+
+### Best Practices
+
+1. **Use business event helpers:** Prefer [src/lib/gtm-events.ts](src/lib/gtm-events.ts) for common actions (invoices, orders, login) to keep analytics code clean.
+2. **Keep payloads lean:** Only include necessary fields in events to minimize bandwidth.
+3. **GA4 + GTM together:** Leverage GA4 for direct measurement and GTM for flexible, no-code tag management.
+4. **Privacy compliance:** Ensure analytics comply with GDPR, CCPA, and local regulations. Consider adding consent management.
+5. **Performance:** All scripts use `strategy: "afterInteractive"` to avoid blocking page rendering.
 
 ## Project Structure
 
