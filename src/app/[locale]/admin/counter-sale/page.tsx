@@ -203,8 +203,8 @@ export default function CounterSale() {
       setNewTransaction((prev) => {
         const updated = { ...prev, [name]: numValue };
         // Auto-calculate amount
-        const price = name === "unitPrice" ? numValue : (prev.unitPrice || 0);
-        const qty = name === "quantity" ? numValue : (prev.quantity || 0);
+        const price = name === "unitPrice" ? numValue : prev.unitPrice || 0;
+        const qty = name === "quantity" ? numValue : prev.quantity || 0;
         updated.amount = price * qty;
         return updated;
       });
@@ -230,8 +230,8 @@ export default function CounterSale() {
       setEditFormData((prev) => {
         const updated = { ...prev, [name]: numValue };
         // Auto-calculate amount
-        const price = name === "unitPrice" ? numValue : (prev.unitPrice || 0);
-        const qty = name === "quantity" ? numValue : (prev.quantity || 0);
+        const price = name === "unitPrice" ? numValue : prev.unitPrice || 0;
+        const qty = name === "quantity" ? numValue : prev.quantity || 0;
         updated.amount = price * qty;
         return updated;
       });
@@ -339,8 +339,8 @@ export default function CounterSale() {
     if (!customItemData.name.trim()) {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Item name is required",
+        title: t("validationError"),
+        message: t("itemNameRequired"),
       });
       return;
     }
@@ -377,16 +377,16 @@ export default function CounterSale() {
     if (!editFormData.productId) {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Product is required",
+        title: t("validationError"),
+        message: t("productRequired"),
       });
       return;
     }
     if (!editFormData.amount || editFormData.amount <= 0) {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Amount must be greater than 0",
+        title: t("validationError"),
+        message: t("amountGreaterThanZero"),
       });
       return;
     }
@@ -405,7 +405,7 @@ export default function CounterSale() {
 
         // Update the transaction in the local state
         setTransactions((prev) =>
-          prev.map((t) => (t.id === id ? updatedTransaction : t))
+          prev.map((t) => (t.id === id ? updatedTransaction : t)),
         );
 
         // Close edit mode
@@ -426,16 +426,16 @@ export default function CounterSale() {
     if (!newTransaction.productId) {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Product is required",
+        title: t("validationError"),
+        message: t("productRequired"),
       });
       return;
     }
     if (!newTransaction.amount || newTransaction.amount <= 0) {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Amount must be greater than 0",
+        title: t("validationError"),
+        message: t("amountGreaterThanZero"),
       });
       return;
     }
@@ -473,7 +473,7 @@ export default function CounterSale() {
       setIsDownloading(true);
       // Fetch all transactions for the selected year (without pagination)
       const response = await fetch(
-        `/api/transactions?year=${selectedYear}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+        `/api/transactions?year=${selectedYear}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`,
       );
       if (!response.ok) {
         throw new Error("Failed to fetch transactions");
@@ -520,7 +520,7 @@ export default function CounterSale() {
       setIsDownloading(true);
       // Fetch all transactions for the date range (without pagination)
       const response = await fetch(
-        `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`
+        `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`,
       );
       if (!response.ok) {
         throw new Error("Failed to fetch transactions");
@@ -616,7 +616,7 @@ export default function CounterSale() {
         if (wasOnPage1) {
           try {
             const refreshResponse = await fetch(
-              `/api/transactions?page=1&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`
+              `/api/transactions?page=1&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
             );
             if (refreshResponse.ok) {
               const refreshResult: PaginatedResponse =
@@ -624,14 +624,14 @@ export default function CounterSale() {
               setTransactions(refreshResult.data);
               const computedTotalPages = Math.max(
                 1,
-                Math.ceil(refreshResult.total / ITEMS_PER_PAGE)
+                Math.ceil(refreshResult.total / ITEMS_PER_PAGE),
               );
               setPageInfo({
                 total: refreshResult.total,
                 totalPages: computedTotalPages,
               });
               const years = getYearsFromDates(
-                refreshResult.data.map((t) => t.created_at)
+                refreshResult.data.map((t) => t.created_at),
               );
               const currentYear = new Date().getFullYear();
               const yearsSet = new Set([currentYear, ...years]);
@@ -657,7 +657,7 @@ export default function CounterSale() {
         setIsImporting(false);
       }
     },
-    [t, currentPage, sortColumn, sortDirection, selectedYear]
+    [t, currentPage, sortColumn, sortDirection, selectedYear],
   );
 
   const handleImportClick = useCallback(() => {
@@ -951,15 +951,15 @@ export default function CounterSale() {
                   : ""
               }
               <div class="detail-row">
-                <span class="detail-label">Unit Price:</span>
+                <span class="detail-label">${t("unitPrice")}:</span>
                 <span class="detail-value">Rs. ${transaction.unitPrice || 0}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">UOM:</span>
+                <span class="detail-label">${t("uom")}:</span>
                 <span class="detail-value">${transaction.uom || "N/A"}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">Quantity:</span>
+                <span class="detail-label">${t("quantity")}:</span>
                 <span class="detail-value">${transaction.quantity || 1}</span>
               </div>
             </div>
@@ -971,12 +971,12 @@ export default function CounterSale() {
             
             <!-- Customer Details -->
             <div class="receipt-section">
-              <div class="section-title">Customer Details</div>
+              <div class="section-title">${t("customerName")}</div>
               ${
                 transaction.customerName
                   ? `
               <div class="detail-row">
-                <span class="detail-label">Name:</span>
+                <span class="detail-label">${t("name")}:</span>
                 <span class="detail-value">${transaction.customerName}</span>
               </div>
               `
@@ -986,7 +986,7 @@ export default function CounterSale() {
                 transaction.customerNumber
                   ? `
               <div class="detail-row">
-                <span class="detail-label">Contact:</span>
+                <span class="detail-label">${t("number")}:</span>
                 <span class="detail-value">${transaction.customerNumber}</span>
               </div>
               `
@@ -1003,7 +1003,7 @@ export default function CounterSale() {
             <div class="amount-box">
               <div class="amount-label">${t("amount")}</div>
               <div class="amount-value">Rs. ${Math.floor(
-                transaction.amount
+                transaction.amount,
               )}</div>
             </div>
             
@@ -1048,8 +1048,8 @@ export default function CounterSale() {
         ...data,
         {
           id: 0, // Special ID for "Others"
-          name: "Others",
-          description: "Add a custom item",
+          name: t("others"),
+          description: t("addCustomItemTitle"),
         },
       ];
       setProducts(productsWithOthers);
@@ -1063,7 +1063,7 @@ export default function CounterSale() {
       try {
         setLoading(true);
         const response = await fetch(
-          `/api/transactions?page=${currentPage}&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`
+          `/api/transactions?page=${currentPage}&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
         );
         if (!response.ok) {
           throw new Error("Failed to fetch transactions");
@@ -1072,7 +1072,7 @@ export default function CounterSale() {
         setTransactions(result.data);
         const computedTotalPages = Math.max(
           1,
-          Math.ceil(result.total / ITEMS_PER_PAGE)
+          Math.ceil(result.total / ITEMS_PER_PAGE),
         );
         console.log("Computed Total Pages:", result.total);
         setPageInfo({
@@ -1119,7 +1119,7 @@ export default function CounterSale() {
           <div className="hidden md:flex flex-col items-end gap-2 md:ml-auto">
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <label className="text-sm font-medium whitespace-nowrap">
-                Year:
+                {t("year")}:
               </label>
               <Select
                 value={selectedYear.toString()}
@@ -1148,7 +1148,7 @@ export default function CounterSale() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -1189,7 +1189,7 @@ export default function CounterSale() {
               />
             </div>
             <div className="text-xs text-muted-foreground whitespace-nowrap">
-              Total: {pageInfo.total.toLocaleString()}
+              {t("total")}: {pageInfo.total.toLocaleString()}
             </div>
           </div>
 
@@ -1198,7 +1198,7 @@ export default function CounterSale() {
             <div className="flex items-center gap-2 justify-between mb-2">
               <div className="flex items-center gap-1">
                 <label className="text-xs font-medium whitespace-nowrap">
-                  Year:
+                  {t("year")}:
                 </label>
                 <Select
                   value={selectedYear.toString()}
@@ -1217,14 +1217,14 @@ export default function CounterSale() {
                 </Select>
               </div>
               <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                Total: {pageInfo.total.toLocaleString()}
+                {t("total")}: {pageInfo.total.toLocaleString()}
               </span>
               <Button
                 size="sm"
                 className="h-8 text-xs whitespace-nowrap"
                 onClick={() => setIsAddFormOpen((prev) => !prev)}
               >
-                {isAddFormOpen ? "Close" : "Add"}
+                {isAddFormOpen ? t("close") : t("add")}
               </Button>
             </div>
             <div className="flex justify-end">
@@ -1240,7 +1240,7 @@ export default function CounterSale() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -1291,7 +1291,7 @@ export default function CounterSale() {
               <div className="relative w-48 flex-shrink-0">
                 <Input
                   type="text"
-                  placeholder="Search items..."
+                  placeholder={t("searchItems")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8 h-9 text-sm"
@@ -1308,26 +1308,32 @@ export default function CounterSale() {
                     className="gap-1 h-9 text-xs flex-shrink-0"
                   >
                     <span className="text-muted-foreground hidden sm:inline">
-                      Type:
+                      {t("typeFilter")}:
                     </span>
-                    <span>{filters.type === "all" ? "All" : filters.type}</span>
+                    <span>
+                      {filters.type === "all"
+                        ? t("all")
+                        : filters.type === "income"
+                          ? t("income")
+                          : t("expense")}
+                    </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-32">
-                  <DropdownMenuLabel>Type</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("typeFilter")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.type === "all"}
                     onCheckedChange={() => handleFilterChange("type", "all")}
                   >
-                    All
+                    {t("all")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.type === "income"}
                     onCheckedChange={() => handleFilterChange("type", "income")}
                   >
-                    Income
+                    {t("income")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.type === "expense"}
@@ -1335,7 +1341,7 @@ export default function CounterSale() {
                       handleFilterChange("type", "expense")
                     }
                   >
-                    Expense
+                    {t("expense")}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1349,19 +1355,21 @@ export default function CounterSale() {
                     className="gap-1 h-9 flex-shrink-0"
                   >
                     <FilterIcon className="w-3 h-3" />
-                    <span className="text-xs hidden sm:inline">Amount</span>
+                    <span className="text-xs hidden sm:inline">
+                      {t("amount")}
+                    </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72 sm:w-80 p-4">
                   <div className="space-y-3">
                     <Label className="text-xs font-semibold">
-                      Amount Range
+                      {t("amountRange")}
                     </Label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
-                        placeholder="Min"
+                        placeholder={t("min")}
                         value={amountRange.min}
                         onChange={(e) =>
                           handleAmountRangeChange("min", e.target.value)
@@ -1370,7 +1378,7 @@ export default function CounterSale() {
                       />
                       <Input
                         type="number"
-                        placeholder="Max"
+                        placeholder={t("max")}
                         value={amountRange.max}
                         onChange={(e) =>
                           handleAmountRangeChange("max", e.target.value)
@@ -1392,7 +1400,7 @@ export default function CounterSale() {
                 >
                   <XIcon className="w-4 h-4" />
                   <span className="hidden md:inline md:ml-1 text-xs">
-                    Clear
+                    {t("clear")}
                   </span>
                 </Button>
               )}
@@ -1408,40 +1416,40 @@ export default function CounterSale() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-48 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          Item
+                          {t("item")}
                         </TableHead>
                         <TableHead className="w-28 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          Unit Price
+                          {t("unitPrice")}
                         </TableHead>
                         <TableHead className="w-24 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          UOM
+                          {t("uom")}
                         </TableHead>
                         <TableHead className="w-20 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          Qty
+                          {t("qty")}
                         </TableHead>
                         <TableHead
                           className="w-32 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
                           onClick={() => handleSort("amount")}
                         >
-                          Amount {getSortIcon("amount")}
+                          {t("amount")} {getSortIcon("amount")}
                         </TableHead>
                         <TableHead
                           className="w-28 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
                           onClick={() => handleSort("type")}
                         >
-                          Type {getSortIcon("type")}
+                          {t("type")} {getSortIcon("type")}
                         </TableHead>
                         <TableHead
                           className="w-36 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
                           onClick={() => handleSort("created_at")}
                         >
-                          Date {getSortIcon("created_at")}
+                          {t("date")} {getSortIcon("created_at")}
                         </TableHead>
                         <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          Customer Name
+                          {t("customerName")}
                         </TableHead>
                         <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          Customer Number
+                          {t("customerNumber")}
                         </TableHead>
                         <TableHead className="w-20 px-2 sm:px-4"></TableHead>
                         <TableHead className="w-20 px-2 sm:px-4">
@@ -1452,7 +1460,7 @@ export default function CounterSale() {
                         <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                           <Combobox
                             items={products}
-                            placeholder="Select Item"
+                            placeholder={t("selectItem")}
                             className="w-40 truncate"
                             value={newTransaction.productName}
                             onSelect={(productId) => {
@@ -1472,21 +1480,21 @@ export default function CounterSale() {
                                   ...prev,
                                   productId: productId as number,
                                   productName: products.find(
-                                    (p) => p.id === productId
+                                    (p) => p.id === productId,
                                   )?.name,
                                   productDescription: products.find(
-                                    (p) => p.id === productId
+                                    (p) => p.id === productId,
                                   )?.description,
-                                  unitPrice: products.find(
-                                    (p) => p.id === productId
-                                  )?.sell_price || 0,
-                                  uom: products.find(
-                                (p) => p.id === productId
-                              )?.unit_of_measurement || "unit",
+                                  unitPrice:
+                                    products.find((p) => p.id === productId)
+                                      ?.sell_price || 0,
+                                  uom:
+                                    products.find((p) => p.id === productId)
+                                      ?.unit_of_measurement || "unit",
                                   quantity: 1, // Default quantity
-                                  amount: (products.find(
-                                    (p) => p.id === productId
-                                  )?.sell_price || 0) * 1,
+                                  amount:
+                                    (products.find((p) => p.id === productId)
+                                      ?.sell_price || 0) * 1,
                                 }));
                               }
                             }}
@@ -1498,7 +1506,7 @@ export default function CounterSale() {
                             type="number"
                             value={newTransaction.unitPrice || ""}
                             onChange={handleInputChange}
-                            placeholder="Price"
+                            placeholder={t("price")}
                             className="text-xs sm:text-sm h-8 sm:h-10 w-24"
                             required
                           />
@@ -1506,7 +1514,9 @@ export default function CounterSale() {
                         <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
                           <Select
                             value={newTransaction.uom}
-                            onValueChange={(value) => handleUOMChange(value, false)}
+                            onValueChange={(value) =>
+                              handleUOMChange(value, false)
+                            }
                           >
                             <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
                               <SelectValue placeholder="UOM" />
@@ -1526,7 +1536,7 @@ export default function CounterSale() {
                             type="number"
                             value={newTransaction.quantity || ""}
                             onChange={handleInputChange}
-                            placeholder="Qty"
+                            placeholder={t("qty")}
                             className="text-xs sm:text-sm h-8 sm:h-10 w-16"
                             required
                           />
@@ -1537,7 +1547,7 @@ export default function CounterSale() {
                             type="number"
                             value={newTransaction.amount}
                             onChange={handleInputChange}
-                            placeholder="Amount"
+                            placeholder={t("amount")}
                             required
                             className="text-xs sm:text-sm h-8 sm:h-10 w-24"
                             readOnly
@@ -1555,7 +1565,7 @@ export default function CounterSale() {
                               }
                             >
                               <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
-                                <SelectValue placeholder="Type" />
+                                <SelectValue placeholder={t("type")} />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="income">Income</SelectItem>
@@ -1574,7 +1584,15 @@ export default function CounterSale() {
                               required
                               className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
                             />
-                            <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                            <CalendarIcon
+                              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                              onClick={(e) => {
+                                (
+                                  e.currentTarget
+                                    .previousElementSibling as HTMLInputElement
+                                )?.showPicker?.();
+                              }}
+                            />
                           </div>
                         </TableCell>
                         <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
@@ -1582,7 +1600,7 @@ export default function CounterSale() {
                             name="customerName"
                             value={newTransaction.customerName || ""}
                             onChange={handleInputChange}
-                            placeholder="Name"
+                            placeholder={t("name")}
                             className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                           />
                         </TableCell>
@@ -1591,7 +1609,7 @@ export default function CounterSale() {
                             name="customerNumber"
                             value={newTransaction.customerNumber || ""}
                             onChange={handleInputChange}
-                            placeholder="Number"
+                            placeholder={t("number")}
                             className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                           />
                         </TableCell>
@@ -1602,7 +1620,7 @@ export default function CounterSale() {
                             size="sm"
                             className="text-xs sm:text-sm h-8 sm:h-10"
                           >
-                            Add
+                            {t("add")}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -1616,7 +1634,7 @@ export default function CounterSale() {
                               <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                                 <Combobox
                                   items={products}
-                                  placeholder="Select Item"
+                                  placeholder={t("selectItem")}
                                   className="w-40 truncate"
                                   value={editFormData.productName}
                                   onSelect={(productId) => {
@@ -1636,21 +1654,24 @@ export default function CounterSale() {
                                         ...prev,
                                         productId: productId as number,
                                         productName: products.find(
-                                          (p) => p.id === productId
+                                          (p) => p.id === productId,
                                         )?.name,
                                         productDescription: products.find(
-                                          (p) => p.id === productId
+                                          (p) => p.id === productId,
                                         )?.description,
-                                        unitPrice: products.find(
-                                          (p) => p.id === productId
-                                        )?.sell_price || 0,
-                                        uom: products.find(
-                                          (p) => p.id === productId
-                                        )?.unit_of_measurement || "unit",
+                                        unitPrice:
+                                          products.find(
+                                            (p) => p.id === productId,
+                                          )?.sell_price || 0,
+                                        uom:
+                                          products.find(
+                                            (p) => p.id === productId,
+                                          )?.unit_of_measurement || "unit",
                                         quantity: 1,
-                                        amount: (products.find(
-                                          (p) => p.id === productId
-                                        )?.sell_price || 0) * 1,
+                                        amount:
+                                          (products.find(
+                                            (p) => p.id === productId,
+                                          )?.sell_price || 0) * 1,
                                       }));
                                     }
                                   }}
@@ -1662,7 +1683,7 @@ export default function CounterSale() {
                                   type="number"
                                   value={editFormData.unitPrice || ""}
                                   onChange={handleEditInputChange}
-                                  placeholder="Price"
+                                  placeholder={t("price")}
                                   className="text-xs sm:text-sm h-8 sm:h-10 w-24"
                                   required
                                 />
@@ -1670,14 +1691,19 @@ export default function CounterSale() {
                               <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
                                 <Select
                                   value={editFormData.uom}
-                                  onValueChange={(value) => handleUOMChange(value, true)}
+                                  onValueChange={(value) =>
+                                    handleUOMChange(value, true)
+                                  }
                                 >
                                   <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
                                     <SelectValue placeholder="UOM" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {UNITS_OF_MEASUREMENT.map((unit) => (
-                                      <SelectItem key={unit.value} value={unit.value}>
+                                      <SelectItem
+                                        key={unit.value}
+                                        value={unit.value}
+                                      >
                                         {unit.label}
                                       </SelectItem>
                                     ))}
@@ -1690,7 +1716,7 @@ export default function CounterSale() {
                                   type="number"
                                   value={editFormData.quantity || ""}
                                   onChange={handleEditInputChange}
-                                  placeholder="Qty"
+                                  placeholder={t("qty")}
                                   className="text-xs sm:text-sm h-8 sm:h-10 w-16"
                                   required
                                 />
@@ -1738,12 +1764,20 @@ export default function CounterSale() {
                                     type="date"
                                     value={isoToDateInput(
                                       editFormData.created_at ||
-                                        transaction.created_at
+                                        transaction.created_at,
                                     )}
                                     onChange={handleEditInputChange}
                                     className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
                                   />
-                                  <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                                  <CalendarIcon
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                                    onClick={(e) => {
+                                      (
+                                        e.currentTarget
+                                          .previousElementSibling as HTMLInputElement
+                                      )?.showPicker?.();
+                                    }}
+                                  />
                                 </div>
                               </TableCell>
                               <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
@@ -1751,7 +1785,7 @@ export default function CounterSale() {
                                   name="customerName"
                                   value={editFormData.customerName || ""}
                                   onChange={handleEditInputChange}
-                                  placeholder="Name"
+                                  placeholder={t("name")}
                                   className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                                 />
                               </TableCell>
@@ -1760,7 +1794,7 @@ export default function CounterSale() {
                                   name="customerNumber"
                                   value={editFormData.customerNumber || ""}
                                   onChange={handleEditInputChange}
-                                  placeholder="Number"
+                                  placeholder={t("number")}
                                   className="text-xs sm:text-sm h-8 sm:h-10 w-32"
                                 />
                               </TableCell>
@@ -1905,10 +1939,10 @@ export default function CounterSale() {
             {isAddFormOpen && (
               <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-3 border">
                 <div className="space-y-2">
-                  <label className="text-xs font-medium">Item</label>
+                  <label className="text-xs font-medium">{t("item")}</label>
                   <Combobox
                     items={products}
-                    placeholder="Select Item"
+                    placeholder={t("selectItem")}
                     value={newTransaction.productName}
                     onSelect={(productId) => {
                       if (productId === 0) {
@@ -1928,18 +1962,18 @@ export default function CounterSale() {
                           productName: products.find((p) => p.id === productId)
                             ?.name,
                           productDescription: products.find(
-                            (p) => p.id === productId
+                            (p) => p.id === productId,
                           )?.description,
-                          unitPrice: products.find(
-                            (p) => p.id === productId
-                          )?.sell_price || 0,
-                          uom: products.find(
-                            (p) => p.id === productId
-                          )?.unit_of_measurement || "unit",
+                          unitPrice:
+                            products.find((p) => p.id === productId)
+                              ?.sell_price || 0,
+                          uom:
+                            products.find((p) => p.id === productId)
+                              ?.unit_of_measurement || "unit",
                           quantity: 1,
-                          amount: (products.find(
-                            (p) => p.id === productId
-                          )?.sell_price || 0) * 1,
+                          amount:
+                            (products.find((p) => p.id === productId)
+                              ?.sell_price || 0) * 1,
                         }));
                       }
                     }}
@@ -1947,19 +1981,21 @@ export default function CounterSale() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium">Unit Price</label>
+                    <label className="text-xs font-medium">
+                      {t("unitPrice")}
+                    </label>
                     <Input
                       name="unitPrice"
                       type="number"
                       value={newTransaction.unitPrice || ""}
                       onChange={handleInputChange}
-                      placeholder="Price"
+                      placeholder={t("price")}
                       className="text-sm h-9"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-medium">UOM</label>
+                    <label className="text-xs font-medium">{t("uom")}</label>
                     <Select
                       value={newTransaction.uom}
                       onValueChange={(value) => handleUOMChange(value, false)}
@@ -1979,51 +2015,53 @@ export default function CounterSale() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium">Quantity</label>
+                    <label className="text-xs font-medium">
+                      {t("quantity")}
+                    </label>
                     <Input
                       name="quantity"
                       type="number"
                       value={newTransaction.quantity || ""}
                       onChange={handleInputChange}
-                      placeholder="Qty"
+                      placeholder={t("qty")}
                       className="text-sm h-9"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-medium">Amount</label>
+                    <label className="text-xs font-medium">{t("amount")}</label>
                     <Input
                       name="amount"
                       type="number"
                       value={newTransaction.amount}
                       onChange={handleInputChange}
-                      placeholder="Amount"
+                      placeholder={t("amount")}
                       required
                       className="text-sm h-9"
                       readOnly
                     />
                   </div>
                 </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Type</label>
-                    <Select
-                      defaultValue={newTransaction.type}
-                      onValueChange={(value) =>
-                        setNewTransaction({
-                          ...newTransaction,
-                          type: value as TransactionType,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="text-sm h-9">
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="income">Income</SelectItem>
-                        <SelectItem value="expense">Expense</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">{t("type")}</label>
+                  <Select
+                    defaultValue={newTransaction.type}
+                    onValueChange={(value) =>
+                      setNewTransaction({
+                        ...newTransaction,
+                        type: value as TransactionType,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="text-sm h-9">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="expense">Expense</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
@@ -2037,7 +2075,15 @@ export default function CounterSale() {
                         required
                         className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
                       />
-                      <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                      <CalendarIcon
+                        className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                        onClick={(e) => {
+                          (
+                            e.currentTarget
+                              .previousElementSibling as HTMLInputElement
+                          )?.showPicker?.();
+                        }}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -2052,12 +2098,14 @@ export default function CounterSale() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-medium">Customer Number</label>
+                  <label className="text-xs font-medium">
+                    {t("customerNumber")}
+                  </label>
                   <Input
                     name="customerNumber"
                     value={newTransaction.customerNumber || ""}
                     onChange={handleInputChange}
-                    placeholder="Number (Optional)"
+                    placeholder={t("numberOptional")}
                     className="text-sm h-9"
                   />
                 </div>
@@ -2066,7 +2114,7 @@ export default function CounterSale() {
                   disabled={!isAddFormValid()}
                   className="w-full text-sm"
                 >
-                  Add Transaction
+                  {t("addTransaction")}
                 </Button>
               </div>
             )}
@@ -2078,7 +2126,7 @@ export default function CounterSale() {
                 <div className="relative w-full">
                   <Input
                     type="text"
-                    placeholder="Search items..."
+                    placeholder={t("searchItems")}
                     value={searchTerm}
                     onChange={handleSearch}
                     className="pr-8 h-9 text-sm w-full"
@@ -2237,21 +2285,21 @@ export default function CounterSale() {
                               ...prev,
                               productId: productId as number,
                               productName: products.find(
-                                (p) => p.id === productId
+                                (p) => p.id === productId,
                               )?.name,
                               productDescription: products.find(
-                                (p) => p.id === productId
+                                (p) => p.id === productId,
                               )?.description,
-                              unitPrice: products.find(
-                                (p) => p.id === productId
-                              )?.sell_price || 0,
-                              uom: products.find(
-                                (p) => p.id === productId
-                              )?.unit_of_measurement || "unit",
+                              unitPrice:
+                                products.find((p) => p.id === productId)
+                                  ?.sell_price || 0,
+                              uom:
+                                products.find((p) => p.id === productId)
+                                  ?.unit_of_measurement || "unit",
                               quantity: 1,
-                              amount: (products.find(
-                                (p) => p.id === productId
-                              )?.sell_price || 0) * 1,
+                              amount:
+                                (products.find((p) => p.id === productId)
+                                  ?.sell_price || 0) * 1,
                             }));
                           }
                         }}
@@ -2278,8 +2326,10 @@ export default function CounterSale() {
                       </Select>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                       <div className="space-y-2">
-                        <label className="text-xs font-medium">Unit Price</label>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">
+                          Unit Price
+                        </label>
                         <Input
                           name="unitPrice"
                           type="number"
@@ -2294,10 +2344,12 @@ export default function CounterSale() {
                         <label className="text-xs font-medium">UOM</label>
                         <Select
                           value={editFormData.uom}
-                          onValueChange={(value) => handleUOMChange(value, true)}
+                          onValueChange={(value) =>
+                            handleUOMChange(value, true)
+                          }
                         >
                           <SelectTrigger className="text-sm h-9">
-                          <SelectValue placeholder="UOM" />
+                            <SelectValue placeholder="UOM" />
                           </SelectTrigger>
                           <SelectContent>
                             {UNITS_OF_MEASUREMENT.map((unit) => (
@@ -2342,12 +2394,20 @@ export default function CounterSale() {
                           name="created_at"
                           type="date"
                           value={isoToDateInput(
-                            editFormData.created_at || transaction.created_at
+                            editFormData.created_at || transaction.created_at,
                           )}
                           onChange={handleEditInputChange}
                           className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
                         />
-                        <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" onClick={(e) => { (e.currentTarget.previousElementSibling as HTMLInputElement)?.showPicker?.(); }} />
+                        <CalendarIcon
+                          className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                          onClick={(e) => {
+                            (
+                              e.currentTarget
+                                .previousElementSibling as HTMLInputElement
+                            )?.showPicker?.();
+                          }}
+                        />
                       </div>
                     </div>
 
@@ -2406,7 +2466,7 @@ export default function CounterSale() {
                           {transaction.productDescription}
                         </div>
                       )}
-                       <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
+                      <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
                         {transaction.unitPrice && (
                           <span>
                             Price: Rs. {transaction.unitPrice}
@@ -2560,7 +2620,7 @@ export default function CounterSale() {
                         );
                       }
                       return null;
-                    }
+                    },
                   )}
 
                   <PaginationItem>
@@ -2569,7 +2629,7 @@ export default function CounterSale() {
                       onClick={(e) => {
                         e.preventDefault();
                         setCurrentPage((prev) =>
-                          Math.min(prev + 1, pageInfo.totalPages)
+                          Math.min(prev + 1, pageInfo.totalPages),
                         );
                       }}
                       className={

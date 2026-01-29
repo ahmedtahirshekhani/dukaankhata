@@ -1,28 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import Logo from "../../../public/images/DukaanKhataLogo.svg";
 
-
 export function LandingFooter() {
   const locale = useLocale();
+  const t = useTranslations("landing.footer");
 
   const links = {
-    Product: [
-      { label: "Features", href: "#features" },
-      { label: "Pricing", href: "#pricing" },
-      { label: "Security", href: "#security" },
+    [t("product")]: [
+      { label: t("features"), href: "#features" },
+      { label: t("pricing"), href: "#pricing" },
+      { label: t("security"), href: "#security" },
     ],
-    Company: [
-      { label: "About", href: "#about" },
-      { label: "Blog", href: "#blog" },
-      { label: "Contact", href: "#contact" },
+    [t("company")]: [
+      { label: t("about"), href: "#about" },
+      { label: t("blog"), href: "#blog" },
+      { label: t("contact"), href: "#contact" },
     ],
-    Legal: [
-      { label: "Privacy Policy", href: "#privacy" },
-      { label: "Terms of Service", href: "#terms" },
+    [t("legal")]: [
+      { label: t("privacyPolicy"), href: "#privacy" },
+      { label: t("termsOfService"), href: "#terms" },
     ],
   };
 
@@ -47,9 +47,7 @@ export function LandingFooter() {
               </div>
               {/* <span className="hidden sm:inline">DukaanKhata</span> */}
             </Link>
-            <p className="text-sm text-muted-foreground">
-              Your complete business management solution for South Asia.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("tagline")}</p>
           </div>
 
           {/* Links */}
@@ -74,15 +72,13 @@ export function LandingFooter() {
 
         {/* Bottom */}
         <div className="border-t border-border pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            &copy; 2024 DukaanKhata. All rights reserved.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("copyright")}</p>
           <div className="flex gap-6">
             <a
               href="#"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span className="sr-only">Facebook</span>
+              <span className="sr-only">{t("facebookAlt")}</span>
               <svg
                 className="h-5 w-5"
                 fill="currentColor"
@@ -96,7 +92,7 @@ export function LandingFooter() {
               href="#"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span className="sr-only">Twitter</span>
+              <span className="sr-only">{t("twitterAlt")}</span>
               <svg
                 className="h-5 w-5"
                 fill="currentColor"
