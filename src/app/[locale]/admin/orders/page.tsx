@@ -140,6 +140,9 @@ export default function OrdersPage() {
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       console.log("orders", order);
+      if (!order.customer) {
+        return false;
+      }
       if (filters.status !== "all" && order.status !== filters.status) {
         return false;
       }
