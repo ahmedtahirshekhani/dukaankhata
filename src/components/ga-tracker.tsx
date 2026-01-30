@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { pageview } from "@/lib/gtag";
 
@@ -8,7 +8,7 @@ type Props = {
   measurementId: string;
 };
 
-export default function GATracker({ measurementId }: Props) {
+function GATrackerContent({ measurementId }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -22,4 +22,12 @@ export default function GATracker({ measurementId }: Props) {
   }, [pathname, searchParams, measurementId]);
 
   return null;
+}
+
+export default function GATracker({ measurementId }: Props) {
+  return (
+    <Suspense fallback={null}>
+      <GATrackerContent measurementId={measurementId} />
+    </Suspense>
+  );
 }

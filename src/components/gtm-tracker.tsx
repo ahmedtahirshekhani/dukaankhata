@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { pushPageView } from "@/lib/gtm";
 
@@ -20,7 +20,7 @@ type Props = {
  * Note: User authentication tracking is handled separately via GTMUserTracker
  * to avoid SessionProvider dependency issues in the root layout.
  */
-export default function GTMTracker({ gtmId }: Props) {
+function GTMTrackerContent({ gtmId }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -35,4 +35,12 @@ export default function GTMTracker({ gtmId }: Props) {
   }, [pathname, searchParams, gtmId]);
 
   return null;
+}
+
+export default function GTMTracker({ gtmId }: Props) {
+  return (
+    <Suspense fallback={null}>
+      <GTMTrackerContent gtmId={gtmId} />
+    </Suspense>
+  );
 }
