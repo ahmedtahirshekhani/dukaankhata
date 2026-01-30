@@ -105,7 +105,7 @@ export async function createIndexes() {
     // Customers collection indexes
     await db
       .collection(COLLECTIONS.CUSTOMERS)
-      .createIndex({ email: 1, user_id: 1 }, { unique: true });
+      .createIndex({ email: 1, user_id: 1 }, { unique: true, sparse: true });
     await db.collection(COLLECTIONS.CUSTOMERS).createIndex({ user_id: 1 });
 
     // Orders collection indexes

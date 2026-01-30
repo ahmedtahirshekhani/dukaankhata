@@ -19,11 +19,11 @@ import {
   PlusCircle,
   Trash2,
   SearchIcon,
-  FilterIcon,
   FilePenIcon,
   FileDown,
   Upload,
   MoreVertical,
+  Eye,
 } from "lucide-react";
 import {
   Table,
@@ -66,11 +66,15 @@ import {
 import { ErrorDialog } from "@/components/error-dialog";
 
 type Customer = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
+  company_name?: string;
+  company_address?: string;
+  balance?: number;
   status: "active" | "inactive";
+  is_delete?: number;
 };
 
 export default function CustomersPage() {
@@ -82,25 +86,32 @@ export default function CustomersPage() {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerCompanyName, setNewCustomerCompanyName] = useState("");
+  const [newCustomerCompanyAddress, setNewCustomerCompanyAddress] =
+    useState("");
+  const [newCustomerOpeningBalance, setNewCustomerOpeningBalance] =
+    useState("");
   const [newCustomerStatus, setNewCustomerStatus] = useState<
     "active" | "inactive"
   >("active");
   const [isEditCustomerDialogOpen, setIsEditCustomerDialogOpen] =
     useState(false);
+  const [isViewCustomerDialogOpen, setIsViewCustomerDialogOpen] =
+    useState(false);
+  const [viewCustomer, setViewCustomer] = useState<Customer | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(
     null,
   );
   const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState({
-    status: "all",
-  });
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -120,7 +131,10 @@ export default function CustomersPage() {
           throw new Error("Failed to fetch customers");
         }
         const data = await response.json();
-        setCustomers(data);
+        const activeCustomers = data.filter(
+          (customer: Customer) => customer.is_delete !== 1,
+        );
+        setCustomers(activeCustomers);
       } catch (error) {
         setError((error as Error).message);
       } finally {
@@ -134,8 +148,7 @@ export default function CustomersPage() {
   const filteredCustomers = useMemo(() => {
     if (customers.length === 0) return [];
     return customers.filter((customer) => {
-      console.log("Filtering customer:", customer);
-      if (filters.status !== "all" && customer.status !== filters.status) {
+      if (customer.is_delete === 1) {
         return false;
       }
       return (
@@ -144,22 +157,41 @@ export default function CustomersPage() {
         customer?.phone?.includes(searchTerm)
       );
     });
-  }, [customers, filters.status, searchTerm]);
+  }, [customers, searchTerm]);
 
   const resetSelectedCustomer = () => {
     setSelectedCustomerId(null);
     setNewCustomerName("");
     setNewCustomerEmail("");
     setNewCustomerPhone("");
+    setNewCustomerCompanyName("");
+    setNewCustomerCompanyAddress("");
+    setNewCustomerOpeningBalance("");
     setNewCustomerStatus("active");
   };
 
   const handleAddCustomer = useCallback(async () => {
+    // Validate required fields
+    if (!newCustomerName || newCustomerName.trim() === "") {
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Customer name is required",
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const newCustomer = {
         name: newCustomerName,
         email: newCustomerEmail,
         phone: newCustomerPhone,
+        company_name: newCustomerCompanyName,
+        company_address: newCustomerCompanyAddress,
+        balance: newCustomerOpeningBalance
+          ? parseFloat(newCustomerOpeningBalance)
+          : 0,
         status: newCustomerStatus,
       };
       const response = await fetch("/api/customers", {
@@ -170,35 +202,79 @@ export default function CustomersPage() {
         body: JSON.stringify(newCustomer),
       });
 
-      if (!response.ok) {
-        throw new Error("Error creating customer");
+      const text = await response.text();
+      let createdCustomer;
+      try {
+        createdCustomer = JSON.parse(text);
+      } catch (e) {
+        throw new Error(
+          `Server response error: ${text || response.statusText}`,
+        );
       }
 
-      const createdCustomer = await response.json();
+      if (!response.ok) {
+        throw new Error(createdCustomer.error || "Error creating customer");
+      }
+
       setCustomers([...customers, createdCustomer]);
       setShowNewCustomerDialog(false);
       resetSelectedCustomer();
+
+      setErrorDialog({
+        open: true,
+        title: "Success",
+        message: "Customer created successfully",
+        isSuccess: true,
+      });
     } catch (error) {
       console.error(error);
+      setErrorDialog({
+        open: true,
+        title: "Error",
+        message:
+          error instanceof Error ? error.message : "Failed to create customer",
+      });
+    } finally {
+      setIsSaving(false);
     }
   }, [
     newCustomerName,
     newCustomerEmail,
     newCustomerPhone,
+    newCustomerCompanyName,
+    newCustomerCompanyAddress,
+    newCustomerOpeningBalance,
     newCustomerStatus,
     customers,
   ]);
 
   const handleEditCustomer = useCallback(async () => {
     if (!selectedCustomerId) return;
+
+    if (!newCustomerName || newCustomerName.trim() === "") {
+      setErrorDialog({
+        open: true,
+        title: "Validation Error",
+        message: "Customer name is required",
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const updatedCustomer = {
         id: selectedCustomerId,
         name: newCustomerName,
         email: newCustomerEmail,
         phone: newCustomerPhone,
+        company_name: newCustomerCompanyName,
+        company_address: newCustomerCompanyAddress,
+        balance: newCustomerOpeningBalance
+          ? parseFloat(newCustomerOpeningBalance)
+          : 0,
         status: newCustomerStatus,
       };
+
       const response = await fetch(`/api/customers/${selectedCustomerId}`, {
         method: "PUT",
         headers: {
@@ -208,45 +284,116 @@ export default function CustomersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Error updating customer");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error updating customer");
       }
 
       const updatedCustomerData = await response.json();
       setCustomers(
         customers.map((c) =>
-          c.id === updatedCustomerData.id ? updatedCustomerData : c,
+          c.id === updatedCustomerData.id || c.id === selectedCustomerId
+            ? {
+                ...updatedCustomerData,
+                balance:
+                  typeof updatedCustomerData.balance === "undefined"
+                    ? typeof updatedCustomerData.opening_balance !== "undefined"
+                      ? updatedCustomerData.opening_balance
+                      : c.balance
+                    : updatedCustomerData.balance,
+              }
+            : c,
         ),
       );
       setIsEditCustomerDialogOpen(false);
       resetSelectedCustomer();
+
+      setErrorDialog({
+        open: true,
+        title: "Success",
+        message: "Customer updated successfully",
+        isSuccess: true,
+      });
     } catch (error) {
       console.error(error);
+      setErrorDialog({
+        open: true,
+        title: "Error",
+        message:
+          error instanceof Error ? error.message : "Failed to update customer",
+      });
+    } finally {
+      setIsSaving(false);
     }
   }, [
     selectedCustomerId,
     newCustomerName,
     newCustomerEmail,
     newCustomerPhone,
+    newCustomerCompanyName,
+    newCustomerCompanyAddress,
+    newCustomerOpeningBalance,
     newCustomerStatus,
     customers,
   ]);
 
   const handleDeleteCustomer = useCallback(async () => {
     if (!customerToDelete) return;
+
+    if (
+      customerToDelete.balance !== 0 &&
+      customerToDelete.balance !== undefined &&
+      customerToDelete.balance !== null
+    ) {
+      setErrorDialog({
+        open: true,
+        title: "Cannot Delete",
+        message:
+          "Customer can only be deleted when balance is zero. Current balance: Rs. " +
+          Math.round(customerToDelete.balance || 0),
+      });
+      setIsDeleteConfirmationOpen(false);
+      return;
+    }
+
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/customers/${customerToDelete.id}`, {
-        method: "DELETE",
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ is_delete: 1 }),
       });
 
       if (!response.ok) {
-        throw new Error("Error deleting customer");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error deleting customer");
       }
 
-      setCustomers(customers.filter((c) => c.id !== customerToDelete.id));
+      setCustomers(
+        customers.map((c) =>
+          c.id === customerToDelete.id ? { ...c, is_delete: 1 } : c,
+        ),
+      );
       setIsDeleteConfirmationOpen(false);
       setCustomerToDelete(null);
+
+      setErrorDialog({
+        open: true,
+        title: "Success",
+        message: "Customer deleted successfully",
+        isSuccess: true,
+      });
     } catch (error) {
       console.error(error);
+      setErrorDialog({
+        open: true,
+        title: "Error",
+        message:
+          error instanceof Error ? error.message : "Failed to delete customer",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   }, [customerToDelete, customers]);
 
@@ -254,27 +401,17 @@ export default function CustomersPage() {
     setSearchTerm(e.target.value);
   };
 
-  const handleFilterChange = (value: string) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      status: value,
-    }));
-  };
-
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      // Fetch all customers
       const response = await fetch("/api/customers");
       if (!response.ok) {
         throw new Error("Failed to fetch customers");
       }
       const allCustomers = await response.json();
 
-      // Generate filename
       const filename = `customers.xlsx`;
 
-      // Export to Excel
       exportCustomersToExcel(allCustomers, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
@@ -297,7 +434,6 @@ export default function CustomersPage() {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      // Validate file type
       if (
         !file.name.endsWith(".xlsx") &&
         !file.name.endsWith(".xls") &&
@@ -345,15 +481,11 @@ export default function CustomersPage() {
           message: message,
           isSuccess: result.errorCount === 0,
         });
-
-        // Refresh customers
         const refreshResponse = await fetch("/api/customers");
         if (refreshResponse.ok) {
           const refreshedCustomers = await refreshResponse.json();
           setCustomers(refreshedCustomers);
         }
-
-        // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -417,36 +549,6 @@ export default function CustomersPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <FilterIcon className="w-4 h-4" />
-                    <span>Filters</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "all"}
-                    onCheckedChange={() => handleFilterChange("all")}
-                  >
-                    All Statuses
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "active"}
-                    onCheckedChange={() => handleFilterChange("active")}
-                  >
-                    Active
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "inactive"}
-                    onCheckedChange={() => handleFilterChange("inactive")}
-                  >
-                    Inactive
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <DropdownMenu>
@@ -513,36 +615,6 @@ export default function CustomersPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 h-9">
-                    <FilterIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">Filters</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "all"}
-                    onCheckedChange={() => handleFilterChange("all")}
-                  >
-                    All Statuses
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "active"}
-                    onCheckedChange={() => handleFilterChange("active")}
-                  >
-                    Active
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "inactive"}
-                    onCheckedChange={() => handleFilterChange("inactive")}
-                  >
-                    Inactive
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Button
                 size="sm"
                 onClick={() => setShowNewCustomerDialog(true)}
@@ -551,8 +623,6 @@ export default function CustomersPage() {
                 <PlusCircle className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Add</span>
               </Button>
-            </div>
-            <div className="flex justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -601,60 +671,172 @@ export default function CustomersPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>{customer.name}</TableCell>
-                    <TableCell>{customer.email}</TableCell>
-                    <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.status}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedCustomerId(customer.id);
-                            setNewCustomerName(customer.name);
-                            setNewCustomerEmail(customer.email);
-                            setNewCustomerPhone(customer.phone);
-                            setNewCustomerStatus(customer.status);
-                            setIsEditCustomerDialogOpen(true);
-                          }}
-                        >
-                          <FilePenIcon className="w-4 h-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setCustomerToDelete(customer);
-                            setIsDeleteConfirmationOpen(true);
-                          }}
-                          style={{ display: "none" }}
-                        >
-                          {/* Hide  trashicon*/}
-                          <Trash2 className="w-4 h-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
-                    </TableCell>
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Company Name</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>{customer.company_name || "-"}</TableCell>
+                      <TableCell>
+                        Rs.{" "}
+                        {customer.balance ? Math.round(customer.balance) : "0"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setViewCustomer(customer);
+                              setIsViewCustomerDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span className="sr-only">View</span>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedCustomerId(customer.id);
+                              setNewCustomerName(customer.name);
+                              setNewCustomerEmail(customer.email);
+                              setNewCustomerPhone(customer.phone);
+                              setNewCustomerCompanyName(
+                                customer.company_name || "",
+                              );
+                              setNewCustomerCompanyAddress(
+                                customer.company_address || "",
+                              );
+                              setNewCustomerOpeningBalance(
+                                customer.balance?.toString() || "",
+                              );
+                              setNewCustomerStatus(customer.status);
+                              setIsEditCustomerDialogOpen(true);
+                            }}
+                          >
+                            <FilePenIcon className="w-4 h-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setCustomerToDelete(customer);
+                              setIsDeleteConfirmationOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Mobile View - Cards */}
+          <div className="md:hidden space-y-3 p-4">
+            {filteredCustomers.map((customer) => (
+              <div
+                key={customer.id}
+                className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-3 border"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold">{customer.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {customer.phone || "-"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setViewCustomer(customer);
+                        setIsViewCustomerDialogOpen(true);
+                      }}
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span className="sr-only">View</span>
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setSelectedCustomerId(customer.id);
+                        setNewCustomerName(customer.name);
+                        setNewCustomerEmail(customer.email);
+                        setNewCustomerPhone(customer.phone);
+                        setNewCustomerCompanyName(customer.company_name || "");
+                        setNewCustomerCompanyAddress(
+                          customer.company_address || "",
+                        );
+                        setNewCustomerOpeningBalance(
+                          customer.balance?.toString() || "",
+                        );
+                        setNewCustomerStatus(customer.status);
+                        setIsEditCustomerDialogOpen(true);
+                      }}
+                    >
+                      <FilePenIcon className="w-4 h-4" />
+                      <span className="sr-only">Edit</span>
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setCustomerToDelete(customer);
+                        setIsDeleteConfirmationOpen(true);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">
+                      Company Name
+                    </span>
+                    <div className="text-sm font-medium">
+                      {customer.company_name || "-"}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">
+                      Balance
+                    </span>
+                    <div className="text-sm font-medium">
+                      Rs.{" "}
+                      {customer.balance ? Math.round(customer.balance) : "0"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center">
@@ -671,61 +853,144 @@ export default function CustomersPage() {
             }
           }}
         >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-xl sm:text-2xl">
                 {showNewCustomerDialog
                   ? "Create New Customer"
                   : "Edit Customer"}
               </DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={newCustomerName}
-                  onChange={(e) => setNewCustomerName(e.target.value)}
-                  className="col-span-3"
-                />
+            <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
+              {/* Contact Information Section */}
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                  Contact Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="name"
+                      className="text-xs sm:text-sm font-medium"
+                    >
+                      Name<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={newCustomerName}
+                      onChange={(e) => setNewCustomerName(e.target.value)}
+                      placeholder="Enter customer name"
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="phone"
+                      className="text-xs sm:text-sm font-medium"
+                    >
+                      Phone
+                    </Label>
+                    <Input
+                      id="phone"
+                      value={newCustomerPhone}
+                      onChange={(e) => {
+                        const value = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 11);
+                        setNewCustomerPhone(value);
+                      }}
+                      maxLength={11}
+                      placeholder="03001234567"
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="email"
+                    className="text-xs sm:text-sm font-medium"
+                  >
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newCustomerEmail}
+                    onChange={(e) => setNewCustomerEmail(e.target.value)}
+                    placeholder="example@email.com"
+                    className="h-9 sm:h-10 text-sm"
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  value={newCustomerEmail}
-                  onChange={(e) => setNewCustomerEmail(e.target.value)}
-                  className="col-span-3"
-                />
+
+              {/* Company Information Section */}
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                  Company Information
+                </h3>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="company_name"
+                    className="text-xs sm:text-sm font-medium"
+                  >
+                    Company Name
+                  </Label>
+                  <Input
+                    id="company_name"
+                    value={newCustomerCompanyName}
+                    onChange={(e) => setNewCustomerCompanyName(e.target.value)}
+                    placeholder="Enter company name"
+                    className="h-9 sm:h-10 text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="company_address"
+                    className="text-xs sm:text-sm font-medium"
+                  >
+                    Company Address
+                  </Label>
+                  <Input
+                    id="company_address"
+                    value={newCustomerCompanyAddress}
+                    onChange={(e) =>
+                      setNewCustomerCompanyAddress(e.target.value)
+                    }
+                    placeholder="Enter company address"
+                    className="h-9 sm:h-10 text-sm"
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={newCustomerPhone}
-                  onChange={(e) => setNewCustomerPhone(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={newCustomerStatus}
-                  onValueChange={(value: "active" | "inactive") =>
-                    setNewCustomerStatus(value)
-                  }
-                >
-                  <SelectTrigger id="status" className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              {/* Financial Information Section */}
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                  Financial Information
+                </h3>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="balance"
+                    className="text-xs sm:text-sm font-medium"
+                  >
+                    {showNewCustomerDialog ? "Opening Balance" : "Balance"}
+                  </Label>
+                  <Input
+                    id="balance"
+                    type="number"
+                    value={newCustomerOpeningBalance}
+                    onChange={(e) =>
+                      setNewCustomerOpeningBalance(e.target.value)
+                    }
+                    placeholder="0"
+                    className="h-9 sm:h-10 text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Initial balance for this customer account
+                  </p>
+                </div>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -733,6 +998,7 @@ export default function CustomersPage() {
                   setIsEditCustomerDialogOpen(false);
                   resetSelectedCustomer();
                 }}
+                className="h-9 sm:h-10 w-full sm:w-auto"
               >
                 Cancel
               </Button>
@@ -740,8 +1006,101 @@ export default function CustomersPage() {
                 onClick={
                   showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
                 }
+                disabled={
+                  !newCustomerName || newCustomerName.trim() === "" || isSaving
+                }
+                className="h-9 sm:h-10 w-full sm:w-auto sm:min-w-[120px]"
               >
+                {isSaving && (
+                  <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={isViewCustomerDialogOpen}
+          onOpenChange={setIsViewCustomerDialogOpen}
+        >
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-xl sm:text-2xl">
+                Customer Details
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                  Contact Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Name</span>
+                    <div className="text-sm sm:text-base font-medium">
+                      {viewCustomer?.name || "-"}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Phone</span>
+                    <div className="text-sm sm:text-base font-medium">
+                      {viewCustomer?.phone || "-"}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Email</span>
+                  <div className="text-sm sm:text-base font-medium">
+                    {viewCustomer?.email || "-"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                  Company Information
+                </h3>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Company Name
+                  </span>
+                  <div className="text-sm sm:text-base font-medium">
+                    {viewCustomer?.company_name || "-"}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Company Address
+                  </span>
+                  <div className="text-sm sm:text-base font-medium">
+                    {viewCustomer?.company_address || "-"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                  Financial Information
+                </h3>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Balance</span>
+                  <div className="text-sm sm:text-base font-medium">
+                    Rs.{" "}
+                    {viewCustomer?.balance
+                      ? Math.round(viewCustomer.balance)
+                      : "0"}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">
+              <Button
+                variant="secondary"
+                onClick={() => setIsViewCustomerDialogOpen(false)}
+                className="h-9 sm:h-10 w-full sm:w-auto"
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -761,10 +1120,18 @@ export default function CustomersPage() {
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteConfirmationOpen(false)}
+                disabled={isDeleting}
               >
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteCustomer}>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteCustomer}
+                disabled={isDeleting}
+              >
+                {isDeleting && (
+                  <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Delete
               </Button>
             </DialogFooter>

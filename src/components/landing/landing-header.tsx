@@ -2,22 +2,25 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Download } from "lucide-react";
 import { useState } from "react";
 import Logo from "../../../public/images/DukaanKhataLogo.svg";
+import { usePWA } from "@/components/pwa-context";
 
 export function LandingHeader() {
   const locale = useLocale();
+  const t = useTranslations("landing.header");
+  const { dismissedBanner, deferredPrompt, triggerInstall } = usePWA();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigationLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#benefits", label: "Benefits" },
-    { href: "#pricing", label: "Pricing" },
-    { href: "#contact", label: "Contact" },
+    { href: "#features", label: t("features") },
+    { href: "#benefits", label: t("benefits") },
+    { href: "#pricing", label: t("pricing") },
+    { href: "#contact", label: t("contact") },
   ];
 
   return (
@@ -30,7 +33,7 @@ export function LandingHeader() {
         >
           <div className=" flex items-center justify-center">
             {/* <span className="text-primary-foreground text-sm font-bold">D</span> */}
-            <Image src={Logo}  alt="DukaanKhata Logo" width={120} height={120}/>
+            <Image src={Logo} alt="DukaanKhata Logo" width={120} height={120} />
           </div>
           {/* <span className="hidden sm:inline">DukaanKhata</span> */}
         </Link>
@@ -51,6 +54,17 @@ export function LandingHeader() {
         {/* Right Side Actions */}
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
+          {dismissedBanner && deferredPrompt && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={triggerInstall}
+              className="hidden sm:inline-flex gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {t("downloadApp")}
+            </Button>
+          )}
           {/* <Link
             href={`/login`}
             className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -58,11 +72,8 @@ export function LandingHeader() {
             Login
           </Link> */}
           <Link href={`/${locale}/waitlist`}>
-            <Button
-              className="hidden sm:inline-flex"
-              size="sm"
-            >
-              Join Waitlist
+            <Button className="hidden sm:inline-flex" size="sm">
+              {t("joinWaitlist")}
             </Button>
           </Link>
 
@@ -95,12 +106,10 @@ export function LandingHeader() {
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Dashboard
+              {t("dashboard")}
             </Link>
             <Link href={`/${locale}/waitlist`} className="w-full">
-              <Button className="w-full">
-                Join Waitlist
-              </Button>
+              <Button className="w-full">{t("joinWaitlist")}</Button>
             </Link>
           </nav>
         </div>

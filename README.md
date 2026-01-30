@@ -47,6 +47,12 @@ changes done
      NEXT_PUBLIC_GTM_ID=GTM-XXXXXXXXXX
      ```
    - Replace `your_mongodb_connection_string` with your actual MongoDB Atlas connection string
+   - (Optional) Enable PostHog analytics by adding
+     ```
+     NEXT_PUBLIC_POSTHOG_KEY=<POSTHOG_PROJECT_API_KEY>
+     NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+     ```
+     Use your project API key from PostHog and set `NEXT_PUBLIC_POSTHOG_HOST` to your chosen PostHog host (US default shown above).
 4. Seed the database with sample data:
    ```
    npm run seed:mongodb

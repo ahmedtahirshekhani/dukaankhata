@@ -1,31 +1,39 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Zap, Users, TrendingUp } from "lucide-react";
-import { useLocale } from "next-intl";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Zap,
+  Users,
+  TrendingUp,
+  Download,
+} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { usePWA } from "@/components/pwa-context";
 
 export function LandingHero() {
   const locale = useLocale();
+  const t = useTranslations("landing.hero");
+  const { deferredPrompt, triggerInstall } = usePWA();
+
   const features = [
     {
       icon: Zap,
-      title: "Lightning Fast",
-      description:
-        "Quick and easy sales processing with our intuitive POS system",
+      title: t("lightningFastTitle"),
+      description: t("lightningFastDesc"),
     },
     {
       icon: Users,
-      title: "Customer Management",
-      description:
-        "Keep track of all your customers and their purchase history",
+      title: t("customerManagementTitle"),
+      description: t("customerManagementDesc"),
     },
     {
       icon: TrendingUp,
-      title: "Smart Analytics",
-      description:
-        "Get insights into your business performance with detailed reports",
+      title: t("smartAnalyticsTitle"),
+      description: t("smartAnalyticsDesc"),
     },
   ];
 
@@ -39,41 +47,44 @@ export function LandingHero() {
             <div className="flex flex-col justify-center space-y-6">
               <div className="space-y-4">
                 <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
-                  Your Business Management
-                  <span className="text-primary"> Made Simple</span>
+                  {t("title")}
+                  <span className="text-primary"> {t("titleHighlight")}</span>
                 </h1>
                 <p className="text-lg text-muted-foreground md:text-xl">
-                  DukaanKhata is a complete POS and inventory management
-                  solution designed for small businesses in South Asia. Manage
-                  sales, inventory, and customers all in one place.
+                  {t("description")}
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href={`/${locale}/waitlist`}>
                   <Button size="lg" className="gap-2">
-                    Join the Waitlist
+                    {t("joinWaitlistButton")}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline">
-                  Learn More
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={triggerInstall}
+                  disabled={!deferredPrompt}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  {t("downloadAppButton")}
                 </Button>
               </div>
 
               {/* Trust Badges */}
               <div className="flex gap-8 pt-4">
                 <div>
-                  <div className="text-2xl font-bold">500+</div>
+                  <div className="text-2xl font-bold">{t("membersValue")}</div>
                   <p className="text-sm text-muted-foreground">
-                    Waitlist Members
+                    {t("waitlistMembers")}
                   </p>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">99.9%</div>
-                  <p className="text-sm text-muted-foreground">
-                    Uptime Guarantee
-                  </p>
+                  <div className="text-2xl font-bold">{t("uptimeValue")}</div>
+                  <p className="text-sm text-muted-foreground">{t("uptime")}</p>
                 </div>
               </div>
             </div>
@@ -83,7 +94,9 @@ export function LandingHero() {
               <div className="w-full max-w-md h-96 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl border border-primary/20 flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-6xl mb-4">📊</div>
-                  <p className="text-muted-foreground">Dashboard Preview</p>
+                  <p className="text-muted-foreground">
+                    {t("dashboardPreview")}
+                  </p>
                 </div>
               </div>
             </div>
@@ -99,10 +112,10 @@ export function LandingHero() {
         <div className="container mx-auto px-4">
           <div className="text-center space-y-4 mb-12">
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
-              Powerful Features
+              {t("powerfullFeatures")}
             </h2>
             <p className="text-muted-foreground md:text-lg max-w-2xl mx-auto">
-              Everything you need to run your business efficiently
+              {t("powerfullFeaturesDescription")}
             </p>
           </div>
 
@@ -134,21 +147,21 @@ export function LandingHero() {
         <div className="container mx-auto px-4">
           <div className="text-center space-y-4 mb-12">
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
-              Why Choose DukaanKhata?
+              {t("whyChoose")}
             </h2>
             <p className="text-muted-foreground md:text-lg max-w-2xl mx-auto">
-              Trusted by businesses across South Asia
+              {t("whyChooseDesc")}
             </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 max-w-2xl mx-auto">
             {[
-              "Easy-to-use interface designed for everyone",
-              "Support for multiple languages (English, Urdu, Russian)",
-              "Real-time inventory tracking and updates",
-              "Detailed financial reports and analytics",
-              "Secure cloud-based data storage",
-              "24/7 Customer support",
+              t("benefit1"),
+              t("benefit2"),
+              t("benefit3"),
+              t("benefit4"),
+              t("benefit5"),
+              t("benefit6"),
             ].map((benefit, index) => (
               <div key={index} className="flex gap-4">
                 <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0" />
@@ -164,15 +177,14 @@ export function LandingHero() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col items-center justify-center gap-6 text-center">
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
-              Ready to Transform Your Business?
+              {t("ctaTitle")}
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl">
-              Join hundreds of businesses already using DukaanKhata to
-              streamline their operations and boost their growth.
+              {t("ctaDescription")}
             </p>
             <Link href={`/${locale}/waitlist`}>
               <Button size="lg" className="gap-2">
-                Join the Waitlist Now
+                {t("ctaButton")}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
