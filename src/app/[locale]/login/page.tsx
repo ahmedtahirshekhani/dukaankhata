@@ -105,11 +105,13 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      {/* Language Switcher - Top Right Corner */}
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
+
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="pb-3">
-          <div className="mb-4 w-full text-center [&>*]:w-full">
-            <LanguageSwitcher />
-          </div>
           <CardTitle className="text-2xl text-center">
             {t("signInTitle")}
           </CardTitle>
