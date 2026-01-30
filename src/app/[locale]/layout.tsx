@@ -8,6 +8,7 @@ import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { PWAInstallBanner } from "@/components/pwa-install-banner";
 import { PWAProvider } from "@/components/pwa-context";
 import { OfflineIndicator } from "@/components/offline-indicator";
+import GTMUserTracker from "@/components/gtm-user-tracker";
 import "../globals.css";
 
 const locales = ["en", "ur", "ru"] as const;
@@ -48,8 +49,9 @@ export default async function LocalizedRootLayout({
   // Important: Nested layouts must not render <html> or <body>.
   // The root layout at src/app/layout.tsx owns the document shell.
   return (
-    <PWAProvider>
+<PWAProvider>
       <AuthProvider>
+        <GTMUserTracker />
         <AnalyticsProvider>
           <LanguageInitializer />
           <PWAInstallPrompt />
