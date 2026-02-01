@@ -283,7 +283,7 @@ export default function OrdersPage() {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Search orders..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8"
@@ -294,35 +294,35 @@ export default function OrdersPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
                     <FilterIcon className="w-4 h-4" />
-                    <span>Filters</span>
+                    {t("filters")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "all"}
                     onCheckedChange={() => handleFilterChange("all")}
                   >
-                    All Statuses
+                    {t("allStatuses")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "completed"}
                     onCheckedChange={() => handleFilterChange("completed")}
                   >
-                    Completed
+                    {t("completed")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "pending"}
                     onCheckedChange={() => handleFilterChange("pending")}
                   >
-                    Pending
+                    {t("pending")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "cancelled"}
                     onCheckedChange={() => handleFilterChange("cancelled")}
                   >
-                    Cancelled
+                    {t("cancelled")}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -334,13 +334,13 @@ export default function OrdersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice No</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("invoiceNo")}</TableHead>
+                  <TableHead>{t("customer")}</TableHead>
+                  <TableHead>{t("total")}</TableHead>
+                  <TableHead>{t("paid")}</TableHead>
+                  <TableHead>{t("balance")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -382,7 +382,7 @@ export default function OrdersPage() {
                           style={{ display: "none" }}
                         >
                           <Trash2 className="w-4 h-4" />
-                          <span className="sr-only">Delete</span>
+                          <span className="sr-only">{t("delete")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -393,7 +393,7 @@ export default function OrdersPage() {
                           }}
                         >
                           <EyeIcon className="w-4 h-4" />
-                          <span className="sr-only">Show Invoice</span>
+                          <span className="sr-only">{t("showInvoice")}</span>
                         </Button>
                       </div>
                     </TableCell>
@@ -420,12 +420,12 @@ export default function OrdersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {showNewOrderDialog ? "Create New Order" : "Edit Order"}
+                {showNewOrderDialog ? t("createNewOrder") : t("editOrder")}
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customerName">Customer Name</Label>
+                <Label htmlFor="customerName">{t("customerName")}</Label>
                 <Input
                   id="customerName"
                   value={newOrderCustomerName}
@@ -434,7 +434,7 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="total">Total</Label>
+                <Label htmlFor="total">{t("total")}</Label>
                 <Input
                   id="total"
                   type="number"
@@ -444,7 +444,7 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">{t("status")}</Label>
                 <Select
                   value={newOrderStatus}
                   onValueChange={(
@@ -452,12 +452,12 @@ export default function OrdersPage() {
                   ) => setNewOrderStatus(value)}
                 >
                   <SelectTrigger id="status" className="col-span-3">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder={t("selectStatus")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="completed">{t("completed")}</SelectItem>
+                    <SelectItem value="pending">{t("pending")}</SelectItem>
+                    <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -471,12 +471,12 @@ export default function OrdersPage() {
                   resetSelectedOrder();
                 }}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 onClick={showNewOrderDialog ? handleAddOrder : handleEditOrder}
               >
-                {showNewOrderDialog ? "Create Order" : "Update Order"}
+                {showNewOrderDialog ? t("createOrder") : t("updateOrder")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -488,19 +488,18 @@ export default function OrdersPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogTitle>{t("confirmDeletion")}</DialogTitle>
             </DialogHeader>
-            Are you sure you want to delete this order? This action cannot be
-            undone.
+            {t("deleteConfirmation")}
             <DialogFooter>
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteConfirmationOpen(false)}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button variant="destructive" onClick={handleDeleteOrder}>
-                Delete
+                {t("delete")}
               </Button>
             </DialogFooter>
           </DialogContent>

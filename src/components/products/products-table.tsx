@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -40,6 +41,8 @@ export function ProductsTable({
   onDelete,
   capitalizeFirstLetter,
 }: ProductsTableProps) {
+  const t = useTranslations("products");
+
   const truncateDescription = (desc?: string, limit = 100) => {
     if (!desc) return "";
     return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
@@ -52,15 +55,15 @@ export function ProductsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Sell Price</TableHead>
-              <TableHead>Cost Price</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>UOM</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead>{t("sellPrice")}</TableHead>
+              <TableHead>{t("costPrice")}</TableHead>
+              <TableHead>{t("quantity")}</TableHead>
+              <TableHead>{t("uom")}</TableHead>
+              <TableHead>{t("category")}</TableHead>
+              <TableHead>{t("type")}</TableHead>
+              <TableHead>{t("branch")}</TableHead>
+              <TableHead>{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -71,22 +74,26 @@ export function ProductsTable({
                     <span>{product.name}</span>
                     {product.description && (
                       <span className="text-xs text-muted-foreground leading-snug">
-                        {capitalizeFirstLetter(truncateDescription(product.description))}
+                        {capitalizeFirstLetter(
+                          truncateDescription(product.description),
+                        )}
                       </span>
                     )}
                   </div>
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.sell_price !== undefined && product.sell_price !== null
+                  {product.sell_price !== undefined &&
+                  product.sell_price !== null
                     ? `Rs. ${Math.floor(product.sell_price)}`
                     : "-"}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.cost_price !== undefined && product.cost_price !== null
+                  {product.cost_price !== undefined &&
+                  product.cost_price !== null
                     ? `Rs. ${Math.floor(product.cost_price)}`
                     : "-"}
                 </TableCell>
-               
+
                 <TableCell className="text-xs">
                   {product.quantity || product.in_stock || "-"}
                 </TableCell>
@@ -110,7 +117,7 @@ export function ProductsTable({
                       onClick={() => onEdit(product)}
                     >
                       <FilePenIcon className="w-4 h-4" />
-                      <span className="sr-only">Edit</span>
+                      <span className="sr-only">{t("edit")}</span>
                     </Button>
                     <Button
                       size="icon"
@@ -119,7 +126,7 @@ export function ProductsTable({
                       style={{ display: "none" }}
                     >
                       <TrashIcon className="w-4 h-4" />
-                      <span className="sr-only">Delete</span>
+                      <span className="sr-only">{t("delete")}</span>
                     </Button>
                   </div>
                 </TableCell>
@@ -137,7 +144,9 @@ export function ProductsTable({
               <div className="flex-1">
                 <h3 className="font-semibold text-sm">{product.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {capitalizeFirstLetter(truncateDescription(product.description))}
+                  {capitalizeFirstLetter(
+                    truncateDescription(product.description),
+                  )}
                 </p>
               </div>
               <Button
@@ -149,48 +158,60 @@ export function ProductsTable({
                 <FilePenIcon className="w-4 h-4" />
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <span className="text-muted-foreground">Type:</span>
+                <span className="text-muted-foreground">{t("type")}:</span>
                 <span className="ml-1 font-medium">
                   {capitalizeFirstLetter(product.type || "goods")}
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">Category:</span>
+                <span className="text-muted-foreground">{t("category")}:</span>
                 <span className="ml-1 font-medium">
                   {capitalizeFirstLetter(product.category)}
                 </span>
               </div>
-              
-              {product.sell_price !== undefined && product.sell_price !== null && (
-                <div>
-                  <span className="text-muted-foreground">Sell Price:</span>
-                  <span className="ml-1 font-medium">Rs. {Math.floor(product.sell_price)}</span>
-                </div>
-              )}
-              
-              {product.cost_price !== undefined && product.cost_price !== null && (
-                <div>
-                  <span className="text-muted-foreground">Cost Price:</span>
-                  <span className="ml-1 font-medium">Rs. {Math.floor(product.cost_price)}</span>
-                </div>
-              )}
-              
-              
+
+              {product.sell_price !== undefined &&
+                product.sell_price !== null && (
+                  <div>
+                    <span className="text-muted-foreground">
+                      {t("sellPrice")}:
+                    </span>
+                    <span className="ml-1 font-medium">
+                      Rs. {Math.floor(product.sell_price)}
+                    </span>
+                  </div>
+                )}
+
+              {product.cost_price !== undefined &&
+                product.cost_price !== null && (
+                  <div>
+                    <span className="text-muted-foreground">
+                      {t("costPrice")}:
+                    </span>
+                    <span className="ml-1 font-medium">
+                      Rs. {Math.floor(product.cost_price)}
+                    </span>
+                  </div>
+                )}
+
               {(product.quantity || product.in_stock) && (
                 <div>
-                  <span className="text-muted-foreground">Quantity:</span>
+                  <span className="text-muted-foreground">
+                    {t("quantity")}:
+                  </span>
                   <span className="ml-1 font-medium">
-                    {product.quantity || product.in_stock} {capitalizeFirstLetter(product.unit_of_measurement)}
+                    {product.quantity || product.in_stock}{" "}
+                    {capitalizeFirstLetter(product.unit_of_measurement)}
                   </span>
                 </div>
               )}
-              
+
               {product.branch && (
                 <div>
-                  <span className="text-muted-foreground">Branch:</span>
+                  <span className="text-muted-foreground">{t("branch")}:</span>
                   <span className="ml-1 font-medium">
                     {capitalizeFirstLetter(product.branch)}
                   </span>
@@ -199,10 +220,10 @@ export function ProductsTable({
             </div>
           </Card>
         ))}
-        
+
         {products.length === 0 && (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            No products found
+            {t("noProductsFound")}
           </div>
         )}
       </div>

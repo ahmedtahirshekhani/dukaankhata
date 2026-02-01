@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -11,8 +16,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
-import { InvoicePreview, type InvoiceCharge, type InvoiceProduct } from "@/components/invoice/invoice-preview";
+import {
+  InvoicePreview,
+  type InvoiceCharge,
+  type InvoiceProduct,
+} from "@/components/invoice/invoice-preview";
 import { PaymentDialog } from "@/components/invoice/payment-dialog";
+import { useTranslations } from "next-intl";
 
 interface InvoicePreviewDialogProps {
   open: boolean;
@@ -69,20 +79,32 @@ export function InvoicePreviewDialog({
   companyName,
   customerNotes = "",
 }: InvoicePreviewDialogProps) {
-  const [noPaymentAtAll, setNoPaymentAtAll] = useState(initialPayment?.no_payment_at_all || false);
+  const t = useTranslations("invoice");
+  const [noPaymentAtAll, setNoPaymentAtAll] = useState(
+    initialPayment?.no_payment_at_all || false,
+  );
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(initialPayment?.method || "");
-  const [paidAmount, setPaidAmount] = useState<number>(initialPayment?.paid_amount || 0);
+  const [paymentMethod, setPaymentMethod] = useState(
+    initialPayment?.method || "",
+  );
+  const [paidAmount, setPaidAmount] = useState<number>(
+    initialPayment?.paid_amount || 0,
+  );
   const [paidDate, setPaidDate] = useState<string | null>(
-    initialPayment?.paid_date ? new Date(initialPayment.paid_date).toISOString().split("T")[0] : null
+    initialPayment?.paid_date
+      ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+      : null,
   );
   const invoiceRef = useRef<HTMLDivElement | null>(null);
   const isCreatingRef = useRef(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [includeSignature, setIncludeSignature] = useState(true);
-  const [requestCustomerSignature, setRequestCustomerSignature] = useState(false);
-  const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">("a4");
+  const [requestCustomerSignature, setRequestCustomerSignature] =
+    useState(false);
+  const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">(
+    "a4",
+  );
   const getToday = () => {
     const d = new Date();
     const y = d.getFullYear();
@@ -90,50 +112,65 @@ export function InvoicePreviewDialog({
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
-  const [paymentSeed, setPaymentSeed] = useState<{ amount: number; method: string; date: string }>(() => ({
+  const [paymentSeed, setPaymentSeed] = useState<{
+    amount: number;
+    method: string;
+    date: string;
+  }>(() => ({
     amount: initialPayment?.paid_amount || total,
     method: initialPayment?.method || "",
-    date: initialPayment?.paid_date ? new Date(initialPayment.paid_date).toISOString().split("T")[0] : getToday(),
+    date: initialPayment?.paid_date
+      ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+      : getToday(),
   }));
 
   useEffect(() => {
     const loadBranding = async () => {
       try {
         // Check localStorage first
-        const cachedLogo = typeof window !== 'undefined' ? localStorage.getItem('companyLogo') : null;
-        const cachedSignature = typeof window !== 'undefined' ? localStorage.getItem('invoiceSignature') : null;
-        
+        const cachedLogo =
+          typeof window !== "undefined"
+            ? localStorage.getItem("companyLogo")
+            : null;
+        const cachedSignature =
+          typeof window !== "undefined"
+            ? localStorage.getItem("invoiceSignature")
+            : null;
+
         // Set cached values if available
         if (cachedLogo) setCompanyLogo(cachedLogo);
         if (cachedSignature) setSignatureImage(cachedSignature);
-        
+
         // Always fetch from API to ensure we have latest data
-        const locale = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : '';
-        const res = await fetch(`/${locale || ''}/api/configuration/assets`);
+        const locale =
+          typeof window !== "undefined"
+            ? window.location.pathname.split("/")[1]
+            : "";
+        const res = await fetch(`/${locale || ""}/api/configuration/assets`);
         const data = await res.json();
         if (res.ok) {
           const logo = data.companyLogo || null;
           const sig = data.signatureImage || null;
-          
+
           // Update state with API data
           setCompanyLogo(logo);
           setSignatureImage(sig);
-          
+
           // Update localStorage cache
           if (logo) {
-            localStorage.setItem('companyLogo', logo);
+            localStorage.setItem("companyLogo", logo);
           } else {
-            localStorage.removeItem('companyLogo');
+            localStorage.removeItem("companyLogo");
           }
           if (sig) {
-            localStorage.setItem('invoiceSignature', sig);
+            localStorage.setItem("invoiceSignature", sig);
           } else {
-            localStorage.removeItem('invoiceSignature');
+            localStorage.removeItem("invoiceSignature");
           }
         }
       } catch (err) {
         // Silent fail; fall back to cached values if they exist
-        console.error('branding fetch failed', err);
+        console.error("branding fetch failed", err);
       }
     };
     loadBranding();
@@ -143,9 +180,9 @@ export function InvoicePreviewDialog({
     if (!invoiceRef.current) return;
     const mod = await import("html2pdf.js");
     const html2pdf = mod.default || mod;
-    
+
     let opt: any;
-    
+
     switch (printFormat) {
       case "thermal":
         // Thermal printer (80mm width, common for receipts)
@@ -179,7 +216,7 @@ export function InvoicePreviewDialog({
         };
         break;
     }
-    
+
     html2pdf().set(opt).from(invoiceRef.current).save();
   };
 
@@ -202,14 +239,22 @@ export function InvoicePreviewDialog({
   return (
     <React.Fragment>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={`max-h-[90vh] overflow-y-auto ${
-          printFormat === "thermal" ? "max-w-md" : "max-w-4xl"
-        }`}>
+        <DialogContent
+          className={`max-h-[90vh] overflow-y-auto ${
+            printFormat === "thermal" ? "max-w-md" : "max-w-4xl"
+          }`}
+        >
           <DialogHeader>
-            <DialogTitle>Invoice Preview</DialogTitle>
+            <DialogTitle>{t("invoicePreview")}</DialogTitle>
           </DialogHeader>
 
-          <div className={hidePaymentActions ? "flex flex-col gap-4" : "grid grid-cols-3 gap-6"}>
+          <div
+            className={
+              hidePaymentActions
+                ? "flex flex-col gap-4"
+                : "grid grid-cols-3 gap-6"
+            }
+          >
             <div className={hidePaymentActions ? "w-full" : "col-span-2"}>
               <InvoicePreview
                 ref={invoiceRef}
@@ -239,7 +284,9 @@ export function InvoicePreviewDialog({
             {hidePaymentActions ? (
               <div className="flex flex-col gap-4 pt-4">
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Print Format</Label>
+                  <Label className="text-sm font-medium">
+                    {t("printFormat")}
+                  </Label>
                   <div className="flex flex-col gap-2">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -250,7 +297,7 @@ export function InvoicePreviewDialog({
                         onChange={(e) => setPrintFormat("a4")}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm">A4 Size (Standard)</span>
+                      <span className="text-sm">{t("a4Standard")}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -261,7 +308,7 @@ export function InvoicePreviewDialog({
                         onChange={(e) => setPrintFormat("thermal")}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm">Thermal Receipt (80mm)</span>
+                      <span className="text-sm">{t("thermalReceipt")}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -272,12 +319,12 @@ export function InvoicePreviewDialog({
                         onChange={(e) => setPrintFormat("letter")}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm">Letter Size (US)</span>
+                      <span className="text-sm">{t("letterSizeUS")}</span>
                     </label>
                   </div>
                 </div>
                 <Button onClick={handleDownloadPdf} variant="default">
-                  Download Invoice
+                  {t("downloadInvoice")}
                 </Button>
               </div>
             ) : (
@@ -293,7 +340,7 @@ export function InvoicePreviewDialog({
                         className="w-full"
                         variant="outline"
                       >
-                        Edit Payment
+                        {t("editPayment")}
                       </Button>
                     ) : (
                       <Button
@@ -306,7 +353,7 @@ export function InvoicePreviewDialog({
                         className="w-full"
                         variant={noPaymentAtAll ? "outline" : "default"}
                       >
-                        Make Payment
+                        {t("makePayment")}
                       </Button>
                     )}
                     <div className="flex items-center gap-2 px-2">
@@ -324,14 +371,17 @@ export function InvoicePreviewDialog({
                         }}
                         className="w-4 h-4 rounded"
                       />
-                      <label htmlFor="no-payment" className="text-sm cursor-pointer">
-                        No Payment At All
+                      <label
+                        htmlFor="no-payment"
+                        className="text-sm cursor-pointer"
+                      >
+                        {t("noPaymentAtAll")}
                       </label>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between px-1 gap-3">
-                    <Label className="text-sm">Include signature in invoice</Label>
+                    <Label className="text-sm">{t("includeSignature")}</Label>
                     <button
                       type="button"
                       role="switch"
@@ -346,7 +396,9 @@ export function InvoicePreviewDialog({
                   </div>
 
                   <div className="flex items-center justify-between px-1 gap-3">
-                    <Label className="text-sm">Request customer signature</Label>
+                    <Label className="text-sm">
+                      {t("requestCustomerSignature")}
+                    </Label>
                     <button
                       type="button"
                       role="switch"
@@ -374,13 +426,15 @@ export function InvoicePreviewDialog({
                       className="w-full"
                       disabled={!(isPaymentMade || noPaymentAtAll)}
                     >
-                      Create Order
+                      {t("createOrder")}
                     </Button>
                   </div>
 
                   <div className="pt-2 border-t">
                     <div className="space-y-2 mb-3">
-                      <Label className="text-xs font-medium">Print Format</Label>
+                      <Label className="text-xs font-medium">
+                        {t("printFormat")}
+                      </Label>
                       <div className="flex flex-col gap-1.5">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -391,7 +445,7 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("a4")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">A4 Size</span>
+                          <span className="text-xs">{t("a4Size")}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -402,7 +456,9 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("thermal")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">Thermal Receipt</span>
+                          <span className="text-xs">
+                            {t("thermalReceiptShort")}
+                          </span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -413,7 +469,7 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("letter")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">Letter Size</span>
+                          <span className="text-xs">{t("letterSize")}</span>
                         </label>
                       </div>
                     </div>
@@ -422,7 +478,7 @@ export function InvoicePreviewDialog({
                       onClick={handleDownloadPdf}
                       className="text-xs underline text-muted-foreground hover:text-foreground"
                     >
-                      Download Invoice
+                      {t("downloadInvoice")}
                     </button>
                   </div>
                 </div>

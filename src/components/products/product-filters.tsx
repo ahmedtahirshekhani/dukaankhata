@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,23 +50,31 @@ export function ProductFilters({
   capitalizeFirstLetter,
   isMobileDialog = false,
 }: ProductFiltersProps) {
+  const t = useTranslations("products");
+
   // Check if any filters are active
-  const hasActiveFilters = 
+  const hasActiveFilters =
     filters.type !== "all" ||
     filters.category !== "all" ||
     filters.branch !== "all" ||
     priceRanges.sellPriceMin !== "" ||
     priceRanges.sellPriceMax !== "" ||
     priceRanges.costPriceMin !== "" ||
-    priceRanges.costPriceMax !== ""
+    priceRanges.costPriceMax !== "";
 
   return (
-    <div className={isMobileDialog ? "flex flex-col gap-3 w-full" : "flex items-center gap-2 w-full md:w-auto overflow-x-auto"}>
+    <div
+      className={
+        isMobileDialog
+          ? "flex flex-col gap-3 w-full"
+          : "flex items-center gap-2 w-full md:w-auto overflow-x-auto"
+      }
+    >
       {/* Desktop Search - Hidden on Mobile */}
       <div className="hidden md:block relative w-48 flex-shrink-0">
         <Input
           type="text"
-          placeholder="Search products..."
+          placeholder={t("searchPlaceholder")}
           value={searchTerm}
           onChange={onSearchChange}
           className="pr-8 h-9 text-sm"
@@ -76,34 +85,44 @@ export function ProductFilters({
       {/* Type Filter */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1 h-9 text-xs flex-shrink-0">
-            <span className="text-muted-foreground hidden sm:inline">Type:</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 h-9 text-xs flex-shrink-0"
+          >
+            <span className="text-muted-foreground hidden sm:inline">
+              {t("typeLabel")}
+            </span>
             <span>
-              {filters.type === "all" ? "All" : filters.type === "goods" ? "Goods" : "Services"}
+              {filters.type === "all"
+                ? t("all")
+                : filters.type === "goods"
+                  ? t("goods")
+                  : t("services")}
             </span>
             <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuLabel>Type</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("type")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
             checked={filters.type === "all"}
             onCheckedChange={() => onFilterChange("type", "all")}
           >
-            All
+            {t("all")}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={filters.type === "goods"}
             onCheckedChange={() => onFilterChange("type", "goods")}
           >
-            Goods
+            {t("goods")}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={filters.type === "services"}
             onCheckedChange={() => onFilterChange("type", "services")}
           >
-            Services
+            {t("services")}
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -111,20 +130,31 @@ export function ProductFilters({
       {/* Category Filter */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1 h-9 text-xs flex-shrink-0">
-            <span className="text-muted-foreground hidden sm:inline">Category:</span>
-            <span className="truncate max-w-[80px] sm:max-w-none">{filters.category === "all" ? "All" : filters.category}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 h-9 text-xs flex-shrink-0"
+          >
+            <span className="text-muted-foreground hidden sm:inline">
+              {t("categoryLabel")}
+            </span>
+            <span className="truncate max-w-[80px] sm:max-w-none">
+              {filters.category === "all" ? t("all") : filters.category}
+            </span>
             <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40 max-h-64 overflow-y-auto">
-          <DropdownMenuLabel>Category</DropdownMenuLabel>
+        <DropdownMenuContent
+          align="end"
+          className="w-40 max-h-64 overflow-y-auto"
+        >
+          <DropdownMenuLabel>{t("category")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
             checked={filters.category === "all"}
             onCheckedChange={() => onFilterChange("category", "all")}
           >
-            All
+            {t("all")}
           </DropdownMenuCheckboxItem>
           {categories.map((cat) => (
             <DropdownMenuCheckboxItem
@@ -141,20 +171,31 @@ export function ProductFilters({
       {/* Branch Filter */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1 h-9 text-xs flex-shrink-0">
-            <span className="text-muted-foreground hidden sm:inline">Branch:</span>
-            <span className="truncate max-w-[80px] sm:max-w-none">{filters.branch === "all" ? "All" : filters.branch}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 h-9 text-xs flex-shrink-0"
+          >
+            <span className="text-muted-foreground hidden sm:inline">
+              {t("branchLabel")}
+            </span>
+            <span className="truncate max-w-[80px] sm:max-w-none">
+              {filters.branch === "all" ? t("all") : filters.branch}
+            </span>
             <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40 max-h-64 overflow-y-auto">
-          <DropdownMenuLabel>Branch</DropdownMenuLabel>
+        <DropdownMenuContent
+          align="end"
+          className="w-40 max-h-64 overflow-y-auto"
+        >
+          <DropdownMenuLabel>{t("branch")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
             checked={filters.branch === "all"}
             onCheckedChange={() => onFilterChange("branch", "all")}
           >
-            All
+            {t("all")}
           </DropdownMenuCheckboxItem>
           {branches.map((branch) => (
             <DropdownMenuCheckboxItem
@@ -171,63 +212,85 @@ export function ProductFilters({
       {/* Price Range Filters */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1 h-9 flex-shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 h-9 flex-shrink-0"
+          >
             <FilterIcon className="w-3 h-3" />
-            <span className="text-xs hidden sm:inline">Price Ranges</span>
-            <span className="text-xs sm:hidden">Price</span>
+            <span className="text-xs hidden sm:inline">{t("priceRanges")}</span>
+            <span className="text-xs sm:hidden">{t("price")}</span>
             <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72 sm:w-80 p-4">
           <div className="space-y-4">
             <div>
-              <Label className="text-xs font-semibold mb-2 block">Sell Price Range</Label>
+              <Label className="text-xs font-semibold mb-2 block">
+                {t("sellPriceRange")}
+              </Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
-                  placeholder="Min"
+                  placeholder={t("min")}
                   value={priceRanges.sellPriceMin}
-                  onChange={(e) => onPriceRangeChange("sellPriceMin", e.target.value)}
+                  onChange={(e) =>
+                    onPriceRangeChange("sellPriceMin", e.target.value)
+                  }
                   className="h-8 text-xs"
                 />
                 <Input
                   type="number"
-                  placeholder="Max"
+                  placeholder={t("max")}
                   value={priceRanges.sellPriceMax}
-                  onChange={(e) => onPriceRangeChange("sellPriceMax", e.target.value)}
+                  onChange={(e) =>
+                    onPriceRangeChange("sellPriceMax", e.target.value)
+                  }
                   className="h-8 text-xs"
                 />
               </div>
             </div>
             <div>
-              <Label className="text-xs font-semibold mb-2 block">Cost Price Range</Label>
+              <Label className="text-xs font-semibold mb-2 block">
+                {t("costPriceRange")}
+              </Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
-                  placeholder="Min"
+                  placeholder={t("min")}
                   value={priceRanges.costPriceMin}
-                  onChange={(e) => onPriceRangeChange("costPriceMin", e.target.value)}
+                  onChange={(e) =>
+                    onPriceRangeChange("costPriceMin", e.target.value)
+                  }
                   className="h-8 text-xs"
                 />
                 <Input
                   type="number"
-                  placeholder="Max"
+                  placeholder={t("max")}
                   value={priceRanges.costPriceMax}
-                  onChange={(e) => onPriceRangeChange("costPriceMax", e.target.value)}
+                  onChange={(e) =>
+                    onPriceRangeChange("costPriceMax", e.target.value)
+                  }
                   className="h-8 text-xs"
                 />
               </div>
             </div>
-        
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
 
       {/* Reset Filters Button - Icon only on mobile, only show if filters active */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={onClearAll} className="h-9 w-9 md:w-auto md:px-3 p-0 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearAll}
+          className="h-9 w-9 md:w-auto md:px-3 p-0 flex-shrink-0"
+        >
           <XIcon className="w-4 h-4" />
-          <span className="hidden md:inline md:ml-1 text-xs">Reset Filters</span>
+          <span className="hidden md:inline md:ml-1 text-xs">
+            {t("resetFilters")}
+          </span>
         </Button>
       )}
     </div>

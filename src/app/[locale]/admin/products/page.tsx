@@ -427,7 +427,7 @@ export default function Products() {
               <div className="col-span-2 relative">
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="w-full h-9 text-sm px-3 pr-8 border rounded-md"
@@ -440,7 +440,7 @@ export default function Products() {
                 className="h-9 text-xs px-2"
               >
                 <PlusIcon className="w-3 h-3 mr-1" />
-                Add
+                {t("add")}
               </Button>
             </div>
 
@@ -458,7 +458,7 @@ export default function Products() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -519,7 +519,7 @@ export default function Products() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleDownloadExcel}
@@ -575,16 +575,16 @@ export default function Products() {
                 className="h-9 text-xs"
               >
                 <FilterIcon className="w-3 h-3 mr-1" />
-                Filters
+                {t("filters")}
               </Button>
               <div className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-                Total: {filteredProducts.length.toLocaleString()}
+                {t("total")}: {filteredProducts.length.toLocaleString()}
               </div>
             </div>
 
             {/* Desktop Total */}
             <div className="hidden md:flex text-xs text-muted-foreground justify-end">
-              Total: {filteredProducts.length.toLocaleString()}
+              {t("total")}: {filteredProducts.length.toLocaleString()}
             </div>
           </div>
         </CardHeader>
@@ -621,21 +621,18 @@ export default function Products() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this product? This action cannot
-              be undone.
-            </DialogDescription>
+            <DialogTitle>{t("confirmDeletion")}</DialogTitle>
+            <DialogDescription>{t("deleteConfirmMessage")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setIsDeleteConfirmationOpen(false)}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDeleteProduct}>
-              Delete
+              {t("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -644,10 +641,8 @@ export default function Products() {
       <Dialog open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
         <DialogContent className="max-w-[90vw] sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Filters</DialogTitle>
-            <DialogDescription>
-              Filter products by type, category, branch, and price ranges.
-            </DialogDescription>
+            <DialogTitle>{t("filters")}</DialogTitle>
+            <DialogDescription>{t("filterDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* 2 Filters per row */}
@@ -660,19 +655,21 @@ export default function Products() {
                     size="sm"
                     className="gap-1 h-9 text-xs justify-start w-full"
                   >
-                    <span className="text-muted-foreground">Type:</span>
+                    <span className="text-muted-foreground">
+                      {t("typeLabel")}
+                    </span>
                     <span>
                       {mobileFilters.type === "all"
-                        ? "All"
+                        ? t("all")
                         : mobileFilters.type === "goods"
-                          ? "Goods"
-                          : "Services"}
+                          ? t("goods")
+                          : t("services")}
                     </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-32">
-                  <DropdownMenuLabel>Type</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("type")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.type === "all"}
@@ -680,7 +677,7 @@ export default function Products() {
                       handleMobileFilterChange("type", "all")
                     }
                   >
-                    All
+                    {t("all")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.type === "goods"}
@@ -688,7 +685,7 @@ export default function Products() {
                       handleMobileFilterChange("type", "goods")
                     }
                   >
-                    Goods
+                    {t("goods")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.type === "services"}
@@ -696,7 +693,7 @@ export default function Products() {
                       handleMobileFilterChange("type", "services")
                     }
                   >
-                    Services
+                    {t("services")}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -709,10 +706,12 @@ export default function Products() {
                     size="sm"
                     className="gap-1 h-9 text-xs justify-start w-full"
                   >
-                    <span className="text-muted-foreground">Category:</span>
+                    <span className="text-muted-foreground">
+                      {t("categoryLabel")}
+                    </span>
                     <span className="truncate">
                       {mobileFilters.category === "all"
-                        ? "All"
+                        ? t("all")
                         : mobileFilters.category}
                     </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
@@ -722,7 +721,7 @@ export default function Products() {
                   align="end"
                   className="w-40 max-h-64 overflow-y-auto"
                 >
-                  <DropdownMenuLabel>Category</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("category")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.category === "all"}
@@ -730,7 +729,7 @@ export default function Products() {
                       handleMobileFilterChange("category", "all")
                     }
                   >
-                    All
+                    {t("all")}
                   </DropdownMenuCheckboxItem>
                   {categories.map((cat) => (
                     <DropdownMenuCheckboxItem
@@ -754,10 +753,12 @@ export default function Products() {
                     size="sm"
                     className="gap-1 h-9 text-xs justify-start w-full"
                   >
-                    <span className="text-muted-foreground">Branch:</span>
+                    <span className="text-muted-foreground">
+                      {t("branchLabel")}
+                    </span>
                     <span className="truncate">
                       {mobileFilters.branch === "all"
-                        ? "All"
+                        ? t("all")
                         : mobileFilters.branch}
                     </span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
@@ -767,7 +768,7 @@ export default function Products() {
                   align="end"
                   className="w-40 max-h-64 overflow-y-auto"
                 >
-                  <DropdownMenuLabel>Branch</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("branch")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={mobileFilters.branch === "all"}
@@ -775,7 +776,7 @@ export default function Products() {
                       handleMobileFilterChange("branch", "all")
                     }
                   >
-                    All
+                    {t("all")}
                   </DropdownMenuCheckboxItem>
                   {branches.map((branch) => (
                     <DropdownMenuCheckboxItem
@@ -800,7 +801,7 @@ export default function Products() {
                     className="gap-1 h-9 text-xs justify-start w-full"
                   >
                     <FilterIcon className="w-3 h-3" />
-                    <span>Price Ranges</span>
+                    <span>{t("priceRanges")}</span>
                     <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -808,12 +809,12 @@ export default function Products() {
                   <div className="space-y-4">
                     <div>
                       <Label className="text-xs font-semibold mb-2 block">
-                        Sell Price Range
+                        {t("sellPriceRange")}
                       </Label>
                       <div className="flex gap-2">
                         <Input
                           type="number"
-                          placeholder="Min"
+                          placeholder={t("min")}
                           value={mobilePriceRanges.sellPriceMin}
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
@@ -825,7 +826,7 @@ export default function Products() {
                         />
                         <Input
                           type="number"
-                          placeholder="Max"
+                          placeholder={t("max")}
                           value={mobilePriceRanges.sellPriceMax}
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
@@ -839,12 +840,12 @@ export default function Products() {
                     </div>
                     <div>
                       <Label className="text-xs font-semibold mb-2 block">
-                        Cost Price Range
+                        {t("costPriceRange")}
                       </Label>
                       <div className="flex gap-2">
                         <Input
                           type="number"
-                          placeholder="Min"
+                          placeholder={t("min")}
                           value={mobilePriceRanges.costPriceMin}
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
@@ -856,7 +857,7 @@ export default function Products() {
                         />
                         <Input
                           type="number"
-                          placeholder="Max"
+                          placeholder={t("max")}
                           value={mobilePriceRanges.costPriceMax}
                           onChange={(e) =>
                             handleMobilePriceRangeChange(
@@ -898,10 +899,12 @@ export default function Products() {
                   });
                 }}
               >
-                Reset Filters
+                {t("resetFilters")}
               </Button>
             )}
-            <Button onClick={handleApplyMobileFilters}>Apply Filters</Button>
+            <Button onClick={handleApplyMobileFilters}>
+              {t("applyFilters")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

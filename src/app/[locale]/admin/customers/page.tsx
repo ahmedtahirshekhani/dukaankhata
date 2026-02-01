@@ -87,8 +87,10 @@ export default function CustomersPage() {
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerCompanyName, setNewCustomerCompanyName] = useState("");
-  const [newCustomerCompanyAddress, setNewCustomerCompanyAddress] = useState("");
-  const [newCustomerOpeningBalance, setNewCustomerOpeningBalance] = useState("");
+  const [newCustomerCompanyAddress, setNewCustomerCompanyAddress] =
+    useState("");
+  const [newCustomerOpeningBalance, setNewCustomerOpeningBalance] =
+    useState("");
   const [newCustomerStatus, setNewCustomerStatus] = useState<
     "active" | "inactive"
   >("active");
@@ -171,11 +173,11 @@ export default function CustomersPage() {
 
   const handleAddCustomer = useCallback(async () => {
     // Validate required fields
-    if (!newCustomerName || newCustomerName.trim() === '') {
+    if (!newCustomerName || newCustomerName.trim() === "") {
       setErrorDialog({
         open: true,
-        title: 'Validation Error',
-        message: 'Customer name is required',
+        title: "Validation Error",
+        message: "Customer name is required",
       });
       return;
     }
@@ -188,7 +190,9 @@ export default function CustomersPage() {
         phone: newCustomerPhone,
         company_name: newCustomerCompanyName,
         company_address: newCustomerCompanyAddress,
-        opening_balance: newCustomerOpeningBalance ? parseFloat(newCustomerOpeningBalance) : 0,
+        opening_balance: newCustomerOpeningBalance
+          ? parseFloat(newCustomerOpeningBalance)
+          : 0,
         status: newCustomerStatus,
       };
       const response = await fetch("/api/customers", {
@@ -204,7 +208,9 @@ export default function CustomersPage() {
       try {
         createdCustomer = JSON.parse(text);
       } catch (e) {
-        throw new Error(`Server response error: ${text || response.statusText}`);
+        throw new Error(
+          `Server response error: ${text || response.statusText}`,
+        );
       }
 
       if (!response.ok) {
@@ -214,19 +220,20 @@ export default function CustomersPage() {
       setCustomers([...customers, createdCustomer]);
       setShowNewCustomerDialog(false);
       resetSelectedCustomer();
-      
+
       setErrorDialog({
         open: true,
-        title: 'Success',
-        message: 'Customer created successfully',
+        title: "Success",
+        message: "Customer created successfully",
         isSuccess: true,
       });
     } catch (error) {
       console.error(error);
       setErrorDialog({
         open: true,
-        title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to create customer',
+        title: "Error",
+        message:
+          error instanceof Error ? error.message : "Failed to create customer",
       });
     } finally {
       setIsSaving(false);
@@ -246,11 +253,11 @@ export default function CustomersPage() {
     if (!selectedCustomerId) return;
 
     // Validate required fields
-    if (!newCustomerName || newCustomerName.trim() === '') {
+    if (!newCustomerName || newCustomerName.trim() === "") {
       setErrorDialog({
         open: true,
-        title: 'Validation Error',
-        message: 'Customer name is required',
+        title: "Validation Error",
+        message: "Customer name is required",
       });
       return;
     }
@@ -264,10 +271,12 @@ export default function CustomersPage() {
         phone: newCustomerPhone,
         company_name: newCustomerCompanyName,
         company_address: newCustomerCompanyAddress,
-        opening_balance: newCustomerOpeningBalance ? parseFloat(newCustomerOpeningBalance) : 0,
+        opening_balance: newCustomerOpeningBalance
+          ? parseFloat(newCustomerOpeningBalance)
+          : 0,
         status: newCustomerStatus,
       };
-      
+
       const response = await fetch(`/api/customers/${selectedCustomerId}`, {
         method: "PUT",
         headers: {
@@ -289,19 +298,20 @@ export default function CustomersPage() {
       );
       setIsEditCustomerDialogOpen(false);
       resetSelectedCustomer();
-      
+
       setErrorDialog({
         open: true,
-        title: 'Success',
-        message: 'Customer updated successfully',
+        title: "Success",
+        message: "Customer updated successfully",
         isSuccess: true,
       });
     } catch (error) {
       console.error(error);
       setErrorDialog({
         open: true,
-        title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to update customer',
+        title: "Error",
+        message:
+          error instanceof Error ? error.message : "Failed to update customer",
       });
     } finally {
       setIsSaving(false);
@@ -320,7 +330,7 @@ export default function CustomersPage() {
 
   const handleDeleteCustomer = useCallback(async () => {
     if (!customerToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       const response = await fetch(`/api/customers/${customerToDelete.id}`, {
@@ -336,19 +346,20 @@ export default function CustomersPage() {
       setCustomers(customers.filter((c) => c.id !== customerToDelete.id));
       setIsDeleteConfirmationOpen(false);
       setCustomerToDelete(null);
-      
+
       setErrorDialog({
         open: true,
-        title: 'Success',
-        message: 'Customer deleted successfully',
+        title: "Success",
+        message: "Customer deleted successfully",
         isSuccess: true,
       });
     } catch (error) {
       console.error(error);
       setErrorDialog({
         open: true,
-        title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to delete customer',
+        title: "Error",
+        message:
+          error instanceof Error ? error.message : "Failed to delete customer",
       });
     } finally {
       setIsDeleting(false);
@@ -515,7 +526,7 @@ export default function CustomersPage() {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Search customers..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8"
@@ -526,29 +537,29 @@ export default function CustomersPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
                     <FilterIcon className="w-4 h-4" />
-                    <span>Filters</span>
+                    {t("filters")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "all"}
                     onCheckedChange={() => handleFilterChange("all")}
                   >
-                    All Statuses
+                    {t("allStatuses")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "active"}
                     onCheckedChange={() => handleFilterChange("active")}
                   >
-                    Active
+                    {t("active")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "inactive"}
                     onCheckedChange={() => handleFilterChange("inactive")}
                   >
-                    Inactive
+                    {t("inactive")}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -566,7 +577,7 @@ export default function CustomersPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -600,7 +611,7 @@ export default function CustomersPage() {
               />
               <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
                 <PlusCircle className="w-4 h-4 mr-2" />
-                Add Customer
+                {t("addCustomer")}
               </Button>
             </div>
           </div>
@@ -611,7 +622,7 @@ export default function CustomersPage() {
               <div className="relative flex-1">
                 <Input
                   type="text"
-                  placeholder="Search customers..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8"
@@ -622,29 +633,29 @@ export default function CustomersPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1 h-9">
                     <FilterIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">Filters</span>
+                    <span className="hidden sm:inline">{t("filters")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "all"}
                     onCheckedChange={() => handleFilterChange("all")}
                   >
-                    All Statuses
+                    {t("allStatuses")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "active"}
                     onCheckedChange={() => handleFilterChange("active")}
                   >
-                    Active
+                    {t("active")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "inactive"}
                     onCheckedChange={() => handleFilterChange("inactive")}
                   >
-                    Inactive
+                    {t("inactive")}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -654,7 +665,7 @@ export default function CustomersPage() {
                 className="h-9 min-h-[44px]"
               >
                 <PlusCircle className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Add</span>
+                <span className="hidden sm:inline">{t("add")}</span>
               </Button>
             </div>
             <div className="flex justify-end">
@@ -670,7 +681,7 @@ export default function CustomersPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -710,11 +721,11 @@ export default function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Company Name</TableHead>
-                  <TableHead>Opening Balance</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("phone")}</TableHead>
+                  <TableHead>{t("companyName")}</TableHead>
+                  <TableHead>{t("openingBalance")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -722,8 +733,13 @@ export default function CustomersPage() {
                   <TableRow key={customer.id}>
                     <TableCell>{customer.name}</TableCell>
                     <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.company_name || '-'}</TableCell>
-                    <TableCell>Rs. {customer.opening_balance ? Math.round(customer.opening_balance) : '0'}</TableCell>
+                    <TableCell>{customer.company_name || "-"}</TableCell>
+                    <TableCell>
+                      Rs.{" "}
+                      {customer.opening_balance
+                        ? Math.round(customer.opening_balance)
+                        : "0"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
@@ -735,7 +751,7 @@ export default function CustomersPage() {
                           }}
                         >
                           <Eye className="w-4 h-4" />
-                          <span className="sr-only">View</span>
+                          <span className="sr-only">{t("view")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -745,15 +761,21 @@ export default function CustomersPage() {
                             setNewCustomerName(customer.name);
                             setNewCustomerEmail(customer.email);
                             setNewCustomerPhone(customer.phone);
-                            setNewCustomerCompanyName(customer.company_name || "");
-                            setNewCustomerCompanyAddress(customer.company_address || "");
-                            setNewCustomerOpeningBalance(customer.opening_balance?.toString() || "");
+                            setNewCustomerCompanyName(
+                              customer.company_name || "",
+                            );
+                            setNewCustomerCompanyAddress(
+                              customer.company_address || "",
+                            );
+                            setNewCustomerOpeningBalance(
+                              customer.opening_balance?.toString() || "",
+                            );
                             setNewCustomerStatus(customer.status);
                             setIsEditCustomerDialogOpen(true);
                           }}
                         >
                           <FilePenIcon className="w-4 h-4" />
-                          <span className="sr-only">Edit</span>
+                          <span className="sr-only">{t("edit")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -764,7 +786,7 @@ export default function CustomersPage() {
                           }}
                         >
                           <Trash2 className="w-4 h-4" />
-                          <span className="sr-only">Delete</span>
+                          <span className="sr-only">{t("delete")}</span>
                         </Button>
                       </div>
                     </TableCell>
@@ -792,14 +814,15 @@ export default function CustomersPage() {
             <DialogHeader>
               <DialogTitle>
                 {showNewCustomerDialog
-                  ? "Create New Customer"
-                  : "Edit Customer"}
+                  ? t("createNewCustomer")
+                  : t("editCustomerTitle")}
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name<span className="text-red-500 ml-1">*</span>
+                  {t("name")}
+                  <span className="text-red-500 ml-1">{t("required")}</span>
                 </Label>
                 <Input
                   id="name"
@@ -810,21 +833,27 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">Phone</Label>
+                <Label htmlFor="phone" className="text-right">
+                  {t("phone")}
+                </Label>
                 <Input
                   id="phone"
                   value={newCustomerPhone}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    const value = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 11);
                     setNewCustomerPhone(value);
                   }}
                   maxLength={11}
-                  placeholder="03001234567"
+                  placeholder={t("phonePlaceholder")}
                   className="col-span-3"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">Email</Label>
+                <Label htmlFor="email" className="text-right">
+                  {t("email")}
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -834,7 +863,9 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="company_name" className="text-right">Company Name</Label>
+                <Label htmlFor="company_name" className="text-right">
+                  {t("companyName")}
+                </Label>
                 <Input
                   id="company_name"
                   value={newCustomerCompanyName}
@@ -843,7 +874,9 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="company_address" className="text-right">Company Address</Label>
+                <Label htmlFor="company_address" className="text-right">
+                  {t("companyAddress")}
+                </Label>
                 <Input
                   id="company_address"
                   value={newCustomerCompanyAddress}
@@ -852,14 +885,16 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="opening_balance" className="text-right">Opening Balance (To Receive)</Label>
+                <Label htmlFor="opening_balance" className="text-right">
+                  {t("openingBalanceToReceive")}
+                </Label>
                 <Input
                   id="opening_balance"
                   type="number"
                   value={newCustomerOpeningBalance}
                   onChange={(e) => setNewCustomerOpeningBalance(e.target.value)}
                   className="col-span-3"
-                  placeholder="0"
+                  placeholder={t("balancePlaceholder")}
                 />
               </div>
             </div>
@@ -872,16 +907,22 @@ export default function CustomersPage() {
                   resetSelectedCustomer();
                 }}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 onClick={
                   showNewCustomerDialog ? handleAddCustomer : handleEditCustomer
                 }
-                disabled={!newCustomerName || newCustomerName.trim() === '' || isSaving}
+                disabled={
+                  !newCustomerName || newCustomerName.trim() === "" || isSaving
+                }
               >
-                {isSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
+                {isSaving && (
+                  <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {showNewCustomerDialog
+                  ? t("createCustomer")
+                  : t("updateCustomer")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -893,33 +934,50 @@ export default function CustomersPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Customer Details</DialogTitle>
+              <DialogTitle>{t("customerDetails")}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-semibold">Name:</Label>
+                <Label className="text-right font-semibold">{t("name")}:</Label>
                 <div className="col-span-3">{viewCustomer?.name}</div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-semibold">Phone:</Label>
-                <div className="col-span-3">{viewCustomer?.phone || '-'}</div>
+                <Label className="text-right font-semibold">
+                  {t("phone")}:
+                </Label>
+                <div className="col-span-3">{viewCustomer?.phone || "-"}</div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-semibold">Email:</Label>
-                <div className="col-span-3">{viewCustomer?.email || '-'}</div>
+                <Label className="text-right font-semibold">
+                  {t("email")}:
+                </Label>
+                <div className="col-span-3">{viewCustomer?.email || "-"}</div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-semibold">Company Name:</Label>
-                <div className="col-span-3">{viewCustomer?.company_name || '-'}</div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-semibold">Company Address:</Label>
-                <div className="col-span-3">{viewCustomer?.company_address || '-'}</div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-semibold">Opening Balance:</Label>
+                <Label className="text-right font-semibold">
+                  {t("companyName")}:
+                </Label>
                 <div className="col-span-3">
-                  Rs. {viewCustomer?.opening_balance ? Math.round(viewCustomer.opening_balance) : '0'}
+                  {viewCustomer?.company_name || "-"}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">
+                  {t("companyAddress")}:
+                </Label>
+                <div className="col-span-3">
+                  {viewCustomer?.company_address || "-"}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">
+                  {t("openingBalance")}:
+                </Label>
+                <div className="col-span-3">
+                  Rs.{" "}
+                  {viewCustomer?.opening_balance
+                    ? Math.round(viewCustomer.opening_balance)
+                    : "0"}
                 </div>
               </div>
             </div>
@@ -928,7 +986,7 @@ export default function CustomersPage() {
                 variant="secondary"
                 onClick={() => setIsViewCustomerDialogOpen(false)}
               >
-                Close
+                {t("close")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -940,21 +998,26 @@ export default function CustomersPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogTitle>{t("confirmDeletion")}</DialogTitle>
             </DialogHeader>
-            Are you sure you want to delete this customer? This action cannot be
-            undone.
+            {t("deleteConfirmation")}
             <DialogFooter>
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteConfirmationOpen(false)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t("cancel")}
               </Button>
-              <Button variant="destructive" onClick={handleDeleteCustomer} disabled={isDeleting}>
-                {isDeleting && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                Delete
+              <Button
+                variant="destructive"
+                onClick={handleDeleteCustomer}
+                disabled={isDeleting}
+              >
+                {isDeleting && (
+                  <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("delete")}
               </Button>
             </DialogFooter>
           </DialogContent>

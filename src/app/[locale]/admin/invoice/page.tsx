@@ -372,18 +372,18 @@ export default function InvoicePage() {
       </div>
       <Card className="mb-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Sale Details</CardTitle>
+          <CardTitle className="text-lg">{t("saleDetails")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-12 gap-2 items-end">
             {/* Invoice No & Generate Button */}
             <div className="col-span-2">
               <Label htmlFor="invoice-no" className="text-xs font-medium">
-                Invoice No.
+                {t("invoiceNo")}
               </Label>
               <Input
                 id="invoice-no"
-                placeholder="Enter/Generate"
+                placeholder={t("enterGenerate")}
                 value={invoiceNo}
                 onChange={(e) => setInvoiceNo(e.target.value)}
                 className="h-8 text-sm"
@@ -393,11 +393,11 @@ export default function InvoicePage() {
             {/* Customer Selection */}
             <div className="col-span-3">
               <Label htmlFor="customer" className="text-xs font-medium">
-                Customer
+                {t("customer")}
               </Label>
               <Combobox
                 items={customers}
-                placeholder="Select Customer"
+                placeholder={t("selectCustomer")}
                 onSelect={handleSelectCustomer}
               />
             </div>
@@ -405,7 +405,7 @@ export default function InvoicePage() {
             {/* Sale Date */}
             <div className="col-span-2">
               <Label htmlFor="sale-date" className="text-xs font-medium">
-                Sale Date
+                {t("saleDate")}
               </Label>
               <Input
                 id="sale-date"
@@ -430,7 +430,7 @@ export default function InvoicePage() {
                 htmlFor="add-due-date"
                 className="text-xs font-medium cursor-pointer whitespace-nowrap"
               >
-                Add Due Date
+                {t("addDueDate")}
               </Label>
             </div>
 
@@ -452,19 +452,19 @@ export default function InvoicePage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Items</CardTitle>
+          <CardTitle>{t("items")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Sell Price</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>UOM</TableHead>
-                <TableHead>Discount</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t("item")}</TableHead>
+                <TableHead>{t("sellPrice")}</TableHead>
+                <TableHead>{t("quantity")}</TableHead>
+                <TableHead>{t("uom")}</TableHead>
+                <TableHead>{t("discount")}</TableHead>
+                <TableHead>{t("amount")}</TableHead>
+                <TableHead>{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -522,11 +522,13 @@ export default function InvoicePage() {
                         }
                       >
                         <SelectTrigger className="w-16 h-8 text-xs">
-                          <SelectValue placeholder="PKR" />
+                          <SelectValue placeholder={t("pkr")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="value">PKR</SelectItem>
-                          <SelectItem value="percentage">%</SelectItem>
+                          <SelectItem value="value">{t("pkr")}</SelectItem>
+                          <SelectItem value="percentage">
+                            {t("percentage")}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -540,7 +542,7 @@ export default function InvoicePage() {
                       size="sm"
                       onClick={() => handleRemoveProduct(product.id)}
                     >
-                      Remove
+                      {t("remove")}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -549,7 +551,7 @@ export default function InvoicePage() {
                 <TableCell>
                   <Combobox
                     items={products}
-                    placeholder="Add Item"
+                    placeholder={t("addItem")}
                     noSelect
                     onSelect={handleSelectProduct}
                   />
@@ -565,12 +567,14 @@ export default function InvoicePage() {
             <div className="flex justify-end mb-4">
               <div className="space-y-3">
                 <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-2 items-center">
-                  <span className="text-sm text-right">Sub Total:</span>
+                  <span className="text-sm text-right">{t("subTotal")}</span>
                   <span className="text-left font-semibold">
                     Rs. {Math.round(total)}
                   </span>
 
-                  <span className="text-sm text-right">Overall Discount:</span>
+                  <span className="text-sm text-right">
+                    {t("overallDiscount")}
+                  </span>
                   <div className="flex gap-1 items-center">
                     <Input
                       type="number"
@@ -590,16 +594,20 @@ export default function InvoicePage() {
                       }
                     >
                       <SelectTrigger className="w-16 h-8 text-xs">
-                        <SelectValue placeholder="PKR" />
+                        <SelectValue placeholder={t("pkr")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="value">PKR</SelectItem>
-                        <SelectItem value="percentage">%</SelectItem>
+                        <SelectItem value="value">{t("pkr")}</SelectItem>
+                        <SelectItem value="percentage">
+                          {t("percentage")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <span className="text-sm text-right">Shipping charges:</span>
+                  <span className="text-sm text-right">
+                    {t("shippingCharges")}
+                  </span>
                   <Input
                     type="number"
                     placeholder="0"
@@ -618,7 +626,7 @@ export default function InvoicePage() {
                   <div className="flex gap-2 items-center">
                     <Input
                       id="new-charge-item"
-                      placeholder="Adjustment"
+                      placeholder={t("adjustment")}
                       className="w-32 h-8 text-sm"
                       value={newChargeItem}
                       onChange={(e) => setNewChargeItem(e.target.value)}
@@ -627,7 +635,7 @@ export default function InvoicePage() {
                     <Input
                       id="new-charge-value"
                       type="number"
-                      placeholder="Value"
+                      placeholder={t("value")}
                       className="w-24 h-8 text-sm"
                       value={newChargeValue}
                       onChange={(e) => setNewChargeValue(e.target.value)}
@@ -644,7 +652,7 @@ export default function InvoicePage() {
                       className="h-8 text-xs"
                       disabled={!newChargeItem.trim() || !newChargeValue}
                     >
-                      Add More
+                      {t("addMore")}
                     </Button>
                   </div>
                   {/* )} */}
@@ -654,7 +662,7 @@ export default function InvoicePage() {
                     {charges.map((charge) => (
                       <div key={charge.id} className="flex gap-2 items-center">
                         <Input
-                          placeholder="Adjustment"
+                          placeholder={t("adjustment")}
                           value={charge.item}
                           onChange={(e) =>
                             handleChargeChange(
@@ -668,7 +676,7 @@ export default function InvoicePage() {
                         <span className="text-sm">:</span>
                         <Input
                           type="number"
-                          placeholder="Value"
+                          placeholder={t("value")}
                           value={charge.value || ""}
                           onChange={(e) =>
                             handleChargeChange(
@@ -694,7 +702,9 @@ export default function InvoicePage() {
 
                 {/* Final Total */}
                 <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
-                  <span className="text-lg text-right font-bold">Total:</span>
+                  <span className="text-lg text-right font-bold">
+                    {t("total")}
+                  </span>
                   <span className="text-left text-lg font-bold">
                     Rs. {Math.floor(finalTotal)}
                   </span>
@@ -705,14 +715,16 @@ export default function InvoicePage() {
             {/* Customer Notes */}
             <div className="mt-4 flex justify-start">
               <div className="flex flex-col gap-1 w-full max-w-md">
-                <Label className="text-sm font-medium">Customer Notes</Label>
+                <Label className="text-sm font-medium">
+                  {t("customerNotes")}
+                </Label>
                 <textarea
                   className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   value={customerNotes}
                   onChange={(e) => setCustomerNotes(e.target.value)}
                 />
                 <span className="text-xs text-muted-foreground">
-                  Will be displayed on invoice
+                  {t("willBeDisplayed")}
                 </span>
               </div>
             </div>
@@ -726,7 +738,7 @@ export default function InvoicePage() {
                   !invoiceNo
                 }
               >
-                Save
+                {t("save")}
               </Button>
             </div>
           </div>
