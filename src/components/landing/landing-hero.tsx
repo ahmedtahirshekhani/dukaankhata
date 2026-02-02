@@ -56,9 +56,9 @@ export function LandingHero() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href={`/${locale}/waitlist`}>
+                <Link href={`/${locale}/admin`}>
                   <Button size="lg" className="gap-2">
-                    {t("joinWaitlistButton")}
+                    {t("dashboardButton")}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -182,7 +182,7 @@ export function LandingHero() {
             <p className="text-lg text-muted-foreground max-w-2xl">
               {t("ctaDescription")}
             </p>
-            <Link href={`/${locale}/waitlist`}>
+            <Link href={`/${locale}/admin`}>
               <Button size="lg" className="gap-2">
                 {t("ctaButton")}
                 <ArrowRight className="h-4 w-4" />

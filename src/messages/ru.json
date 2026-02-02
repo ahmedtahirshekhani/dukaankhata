@@ -294,6 +294,7 @@
       "title": "Aapka Business Management",
       "titleHighlight": "Asaan Ban Gaya",
       "description": "DukaanKhata ek mukammal POS aur inventory management solution hai jo South Asia ke chhote businesses ke liye banaya gaya hai. Sales, inventory, aur customers sab kuch ek jagah se manage karain.",
+      "dashboardButton": "Dashboard par Jayein",
       "joinWaitlistButton": "Waitlist mein Shamil Hoain",
       "downloadAppButton": "App Download Karain",
       "waitlistMembers": "Waitlist Members",
@@ -319,7 +320,7 @@
       "benefit6": "24/7 Customer support",
       "ctaTitle": "Apne Business ko Transform Karne ke Liye Ready?",
       "ctaDescription": "Sadi tarah se hundreds of businesses DukaanKhata use kar rahe hain apne operations ko streamline karne aur growth boost karne ke liye.",
-      "ctaButton": "Waitlist mein Shamil Hoain"
+      "ctaButton": "Abhi Shuru Karain"
     },
     "footer": {
       "tagline": "South Asia ke liye mukammal business management solution.",
