@@ -80,20 +80,22 @@ export function InvoicePreviewDialog({
   customerNotes = "",
 }: InvoicePreviewDialogProps) {
   const t = useTranslations("invoice");
+  const tPayments = useTranslations("payments");
+  const tCommon = useTranslations("common");
   const [noPaymentAtAll, setNoPaymentAtAll] = useState(
-    initialPayment?.no_payment_at_all || false,
+    initialPayment?.no_payment_at_all || false
   );
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(
-    initialPayment?.method || "",
+    initialPayment?.method || ""
   );
   const [paidAmount, setPaidAmount] = useState<number>(
-    initialPayment?.paid_amount || 0,
+    initialPayment?.paid_amount || 0
   );
   const [paidDate, setPaidDate] = useState<string | null>(
     initialPayment?.paid_date
       ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
-      : null,
+      : null
   );
   const invoiceRef = useRef<HTMLDivElement | null>(null);
   const isCreatingRef = useRef(false);
@@ -103,7 +105,7 @@ export function InvoicePreviewDialog({
   const [requestCustomerSignature, setRequestCustomerSignature] =
     useState(false);
   const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">(
-    "a4",
+    "a4"
   );
   const getToday = () => {
     const d = new Date();
@@ -387,10 +389,14 @@ export function InvoicePreviewDialog({
                       role="switch"
                       aria-checked={includeSignature}
                       onClick={() => setIncludeSignature((v) => !v)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${includeSignature ? "bg-primary" : "bg-gray-300"}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        includeSignature ? "bg-primary" : "bg-gray-300"
+                      }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${includeSignature ? "translate-x-5" : "translate-x-1"}`}
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${
+                          includeSignature ? "translate-x-5" : "translate-x-1"
+                        }`}
                       />
                     </button>
                   </div>
@@ -404,10 +410,16 @@ export function InvoicePreviewDialog({
                       role="switch"
                       aria-checked={requestCustomerSignature}
                       onClick={() => setRequestCustomerSignature((v) => !v)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${requestCustomerSignature ? "bg-primary" : "bg-gray-300"}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        requestCustomerSignature ? "bg-primary" : "bg-gray-300"
+                      }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${requestCustomerSignature ? "translate-x-5" : "translate-x-1"}`}
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${
+                          requestCustomerSignature
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
                       />
                     </button>
                   </div>
@@ -500,6 +512,11 @@ export function InvoicePreviewDialog({
           setPaidAmount(amount);
           setPaidDate(date);
           setNoPaymentAtAll(false);
+        }}
+        translations={{
+          t,
+          tPayments,
+          tCommon,
         }}
       />
     </React.Fragment>

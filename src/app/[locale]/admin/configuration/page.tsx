@@ -1,22 +1,33 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ProtectedRoute } from '@/components/protected-route';
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ProtectedRoute } from "@/components/protected-route";
 
-export default function ConfigurationPage({ params }: { params: { locale: string } }) {
-  const tNav = useTranslations('navigation');
-  const tCommon = useTranslations('common');
+export default function ConfigurationPage({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const tNav = useTranslations("navigation");
+  const tCommon = useTranslations("common");
+  const t = useTranslations("configuration");
 
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
-  const [logoError, setLogoError] = useState('');
-  const [signatureError, setSignatureError] = useState('');
+  const [message, setMessage] = useState("");
+  const [logoError, setLogoError] = useState("");
+  const [signatureError, setSignatureError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -30,7 +41,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
           setSignatureImage(data.signatureImage || null);
         }
       } catch (err) {
-        console.error('Failed to load configuration assets', err);
+        console.error("Failed to load configuration assets", err);
       } finally {
         setIsLoading(false);
       }
@@ -49,59 +60,61 @@ export default function ConfigurationPage({ params }: { params: { locale: string
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setLogoError('Only image files are allowed.');
-      (e.target as HTMLInputElement).value = '';
+    if (!file.type.startsWith("image/")) {
+      setLogoError(t("onlyImageFilesAllowed"));
+      (e.target as HTMLInputElement).value = "";
       return;
     }
-    setLogoError('');
+    setLogoError("");
     const url = await readFileAsDataUrl(file);
     setCompanyLogo(url);
   };
 
-  const handleSignatureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSignatureChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setSignatureError('Only image files are allowed.');
-      (e.target as HTMLInputElement).value = '';
+    if (!file.type.startsWith("image/")) {
+      setSignatureError(t("onlyImageFilesAllowed"));
+      (e.target as HTMLInputElement).value = "";
       return;
     }
-    setSignatureError('');
+    setSignatureError("");
     const url = await readFileAsDataUrl(file);
     setSignatureImage(url);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    setMessage('');
+    setMessage("");
     try {
       const res = await fetch(`/${params.locale}/api/configuration/assets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyLogo, signatureImage }),
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || 'Failed to save');
+        throw new Error(data?.error || t("saveFailed"));
       }
-      
+
       // Update localStorage so invoice can use cached values
       if (companyLogo) {
-        localStorage.setItem('companyLogo', companyLogo);
+        localStorage.setItem("companyLogo", companyLogo);
       } else {
-        localStorage.removeItem('companyLogo');
+        localStorage.removeItem("companyLogo");
       }
       if (signatureImage) {
-        localStorage.setItem('invoiceSignature', signatureImage);
+        localStorage.setItem("invoiceSignature", signatureImage);
       } else {
-        localStorage.removeItem('invoiceSignature');
+        localStorage.removeItem("invoiceSignature");
       }
-      
-      setMessage('Uploads saved to server');
-      setTimeout(() => setMessage(''), 2500);
+
+      setMessage(t("uploadsSavedSuccess"));
+      setTimeout(() => setMessage(""), 2500);
     } catch (err: any) {
-      setMessage(err?.message || 'Failed to save');
+      setMessage(err?.message || t("saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -112,8 +125,10 @@ export default function ConfigurationPage({ params }: { params: { locale: string
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">{tNav('configuration')}</h1>
-            <p className="text-gray-600 mt-2">{tNav('configurationDescription')}</p>
+            <h1 className="text-3xl font-bold">{tNav("configuration")}</h1>
+            <p className="text-gray-600 mt-2">
+              {tNav("configurationDescription")}
+            </p>
           </div>
 
           {message && (
@@ -123,31 +138,46 @@ export default function ConfigurationPage({ params }: { params: { locale: string
           )}
 
           {isLoading ? (
-            <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+            <div className="p-4 text-sm text-muted-foreground">
+              {tCommon("loading")}
+            </div>
           ) : (
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>Company Logo</CardTitle>
-                  <CardDescription>Upload and preview your company logo</CardDescription>
+                  <CardTitle>{t("companyLogo")}</CardTitle>
+                  <CardDescription>
+                    {t("companyLogoDescription")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="company-logo">Company Logo</Label>
-                    <Input id="company-logo" type="file" accept="image/*" onChange={handleLogoChange} />
+                    <Label htmlFor="company-logo">{t("companyLogo")}</Label>
+                    <Input
+                      id="company-logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                    />
                     {logoError && (
                       <p className="text-xs text-red-600">{logoError}</p>
                     )}
                     {companyLogo && (
                       <div className="mt-2">
-                        <img src={companyLogo} alt="Company Logo" className="h-16 w-auto rounded border" />
+                        <img
+                          src={companyLogo}
+                          alt={t("companyLogoAlt")}
+                          className="h-16 w-auto rounded border"
+                        />
                         <div className="mt-2 flex gap-2">
                           <Button
                             variant="ghost"
                             onClick={() => {
                               setCompanyLogo(null);
                             }}
-                          >{tCommon('delete')}</Button>
+                          >
+                            {tCommon("delete")}
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -157,26 +187,41 @@ export default function ConfigurationPage({ params }: { params: { locale: string
 
               <Card className="mt-8">
                 <CardHeader>
-                  <CardTitle>Authorized Signature</CardTitle>
-                  <CardDescription>Upload and preview the authorized invoice signature</CardDescription>
+                  <CardTitle>{t("authorizedSignature")}</CardTitle>
+                  <CardDescription>
+                    {t("authorizedSignatureDescription")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="authorized-signature">Authorized Signature</Label>
-                    <Input id="authorized-signature" type="file" accept="image/*" onChange={handleSignatureChange} />
+                    <Label htmlFor="authorized-signature">
+                      {t("authorizedSignature")}
+                    </Label>
+                    <Input
+                      id="authorized-signature"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSignatureChange}
+                    />
                     {signatureError && (
                       <p className="text-xs text-red-600">{signatureError}</p>
                     )}
                     {signatureImage && (
                       <div className="mt-2">
-                        <img src={signatureImage} alt="Authorized Signature" className="h-16 w-auto rounded border" />
+                        <img
+                          src={signatureImage}
+                          alt={t("authorizedSignatureAlt")}
+                          className="h-16 w-auto rounded border"
+                        />
                         <div className="mt-2 flex gap-2">
                           <Button
                             variant="ghost"
                             onClick={() => {
                               setSignatureImage(null);
                             }}
-                          >{tCommon('delete')}</Button>
+                          >
+                            {tCommon("delete")}
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -186,7 +231,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
 
               <div className="mt-6 flex justify-end">
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save Uploads'}
+                  {isSaving ? t("saving") : t("saveUploads")}
                 </Button>
               </div>
             </>

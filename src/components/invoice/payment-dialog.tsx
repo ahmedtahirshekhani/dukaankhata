@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,13 @@ export interface PaymentDialogResult {
   type: PaymentKind;
 }
 
+/** Translation functions - pass from parent to ensure i18n works inside Dialog portal */
+export interface PaymentDialogTranslations {
+  t: (key: string) => string;
+  tPayments: (key: string) => string;
+  tCommon: (key: string) => string;
+}
+
 interface PaymentDialogProps {
   open: boolean;
   total: number;
@@ -36,6 +44,8 @@ interface PaymentDialogProps {
   defaultDate: string;
   onOpenChange: (open: boolean) => void;
   onConfirm: (data: PaymentDialogResult) => void;
+  /** Pass translations from parent for reliable i18n inside Dialog portal */
+  translations?: PaymentDialogTranslations;
 }
 
 export function PaymentDialog({
@@ -46,7 +56,16 @@ export function PaymentDialog({
   defaultDate,
   onOpenChange,
   onConfirm,
+  translations: translationsProp,
 }: PaymentDialogProps) {
+  const tInline = useTranslations("invoice");
+  const tPaymentsInline = useTranslations("payments");
+  const tCommonInline = useTranslations("common");
+
+  const t = translationsProp?.t ?? tInline;
+  const tPayments = translationsProp?.tPayments ?? tPaymentsInline;
+  const tCommon = translationsProp?.tCommon ?? tCommonInline;
+
   const [paymentType, setPaymentType] = useState<PaymentKind>("full");
   const [paymentAmount, setPaymentAmount] = useState<number>(total);
   const [paymentMethod, setPaymentMethod] = useState(defaultMethod);
@@ -61,7 +80,7 @@ export function PaymentDialog({
     const nextType: PaymentKind = defaultAmount >= total ? "full" : "partial";
     setPaymentType(nextType);
     setPaymentAmount(
-      nextType === "full" ? total : Math.max(0, Math.min(total, defaultAmount)),
+      nextType === "full" ? total : Math.max(0, Math.min(total, defaultAmount))
     );
     setPaymentMethod(defaultMethod);
     setPaymentDate(defaultDate);
@@ -70,19 +89,19 @@ export function PaymentDialog({
 
   const remainingBalance = useMemo(
     () => Math.max(0, total - paymentAmount),
-    [paymentAmount, total],
+    [paymentAmount, total]
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Make Payment</DialogTitle>
+          <DialogTitle>{t("makePayment")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-sm">Payment Type</Label>
+            <Label className="text-sm">{t("paymentType")}</Label>
             <div className="flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -95,7 +114,7 @@ export function PaymentDialog({
                     setPaymentAmount(total);
                   }}
                 />
-                Full Payment
+                {t("fullPayment")}
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -106,17 +125,17 @@ export function PaymentDialog({
                   onChange={() => {
                     setPaymentType("partial");
                     setPaymentAmount((amt) =>
-                      Math.max(0, Math.min(total, amt || total)),
+                      Math.max(0, Math.min(total, amt || total))
                     );
                   }}
                 />
-                Partial Payment
+                {t("partialPayment")}
               </label>
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="payment-amount">Amount</Label>
+            <Label htmlFor="payment-amount">{tPayments("amount")}</Label>
             <Input
               id="payment-amount"
               type="number"
@@ -141,20 +160,21 @@ export function PaymentDialog({
             )}
             {paymentType === "full" && (
               <p className="text-xs text-muted-foreground">
-                Full amount is locked to total.
+                {t("fullAmountLockedHint")}
               </p>
             )}
             {paymentType === "partial" && (
               <div className="flex justify-end">
                 <p className="text-xs text-muted-foreground text-right">
-                  Remaining balance: {formatCurrencyString(remainingBalance)}
+                  {t("paymentRemainingBalance")}{" "}
+                  {formatCurrencyString(remainingBalance)}
                 </p>
               </div>
             )}
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="payment-method">Payment Method</Label>
+            <Label htmlFor="payment-method">{tPayments("paymentMethod")}</Label>
             <Select
               value={paymentMethod}
               onValueChange={(value) => {
@@ -165,15 +185,21 @@ export function PaymentDialog({
               }}
             >
               <SelectTrigger id="payment-method">
-                <SelectValue placeholder="Select Payment Method" />
+                <SelectValue placeholder={t("selectPaymentMethod")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Cash">Cash</SelectItem>
-                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                <SelectItem value="Cheque">Cheque</SelectItem>
-                <SelectItem value="Easypaisa">Easypaisa</SelectItem>
-                <SelectItem value="JazzCash">JazzCash</SelectItem>
-                <SelectItem value="Nayapay">Nayapay</SelectItem>
+                <SelectItem value="Cash">{tPayments("cash")}</SelectItem>
+                <SelectItem value="Bank Transfer">
+                  {tPayments("bankTransfer")}
+                </SelectItem>
+                <SelectItem value="Cheque">{tPayments("cheque")}</SelectItem>
+                <SelectItem value="Easypaisa">
+                  {tPayments("easypaisa")}
+                </SelectItem>
+                <SelectItem value="JazzCash">
+                  {tPayments("jazzCash")}
+                </SelectItem>
+                <SelectItem value="Nayapay">{tPayments("nayapay")}</SelectItem>
               </SelectContent>
             </Select>
             {paymentErrors.method && (
@@ -182,7 +208,7 @@ export function PaymentDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="payment-date">Date</Label>
+            <Label htmlFor="payment-date">{t("paymentDate")}</Label>
             <Input
               id="payment-date"
               type="date"
@@ -193,19 +219,18 @@ export function PaymentDialog({
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button
               onClick={() => {
                 const amt = Number(paymentAmount);
                 const nextErrors: { method?: string; amount?: string } = {};
                 if (!paymentMethod.trim()) {
-                  nextErrors.method = "Payment method is required.";
+                  nextErrors.method = t("paymentMethodRequired");
                 }
                 if (paymentType === "partial") {
                   if (isNaN(amt) || amt <= 0 || amt > total) {
-                    nextErrors.amount =
-                      "Enter an amount between 1 and the total.";
+                    nextErrors.amount = t("amountBetweenValidation");
                   }
                 }
                 setPaymentErrors(nextErrors);
@@ -221,7 +246,7 @@ export function PaymentDialog({
                 onOpenChange(false);
               }}
             >
-              Confirm Payment
+              {t("confirmPayment")}
             </Button>
           </div>
         </div>
