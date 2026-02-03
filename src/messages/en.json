@@ -294,6 +294,7 @@
       "title": "Your Business Management",
       "titleHighlight": "Made Simple",
       "description": "DukaanKhata is a complete POS and inventory management solution designed for small businesses in South Asia. Manage sales, inventory, and customers all in one place.",
+      "dashboardButton": "Go to Dashboard",
       "joinWaitlistButton": "Join the Waitlist",
       "downloadAppButton": "Download App",
       "waitlistMembers": "Waitlist Members",
@@ -319,7 +320,7 @@
       "benefit6": "24/7 Customer support",
       "ctaTitle": "Ready to Transform Your Business?",
       "ctaDescription": "Join hundreds of businesses already using DukaanKhata to streamline their operations and boost their growth.",
-      "ctaButton": "Join the Waitlist Now"
+      "ctaButton": "Get Started Now"
     },
     "footer": {
       "tagline": "Your complete business management solution for South Asia.",

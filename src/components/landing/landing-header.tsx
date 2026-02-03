@@ -71,9 +71,9 @@ export function LandingHeader() {
           >
             Login
           </Link> */}
-          <Link href={`/${locale}/waitlist`}>
+          <Link href={`/${locale}/admin`}>
             <Button className="hidden sm:inline-flex" size="sm">
-              {t("joinWaitlist")}
+              {t("dashboard")}
             </Button>
           </Link>
 
@@ -101,15 +101,8 @@ export function LandingHeader() {
                 {link.label}
               </a>
             ))}
-            <Link
-              href={`/${locale}/admin`}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {t("dashboard")}
-            </Link>
-            <Link href={`/${locale}/waitlist`} className="w-full">
-              <Button className="w-full">{t("joinWaitlist")}</Button>
+            <Link href={`/${locale}/admin`} className="w-full">
+              <Button className="w-full">{t("dashboard")}</Button>
             </Link>
           </nav>
         </div>
