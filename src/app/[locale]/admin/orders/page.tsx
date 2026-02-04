@@ -144,8 +144,10 @@ export default function OrdersPage() {
         return false;
       }
       return (
-        order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.id.toString().includes(searchTerm)
+        order?.customer?.name
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        order?.id?.toString().includes(searchTerm)
       );
     });
   }, [orders, filters.status, searchTerm]);
@@ -208,9 +210,7 @@ export default function OrdersPage() {
 
       const updatedOrderData = await response.json();
       setOrders(
-        orders.map((o) =>
-          o.id === updatedOrderData.id ? updatedOrderData : o,
-        ),
+        orders.map((o) => (o.id === updatedOrderData.id ? updatedOrderData : o))
       );
       setIsEditOrderDialogOpen(false);
       resetSelectedOrder();
@@ -349,7 +349,7 @@ export default function OrdersPage() {
                     <TableCell>
                       {order.invoice_no || `ORD-${order.id}`}
                     </TableCell>
-                    <TableCell>{order.customer.name}</TableCell>
+                    <TableCell>{order.customer?.name || "N/A"}</TableCell>
                     <TableCell>Rs. {Math.floor(order.total_amount)}</TableCell>
                     <TableCell>
                       Rs. {Math.floor(order.payment?.paid_amount || 0)}
@@ -357,12 +357,12 @@ export default function OrdersPage() {
                     <TableCell>
                       Rs.{" "}
                       {Math.floor(
-                        order.total_amount - (order.payment?.paid_amount || 0),
+                        order.total_amount - (order.payment?.paid_amount || 0)
                       )}
                     </TableCell>
                     <TableCell>
                       {new Date(
-                        order.sale_date || order.created_at,
+                        order.sale_date || order.created_at
                       ).toLocaleDateString("en-US", {
                         weekday: "short",
                         year: "numeric",
@@ -448,7 +448,7 @@ export default function OrdersPage() {
                 <Select
                   value={newOrderStatus}
                   onValueChange={(
-                    value: "completed" | "pending" | "cancelled",
+                    value: "completed" | "pending" | "cancelled"
                   ) => setNewOrderStatus(value)}
                 >
                   <SelectTrigger id="status" className="col-span-3">
