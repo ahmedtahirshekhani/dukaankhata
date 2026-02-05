@@ -66,7 +66,7 @@ import { formatDate, getYearsFromDates } from "@/lib/utils";
 import {
   exportTransactionsToExcel,
   exportTransactionsTemplate,
-} from "@/lib/excel-utils";
+} from "@/lib/excel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ErrorDialog } from "@/components/error-dialog";

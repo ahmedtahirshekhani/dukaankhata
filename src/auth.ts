@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/mongodb";
+import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 
 // Shared NextAuth options (v4-compatible)
 export const authOptions = {

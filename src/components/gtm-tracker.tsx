@@ -2,7 +2,7 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { pushPageView } from "@/lib/gtm";
+import { pushPageView } from "@/lib/analytics/gtm";
 
 type Props = {
   gtmId: string;

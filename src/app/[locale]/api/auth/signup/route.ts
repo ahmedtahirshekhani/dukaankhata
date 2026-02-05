@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS } from "@/lib/mongodb";
+import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 
 export async function POST(request: NextRequest) {
   try {

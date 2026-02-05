@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCollection, COLLECTIONS } from '@/lib/mongodb';
+import { getCollection, COLLECTIONS } from '@/lib/db/mongodb';
 
 export async function GET() {
   const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);

@@ -3,8 +3,8 @@ import {
   COLLECTIONS,
   toObjectId,
   isValidObjectId,
-} from "@/lib/mongodb";
-import { getCurrentUser } from "@/lib/auth-utils";
+} from "@/lib/db/mongodb";
+import { getCurrentUser } from "@/lib/auth/utils";
 import { NextResponse } from "next/server";
 
 export async function PUT(

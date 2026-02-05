@@ -2,10 +2,10 @@
  * GTM Business Event Tracking Helpers
  *
  * High-level functions for tracking common business events in the POS system.
- * These are wrappers around the low-level GTM push functions in src/lib/gtm.ts
+ * These are wrappers around the low-level GTM push functions in src/lib/analytics/gtm.ts
  */
 
-import { pushBusinessEvent } from "@/lib/gtm";
+import { pushBusinessEvent } from "@/lib/analytics/gtm";
 
 /**
  * Track when an invoice is created/completed.

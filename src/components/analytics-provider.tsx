@@ -11,7 +11,7 @@ import {
   identifyUser,
   isPosthogEnabled,
   resetPosthog,
-} from "@/lib/posthog-client";
+} from "@/lib/analytics/posthog";
 
 function IdentifyUser({ client }: { client: typeof posthog }) {
   const { user, status } = useUserProfile();

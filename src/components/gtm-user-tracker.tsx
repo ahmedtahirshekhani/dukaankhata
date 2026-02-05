@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { setUserData, GTM_ID } from "@/lib/gtm";
+import { setUserData, GTM_ID } from "@/lib/analytics/gtm";
 
 /**
  * GTM User Tracker Component

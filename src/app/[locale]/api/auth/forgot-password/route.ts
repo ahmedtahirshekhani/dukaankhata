@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     // Check if user exists (do not leak info in response). Using MongoDB.
     let userExists = false;
     try {
-      const { getCollection, COLLECTIONS } = await import("@/lib/mongodb");
+      const { getCollection, COLLECTIONS } = await import("@/lib/db/mongodb");
       const usersCollection = await getCollection(COLLECTIONS.USERS);
       const user = await usersCollection.findOne({ email });
       if (user) userExists = true;

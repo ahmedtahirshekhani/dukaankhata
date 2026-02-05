@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS } from "@/lib/mongodb";
+import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 
 function parseAndVerifyToken(token: string) {
   const secret = process.env.RESET_TOKEN_SECRET || "dev-secret-change-me";

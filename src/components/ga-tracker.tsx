@@ -2,7 +2,7 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { pageview } from "@/lib/gtag";
+import { pageview } from "@/lib/analytics/gtag";
 
 type Props = {
   measurementId: string;

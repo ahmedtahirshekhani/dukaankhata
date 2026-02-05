@@ -1,4 +1,4 @@
-import { getCollection, COLLECTIONS, createIndexes } from '@/lib/mongodb';
+import { getCollection, COLLECTIONS, createIndexes } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 
 export async function GET() {

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getLanguagePreference, saveLanguagePreference } from '@/lib/language-storage';
+import { getLanguagePreference, saveLanguagePreference } from '@/lib/i18n/language-storage';
 
 export function LanguageInitializer() {
   const router = useRouter();

@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
-import { saveLanguagePreference } from '@/lib/language-storage';
+import { saveLanguagePreference } from '@/lib/i18n/language-storage';
 import {
   Select,
   SelectContent,

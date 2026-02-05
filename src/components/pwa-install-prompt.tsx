@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { captureEvent } from "@/lib/posthog-client";
+import { captureEvent } from "@/lib/analytics/posthog";
 
 export function PWAInstallPrompt() {
   useEffect(() => {

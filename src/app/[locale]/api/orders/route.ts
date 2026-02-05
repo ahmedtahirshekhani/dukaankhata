@@ -3,9 +3,9 @@ import {
   COLLECTIONS,
   toObjectId,
   isValidObjectId,
-} from "@/lib/mongodb";
+} from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth-utils";
+import { getCurrentUser } from "@/lib/auth/utils";
 
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;

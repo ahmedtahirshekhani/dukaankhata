@@ -1,6 +1,6 @@
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from '@/lib/mongodb'
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/auth-utils'
+import { getCurrentUser } from '@/lib/auth/utils'
 
 export async function PUT(
   request: Request,

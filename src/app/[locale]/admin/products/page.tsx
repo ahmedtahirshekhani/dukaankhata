@@ -20,7 +20,7 @@ import {
 import {
   exportProductsToExcel,
   exportProductsTemplate,
-} from "@/lib/excel-utils";
+} from "@/lib/excel";
 import {
   Dialog,
   DialogContent,

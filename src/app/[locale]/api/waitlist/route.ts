@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCollection, COLLECTIONS } from "@/lib/mongodb";
+import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 
 interface WaitlistFormData {
   name: string;

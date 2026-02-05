@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { getCollection, COLLECTIONS, createIndexes } from '../src/lib/mongodb';
+import { getCollection, COLLECTIONS, createIndexes } from '../src/lib/db/mongodb';
 import bcrypt from 'bcryptjs';
 
 async function seed() {

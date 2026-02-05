@@ -1,6 +1,6 @@
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/mongodb";
+import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth-utils";
+import { getCurrentUser } from "@/lib/auth/utils";
 import * as XLSX from "xlsx";
 
 export async function POST(request: Request) {

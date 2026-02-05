@@ -2,7 +2,7 @@
 
 import React, { forwardRef } from "react"
 import { Card } from "@/components/ui/card"
-import { calculateDiscountValue, calculateLineTotal } from "@/lib/invoice-calculations"
+import { calculateDiscountValue, calculateLineTotal } from "@/lib/invoice/calculations"
 import { formatCurrencyString } from "@/lib/utils"
 
 export interface InvoiceProduct {

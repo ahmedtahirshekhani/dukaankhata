@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getCollection, COLLECTIONS, toObjectId } from '@/lib/mongodb';
+import { getCollection, COLLECTIONS, toObjectId } from '@/lib/db/mongodb';
 
 export async function GET() {
   try {

@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
-import { calculateLineTotal } from "@/lib/invoice-calculations";
+import { calculateLineTotal } from "@/lib/invoice/calculations";
 
 type Product = {
   id: number;

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { pwaUtils } from '@/lib/pwa-utils';
+import { pwaUtils } from '@/lib/pwa';
 
 export function PWAStatus() {
   const [isPWA, setIsPWA] = useState(false);

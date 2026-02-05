@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getLanguagePreference } from '@/lib/language-storage';
+import { getLanguagePreference } from '@/lib/i18n/language-storage';
 
 export default function Home() {
   const router = useRouter();
