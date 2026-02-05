@@ -1195,7 +1195,7 @@ export default function CounterSale() {
 
           {/* Mobile controls */}
           <div className="md:hidden w-full">
-            <div className="flex items-center gap-2 justify-between mb-2">
+            <div className="flex items-center gap-2 mb-2">
               <div className="flex items-center gap-1">
                 <label className="text-xs font-medium whitespace-nowrap">
                   {t("year")}:
@@ -1216,69 +1216,69 @@ export default function CounterSale() {
                   </SelectContent>
                 </Select>
               </div>
-              <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+              <span className="text-[11px] text-muted-foreground whitespace-nowrap flex-1">
                 {t("total")}: {pageInfo.total.toLocaleString()}
               </span>
-              <Button
-                size="sm"
-                className="h-8 text-xs whitespace-nowrap"
-                onClick={() => setIsAddFormOpen((prev) => !prev)}
-              >
-                {isAddFormOpen ? t("close") : t("add")}
-              </Button>
-            </div>
-            <div className="flex justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 w-10 p-0 min-h-[44px]"
-                    disabled={isDownloading || isImporting}
-                  >
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDownloadExcel}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {isDownloading ? t("downloading") : t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setIsDateRangeDialogOpen(true)}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadDateRange")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDownloadTemplate}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleImportClick}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {isImporting ? t("importing") : t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={handleFileSelect}
-                style={{ display: "none" }}
-              />
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  size="sm"
+                  className="h-8 text-xs whitespace-nowrap"
+                  onClick={() => setIsAddFormOpen((prev) => !prev)}
+                >
+                  {isAddFormOpen ? t("close") : t("add")}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={isDownloading || isImporting}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleDownloadExcel}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {isDownloading ? t("downloading") : t("downloadExcel")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setIsDateRangeDialogOpen(true)}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {t("downloadDateRange")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleDownloadTemplate}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {t("downloadTemplate")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleImportClick}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {isImporting ? t("importing") : t("import")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  onChange={handleFileSelect}
+                  style={{ display: "none" }}
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -1936,189 +1936,6 @@ export default function CounterSale() {
 
           {/* Mobile View - Cards */}
           <div className="md:hidden space-y-3">
-            {isAddFormOpen && (
-              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-3 border">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium">{t("item")}</label>
-                  <Combobox
-                    items={products}
-                    placeholder={t("selectItem")}
-                    value={newTransaction.productName}
-                    onSelect={(productId) => {
-                      if (productId === 0) {
-                        setSelectedComboboxContext("add");
-                        setNewTransaction((prev) => ({
-                          ...prev,
-                          unitPrice: 0,
-                          quantity: 1,
-                          amount: 0,
-                          uom: "unit",
-                        }));
-                        setIsCustomItemDialogOpen(true);
-                      } else {
-                        setNewTransaction((prev) => ({
-                          ...prev,
-                          productId: productId as number,
-                          productName: products.find((p) => p.id === productId)
-                            ?.name,
-                          productDescription: products.find(
-                            (p) => p.id === productId,
-                          )?.description,
-                          unitPrice:
-                            products.find((p) => p.id === productId)
-                              ?.sell_price || 0,
-                          uom:
-                            products.find((p) => p.id === productId)
-                              ?.unit_of_measurement || "unit",
-                          quantity: 1,
-                          amount:
-                            (products.find((p) => p.id === productId)
-                              ?.sell_price || 0) * 1,
-                        }));
-                      }
-                    }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">
-                      {t("unitPrice")}
-                    </label>
-                    <Input
-                      name="unitPrice"
-                      type="number"
-                      value={newTransaction.unitPrice || ""}
-                      onChange={handleInputChange}
-                      placeholder={t("price")}
-                      className="text-sm h-9"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">{t("uom")}</label>
-                    <Select
-                      value={newTransaction.uom}
-                      onValueChange={(value) => handleUOMChange(value, false)}
-                    >
-                      <SelectTrigger className="text-sm h-9">
-                        <SelectValue placeholder="UOM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNITS_OF_MEASUREMENT.map((unit) => (
-                          <SelectItem key={unit.value} value={unit.value}>
-                            {unit.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">
-                      {t("quantity")}
-                    </label>
-                    <Input
-                      name="quantity"
-                      type="number"
-                      value={newTransaction.quantity || ""}
-                      onChange={handleInputChange}
-                      placeholder={t("qty")}
-                      className="text-sm h-9"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">{t("amount")}</label>
-                    <Input
-                      name="amount"
-                      type="number"
-                      value={newTransaction.amount}
-                      onChange={handleInputChange}
-                      placeholder={t("amount")}
-                      required
-                      className="text-sm h-9"
-                      readOnly
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium">{t("type")}</label>
-                  <Select
-                    defaultValue={newTransaction.type}
-                    onValueChange={(value) =>
-                      setNewTransaction({
-                        ...newTransaction,
-                        type: value as TransactionType,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="text-sm h-9">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="income">Income</SelectItem>
-                      <SelectItem value="expense">Expense</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Date</label>
-                    <div className="relative">
-                      <Input
-                        name="created_at"
-                        type="date"
-                        value={isoToDateInput(newTransaction.created_at)}
-                        onChange={handleInputChange}
-                        required
-                        className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
-                      />
-                      <CalendarIcon
-                        className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
-                        onClick={(e) => {
-                          (
-                            e.currentTarget
-                              .previousElementSibling as HTMLInputElement
-                          )?.showPicker?.();
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Customer Name</label>
-                    <Input
-                      name="customerName"
-                      value={newTransaction.customerName || ""}
-                      onChange={handleInputChange}
-                      placeholder="Name (Optional)"
-                      className="text-sm h-9"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium">
-                    {t("customerNumber")}
-                  </label>
-                  <Input
-                    name="customerNumber"
-                    value={newTransaction.customerNumber || ""}
-                    onChange={handleInputChange}
-                    placeholder={t("numberOptional")}
-                    className="text-sm h-9"
-                  />
-                </div>
-                <Button
-                  onClick={handleAddTransaction}
-                  disabled={!isAddFormValid()}
-                  className="w-full text-sm"
-                >
-                  {t("addTransaction")}
-                </Button>
-              </div>
-            )}
-
             {/* Mobile Filter Section */}
             <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border">
               <div className="flex flex-col gap-3">
@@ -2680,6 +2497,219 @@ export default function CounterSale() {
       </Dialog>
 
       {/* Custom Item Dialog */}
+      {/* Add Transaction Dialog (Mobile) */}
+      <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
+        <DialogContent className="sm:max-w-[500px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">
+              {t("addTransaction")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <label className="text-xs sm:text-sm font-medium">
+                {t("item")}
+              </label>
+              <Combobox
+                items={products}
+                placeholder={t("selectItem")}
+                value={newTransaction.productName}
+                onSelect={(productId) => {
+                  if (productId === 0) {
+                    setSelectedComboboxContext("add");
+                    setNewTransaction((prev) => ({
+                      ...prev,
+                      unitPrice: 0,
+                      quantity: 1,
+                      amount: 0,
+                      uom: "unit",
+                    }));
+                    setIsCustomItemDialogOpen(true);
+                  } else {
+                    setNewTransaction((prev) => ({
+                      ...prev,
+                      productId: productId as number,
+                      productName: products.find((p) => p.id === productId)
+                        ?.name,
+                      productDescription: products.find(
+                        (p) => p.id === productId,
+                      )?.description,
+                      unitPrice:
+                        products.find((p) => p.id === productId)?.sell_price ||
+                        0,
+                      uom:
+                        products.find((p) => p.id === productId)
+                          ?.unit_of_measurement || "unit",
+                      quantity: 1,
+                      amount:
+                        (products.find((p) => p.id === productId)?.sell_price ||
+                          0) * 1,
+                    }));
+                  }
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium">
+                  {t("unitPrice")}
+                </label>
+                <Input
+                  name="unitPrice"
+                  type="number"
+                  value={newTransaction.unitPrice || ""}
+                  onChange={handleInputChange}
+                  placeholder={t("price")}
+                  className="text-sm h-9"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium">
+                  {t("uom")}
+                </label>
+                <Select
+                  value={newTransaction.uom}
+                  onValueChange={(value) => handleUOMChange(value, false)}
+                >
+                  <SelectTrigger className="text-sm h-9">
+                    <SelectValue placeholder="UOM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNITS_OF_MEASUREMENT.map((unit) => (
+                      <SelectItem key={unit.value} value={unit.value}>
+                        {unit.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium">
+                  {t("quantity")}
+                </label>
+                <Input
+                  name="quantity"
+                  type="number"
+                  value={newTransaction.quantity || ""}
+                  onChange={handleInputChange}
+                  placeholder={t("qty")}
+                  className="text-sm h-9"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium">
+                  {t("amount")}
+                </label>
+                <Input
+                  name="amount"
+                  type="number"
+                  value={newTransaction.amount}
+                  onChange={handleInputChange}
+                  placeholder={t("amount")}
+                  required
+                  className="text-sm h-9"
+                  readOnly
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs sm:text-sm font-medium">
+                {t("type")}
+              </label>
+              <Select
+                defaultValue={newTransaction.type}
+                onValueChange={(value) =>
+                  setNewTransaction({
+                    ...newTransaction,
+                    type: value as TransactionType,
+                  })
+                }
+              >
+                <SelectTrigger className="text-sm h-9">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium">Date</label>
+                <div className="relative">
+                  <Input
+                    name="created_at"
+                    type="date"
+                    value={isoToDateInput(newTransaction.created_at)}
+                    onChange={handleInputChange}
+                    required
+                    className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                  />
+                  <CalendarIcon
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                    onClick={(e) => {
+                      (
+                        e.currentTarget
+                          .previousElementSibling as HTMLInputElement
+                      )?.showPicker?.();
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium">
+                  Customer Name
+                </label>
+                <Input
+                  name="customerName"
+                  value={newTransaction.customerName || ""}
+                  onChange={handleInputChange}
+                  placeholder="Name (Optional)"
+                  className="text-sm h-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs sm:text-sm font-medium">
+                {t("customerNumber")}
+              </label>
+              <Input
+                name="customerNumber"
+                value={newTransaction.customerNumber || ""}
+                onChange={handleInputChange}
+                placeholder={t("numberOptional")}
+                className="text-sm h-9"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddFormOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                handleAddTransaction();
+                setIsAddFormOpen(false);
+              }}
+              disabled={!isAddFormValid()}
+              className="w-full sm:w-auto"
+            >
+              {t("addTransaction")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={isCustomItemDialogOpen}
         onOpenChange={setIsCustomItemDialogOpen}

@@ -333,7 +333,8 @@ export default function OrdersPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -404,6 +405,84 @@ export default function OrdersPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredOrders.map((order) => (
+              <Card key={order.id} className="p-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Invoice No
+                      </p>
+                      <p className="font-semibold text-sm">
+                        {order.invoice_no || `ORD-${order.id}`}
+                      </p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setSelectedInvoiceOrder(order);
+                        setInvoiceDialogOpen(true);
+                      }}
+                      className="h-8 w-8"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                      <span className="sr-only">Show Invoice</span>
+                    </Button>
+                  </div>
+
+                  <div className="w-full">
+                    <p className="text-xs text-muted-foreground">Customer</p>
+                    <p className="font-medium text-sm">{order.customer.name}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="font-semibold text-sm">
+                        Rs. {Math.floor(order.total_amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Paid</p>
+                      <p className="font-semibold text-sm">
+                        Rs. {Math.floor(order.payment?.paid_amount || 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Balance</p>
+                      <p className="font-semibold text-sm">
+                        Rs.{" "}
+                        {Math.floor(
+                          order.total_amount -
+                            (order.payment?.paid_amount || 0),
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Date</p>
+                      <p className="font-semibold text-sm">
+                        {new Date(
+                          order.sale_date || order.created_at,
+                        ).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center">

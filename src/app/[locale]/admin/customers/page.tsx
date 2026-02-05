@@ -59,10 +59,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import {
-  exportCustomersToExcel,
-  exportCustomersTemplate,
-} from "@/lib/excel";
+import { exportCustomersToExcel, exportCustomersTemplate } from "@/lib/excel";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 type Customer = {
@@ -603,7 +600,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Mobile/Tablet Layout */}
-          <div className="md:hidden flex flex-col gap-3">
+          <div className="md:hidden flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Input
@@ -611,27 +608,27 @@ export default function CustomersPage() {
                   placeholder="Search customers..."
                   value={searchTerm}
                   onChange={handleSearch}
-                  className="pr-8"
+                  className="pr-8 h-9 text-sm"
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
               <Button
                 size="sm"
                 onClick={() => setShowNewCustomerDialog(true)}
-                className="h-9 min-h-[44px]"
+                className="h-9 px-3 flex-shrink-0"
               >
-                <PlusCircle className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Add</span>
+                <PlusCircle className="w-4 h-4 mr-1" />
+                <span className="text-xs">Add</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 w-10 p-0 min-h-[44px]"
+                    className="h-9 w-9 p-0"
                     disabled={isDownloading || isImporting}
                   >
-                    <MoreVertical className="h-5 w-5" />
+                    <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -670,7 +667,7 @@ export default function CustomersPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 md:p-6">
           {/* Desktop Table View */}
           <div className="hidden md:block">
             <div className="overflow-x-auto">
@@ -752,90 +749,120 @@ export default function CustomersPage() {
           </div>
 
           {/* Mobile View - Cards */}
-          <div className="md:hidden space-y-3 p-4">
+          <div className="md:hidden space-y-3">
             {filteredCustomers.map((customer) => (
-              <div
+              <Card
                 key={customer.id}
-                className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-3 border"
+                className="p-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <div className="text-sm font-semibold">{customer.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {customer.phone || "-"}
+                <div className="space-y-3">
+                  {/* Header with Name and Actions */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{customer.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {customer.phone || "-"}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setViewCustomer(customer);
+                          setIsViewCustomerDialogOpen(true);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span className="sr-only">View</span>
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setSelectedCustomerId(customer.id);
+                          setNewCustomerName(customer.name);
+                          setNewCustomerEmail(customer.email);
+                          setNewCustomerPhone(customer.phone);
+                          setNewCustomerCompanyName(
+                            customer.company_name || "",
+                          );
+                          setNewCustomerCompanyAddress(
+                            customer.company_address || "",
+                          );
+                          setNewCustomerOpeningBalance(
+                            customer.balance?.toString() || "",
+                          );
+                          setNewCustomerStatus(customer.status);
+                          setIsEditCustomerDialogOpen(true);
+                        }}
+                      >
+                        <FilePenIcon className="w-4 h-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setCustomerToDelete(customer);
+                          setIsDeleteConfirmationOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setViewCustomer(customer);
-                        setIsViewCustomerDialogOpen(true);
-                      }}
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span className="sr-only">View</span>
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setSelectedCustomerId(customer.id);
-                        setNewCustomerName(customer.name);
-                        setNewCustomerEmail(customer.email);
-                        setNewCustomerPhone(customer.phone);
-                        setNewCustomerCompanyName(customer.company_name || "");
-                        setNewCustomerCompanyAddress(
-                          customer.company_address || "",
-                        );
-                        setNewCustomerOpeningBalance(
-                          customer.balance?.toString() || "",
-                        );
-                        setNewCustomerStatus(customer.status);
-                        setIsEditCustomerDialogOpen(true);
-                      }}
-                    >
-                      <FilePenIcon className="w-4 h-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setCustomerToDelete(customer);
-                        setIsDeleteConfirmationOpen(true);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">
-                      Company Name
-                    </span>
-                    <div className="text-sm font-medium">
-                      {customer.company_name || "-"}
+                  {/* Company and Balance */}
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Company Name
+                      </p>
+                      <p className="font-semibold text-sm">
+                        {customer.company_name || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Balance
+                      </p>
+                      <p className="font-semibold text-sm">
+                        Rs.{" "}
+                        {customer.balance ? Math.round(customer.balance) : "0"}
+                      </p>
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">
-                      Balance
-                    </span>
-                    <div className="text-sm font-medium">
-                      Rs.{" "}
-                      {customer.balance ? Math.round(customer.balance) : "0"}
+
+                  {/* Company Address */}
+                  {customer.company_address && (
+                    <div className="w-full">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Company Address
+                      </p>
+                      <p className="text-xs text-foreground line-clamp-2">
+                        {customer.company_address}
+                      </p>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Email */}
+                  {customer.email && (
+                    <div className="w-full">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Email
+                      </p>
+                      <p className="text-xs text-foreground break-all">
+                        {customer.email}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </CardContent>
