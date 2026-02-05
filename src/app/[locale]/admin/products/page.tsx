@@ -17,10 +17,7 @@ import {
   Upload,
   MoreVertical,
 } from "lucide-react";
-import {
-  exportProductsToExcel,
-  exportProductsTemplate,
-} from "@/lib/excel";
+import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import {
   Dialog,
   DialogContent,
@@ -422,9 +419,9 @@ export default function Products() {
       <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6">
         <CardHeader className="p-0">
           <div className="flex flex-col gap-3">
-            {/* Mobile: Search + Add Button in Grid */}
-            <div className="grid grid-cols-3 gap-2 md:hidden">
-              <div className="col-span-2 relative">
+            {/* Mobile: Search + Add Button + Actions in Row */}
+            <div className="flex gap-2 md:hidden items-center">
+              <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Search products..."
@@ -437,24 +434,20 @@ export default function Products() {
               <Button
                 size="sm"
                 onClick={() => setIsProductDialogOpen(true)}
-                className="h-9 text-xs px-2"
+                className="h-9 text-xs px-2 flex-shrink-0"
               >
                 <PlusIcon className="w-3 h-3 mr-1" />
                 Add
               </Button>
-            </div>
-
-            {/* Mobile: Excel buttons */}
-            <div className="flex justify-end md:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 w-10 p-0 min-h-[44px]"
+                    className="h-9 w-9 p-0"
                     disabled={isDownloading || isImporting}
                   >
-                    <MoreVertical className="h-5 w-5" />
+                    <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">

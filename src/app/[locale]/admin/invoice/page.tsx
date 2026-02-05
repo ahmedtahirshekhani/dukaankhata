@@ -375,9 +375,9 @@ export default function InvoicePage() {
           <CardTitle className="text-lg">Sale Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-12 gap-2 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
             {/* Invoice No & Generate Button */}
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <Label htmlFor="invoice-no" className="text-xs font-medium">
                 Invoice No.
               </Label>
@@ -391,7 +391,7 @@ export default function InvoicePage() {
             </div>
 
             {/* Customer Selection */}
-            <div className="col-span-3">
+            <div className="md:col-span-3">
               <Label htmlFor="customer" className="text-xs font-medium">
                 Customer
               </Label>
@@ -403,7 +403,7 @@ export default function InvoicePage() {
             </div>
 
             {/* Sale Date */}
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <Label htmlFor="sale-date" className="text-xs font-medium">
                 Sale Date
               </Label>
@@ -418,7 +418,7 @@ export default function InvoicePage() {
             </div>
 
             {/* Add Due Date Switch & Due Date */}
-            <div className="col-span-2 flex items-center gap-2">
+            <div className="md:col-span-2 flex items-center gap-2">
               <input
                 type="checkbox"
                 id="add-due-date"
@@ -436,7 +436,7 @@ export default function InvoicePage() {
 
             {/* Due Date Input - Conditional */}
             {addDueDate && (
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <Input
                   id="due-date"
                   type="date"
@@ -455,51 +455,160 @@ export default function InvoicePage() {
           <CardTitle>Items</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Sell Price</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>UOM</TableHead>
-                <TableHead>Discount</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selectedProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Sell Price</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>UOM</TableHead>
+                  <TableHead>Discount</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{product.name}</div>
+                        {product.description && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {truncateDescription(product.description)}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      Rs. {Math.floor(getSalePrice(product))}
+                    </TableCell>
+                    <TableCell>
+                      <input
+                        type="number"
+                        min="1"
+                        value={product.quantity || 1}
+                        onChange={(e) =>
+                          handleQuantityChange(
+                            product.id,
+                            parseInt(e.target.value),
+                          )
+                        }
+                        className="w-16 p-1 border rounded"
+                      />
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatUom(product.unit_of_measurement)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={product.discount || ""}
+                          onChange={(e) =>
+                            handleDiscountChange(
+                              product.id,
+                              parseFloat(e.target.value),
+                            )
+                          }
+                          className="w-24 p-1 border rounded"
+                        />
+                        <Select
+                          value={product.discountType || "value"}
+                          onValueChange={(val) =>
+                            handleDiscountTypeChange(
+                              product.id,
+                              val as "value" | "percentage",
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-16 h-8 text-xs">
+                            <SelectValue placeholder="PKR" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="value">PKR</SelectItem>
+                            <SelectItem value="percentage">%</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      Rs. {Math.floor(calculateLineTotal(product))}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemoveProduct(product.id)}
+                      >
+                        Remove
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {selectedProducts.map((product) => (
+              <Card key={product.id} className="p-3 border">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-medium">{product.name}</div>
+                      <p className="font-semibold text-sm">{product.name}</p>
                       {product.description && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {truncateDescription(product.description)}
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {truncateDescription(product.description, 50)}
+                        </p>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>Rs. {Math.floor(getSalePrice(product))}</TableCell>
-                  <TableCell>
-                    <input
-                      type="number"
-                      min="1"
-                      value={product.quantity || 1}
-                      onChange={(e) =>
-                        handleQuantityChange(
-                          product.id,
-                          parseInt(e.target.value),
-                        )
-                      }
-                      className="w-16 p-1 border rounded"
-                    />
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatUom(product.unit_of_measurement)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveProduct(product.id)}
+                      className="h-6 w-6 p-0"
+                    >
+                      ×
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Price</p>
+                      <p className="font-semibold">
+                        Rs. {Math.floor(getSalePrice(product))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Qty / UOM</p>
+                      <div className="flex gap-1">
+                        <input
+                          type="number"
+                          min="1"
+                          value={product.quantity || 1}
+                          onChange={(e) =>
+                            handleQuantityChange(
+                              product.id,
+                              parseInt(e.target.value),
+                            )
+                          }
+                          className="w-12 h-7 p-1 border rounded text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground pt-1">
+                          {formatUom(product.unit_of_measurement)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Discount</p>
                       <Input
                         type="number"
                         placeholder="0"
@@ -510,60 +619,74 @@ export default function InvoicePage() {
                             parseFloat(e.target.value),
                           )
                         }
-                        className="w-24 p-1 border rounded"
+                        className="h-7 text-xs p-1"
                       />
-                      <Select
-                        value={product.discountType || "value"}
-                        onValueChange={(val) =>
-                          handleDiscountTypeChange(
-                            product.id,
-                            val as "value" | "percentage",
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-16 h-8 text-xs">
-                          <SelectValue placeholder="PKR" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="value">PKR</SelectItem>
-                          <SelectItem value="percentage">%</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    Rs. {Math.floor(calculateLineTotal(product))}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleRemoveProduct(product.id)}
+                    <Select
+                      value={product.discountType || "value"}
+                      onValueChange={(val) =>
+                        handleDiscountTypeChange(
+                          product.id,
+                          val as "value" | "percentage",
+                        )
+                      }
                     >
-                      Remove
-                    </Button>
+                      <SelectTrigger className="w-16 h-7 text-xs">
+                        <SelectValue placeholder="PKR" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="value">PKR</SelectItem>
+                        <SelectItem value="percentage">%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="pt-1 border-t">
+                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="font-bold text-sm">
+                      Rs. {Math.floor(calculateLineTotal(product))}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Add Item Row - Desktop */}
+          <div className="hidden md:block mt-4">
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell>
+                    <Combobox
+                      items={products}
+                      placeholder="Add Item"
+                      noSelect
+                      onSelect={handleSelectProduct}
+                    />
                   </TableCell>
+                  <TableCell colSpan={6}></TableCell>
                 </TableRow>
-              ))}
-              <TableRow>
-                <TableCell>
-                  <Combobox
-                    items={products}
-                    placeholder="Add Item"
-                    noSelect
-                    onSelect={handleSelectProduct}
-                  />
-                </TableCell>
-                <TableCell colSpan={6}></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Add Item - Mobile */}
+          <div className="md:hidden mt-3">
+            <Label className="text-xs font-medium">Add Item</Label>
+            <Combobox
+              items={products}
+              placeholder="Select product to add"
+              noSelect
+              onSelect={handleSelectProduct}
+            />
+          </div>
 
           {/* Summary Section */}
-          <div className="mt-4">
-            {/* All Summary Fields in One Grid */}
-            <div className="flex justify-end mb-4">
-              <div className="space-y-3">
+          <div className="mt-4 md:mt-6 space-y-4">
+            {/* Summary Grid - Desktop */}
+            <div className="hidden md:flex justify-end mb-4">
+              <div className="space-y-3 max-w-md w-full">
                 <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-2 items-center">
                   <span className="text-sm text-right">Sub Total:</span>
                   <span className="text-left font-semibold">
@@ -635,7 +758,6 @@ export default function InvoicePage() {
                   </div>
 
                   {/* Add More Button */}
-                  {/* {(newChargeItem.trim() || newChargeValue) && ( */}
                   <div className="flex justify-end mt-2">
                     <Button
                       onClick={handleAddNewCharge}
@@ -647,7 +769,6 @@ export default function InvoicePage() {
                       Add More
                     </Button>
                   </div>
-                  {/* )} */}
 
                   <div className="space-y-2">
                     {/* Display Added Charges */}
@@ -702,9 +823,166 @@ export default function InvoicePage() {
               </div>
             </div>
 
+            {/* Summary Section - Mobile */}
+            <div className="md:hidden space-y-3">
+              <Card className="p-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Sub Total:
+                    </span>
+                    <span className="font-semibold text-sm">
+                      Rs. {Math.round(total)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Overall Discount:
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        min="0"
+                        className="flex-1 h-7 text-xs"
+                        value={overallDiscount || ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          setOverallDiscount(
+                            isNaN(value) ? 0 : Math.abs(value),
+                          );
+                        }}
+                      />
+                      <Select
+                        value={overallDiscountType}
+                        onValueChange={(val) =>
+                          setOverallDiscountType(val as "value" | "percentage")
+                        }
+                      >
+                        <SelectTrigger className="w-16 h-7 text-xs">
+                          <SelectValue placeholder="PKR" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="value">PKR</SelectItem>
+                          <SelectItem value="percentage">%</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Shipping charges:
+                    </p>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      min="0"
+                      className="w-full h-7 text-xs"
+                      value={shippingCharges || ""}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
+                      }}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Add Charge Form - Mobile */}
+              <Card className="p-3">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium">Additional Charges</p>
+                  <div className="flex gap-2">
+                    <Input
+                      id="new-charge-item"
+                      placeholder="Adjustment"
+                      className="flex-1 h-7 text-xs"
+                      value={newChargeItem}
+                      onChange={(e) => setNewChargeItem(e.target.value)}
+                    />
+                    <Input
+                      id="new-charge-value"
+                      type="number"
+                      placeholder="Value"
+                      className="w-20 h-7 text-xs"
+                      value={newChargeValue}
+                      onChange={(e) => setNewChargeValue(e.target.value)}
+                    />
+                    <Button
+                      onClick={handleAddNewCharge}
+                      variant="default"
+                      size="sm"
+                      className="h-7 text-xs px-2"
+                      disabled={!newChargeItem.trim() || !newChargeValue}
+                    >
+                      Add
+                    </Button>
+                  </div>
+
+                  {/* Display Added Charges */}
+                  {charges.length > 0 && (
+                    <div className="space-y-2 border-t pt-2">
+                      {charges.map((charge) => (
+                        <div
+                          key={charge.id}
+                          className="flex gap-2 items-center"
+                        >
+                          <Input
+                            placeholder="Adjustment"
+                            value={charge.item}
+                            onChange={(e) =>
+                              handleChargeChange(
+                                charge.id,
+                                "item",
+                                e.target.value,
+                              )
+                            }
+                            className="flex-1 h-7 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Value"
+                            value={charge.value || ""}
+                            onChange={(e) =>
+                              handleChargeChange(
+                                charge.id,
+                                "value",
+                                e.target.value,
+                              )
+                            }
+                            className="w-20 h-7 text-xs"
+                          />
+                          <Button
+                            onClick={() => handleRemoveCharge(charge.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Final Total - Mobile */}
+              <Card className="p-4 border-2 border-primary bg-primary/5">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-base">Total:</span>
+                  <span className="font-bold text-lg">
+                    Rs. {Math.floor(finalTotal)}
+                  </span>
+                </div>
+              </Card>
+            </div>
+
             {/* Customer Notes */}
-            <div className="mt-4 flex justify-start">
-              <div className="flex flex-col gap-1 w-full max-w-md">
+            <div className="mt-4 md:mt-6">
+              <div className="flex flex-col gap-1 w-full md:max-w-md">
                 <Label className="text-sm font-medium">Customer Notes</Label>
                 <textarea
                   className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -717,7 +995,7 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-4 md:mt-6">
               <Button
                 onClick={handleSaveOrder}
                 disabled={
@@ -725,6 +1003,7 @@ export default function InvoicePage() {
                   !selectedCustomer ||
                   !invoiceNo
                 }
+                className="w-full md:w-auto"
               >
                 Save
               </Button>
