@@ -23,6 +23,7 @@ import {
   Settings,
   Menu,
   X,
+  Sparkles,
 } from "lucide-react";
 import { LanguageSwitcher } from "./language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -48,6 +49,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/orders": tNav("orders"),
     "/admin/invoice": tNav("invoice"),
     "/admin/counter-sale": tNav("counterSale"),
+    "/admin/ai-chat": tNav("aiChat"),
   };
 
   const handleLogout = async () => {
@@ -226,6 +228,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-col min-w-0">
                   <span className="font-medium text-xs md:text-sm">{tNav("invoice")}</span>
                   <span className="text-xs opacity-70 hidden md:block">{tNav("invoiceDescription")}</span>
+                </div>
+              </Link>
+            </div>
+            <div>
+              <Link
+                href={`/${locale}/admin/ai-chat`}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                  pathWithoutLocale === "/admin/ai-chat"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="h-5 w-5 flex-shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium text-xs md:text-sm">{tNav("aiChat")}</span>
+                  <span className="text-xs opacity-70 hidden md:block">{tNav("aiChatDescription")}</span>
                 </div>
               </Link>
             </div>

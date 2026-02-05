@@ -18,7 +18,8 @@
     "previous": "Previous",
     "search": "Search",
     "filter": "Filter",
-    "settings": "Settings"
+    "settings": "Settings",
+    "comingSoon": "Coming Soon"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -33,6 +34,9 @@
     "ordersDescription": "Track and manage orders",
     "counterSale": "Counter Sale",
     "counterSaleDescription": "Payment processing",
+    "aiChat": "AI Chat",
+    "aiChatDescription": "AI-powered insights and decisions",
+    "aiChatSubtext": "Get intelligent insights to make better business decisions",
     "configuration": "Configuration",
     "configurationDescription": "Upload company logo and signature",
     "reports": "Reports",

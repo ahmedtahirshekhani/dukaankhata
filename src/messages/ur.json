@@ -18,7 +18,8 @@
     "previous": "پچھلا",
     "search": "تلاش کریں",
     "filter": "فلٹر کریں",
-    "settings": "ترتیبات"
+    "settings": "ترتیبات",
+    "comingSoon": "آنے والا"
   },
   "navigation": {
     "dashboard": "ڈیش بورڈ",
@@ -33,6 +34,9 @@
     "ordersDescription": "آرڈرز کو ٹریک اور منظم کریں",
     "counterSale": "کاؤنٹر سیل",
     "counterSaleDescription": "کاؤنٹر سیل کی کارروائی",
+    "aiChat": "AI چیٹ",
+    "aiChatDescription": "AI سے بصیرت اور فیصلے",
+    "aiChatSubtext": "ذہین بصیرت سے بہتر کاروباری فیصلے لیں",
     "configuration": "کنفیگریشن",
     "configurationDescription": "کمپنی لوگو اور مجاز دستخط اپ لوڈ کریں",
     "reports": "رپورٹس",

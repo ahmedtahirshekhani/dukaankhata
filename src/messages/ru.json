@@ -18,7 +18,8 @@
     "previous": "Pichhla",
     "search": "Talash Karain",
     "filter": "Filter Karain",
-    "settings": "Tartibaat"
+    "settings": "Tartibaat",
+    "comingSoon": "Aney Wala"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -33,6 +34,9 @@
     "ordersDescription": "Orders ko track aur organize karain",
     "counterSale": "Counter Sale",
     "counterSaleDescription": "Payment processing",
+    "aiChat": "AI Chat",
+    "aiChatDescription": "AI se insights aur faisle lein",
+    "aiChatSubtext": "Aqlmand insights se acha business faisla lein",
     "configuration": "Tartibaat",
     "configurationDescription": "Company logo aur dastakhat upload karain",
     "reports": "Reports",
