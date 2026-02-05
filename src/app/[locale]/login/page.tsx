@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { supportContact } from "@/lib/constants";
 
 export default function LoginPage({ params }: { params: { locale: string } }) {

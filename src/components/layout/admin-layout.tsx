@@ -23,9 +23,9 @@ import {
   Settings,
   Menu,
   X,
-  Sparkles,
+  MessageSquare,
 } from "lucide-react";
-import { LanguageSwitcher } from "./language-switcher";
+import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -241,7 +241,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Sparkles className="h-5 w-5 flex-shrink-0" />
+              <MessageSquare className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="font-medium text-xs md:text-sm">{tNav("aiChat")}</span>
                   <span className="text-xs opacity-70 hidden md:block">{tNav("aiChatDescription")}</span>

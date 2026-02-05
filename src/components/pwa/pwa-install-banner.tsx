@@ -2,7 +2,7 @@
 
 import { X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePWA } from "@/components/pwa-context";
+import { usePWA } from "@/components/pwa/pwa-context";
 
 export function PWAInstallBanner() {
   const {

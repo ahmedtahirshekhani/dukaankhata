@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import Script from "next/script";
-import GATracker from "@/components/ga-tracker";
-import GTMTracker from "@/components/gtm-tracker";
+import GATracker from "@/components/analytics/ga-tracker";
+import GTMTracker from "@/components/analytics/gtm-tracker";
 import "./globals.css";
 
 const locales = ["en", "ur", "ru"];

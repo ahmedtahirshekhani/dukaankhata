@@ -63,7 +63,7 @@ import {
   exportCustomersToExcel,
   exportCustomersTemplate,
 } from "@/lib/excel";
-import { ErrorDialog } from "@/components/error-dialog";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 type Customer = {
   id: string;

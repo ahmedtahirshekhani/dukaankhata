@@ -69,7 +69,7 @@ import {
 } from "@/lib/excel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ErrorDialog } from "@/components/error-dialog";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 import {
   Select,
@@ -78,7 +78,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UNITS_OF_MEASUREMENT } from "@/components/product-dialog";
+import { UNITS_OF_MEASUREMENT } from "@/components/dialogs/product-dialog";
 
 type TransactionType = "income" | "expense";
 

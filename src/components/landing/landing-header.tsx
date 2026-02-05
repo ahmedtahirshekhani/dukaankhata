@@ -4,11 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { Menu, X, Download } from "lucide-react";
 import { useState } from "react";
 import Logo from "../../../public/images/DukaanKhataLogo.svg";
-import { usePWA } from "@/components/pwa-context";
+import { usePWA } from "@/components/pwa/pwa-context";
 
 export function LandingHeader() {
   const locale = useLocale();

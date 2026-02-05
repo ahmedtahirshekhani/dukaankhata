@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AdminLayout } from "@/components/admin-layout";
+import { AdminLayout } from "@/components/layout/admin-layout";
 import { useSession } from "next-auth/react";
 
 export default function Layout({

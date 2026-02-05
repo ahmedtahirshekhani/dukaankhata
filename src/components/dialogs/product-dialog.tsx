@@ -16,8 +16,8 @@ import Select, { type SingleValue } from "react-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
-import { CategorySelector } from "@/components/category-selector";
-import { BranchSelector } from "@/components/branch-selector";
+import { CategorySelector } from "@/components/selectors/category-selector";
+import { BranchSelector } from "@/components/selectors/branch-selector";
 
 interface Product {
   id: number;

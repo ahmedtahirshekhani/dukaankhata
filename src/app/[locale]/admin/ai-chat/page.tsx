@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
-import { Sparkles } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export default function AIChatPage() {
@@ -10,7 +10,7 @@ export default function AIChatPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
       <Card className="w-full max-w-md p-8 text-center">
         <div className="flex justify-center mb-4">
-          <Sparkles className="h-16 w-16 text-blue-500" />
+          <MessageSquare className="h-16 w-16 text-blue-500" />
         </div>
         <h1 className="text-3xl font-bold mb-2">{t("navigation.aiChat")}</h1>
         <p className="text-lg text-muted-foreground mb-4">

@@ -12,7 +12,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { usePWA } from "@/components/pwa-context";
+import { usePWA } from "@/components/pwa/pwa-context";
 
 export function LandingHero() {
   const locale = useLocale();

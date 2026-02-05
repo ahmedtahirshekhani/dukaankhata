@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ProtectedRoute } from '@/components/protected-route';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 
 export default function SettingsPage({ params }: { params: { locale: string } }) {
   const t = useTranslations('common');

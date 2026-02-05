@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ProductDialog } from "@/components/product-dialog";
+import { ProductDialog } from "@/components/dialogs/product-dialog";
 import { ProductFilters } from "@/components/products/product-filters";
 import {
   ProductsTable,
@@ -48,7 +48,7 @@ import {
 } from "@/components/products/products-table";
 import { useProductsData } from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
-import { ErrorDialog } from "@/components/error-dialog";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";

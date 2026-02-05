@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AuthProvider } from "@/components/auth-provider";
-import { AnalyticsProvider } from "@/components/analytics-provider";
+import { AuthProvider } from "@/components/auth/auth-provider";
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { NextIntlClientProvider } from "next-intl";
-import { LanguageInitializer } from "@/components/language-initializer";
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
-import { PWAInstallBanner } from "@/components/pwa-install-banner";
-import { PWAProvider } from "@/components/pwa-context";
-import { OfflineIndicator } from "@/components/offline-indicator";
-import GTMUserTracker from "@/components/gtm-user-tracker";
+import { LanguageInitializer } from "@/components/language/language-initializer";
+import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
+import { PWAInstallBanner } from "@/components/pwa/pwa-install-banner";
+import { PWAProvider } from "@/components/pwa/pwa-context";
+import { OfflineIndicator } from "@/components/offline/offline-indicator";
+import GTMUserTracker from "@/components/analytics/gtm-user-tracker";
 import "../globals.css";
 
 const locales = ["en", "ur", "ru"] as const;
