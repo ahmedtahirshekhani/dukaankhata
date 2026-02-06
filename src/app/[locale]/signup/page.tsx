@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Eye, EyeOff, X } from "lucide-react";
+import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -208,7 +209,10 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-2">
           <CardTitle className="text-2xl text-center">
@@ -250,7 +254,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               <Input
                 id="companyName"
                 name="companyName"
-                placeholder="Your Company Name"
+                placeholder={t("companyNamePlaceholder")}
                 value={formData.companyName}
                 onChange={handleChange}
                 required
@@ -264,7 +268,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="name@example.com"
+                placeholder={t("emailPlaceholder")}
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -309,7 +313,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   id="confirmPassword"
                   name="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
+                  placeholder={t("confirmPasswordPlaceholder")}
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required

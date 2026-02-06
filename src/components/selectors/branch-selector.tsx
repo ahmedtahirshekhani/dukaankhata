@@ -1,27 +1,48 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import CreatableSelect from "react-select/creatable";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 
 interface BranchSelectorProps {
   value: string;
   onChange: (value: string) => void;
+  translations?: {
+    label: string;
+    tooltip: string;
+    placeholder: string;
+    createLabel: (value: string) => string;
+  };
 }
 
-const defaultBranches = [
-  "Main",
-];
+const defaultBranches = ["Main"];
 
-export function BranchSelector({ value, onChange }: BranchSelectorProps) {
+export function BranchSelector({
+  value,
+  onChange,
+  translations,
+}: BranchSelectorProps) {
+  const t = useTranslations("products");
+  const label = translations?.label ?? t("branch");
+  const tooltip = translations?.tooltip ?? t("branchTooltip");
+  const placeholder = translations?.placeholder ?? t("selectOrCreateBranch");
+  const getCreateLabel =
+    translations?.createLabel ??
+    ((v: string) => t("createBranch", { value: v }));
   const [branches, setBranches] = useState<{ value: string; label: string }[]>(
     defaultBranches.map((branch) => ({ value: branch, label: branch }))
   );
-  const [selectedBranch, setSelectedBranch] = useState<{ value: string; label: string } | null>(
-    null
-  );
+  const [selectedBranch, setSelectedBranch] = useState<{
+    value: string;
+    label: string;
+  } | null>(null);
 
   useEffect(() => {
     // Fetch branches from database
@@ -37,7 +58,10 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
           // Merge default branches with database branches, removing duplicates
           const merged = Array.from(
             new Map([
-              ...defaultBranches.map((branch) => [branch, { value: branch, label: branch }]),
+              ...defaultBranches.map((branch) => [
+                branch,
+                { value: branch, label: branch },
+              ]),
               ...dbBranches.map((branch: any) => [branch.value, branch]),
             ]).values()
           ) as { value: string; label: string }[];
@@ -105,7 +129,11 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
     }),
     option: (base: any, state: any) => ({
       ...base,
-      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#f3f4f6" : "white",
+      backgroundColor: state.isSelected
+        ? "#3b82f6"
+        : state.isFocused
+        ? "#f3f4f6"
+        : "white",
       color: state.isSelected ? "white" : "black",
       cursor: "pointer",
     }),
@@ -115,7 +143,7 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <Label htmlFor="branch" className="">
-          Branch
+          {label}
         </Label>
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
@@ -123,9 +151,7 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
               <Info className="w-3 h-3 text-gray-400" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>
-            Branch or warehouse where item is stored
-          </TooltipContent>
+          <TooltipContent>{tooltip}</TooltipContent>
         </Tooltip>
       </div>
       <CreatableSelect
@@ -136,9 +162,9 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
         value={selectedBranch}
         onChange={handleChange}
         onCreateOption={handleCreateOption}
-        placeholder="Select or create a branch"
+        placeholder={placeholder}
         styles={customStyles}
-        formatCreateLabel={(inputValue) => `Create "${inputValue}"`}
+        formatCreateLabel={getCreateLabel}
       />
     </div>
   );

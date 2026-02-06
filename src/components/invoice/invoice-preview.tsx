@@ -1,6 +1,7 @@
 "use client"
 
 import React, { forwardRef } from "react"
+import { useTranslations } from "next-intl"
 import { Card } from "@/components/ui/card"
 import { calculateDiscountValue, calculateLineTotal } from "@/lib/invoice/calculations"
 import { formatCurrencyString } from "@/lib/utils"
@@ -103,6 +104,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
     },
     ref
   ) => {
+    const t = useTranslations("invoice")
     const remainingBalance = Math.max(0, total - paidAmount)
 
     // Format-specific styling
@@ -124,18 +126,18 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 <img src={companyLogo} alt="Company Logo" className={`${logoHeight} w-auto`} />
               </div>
             )}
-            <h2 className={`${headerTextSize} font-bold mb-2`}>INVOICE</h2>
+            <h2 className={`${headerTextSize} font-bold mb-2`}>{t("invoiceTitle")}</h2>
             <div className={`grid ${gridCols} gap-4 ${textSize}`}>
               <div>
-                <p className="text-gray-600">Invoice No.</p>
+                <p className="text-gray-600">{t("invoiceNoLabel")}</p>
                 <p className="font-semibold">{invoiceNo}</p>
               </div>
               <div>
-                <p className="text-gray-600">Invoice Date</p>
+                <p className="text-gray-600">{t("invoiceDate")}</p>
                 <p className="font-semibold">{formatDateShort(saleDate)}</p>
               </div>
               <div className={isThermal ? "" : "col-span-2"}>
-                <p className="text-gray-600 mb-1">Customer Details</p>
+                <p className="text-gray-600 mb-1">{t("customerDetails")}</p>
                 <div className="space-y-1">
                   <p className="font-semibold">{customer.name}</p>
                   {customer.email && (
@@ -148,7 +150,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               </div>
               {dueDate && (
                 <div className={isThermal ? "" : "col-span-2"}>
-                  <p className="text-gray-600">Due Date</p>
+                  <p className="text-gray-600">{t("dueDate")}</p>
                   <p className="font-semibold">{formatDateLong(dueDate)}</p>
                 </div>
               )}
@@ -159,12 +161,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
             <table className={`w-full ${textSize}`}>
               <thead className="border-b">
                 <tr>
-                  <th className="text-left py-2">Item</th>
-                  {!isThermal && <th className="text-right py-2">Sell Price</th>}
-                  <th className="text-right py-2">Qty</th>
-                  {!isThermal && <th className="text-right py-2">UOM</th>}
-                  {!isThermal && <th className="text-right py-2">Discount</th>}
-                  <th className="text-right py-2">Total</th>
+                  <th className="text-left py-2">{t("item")}</th>
+                  {!isThermal && <th className="text-right py-2">{t("sellPrice")}</th>}
+                  <th className="text-right py-2">{t("qty")}</th>
+                  {!isThermal && <th className="text-right py-2">{t("uom")}</th>}
+                  {!isThermal && <th className="text-right py-2">{t("discount")}</th>}
+                  <th className="text-right py-2">{t("total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -213,7 +215,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
 
             {shippingCharges > 0 && (
               <div className={`flex justify-between ${textSize}`}>
-                <span>Shipping charges:</span>
+                <span>{t("shippingCharges")}</span>
                 <span>{formatCurrencyString(shippingCharges)}</span>
               </div>
             )}
@@ -230,18 +232,18 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
             )}
 
             <div className={`flex justify-between font-bold ${fontBoldSize} border-t pt-2`}>
-              <span>Total:</span>
+              <span>{t("total")}:</span>
               <span>{formatCurrencyString(total)}</span>
             </div>
 
             <div className={`mt-4 text-right ${textSize} space-y-1`}>
               {!noPaymentAtAll && paidAmount > 0 && (
                 <div>
-                  <span className="font-medium">Paid On:</span> {paidDate ? formatDateLong(paidDate) : "—"} — {formatCurrencyString(paidAmount)}
+                  <span className="font-medium">{t("paidOn")}</span> {paidDate ? formatDateLong(paidDate) : "—"} — {formatCurrencyString(paidAmount)}
                 </div>
               )}
               <div>
-                <span className="font-medium">Remaining Balance:</span> {formatCurrencyString(remainingBalance)}
+                <span className="font-medium">{t("remainingBalance")}</span> {formatCurrencyString(remainingBalance)}
               </div>
             </div>
 
@@ -257,7 +259,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 {requestCustomerSignature && (
                   <div className="flex flex-col items-end gap-2 flex-1">
                     <div className={`${signatureHeight} ${isThermal ? "w-full" : "w-48"} border-2 border-dashed border-gray-300 flex items-center justify-center`}>
-                      <span className="text-xs text-muted-foreground">Customer Signature</span>
+                      <span className="text-xs text-muted-foreground">{t("customerSignature")}</span>
                     </div>
                     <div className="w-40 border-t border-gray-300" />
                     <span className="text-xs text-muted-foreground">{customer.name}</span>
@@ -268,7 +270,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
 
             {customerNotes && (
               <div className={`mt-4 ${textSize} text-muted-foreground`}>
-                <p className="font-medium text-foreground">Customer Notes</p>
+                <p className="font-medium text-foreground">{t("customerNotes")}</p>
                 <p>{customerNotes}</p>
               </div>
             )}

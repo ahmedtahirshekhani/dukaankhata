@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,8 @@ export function InvoicePreviewDialog({
   companyName,
   customerNotes = "",
 }: InvoicePreviewDialogProps) {
+    const t = useTranslations("invoice")
+
   const [noPaymentAtAll, setNoPaymentAtAll] = useState(
     initialPayment?.no_payment_at_all || false,
   );
@@ -244,7 +247,7 @@ export function InvoicePreviewDialog({
         >
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">
-              Invoice Preview
+              {t("invoicePreview")}
             </DialogTitle>
           </DialogHeader>
 
@@ -289,7 +292,7 @@ export function InvoicePreviewDialog({
               <div className="flex flex-col gap-3 sm:gap-4 pt-2 sm:pt-4">
                 <div className="space-y-2 sm:space-y-3">
                   <Label className="text-xs sm:text-sm font-medium">
-                    Print Format
+                    {t("printFormat")}
                   </Label>
                   <div className="flex flex-col gap-1.5 sm:gap-2">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -302,7 +305,7 @@ export function InvoicePreviewDialog({
                         className="w-4 h-4"
                       />
                       <span className="text-xs sm:text-sm">
-                        A4 Size (Standard)
+                        {t("a4SizeStandard")}
                       </span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -315,7 +318,7 @@ export function InvoicePreviewDialog({
                         className="w-3 h-3 sm:w-4 sm:h-4"
                       />
                       <span className="text-xs sm:text-sm">
-                        Thermal Receipt (80mm)
+                        {t("thermalReceipt80mm")}
                       </span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -328,7 +331,7 @@ export function InvoicePreviewDialog({
                         className="w-3 h-3 sm:w-4 sm:h-4"
                       />
                       <span className="text-xs sm:text-sm">
-                        Letter Size (US)
+                        {t("letterSizeUS")}
                       </span>
                     </label>
                   </div>
@@ -338,7 +341,7 @@ export function InvoicePreviewDialog({
                   variant="default"
                   className="w-full text-sm"
                 >
-                  Download Invoice
+                  {t("downloadInvoice")}
                 </Button>
               </div>
             ) : (
@@ -354,7 +357,7 @@ export function InvoicePreviewDialog({
                         className="w-full"
                         variant="outline"
                       >
-                        Edit Payment
+                        {t("editPayment")}
                       </Button>
                     ) : (
                       <Button
@@ -389,14 +392,14 @@ export function InvoicePreviewDialog({
                         htmlFor="no-payment"
                         className="text-xs sm:text-sm cursor-pointer"
                       >
-                        No Payment At All
+                        {t("noPaymentAtAll")}
                       </label>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
                     <Label className="text-xs sm:text-sm">
-                      Include signature in invoice
+                      {t("includeSignatureInInvoice")}
                     </Label>
                     <button
                       type="button"
@@ -413,7 +416,7 @@ export function InvoicePreviewDialog({
 
                   <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
                     <Label className="text-xs sm:text-sm">
-                      Request customer signature
+                      {t("requestCustomerSignature")}
                     </Label>
                     <button
                       type="button"
@@ -442,14 +445,14 @@ export function InvoicePreviewDialog({
                       className="w-full"
                       disabled={!(isPaymentMade || noPaymentAtAll)}
                     >
-                      Create Order
+                      {t("createOrder")}
                     </Button>
                   </div>
 
                   <div className="pt-2 border-t">
                     <div className="space-y-2 mb-3">
                       <Label className="text-xs font-medium">
-                        Print Format
+                        {t("printFormat")}
                       </Label>
                       <div className="flex flex-col gap-1.5">
                         <label className="flex items-center gap-2 cursor-pointer">
@@ -461,7 +464,7 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("a4")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">A4 Size</span>
+                          <span className="text-xs">{t("a4Size")}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -472,7 +475,7 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("thermal")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">Thermal Receipt</span>
+                          <span className="text-xs">{t("thermalReceipt")}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -483,7 +486,7 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("letter")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">Letter Size</span>
+                          <span className="text-xs">{t("letterSize")}</span>
                         </label>
                       </div>
                     </div>
@@ -492,7 +495,7 @@ export function InvoicePreviewDialog({
                       variant="outline"
                       className="w-full"
                     >
-                      Download Invoice
+                      {t("downloadInvoice")}
                     </Button>
                   </div>
                 </div>
