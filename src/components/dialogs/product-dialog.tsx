@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Select, { type SingleValue } from "react-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 import { CategorySelector } from "@/components/selectors/category-selector";
 import { BranchSelector } from "@/components/selectors/branch-selector";
@@ -43,6 +49,46 @@ interface ProductDialogProps {
 
 export type UnitOption = { value: string; label: string };
 
+const UNIT_VALUES = [
+  "piece",
+  "kg",
+  "gram",
+  "liter",
+  "ml",
+  "meter",
+  "cm",
+  "inch",
+  "foot",
+  "yard",
+  "lb",
+  "oz",
+  "gallon",
+  "pint",
+  "quart",
+  "sqm",
+  "sqft",
+  "cum",
+  "box",
+  "pack",
+  "dozen",
+  "roll",
+  "sheet",
+  "bundle",
+  "carton",
+  "case",
+  "bottle",
+  "can",
+  "jar",
+  "bag",
+  "pair",
+  "set",
+  "unit",
+  "tube",
+  "packet",
+  "strip",
+] as const;
+
+/** @deprecated Use UNIT_VALUES with translations. Exported for counter-sale page compatibility. */
 export const UNITS_OF_MEASUREMENT: UnitOption[] = [
   { value: "piece", label: "Piece" },
   { value: "kg", label: "Kilogram (kg)" },
@@ -82,10 +128,6 @@ export const UNITS_OF_MEASUREMENT: UnitOption[] = [
   { value: "strip", label: "Strip" },
 ];
 
-const SORTED_UNITS_OF_MEASUREMENT = [...UNITS_OF_MEASUREMENT].sort((a, b) =>
-  a.label.localeCompare(b.label)
-);
-
 const selectStyles = {
   control: (base: any) => ({
     ...base,
@@ -99,7 +141,11 @@ const selectStyles = {
   }),
   option: (base: any, state: any) => ({
     ...base,
-    backgroundColor: state.isSelected ? "#111827" : state.isFocused ? "#f3f4f6" : "white",
+    backgroundColor: state.isSelected
+      ? "#111827"
+      : state.isFocused
+      ? "#f3f4f6"
+      : "white",
     color: state.isSelected ? "white" : "black",
     cursor: "pointer",
     fontSize: "14px",
@@ -116,6 +162,15 @@ export function ProductDialog({
   selectedProduct,
   onSuccess,
 }: ProductDialogProps) {
+  const t = useTranslations("products");
+  const sortedUnitOptions = useMemo(() => {
+    const options: UnitOption[] = UNIT_VALUES.map((value) => ({
+      value,
+      label: t(`units.${value}`),
+    }));
+    return [...options].sort((a, b) => a.label.localeCompare(b.label));
+  }, [t]);
+
   const [itemType, setItemType] = useState<"goods" | "services">("goods");
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
@@ -132,7 +187,7 @@ export function ProductDialog({
 
   useEffect(() => {
     if (selectedProduct) {
-      setItemType(selectedProduct.type as "goods" | "services" || "goods");
+      setItemType((selectedProduct.type as "goods" | "services") || "goods");
       setProductName(selectedProduct.name);
       setProductDescription(selectedProduct.description);
       if (selectedProduct.type === "goods") {
@@ -259,7 +314,21 @@ export function ProductDialog({
     } finally {
       setLoading(false);
     }
-  }, [selectedProduct, itemType, productName, productDescription, productPrice, sellPrice, costPrice, productInStock, productCategory, unitOfMeasurement, branch, onSuccess, onOpenChange]);
+  }, [
+    selectedProduct,
+    itemType,
+    productName,
+    productDescription,
+    productPrice,
+    sellPrice,
+    costPrice,
+    productInStock,
+    productCategory,
+    unitOfMeasurement,
+    branch,
+    onSuccess,
+    onOpenChange,
+  ]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -272,268 +341,284 @@ export function ProductDialog({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isEditMode ? "Edit Item" : "Add New Item"}
+              {isEditMode ? t("editProduct") : t("addNewItem")}
             </DialogTitle>
             <DialogDescription>
-              {isEditMode
-                ? "Edit the details of the item."
-                : "Enter the details of the new item."}
+              {isEditMode ? t("editItemDescription") : t("addItemDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Label className="text-right">Type</Label>
-            </div>
-            <div className="col-span-3">
-              <RadioGroup value={itemType} onValueChange={(value) => setItemType(value as "goods" | "services")}>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="goods" id="goods" />
-                    <Label htmlFor="goods" className="font-normal cursor-pointer">Goods</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="services" id="services" />
-                    <Label htmlFor="services" className="font-normal cursor-pointer">Services</Label>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
+            <div className="grid grid-cols-4 items-center gap-4">
               <div className="flex items-center gap-2">
-                <Label htmlFor="name" className="">
-                  Name
-                </Label>
-                  <span className="text-red-500 text-xs">* (Required)</span>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="cursor-help">
-                      <Info className="w-3 h-3 text-gray-400" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Enter the name or title of the item
-                  </TooltipContent>
-                </Tooltip>
+                <Label className="text-right">{t("type")}</Label>
               </div>
-              <Input
-                id="name"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                required
-                aria-required="true"
-              />
+              <div className="col-span-3">
+                <RadioGroup
+                  value={itemType}
+                  onValueChange={(value) =>
+                    setItemType(value as "goods" | "services")
+                  }
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="goods" id="goods" />
+                      <Label
+                        htmlFor="goods"
+                        className="font-normal cursor-pointer"
+                      >
+                        {t("goods")}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="services" id="services" />
+                      <Label
+                        htmlFor="services"
+                        className="font-normal cursor-pointer"
+                      >
+                        {t("services")}
+                      </Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="description" className="">
-                  Description
-                </Label>
-                <span className="text-xs text-muted-foreground">(max 100 chars)</span>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="cursor-help">
-                      <Info className="w-3 h-3 text-gray-400" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Add details about the item
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Input
-                id="description"
-                value={productDescription}
-                onChange={(e) => setProductDescription(e.target.value)}
-                maxLength={100}
-              />
-            </div>
-          </div>
-
-          {itemType === "goods" ? (
-            <>
             <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="quantity" className="">
-                      Quantity
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Current stock or quantity available
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={productInStock}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? "" : Number(e.target.value);
-                      setProductInStock(val === "" ? "" : Math.max(0, val));
-                    }}
-                    placeholder="0"
-                    min="0"
-                  />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="name" className="">
+                    {t("name")}
+                  </Label>
+                  <span className="text-red-500 text-xs">{t("required")}</span>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="cursor-help">
+                        <Info className="w-3 h-3 text-gray-400" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("nameTooltip")}</TooltipContent>
+                  </Tooltip>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="unitOfMeasurement" className="">
-                      Unit of Measurement
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Choose the unit for measuring quantity (kg, liter, piece, etc.)
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select
-                    inputId="unitOfMeasurement"
-                    isClearable
-                    isSearchable
-                    options={SORTED_UNITS_OF_MEASUREMENT}
-                    placeholder="Select unit"
-                    styles={selectStyles}
-                    value={SORTED_UNITS_OF_MEASUREMENT.find((unit) => unit.value === unitOfMeasurement) || null}
-                    onChange={(option: SingleValue<UnitOption>) =>
-                      setUnitOfMeasurement(option?.value || "")
-                    }
-                  />
-                </div>
+                <Input
+                  id="name"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  required
+                  aria-required="true"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="sellPrice" className="">
-                      Sell Price
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Price at which you sell this item
-                      </TooltipContent>
-                    </Tooltip>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="description" className="">
+                    {t("description")}
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {t("descriptionMaxChars")}
+                  </span>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="cursor-help">
+                        <Info className="w-3 h-3 text-gray-400" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("descriptionTooltip")}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Input
+                  id="description"
+                  value={productDescription}
+                  onChange={(e) => setProductDescription(e.target.value)}
+                  maxLength={100}
+                />
+              </div>
+            </div>
+
+            {itemType === "goods" ? (
+              <>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="quantity" className="">
+                        {t("quantity")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("quantityTooltip")}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      value={productInStock}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? "" : Number(e.target.value);
+                        setProductInStock(val === "" ? "" : Math.max(0, val));
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
                   </div>
-                  <Input
-                    id="sellPrice"
-                    type="number"
-                    value={sellPrice}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? "" : Number(e.target.value);
-                      setSellPrice(val === "" ? "" : Math.max(0, val));
-                    }}
-                    placeholder="0"
-                    min="0"
-                  />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="unitOfMeasurement" className="">
+                        {t("unitOfMeasurement")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("unitTooltip")}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Select
+                      inputId="unitOfMeasurement"
+                      isClearable
+                      isSearchable
+                      options={sortedUnitOptions}
+                      placeholder={t("selectUnit")}
+                      styles={selectStyles}
+                      value={
+                        sortedUnitOptions.find(
+                          (unit) => unit.value === unitOfMeasurement
+                        ) || null
+                      }
+                      onChange={(option: SingleValue<UnitOption>) =>
+                        setUnitOfMeasurement(option?.value || "")
+                      }
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="costPrice" className="">
-                      Cost Price
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Price at which you purchased this item
-                      </TooltipContent>
-                    </Tooltip>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="sellPrice" className="">
+                        {t("sellPrice")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("sellPriceTooltip")}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="sellPrice"
+                      type="number"
+                      value={sellPrice}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? "" : Number(e.target.value);
+                        setSellPrice(val === "" ? "" : Math.max(0, val));
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
                   </div>
-                  <Input
-                    id="costPrice"
-                    type="number"
-                    value={costPrice}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? "" : Number(e.target.value);
-                      setCostPrice(val === "" ? "" : Math.max(0, val));
-                    }}
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-              </div>
 
-              
-              <div className="grid grid-cols-2 gap-6">
-                <CategorySelector value={productCategory} onChange={setProductCategory} />
-
-                <BranchSelector value={branch} onChange={setBranch} />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="sellPrice" className="">
-                      Sell Price
-                    </Label>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="cursor-help">
-                          <Info className="w-3 h-3 text-gray-400" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Price at which you sell this service
-                      </TooltipContent>
-                    </Tooltip>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="costPrice" className="">
+                        {t("costPrice")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("costPriceTooltip")}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="costPrice"
+                      type="number"
+                      value={costPrice}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? "" : Number(e.target.value);
+                        setCostPrice(val === "" ? "" : Math.max(0, val));
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
                   </div>
-                  <Input
-                    id="sellPrice"
-                    type="number"
-                    value={sellPrice}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? "" : Number(e.target.value);
-                      setSellPrice(val === "" ? "" : Math.max(0, val));
-                    }}
-                    placeholder="0"
-                    min="0"
-                  />
                 </div>
 
-                <CategorySelector value={productCategory} onChange={setProductCategory} />
-              </div>
-            </>
-          )}
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={isEditMode ? handleEditProduct : handleAddProduct}
-            disabled={loading || productName.trim() === ""}
-          >
-            {loading
-              ? "Processing..."
-              : isEditMode
-                ? "Update Item"
-                : "Add Item"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+                <div className="grid grid-cols-2 gap-6">
+                  <CategorySelector
+                    value={productCategory}
+                    onChange={setProductCategory}
+                  />
+
+                  <BranchSelector value={branch} onChange={setBranch} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="sellPrice" className="">
+                        {t("sellPrice")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t("sellPriceServiceTooltip")}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="sellPrice"
+                      type="number"
+                      value={sellPrice}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? "" : Number(e.target.value);
+                        setSellPrice(val === "" ? "" : Math.max(0, val));
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+
+                  <CategorySelector
+                    value={productCategory}
+                    onChange={setProductCategory}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={isEditMode ? handleEditProduct : handleAddProduct}
+              disabled={loading || productName.trim() === ""}
+            >
+              {loading
+                ? t("processing")
+                : isEditMode
+                ? t("updateItem")
+                : t("addProduct")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </TooltipProvider>
     </Dialog>
   );

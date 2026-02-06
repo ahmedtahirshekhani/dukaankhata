@@ -104,12 +104,12 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="pb-3">
-          <div className="mb-4 w-full text-center [&>*]:w-full">
-            <LanguageSwitcher />
-          </div>
           <CardTitle className="text-2xl text-center">
             {t("signInTitle")}
           </CardTitle>
@@ -194,7 +194,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
           </form>
           {/* Support contact details */}
           <div className="mt-6 text-center text-xs text-muted-foreground">
-            <p className="font-medium">Need help? Contact Support</p>
+            <p className="font-medium">{t("needHelpContactSupport")}</p>
             <div className="flex flex-col gap-1 items-center">
               <p>
                 Email:{" "}
@@ -219,7 +219,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
                 <a
                   href={`https://wa.me/${supportContact.whatsapp.replace(
                     /[^\d]/g,
-                    "",
+                    ""
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

@@ -1,14 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import CreatableSelect from "react-select/creatable";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 
 interface CategorySelectorProps {
   value: string;
   onChange: (value: string) => void;
+  translations?: {
+    label: string;
+    tooltip: string;
+    placeholder: string;
+    createLabel: (value: string) => string;
+  };
 }
 
 const defaultCategories = [
@@ -23,13 +34,25 @@ const defaultCategories = [
   "Installation",
 ];
 
-export function CategorySelector({ value, onChange }: CategorySelectorProps) {
-  const [categories, setCategories] = useState<{ value: string; label: string }[]>(
-    defaultCategories.map((cat) => ({ value: cat, label: cat }))
-  );
-  const [selectedCategory, setSelectedCategory] = useState<{ value: string; label: string } | null>(
-    null
-  );
+export function CategorySelector({
+  value,
+  onChange,
+  translations,
+}: CategorySelectorProps) {
+  const t = useTranslations("products");
+  const label = translations?.label ?? t("category");
+  const tooltip = translations?.tooltip ?? t("categoryTooltip");
+  const placeholder = translations?.placeholder ?? t("selectOrCreateCategory");
+  const getCreateLabel =
+    translations?.createLabel ??
+    ((v: string) => t("createCategory", { value: v }));
+  const [categories, setCategories] = useState<
+    { value: string; label: string }[]
+  >(defaultCategories.map((cat) => ({ value: cat, label: cat })));
+  const [selectedCategory, setSelectedCategory] = useState<{
+    value: string;
+    label: string;
+  } | null>(null);
 
   useEffect(() => {
     // Fetch categories from database
@@ -45,7 +68,10 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
           // Merge default categories with database categories, removing duplicates
           const merged = Array.from(
             new Map([
-              ...defaultCategories.map((cat) => [cat, { value: cat, label: cat }]),
+              ...defaultCategories.map((cat) => [
+                cat,
+                { value: cat, label: cat },
+              ]),
               ...dbCategories.map((cat: any) => [cat.value, cat]),
             ]).values()
           ) as { value: string; label: string }[];
@@ -113,7 +139,11 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
     }),
     option: (base: any, state: any) => ({
       ...base,
-      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#f3f4f6" : "white",
+      backgroundColor: state.isSelected
+        ? "#3b82f6"
+        : state.isFocused
+        ? "#f3f4f6"
+        : "white",
       color: state.isSelected ? "white" : "black",
       cursor: "pointer",
     }),
@@ -123,7 +153,7 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <Label htmlFor="category" className="">
-          Category
+          {label}
         </Label>
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
@@ -131,9 +161,7 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
               <Info className="w-3 h-3 text-gray-400" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>
-            Select a category for organization and filtering
-          </TooltipContent>
+          <TooltipContent>{tooltip}</TooltipContent>
         </Tooltip>
       </div>
       <CreatableSelect
@@ -144,9 +172,9 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
         value={selectedCategory}
         onChange={handleChange}
         onCreateOption={handleCreateOption}
-        placeholder="Select or create a category"
+        placeholder={placeholder}
         styles={customStyles}
-        formatCreateLabel={(inputValue) => `Create "${inputValue}"`}
+        formatCreateLabel={getCreateLabel}
       />
     </div>
   );

@@ -4,11 +4,18 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ArrowLeft } from "lucide-react";
+import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 function ResetPasswordContent({ locale }: { locale: string }) {
   const t = useTranslations("auth");
@@ -16,7 +23,9 @@ function ResetPasswordContent({ locale }: { locale: string }) {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
 
-  const [status, setStatus] = useState<"checking" | "invalid" | "ready" | "submitting" | "success">("checking");
+  const [status, setStatus] = useState<
+    "checking" | "invalid" | "ready" | "submitting" | "success"
+  >("checking");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string>("");
@@ -28,7 +37,9 @@ function ResetPasswordContent({ locale }: { locale: string }) {
         return;
       }
       try {
-        const res = await fetch(`/api/auth/reset-password?token=${encodeURIComponent(token)}`);
+        const res = await fetch(
+          `/api/auth/reset-password?token=${encodeURIComponent(token)}`
+        );
         if (!res.ok) throw new Error("Invalid");
         setStatus("ready");
       } catch {
@@ -76,32 +87,38 @@ function ResetPasswordContent({ locale }: { locale: string }) {
         router.push(`/${locale}/login`);
       }, 3000);
     } catch (err: any) {
-      setError(err?.message || "Reset failed");
+      setError(err?.message || t("resetFailed"));
       setStatus("ready");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
+          <CardTitle className="text-2xl">{t("resetPasswordTitle")}</CardTitle>
           <CardDescription>
-            {status === "checking" && "Validating your link..."}
-            {status === "invalid" && "This reset link is invalid or has expired."}
-            {status === "ready" && "Create a new password for your account."}
-            {status === "success" && "Your password has been reset successfully."}
+            {status === "checking" && t("validatingLink")}
+            {status === "invalid" && t("invalidResetLink")}
+            {status === "ready" && t("createNewPassword")}
+            {status === "success" && t("resetSuccess")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {status === "invalid" && (
             <div className="space-y-4">
               <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                Invalid or expired token.
+                {t("invalidOrExpiredToken")}
               </div>
-              <Link href={`/${locale}/forgot-password`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
+              <Link
+                href={`/${locale}/forgot-password`}
+                className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
+              >
                 <ArrowLeft className="w-4 h-4" />
-                Back to Forgot Password
+                {t("backToForgotPassword")}
               </Link>
             </div>
           )}
@@ -109,9 +126,12 @@ function ResetPasswordContent({ locale }: { locale: string }) {
           {status === "success" && (
             <div className="space-y-4">
               <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-                Password updated. Redirecting to sign in...
+                {t("passwordUpdatedRedirecting")}
               </div>
-              <Link href={`/${locale}/login`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
+              <Link
+                href={`/${locale}/login`}
+                className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
+              >
                 <ArrowLeft className="w-4 h-4" />
                 {t("signIn")}
               </Link>
@@ -150,11 +170,18 @@ function ResetPasswordContent({ locale }: { locale: string }) {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={status === "submitting"}>
-                {status === "submitting" ? t("loading") : "Set New Password"}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={status === "submitting"}
+              >
+                {status === "submitting" ? t("loading") : t("setNewPassword")}
               </Button>
 
-              <Link href={`/${locale}/login`} className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
+              <Link
+                href={`/${locale}/login`}
+                className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
+              >
                 <ArrowLeft className="w-4 h-4" />
                 {t("signIn")}
               </Link>
@@ -166,7 +193,11 @@ function ResetPasswordContent({ locale }: { locale: string }) {
   );
 }
 
-export default function ResetPasswordPage({ params }: { params: { locale: string } }) {
+export default function ResetPasswordPage({
+  params,
+}: {
+  params: { locale: string };
+}) {
   return (
     <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
       <ResetPasswordContent locale={params.locale} />

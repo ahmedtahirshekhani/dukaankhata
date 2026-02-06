@@ -583,7 +583,7 @@ export default function OrdersPage() {
               </Button>
               <Button variant="destructive" onClick={handleDeleteOrder}>
                 Delete
-              </Button>
+w              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
