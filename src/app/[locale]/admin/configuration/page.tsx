@@ -11,6 +11,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 export default function ConfigurationPage({ params }: { params: { locale: string } }) {
   const tNav = useTranslations('navigation');
   const tCommon = useTranslations('common');
+  const t = useTranslations('configurationPage');
 
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setSignatureError('Only image files are allowed.');
+      setSignatureError(t('onlyImageFilesAllowed'));
       (e.target as HTMLInputElement).value = '';
       return;
     }
@@ -98,7 +99,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
         localStorage.removeItem('invoiceSignature');
       }
       
-      setMessage('Uploads saved to server');
+      setMessage(t('uploadsSaved'));
       setTimeout(() => setMessage(''), 2500);
     } catch (err: any) {
       setMessage(err?.message || 'Failed to save');
@@ -123,7 +124,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
           )}
 
           {isLoading ? (
-            <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+            <div className="p-4 text-sm text-muted-foreground">{t('loading')}</div>
           ) : (
             <>
               <Card>
@@ -140,7 +141,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
                     )}
                     {companyLogo && (
                       <div className="mt-2">
-                        <img src={companyLogo} alt="Company Logo" className="h-16 w-auto rounded border" />
+                        <img src={companyLogo} alt={t('companyLogoAlt')} className="h-16 w-auto rounded border" />
                         <div className="mt-2 flex gap-2">
                           <Button
                             variant="ghost"
@@ -157,19 +158,19 @@ export default function ConfigurationPage({ params }: { params: { locale: string
 
               <Card className="mt-8">
                 <CardHeader>
-                  <CardTitle>Authorized Signature</CardTitle>
-                  <CardDescription>Upload and preview the authorized invoice signature</CardDescription>
+                  <CardTitle>{t('authorizedSignature')}</CardTitle>
+                  <CardDescription>{t('authorizedSignatureDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="authorized-signature">Authorized Signature</Label>
+                    <Label htmlFor="authorized-signature">{t('authorizedSignature')}</Label>
                     <Input id="authorized-signature" type="file" accept="image/*" onChange={handleSignatureChange} />
                     {signatureError && (
                       <p className="text-xs text-red-600">{signatureError}</p>
                     )}
                     {signatureImage && (
                       <div className="mt-2">
-                        <img src={signatureImage} alt="Authorized Signature" className="h-16 w-auto rounded border" />
+                        <img src={signatureImage} alt={t('authorizedSignatureAlt')} className="h-16 w-auto rounded border" />
                         <div className="mt-2 flex gap-2">
                           <Button
                             variant="ghost"
@@ -186,7 +187,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
 
               <div className="mt-6 flex justify-end">
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save Uploads'}
+                  {isSaving ? t('saving') : t('saveUploads')}
                 </Button>
               </div>
             </>

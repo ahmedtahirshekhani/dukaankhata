@@ -86,9 +86,7 @@ export default function InvoicePage() {
     "value" | "percentage"
   >("value");
   const [shippingCharges, setShippingCharges] = useState<number>(0);
-  const [customerNotes, setCustomerNotes] = useState<string>(
-    "Thanks for your business",
-  );
+  const [customerNotes, setCustomerNotes] = useState<string>("");
 
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const formatUom = (uom?: string) =>
@@ -104,6 +102,10 @@ export default function InvoicePage() {
     fetchCustomers();
     fetchPaymentMethods();
   }, []);
+
+  useEffect(() => {
+    setCustomerNotes((prev) => (prev === "" ? t("thanksForYourBusiness") : prev));
+  }, [t]);
 
   const generateInvoiceNo = () => {
     const timestamp = Date.now();
@@ -125,7 +127,7 @@ export default function InvoicePage() {
   const fetchCustomers = async () => {
     try {
       const response = await fetch("/api/customers");
-      if (!response.ok) throw new Error("Failed to fetch customers");
+      if (!response.ok) throw new Error(t("failedToFetchCustomers"));
       const data = await response.json();
       setCustomers(data);
     } catch (error) {
@@ -136,7 +138,7 @@ export default function InvoicePage() {
   const fetchPaymentMethods = async () => {
     try {
       const response = await fetch("/api/payment-methods");
-      if (!response.ok) throw new Error("Failed to fetch payment methods");
+      if (!response.ok) throw new Error(t("failedToFetchPaymentMethods"));
       const data = await response.json();
       setPaymentMethods(data);
     } catch (error) {
@@ -261,7 +263,7 @@ export default function InvoicePage() {
     newChargeItem.trim() || newChargeValue
       ? {
           id: "pending",
-          item: newChargeItem.trim() || "Adjustment",
+          item: newChargeItem.trim() || t("adjustment"),
           value: parseFloat(newChargeValue) || 0,
         }
       : null;
@@ -372,18 +374,18 @@ export default function InvoicePage() {
       </div>
       <Card className="mb-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Sale Details</CardTitle>
+          <CardTitle className="text-lg">{t("saleDetails")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
             {/* Invoice No & Generate Button */}
             <div className="md:col-span-2">
               <Label htmlFor="invoice-no" className="text-xs font-medium">
-                Invoice No.
+                {t("invoiceNo")}
               </Label>
               <Input
                 id="invoice-no"
-                placeholder="Enter/Generate"
+                placeholder={t("enterGenerate")}
                 value={invoiceNo}
                 onChange={(e) => setInvoiceNo(e.target.value)}
                 className="h-8 text-sm"
@@ -393,11 +395,11 @@ export default function InvoicePage() {
             {/* Customer Selection */}
             <div className="md:col-span-3">
               <Label htmlFor="customer" className="text-xs font-medium">
-                Customer
+                {t("customer")}
               </Label>
               <Combobox
                 items={customers}
-                placeholder="Select Customer"
+                placeholder={t("selectCustomer")}
                 onSelect={handleSelectCustomer}
               />
             </div>
@@ -405,7 +407,7 @@ export default function InvoicePage() {
             {/* Sale Date */}
             <div className="md:col-span-2">
               <Label htmlFor="sale-date" className="text-xs font-medium">
-                Sale Date
+                {t("saleDate")}
               </Label>
               <Input
                 id="sale-date"
@@ -452,7 +454,7 @@ export default function InvoicePage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Items</CardTitle>
+          <CardTitle>{t("items")}</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}
@@ -460,13 +462,13 @@ export default function InvoicePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Sell Price</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>UOM</TableHead>
-                  <TableHead>Discount</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("item")}</TableHead>
+                  <TableHead>{t("sellPrice")}</TableHead>
+                  <TableHead>{t("quantity")}</TableHead>
+                  <TableHead>{t("uom")}</TableHead>
+                  <TableHead>{t("discount")}</TableHead>
+                  <TableHead>{t("amount")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -483,7 +485,7 @@ export default function InvoicePage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      Rs. {Math.floor(getSalePrice(product))}
+                      {t("currencySymbol")} {Math.floor(getSalePrice(product))}
                     </TableCell>
                     <TableCell>
                       <input
@@ -526,7 +528,7 @@ export default function InvoicePage() {
                           }
                         >
                           <SelectTrigger className="w-16 h-8 text-xs">
-                            <SelectValue placeholder="PKR" />
+                            <SelectValue placeholder={t("pkr")} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="value">PKR</SelectItem>
@@ -536,7 +538,7 @@ export default function InvoicePage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      Rs. {Math.floor(calculateLineTotal(product))}
+                      {t("currencySymbol")} {Math.floor(calculateLineTotal(product))}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -544,7 +546,7 @@ export default function InvoicePage() {
                         size="sm"
                         onClick={() => handleRemoveProduct(product.id)}
                       >
-                        Remove
+                        {t("remove")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -579,13 +581,13 @@ export default function InvoicePage() {
 
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <p className="text-xs text-muted-foreground">Price</p>
+                      <p className="text-xs text-muted-foreground">{t("sellPrice")}</p>
                       <p className="font-semibold">
-                        Rs. {Math.floor(getSalePrice(product))}
+                        {t("currencySymbol")} {Math.floor(getSalePrice(product))}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Qty / UOM</p>
+                      <p className="text-xs text-muted-foreground">{t("qty")} / {t("uom")}</p>
                       <div className="flex gap-1">
                         <input
                           type="number"
@@ -632,19 +634,19 @@ export default function InvoicePage() {
                       }
                     >
                       <SelectTrigger className="w-16 h-7 text-xs">
-                        <SelectValue placeholder="PKR" />
+                        <SelectValue placeholder={t("pkr")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="value">PKR</SelectItem>
-                        <SelectItem value="percentage">%</SelectItem>
+                        <SelectItem value="value">{t("pkr")}</SelectItem>
+                        <SelectItem value="percentage">{t("percentage")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="pt-1 border-t">
-                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="text-xs text-muted-foreground">{t("amount")}</p>
                     <p className="font-bold text-sm">
-                      Rs. {Math.floor(calculateLineTotal(product))}
+                      {t("currencySymbol")} {Math.floor(calculateLineTotal(product))}
                     </p>
                   </div>
                 </div>
@@ -660,7 +662,7 @@ export default function InvoicePage() {
                   <TableCell>
                     <Combobox
                       items={products}
-                      placeholder="Add Item"
+                      placeholder={t("addItem")}
                       noSelect
                       onSelect={handleSelectProduct}
                     />
@@ -673,10 +675,10 @@ export default function InvoicePage() {
 
           {/* Add Item - Mobile */}
           <div className="md:hidden mt-3">
-            <Label className="text-xs font-medium">Add Item</Label>
+            <Label className="text-xs font-medium">{t("addItem")}</Label>
             <Combobox
               items={products}
-              placeholder="Select product to add"
+              placeholder={t("selectProductToAdd")}
               noSelect
               onSelect={handleSelectProduct}
             />
@@ -688,12 +690,12 @@ export default function InvoicePage() {
             <div className="hidden md:flex justify-end mb-4">
               <div className="space-y-3 max-w-md w-full">
                 <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-2 items-center">
-                  <span className="text-sm text-right">Sub Total:</span>
+                  <span className="text-sm text-right">{t("subTotal")}</span>
                   <span className="text-left font-semibold">
-                    Rs. {Math.round(total)}
+                    {t("currencySymbol")} {Math.round(total)}
                   </span>
 
-                  <span className="text-sm text-right">Overall Discount:</span>
+                  <span className="text-sm text-right">{t("overallDiscount")}</span>
                   <div className="flex gap-1 items-center">
                     <Input
                       type="number"
@@ -713,16 +715,16 @@ export default function InvoicePage() {
                       }
                     >
                       <SelectTrigger className="w-16 h-8 text-xs">
-                        <SelectValue placeholder="PKR" />
+                        <SelectValue placeholder={t("pkr")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="value">PKR</SelectItem>
-                        <SelectItem value="percentage">%</SelectItem>
+                        <SelectItem value="value">{t("pkr")}</SelectItem>
+                        <SelectItem value="percentage">{t("percentage")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <span className="text-sm text-right">Shipping charges:</span>
+                  <span className="text-sm text-right">{t("shippingCharges")}</span>
                   <Input
                     type="number"
                     placeholder="0"
@@ -741,7 +743,7 @@ export default function InvoicePage() {
                   <div className="flex gap-2 items-center">
                     <Input
                       id="new-charge-item"
-                      placeholder="Adjustment"
+                      placeholder={t("adjustment")}
                       className="w-32 h-8 text-sm"
                       value={newChargeItem}
                       onChange={(e) => setNewChargeItem(e.target.value)}
@@ -750,7 +752,7 @@ export default function InvoicePage() {
                     <Input
                       id="new-charge-value"
                       type="number"
-                      placeholder="Value"
+                      placeholder={t("value")}
                       className="w-24 h-8 text-sm"
                       value={newChargeValue}
                       onChange={(e) => setNewChargeValue(e.target.value)}
@@ -766,7 +768,7 @@ export default function InvoicePage() {
                       className="h-8 text-xs"
                       disabled={!newChargeItem.trim() || !newChargeValue}
                     >
-                      Add More
+                      {t("addMore")}
                     </Button>
                   </div>
 
@@ -775,7 +777,7 @@ export default function InvoicePage() {
                     {charges.map((charge) => (
                       <div key={charge.id} className="flex gap-2 items-center">
                         <Input
-                          placeholder="Adjustment"
+                          placeholder={t("adjustment")}
                           value={charge.item}
                           onChange={(e) =>
                             handleChargeChange(
@@ -789,7 +791,7 @@ export default function InvoicePage() {
                         <span className="text-sm">:</span>
                         <Input
                           type="number"
-                          placeholder="Value"
+                          placeholder={t("value")}
                           value={charge.value || ""}
                           onChange={(e) =>
                             handleChargeChange(
@@ -829,16 +831,16 @@ export default function InvoicePage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">
-                      Sub Total:
+                      {t("subTotal")}
                     </span>
                     <span className="font-semibold text-sm">
-                      Rs. {Math.round(total)}
+                      {t("currencySymbol")} {Math.round(total)}
                     </span>
                   </div>
 
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">
-                      Overall Discount:
+                      {t("overallDiscount")}
                     </p>
                     <div className="flex gap-2 items-center">
                       <Input
@@ -861,11 +863,11 @@ export default function InvoicePage() {
                         }
                       >
                         <SelectTrigger className="w-16 h-7 text-xs">
-                          <SelectValue placeholder="PKR" />
+                          <SelectValue placeholder={t("pkr")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="value">PKR</SelectItem>
-                          <SelectItem value="percentage">%</SelectItem>
+                          <SelectItem value="value">{t("pkr")}</SelectItem>
+                          <SelectItem value="percentage">{t("percentage")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -873,7 +875,7 @@ export default function InvoicePage() {
 
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">
-                      Shipping charges:
+                      {t("shippingCharges")}
                     </p>
                     <Input
                       type="number"
@@ -893,11 +895,11 @@ export default function InvoicePage() {
               {/* Add Charge Form - Mobile */}
               <Card className="p-3">
                 <div className="space-y-2">
-                  <p className="text-xs font-medium">Additional Charges</p>
+                  <p className="text-xs font-medium">{t("additionalCharges")}</p>
                   <div className="flex gap-2">
                     <Input
                       id="new-charge-item"
-                      placeholder="Adjustment"
+                      placeholder={t("adjustment")}
                       className="flex-1 h-7 text-xs"
                       value={newChargeItem}
                       onChange={(e) => setNewChargeItem(e.target.value)}
@@ -905,7 +907,7 @@ export default function InvoicePage() {
                     <Input
                       id="new-charge-value"
                       type="number"
-                      placeholder="Value"
+                      placeholder={t("value")}
                       className="w-20 h-7 text-xs"
                       value={newChargeValue}
                       onChange={(e) => setNewChargeValue(e.target.value)}
@@ -917,7 +919,7 @@ export default function InvoicePage() {
                       className="h-7 text-xs px-2"
                       disabled={!newChargeItem.trim() || !newChargeValue}
                     >
-                      Add
+                      {t("add")}
                     </Button>
                   </div>
 
@@ -930,7 +932,7 @@ export default function InvoicePage() {
                           className="flex gap-2 items-center"
                         >
                           <Input
-                            placeholder="Adjustment"
+                            placeholder={t("adjustment")}
                             value={charge.item}
                             onChange={(e) =>
                               handleChargeChange(
@@ -943,7 +945,7 @@ export default function InvoicePage() {
                           />
                           <Input
                             type="number"
-                            placeholder="Value"
+                            placeholder={t("value")}
                             value={charge.value || ""}
                             onChange={(e) =>
                               handleChargeChange(
@@ -972,9 +974,9 @@ export default function InvoicePage() {
               {/* Final Total - Mobile */}
               <Card className="p-4 border-2 border-primary bg-primary/5">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-base">Total:</span>
+                  <span className="font-bold text-base">{t("total")}:</span>
                   <span className="font-bold text-lg">
-                    Rs. {Math.floor(finalTotal)}
+                    {t("currencySymbol")} {Math.floor(finalTotal)}
                   </span>
                 </div>
               </Card>
@@ -983,14 +985,14 @@ export default function InvoicePage() {
             {/* Customer Notes */}
             <div className="mt-4 md:mt-6">
               <div className="flex flex-col gap-1 w-full md:max-w-md">
-                <Label className="text-sm font-medium">Customer Notes</Label>
+                <Label className="text-sm font-medium">{t("customerNotes")}</Label>
                 <textarea
                   className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   value={customerNotes}
                   onChange={(e) => setCustomerNotes(e.target.value)}
                 />
                 <span className="text-xs text-muted-foreground">
-                  Will be displayed on invoice
+                  {t("willBeDisplayedOnInvoice")}
                 </span>
               </div>
             </div>
@@ -1005,7 +1007,7 @@ export default function InvoicePage() {
                 }
                 className="w-full md:w-auto"
               >
-                Save
+                {t("save")}
               </Button>
             </div>
           </div>

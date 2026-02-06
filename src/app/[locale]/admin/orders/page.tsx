@@ -123,7 +123,7 @@ export default function OrdersPage() {
         const response = await fetch("/api/orders");
         console.log("Fetch Orders Response:", response);
         if (!response.ok) {
-          throw new Error("Failed to fetch orders");
+          throw new Error(t("failedToFetchOrders"));
         }
         const data = await response.json();
         setOrders(data);
@@ -176,7 +176,7 @@ export default function OrdersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Error creating order");
+        throw new Error(t("errorCreatingOrder"));
       }
 
       const createdOrder = await response.json();
@@ -186,7 +186,7 @@ export default function OrdersPage() {
     } catch (error) {
       console.error(error);
     }
-  }, [newOrderTotal, newOrderStatus, orders]);
+  }, [newOrderTotal, newOrderStatus, orders, t]);
 
   const handleEditOrder = useCallback(async () => {
     if (!selectedOrderId) return;
@@ -206,7 +206,7 @@ export default function OrdersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Error updating order");
+        throw new Error(t("errorUpdatingOrder"));
       }
 
       const updatedOrderData = await response.json();
@@ -220,7 +220,7 @@ export default function OrdersPage() {
     } catch (error) {
       console.error(error);
     }
-  }, [selectedOrderId, newOrderTotal, newOrderStatus, orders]);
+  }, [selectedOrderId, newOrderTotal, newOrderStatus, orders, t]);
 
   const handleDeleteOrder = useCallback(async () => {
     if (!orderToDelete) return;
@@ -239,7 +239,7 @@ export default function OrdersPage() {
     } catch (error) {
       console.error(error);
     }
-  }, [orderToDelete, orders]);
+  }, [orderToDelete, orders, t]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -263,7 +263,7 @@ export default function OrdersPage() {
   if (error) {
     return (
       <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Orders</h1>
+        <h1 className="text-2xl font-bold mb-4">{t("title")}</h1>
         <Card>
           <CardContent>
             <p className="text-red-500">{error}</p>
@@ -286,7 +286,7 @@ export default function OrdersPage() {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Search orders..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8"
@@ -297,35 +297,35 @@ export default function OrdersPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
                     <FilterIcon className="w-4 h-4" />
-                    <span>Filters</span>
+                    <span>{t("filters")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "all"}
                     onCheckedChange={() => handleFilterChange("all")}
                   >
-                    All Statuses
+                    {t("allStatuses")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "completed"}
                     onCheckedChange={() => handleFilterChange("completed")}
                   >
-                    Completed
+                    {t("completed")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "pending"}
                     onCheckedChange={() => handleFilterChange("pending")}
                   >
-                    Pending
+                    {t("pending")}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={filters.status === "cancelled"}
                     onCheckedChange={() => handleFilterChange("cancelled")}
                   >
-                    Cancelled
+                    {t("cancelled")}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -338,13 +338,13 @@ export default function OrdersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice No</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("invoiceNo")}</TableHead>
+                  <TableHead>{t("customer")}</TableHead>
+                  <TableHead>{t("total")}</TableHead>
+                  <TableHead>{t("paid")}</TableHead>
+                  <TableHead>{t("balance")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -354,12 +354,12 @@ export default function OrdersPage() {
                       {order.invoice_no || `ORD-${order.id}`}
                     </TableCell>
                     <TableCell>{order.customer.name}</TableCell>
-                    <TableCell>Rs. {Math.floor(order.total_amount)}</TableCell>
+                    <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
                     <TableCell>
-                      Rs. {Math.floor(order.payment?.paid_amount || 0)}
+                      {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
                     </TableCell>
                     <TableCell>
-                      Rs.{" "}
+                      {t("currencySymbol")}{" "}
                       {Math.floor(
                         order.total_amount - (order.payment?.paid_amount || 0),
                       )}
@@ -386,7 +386,7 @@ export default function OrdersPage() {
                           style={{ display: "none" }}
                         >
                           <Trash2 className="w-4 h-4" />
-                          <span className="sr-only">Delete</span>
+                          <span className="sr-only">{t("delete")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -397,7 +397,7 @@ export default function OrdersPage() {
                           }}
                         >
                           <EyeIcon className="w-4 h-4" />
-                          <span className="sr-only">Show Invoice</span>
+                          <span className="sr-only">{t("showInvoice")}</span>
                         </Button>
                       </div>
                     </TableCell>
@@ -415,7 +415,7 @@ export default function OrdersPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-xs text-muted-foreground">
-                        Invoice No
+                        {t("invoiceNo")}
                       </p>
                       <p className="font-semibold text-sm">
                         {order.invoice_no || `ORD-${order.id}`}
@@ -431,35 +431,35 @@ export default function OrdersPage() {
                       className="h-8 w-8"
                     >
                       <EyeIcon className="w-4 h-4" />
-                      <span className="sr-only">Show Invoice</span>
+                      <span className="sr-only">{t("showInvoice")}</span>
                     </Button>
                   </div>
 
                   <div className="w-full">
-                    <p className="text-xs text-muted-foreground">Customer</p>
+                    <p className="text-xs text-muted-foreground">{t("customer")}</p>
                     <p className="font-medium text-sm">{order.customer.name}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 w-full">
                     <div>
-                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="text-xs text-muted-foreground">{t("total")}</p>
                       <p className="font-semibold text-sm">
-                        Rs. {Math.floor(order.total_amount)}
+                        {t("currencySymbol")} {Math.floor(order.total_amount)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Paid</p>
+                      <p className="text-xs text-muted-foreground">{t("paid")}</p>
                       <p className="font-semibold text-sm">
-                        Rs. {Math.floor(order.payment?.paid_amount || 0)}
+                        {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 w-full">
                     <div>
-                      <p className="text-xs text-muted-foreground">Balance</p>
+                      <p className="text-xs text-muted-foreground">{t("balance")}</p>
                       <p className="font-semibold text-sm">
-                        Rs.{" "}
+                        {t("currencySymbol")}{" "}
                         {Math.floor(
                           order.total_amount -
                             (order.payment?.paid_amount || 0),
@@ -467,7 +467,7 @@ export default function OrdersPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Date</p>
+                      <p className="text-xs text-muted-foreground">{t("date")}</p>
                       <p className="font-semibold text-sm">
                         {new Date(
                           order.sale_date || order.created_at,
@@ -502,12 +502,12 @@ export default function OrdersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {showNewOrderDialog ? "Create New Order" : "Edit Order"}
+                {showNewOrderDialog ? t("createNewOrder") : t("editOrder")}
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customerName">Customer Name</Label>
+                <Label htmlFor="customerName">{t("customerName")}</Label>
                 <Input
                   id="customerName"
                   value={newOrderCustomerName}
@@ -516,7 +516,7 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="total">Total</Label>
+                <Label htmlFor="total">{t("total")}</Label>
                 <Input
                   id="total"
                   type="number"
@@ -526,7 +526,7 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">{t("status")}</Label>
                 <Select
                   value={newOrderStatus}
                   onValueChange={(
@@ -534,12 +534,12 @@ export default function OrdersPage() {
                   ) => setNewOrderStatus(value)}
                 >
                   <SelectTrigger id="status" className="col-span-3">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder={t("selectStatus")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="completed">{t("completed")}</SelectItem>
+                    <SelectItem value="pending">{t("pending")}</SelectItem>
+                    <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -553,12 +553,12 @@ export default function OrdersPage() {
                   resetSelectedOrder();
                 }}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 onClick={showNewOrderDialog ? handleAddOrder : handleEditOrder}
               >
-                {showNewOrderDialog ? "Create Order" : "Update Order"}
+                {showNewOrderDialog ? t("createOrder") : t("updateOrder")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -570,20 +570,19 @@ export default function OrdersPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogTitle>{t("confirmDeletion")}</DialogTitle>
             </DialogHeader>
-            Are you sure you want to delete this order? This action cannot be
-            undone.
+            {t("confirmDeleteMessage")}
             <DialogFooter>
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteConfirmationOpen(false)}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button variant="destructive" onClick={handleDeleteOrder}>
-                Delete
-w              </Button>
+                {t("delete")}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

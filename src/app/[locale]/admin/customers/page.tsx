@@ -172,8 +172,8 @@ export default function CustomersPage() {
     if (!newCustomerName || newCustomerName.trim() === "") {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Customer name is required",
+        title: t("validationError"),
+        message: t("customerNameRequired"),
       });
       return;
     }
@@ -219,17 +219,17 @@ export default function CustomersPage() {
 
       setErrorDialog({
         open: true,
-        title: "Success",
-        message: "Customer created successfully",
+        title: t("success"),
+        message: t("customerCreatedSuccess"),
         isSuccess: true,
       });
     } catch (error) {
       console.error(error);
       setErrorDialog({
         open: true,
-        title: "Error",
+        title: t("error"),
         message:
-          error instanceof Error ? error.message : "Failed to create customer",
+          error instanceof Error ? error.message : t("failedToCreateCustomer"),
       });
     } finally {
       setIsSaving(false);
@@ -243,6 +243,7 @@ export default function CustomersPage() {
     newCustomerOpeningBalance,
     newCustomerStatus,
     customers,
+    t,
   ]);
 
   const handleEditCustomer = useCallback(async () => {
@@ -251,8 +252,8 @@ export default function CustomersPage() {
     if (!newCustomerName || newCustomerName.trim() === "") {
       setErrorDialog({
         open: true,
-        title: "Validation Error",
-        message: "Customer name is required",
+        title: t("validationError"),
+        message: t("customerNameRequired"),
       });
       return;
     }
@@ -306,17 +307,17 @@ export default function CustomersPage() {
 
       setErrorDialog({
         open: true,
-        title: "Success",
-        message: "Customer updated successfully",
+        title: t("success"),
+        message: t("customerUpdatedSuccess"),
         isSuccess: true,
       });
     } catch (error) {
       console.error(error);
       setErrorDialog({
         open: true,
-        title: "Error",
+        title: t("error"),
         message:
-          error instanceof Error ? error.message : "Failed to update customer",
+          error instanceof Error ? error.message : t("failedToUpdateCustomer"),
       });
     } finally {
       setIsSaving(false);
@@ -343,9 +344,9 @@ export default function CustomersPage() {
     ) {
       setErrorDialog({
         open: true,
-        title: "Cannot Delete",
+        title: t("cannotDelete"),
         message:
-          "Customer can only be deleted when balance is zero. Current balance: Rs. " +
+          t("cannotDeleteMessage") +
           Math.round(customerToDelete.balance || 0),
       });
       setIsDeleteConfirmationOpen(false);
@@ -377,22 +378,22 @@ export default function CustomersPage() {
 
       setErrorDialog({
         open: true,
-        title: "Success",
-        message: "Customer deleted successfully",
+        title: t("success"),
+        message: t("customerDeletedSuccess"),
         isSuccess: true,
       });
     } catch (error) {
       console.error(error);
       setErrorDialog({
         open: true,
-        title: "Error",
+        title: t("error"),
         message:
-          error instanceof Error ? error.message : "Failed to delete customer",
+          error instanceof Error ? error.message : t("failedToDeleteCustomer"),
       });
     } finally {
       setIsDeleting(false);
     }
-  }, [customerToDelete, customers]);
+  }, [customerToDelete, customers, t]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -515,7 +516,7 @@ export default function CustomersPage() {
   if (error) {
     return (
       <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Customers</h1>
+        <h1 className="text-2xl font-bold mb-4">{t("title")}</h1>
         <Card>
           <CardContent>
             <p className="text-red-500">{error}</p>
@@ -539,7 +540,7 @@ export default function CustomersPage() {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Search customers..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8"
@@ -560,7 +561,7 @@ export default function CustomersPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -594,7 +595,7 @@ export default function CustomersPage() {
               />
               <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
                 <PlusCircle className="w-4 h-4 mr-2" />
-                Add Customer
+                {t("addCustomer")}
               </Button>
             </div>
           </div>
@@ -605,7 +606,7 @@ export default function CustomersPage() {
               <div className="relative flex-1">
                 <Input
                   type="text"
-                  placeholder="Search customers..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="pr-8 h-9 text-sm"
@@ -618,7 +619,7 @@ export default function CustomersPage() {
                 className="h-9 px-3 flex-shrink-0"
               >
                 <PlusCircle className="w-4 h-4 mr-1" />
-                <span className="text-xs">Add</span>
+                <span className="text-xs">{t("add")}</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -632,7 +633,7 @@ export default function CustomersPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleDownloadExcel}
@@ -674,11 +675,11 @@ export default function CustomersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Company Name</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t("name")}</TableHead>
+                    <TableHead>{t("phoneLabel")}</TableHead>
+                    <TableHead>{t("companyName")}</TableHead>
+                    <TableHead>{t("balance")}</TableHead>
+                    <TableHead>{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -702,7 +703,7 @@ export default function CustomersPage() {
                             }}
                           >
                             <Eye className="w-4 h-4" />
-                            <span className="sr-only">View</span>
+                            <span className="sr-only">{t("view")}</span>
                           </Button>
                           <Button
                             size="icon"
@@ -726,7 +727,7 @@ export default function CustomersPage() {
                             }}
                           >
                             <FilePenIcon className="w-4 h-4" />
-                            <span className="sr-only">Edit</span>
+                            <span className="sr-only">{t("edit")}</span>
                           </Button>
                           <Button
                             size="icon"
@@ -737,7 +738,7 @@ export default function CustomersPage() {
                             }}
                           >
                             <Trash2 className="w-4 h-4" />
-                            <span className="sr-only">Delete</span>
+                            <span className="sr-only">{t("deleteAction")}</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -775,7 +776,7 @@ export default function CustomersPage() {
                         }}
                       >
                         <Eye className="w-4 h-4" />
-                        <span className="sr-only">View</span>
+                        <span className="sr-only">{t("view")}</span>
                       </Button>
                       <Button
                         size="icon"
@@ -812,7 +813,7 @@ export default function CustomersPage() {
                         }}
                       >
                         <Trash2 className="w-4 h-4" />
-                        <span className="sr-only">Delete</span>
+                        <span className="sr-only">{t("deleteAction")}</span>
                       </Button>
                     </div>
                   </div>
@@ -821,7 +822,7 @@ export default function CustomersPage() {
                   <div className="grid grid-cols-2 gap-3 w-full">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">
-                        Company Name
+                        {t("companyName")}
                       </p>
                       <p className="font-semibold text-sm">
                         {customer.company_name || "-"}
@@ -829,10 +830,10 @@ export default function CustomersPage() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">
-                        Balance
+                        {t("balance")}
                       </p>
                       <p className="font-semibold text-sm">
-                        Rs.{" "}
+                        {t("currencySymbol")}{" "}
                         {customer.balance ? Math.round(customer.balance) : "0"}
                       </p>
                     </div>
@@ -884,15 +885,15 @@ export default function CustomersPage() {
             <DialogHeader className="space-y-1">
               <DialogTitle className="text-xl sm:text-2xl">
                 {showNewCustomerDialog
-                  ? "Create New Customer"
-                  : "Edit Customer"}
+                  ? t("createNewCustomer")
+                  : t("editCustomerTitle")}
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
               {/* Contact Information Section */}
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  Contact Information
+                  {t("contactInformation")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
@@ -900,13 +901,13 @@ export default function CustomersPage() {
                       htmlFor="name"
                       className="text-xs sm:text-sm font-medium"
                     >
-                      Name<span className="text-red-500 ml-1">*</span>
+                      {t("nameLabel")}<span className="text-red-500 ml-1">*</span>
                     </Label>
                     <Input
                       id="name"
                       value={newCustomerName}
                       onChange={(e) => setNewCustomerName(e.target.value)}
-                      placeholder="Enter customer name"
+                      placeholder={t("namePlaceholder")}
                       className="h-9 sm:h-10 text-sm"
                     />
                   </div>
@@ -915,7 +916,7 @@ export default function CustomersPage() {
                       htmlFor="phone"
                       className="text-xs sm:text-sm font-medium"
                     >
-                      Phone
+                      {t("phoneLabel")}
                     </Label>
                     <Input
                       id="phone"
@@ -927,7 +928,7 @@ export default function CustomersPage() {
                         setNewCustomerPhone(value);
                       }}
                       maxLength={11}
-                      placeholder="03001234567"
+                      placeholder={t("phonePlaceholder")}
                       className="h-9 sm:h-10 text-sm"
                     />
                   </div>
@@ -937,14 +938,14 @@ export default function CustomersPage() {
                     htmlFor="email"
                     className="text-xs sm:text-sm font-medium"
                   >
-                    Email
+                    {t("emailLabel")}
                   </Label>
                   <Input
                     id="email"
                     type="email"
                     value={newCustomerEmail}
                     onChange={(e) => setNewCustomerEmail(e.target.value)}
-                    placeholder="example@email.com"
+                    placeholder={t("emailPlaceholder")}
                     className="h-9 sm:h-10 text-sm"
                   />
                 </div>
@@ -953,20 +954,20 @@ export default function CustomersPage() {
               {/* Company Information Section */}
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  Company Information
+                  {t("companyInformation")}
                 </h3>
                 <div className="space-y-2">
                   <Label
                     htmlFor="company_name"
                     className="text-xs sm:text-sm font-medium"
                   >
-                    Company Name
+                    {t("companyNameLabel")}
                   </Label>
                   <Input
                     id="company_name"
                     value={newCustomerCompanyName}
                     onChange={(e) => setNewCustomerCompanyName(e.target.value)}
-                    placeholder="Enter company name"
+                    placeholder={t("companyNamePlaceholder")}
                     className="h-9 sm:h-10 text-sm"
                   />
                 </div>
@@ -975,7 +976,7 @@ export default function CustomersPage() {
                     htmlFor="company_address"
                     className="text-xs sm:text-sm font-medium"
                   >
-                    Company Address
+                    {t("companyAddressLabel")}
                   </Label>
                   <Input
                     id="company_address"
@@ -983,7 +984,7 @@ export default function CustomersPage() {
                     onChange={(e) =>
                       setNewCustomerCompanyAddress(e.target.value)
                     }
-                    placeholder="Enter company address"
+                    placeholder={t("companyAddressPlaceholder")}
                     className="h-9 sm:h-10 text-sm"
                   />
                 </div>
@@ -992,14 +993,14 @@ export default function CustomersPage() {
               {/* Financial Information Section */}
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  Financial Information
+                  {t("financialInformation")}
                 </h3>
                 <div className="space-y-2">
                   <Label
                     htmlFor="balance"
                     className="text-xs sm:text-sm font-medium"
                   >
-                    {showNewCustomerDialog ? "Opening Balance" : "Balance"}
+                    {showNewCustomerDialog ? t("openingBalance") : t("balanceLabel")}
                   </Label>
                   <Input
                     id="balance"
@@ -1008,11 +1009,11 @@ export default function CustomersPage() {
                     onChange={(e) =>
                       setNewCustomerOpeningBalance(e.target.value)
                     }
-                    placeholder="0"
+                    placeholder={t("balancePlaceholder")}
                     className="h-9 sm:h-10 text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Initial balance for this customer account
+                    {t("openingBalanceHelper")}
                   </p>
                 </div>
               </div>
@@ -1027,7 +1028,7 @@ export default function CustomersPage() {
                 }}
                 className="h-9 sm:h-10 w-full sm:w-auto"
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 onClick={
@@ -1041,7 +1042,7 @@ export default function CustomersPage() {
                 {isSaving && (
                   <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {showNewCustomerDialog ? "Create Customer" : "Update Customer"}
+                {showNewCustomerDialog ? t("createCustomer") : t("updateCustomer")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1054,30 +1055,30 @@ export default function CustomersPage() {
           <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader className="space-y-1">
               <DialogTitle className="text-xl sm:text-2xl">
-                Customer Details
+                {t("customerDetails")}
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  Contact Information
+                  {t("contactInformation")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Name</span>
+                    <span className="text-xs text-muted-foreground">{t("nameLabel")}</span>
                     <div className="text-sm sm:text-base font-medium">
                       {viewCustomer?.name || "-"}
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Phone</span>
+                    <span className="text-xs text-muted-foreground">{t("phoneLabel")}</span>
                     <div className="text-sm sm:text-base font-medium">
                       {viewCustomer?.phone || "-"}
                     </div>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Email</span>
+                  <span className="text-xs text-muted-foreground">{t("emailLabel")}</span>
                   <div className="text-sm sm:text-base font-medium">
                     {viewCustomer?.email || "-"}
                   </div>
@@ -1086,11 +1087,11 @@ export default function CustomersPage() {
 
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  Company Information
+                  {t("companyInformation")}
                 </h3>
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground">
-                    Company Name
+                    {t("companyNameLabel")}
                   </span>
                   <div className="text-sm sm:text-base font-medium">
                     {viewCustomer?.company_name || "-"}
@@ -1098,7 +1099,7 @@ export default function CustomersPage() {
                 </div>
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground">
-                    Company Address
+                    {t("companyAddressLabel")}
                   </span>
                   <div className="text-sm sm:text-base font-medium">
                     {viewCustomer?.company_address || "-"}
@@ -1108,12 +1109,12 @@ export default function CustomersPage() {
 
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  Financial Information
+                  {t("financialInformation")}
                 </h3>
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Balance</span>
+                  <span className="text-xs text-muted-foreground">{t("balanceLabel")}</span>
                   <div className="text-sm sm:text-base font-medium">
-                    Rs.{" "}
+                    {t("currencySymbol")}{" "}
                     {viewCustomer?.balance
                       ? Math.round(viewCustomer.balance)
                       : "0"}
@@ -1127,7 +1128,7 @@ export default function CustomersPage() {
                 onClick={() => setIsViewCustomerDialogOpen(false)}
                 className="h-9 sm:h-10 w-full sm:w-auto"
               >
-                Close
+                {t("close")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1139,17 +1140,16 @@ export default function CustomersPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogTitle>{t("confirmDeletion")}</DialogTitle>
             </DialogHeader>
-            Are you sure you want to delete this customer? This action cannot be
-            undone.
+            {t("confirmDeleteMessage")}
             <DialogFooter>
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteConfirmationOpen(false)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -1159,7 +1159,7 @@ export default function CustomersPage() {
                 {isDeleting && (
                   <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Delete
+                {t("delete")}
               </Button>
             </DialogFooter>
           </DialogContent>
