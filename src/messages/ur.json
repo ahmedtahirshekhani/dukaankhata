@@ -59,7 +59,8 @@
     "companyLogoAlt": "کمپنی لوگو",
     "authorizedSignatureAlt": "مجاز دستخط",
     "saving": "محفوظ ہو رہا ہے...",
-    "saveUploads": "اپ لوڈز محفوظ کریں"
+    "saveUploads": "اپ لوڈز محفوظ کریں",
+    "uploadSaveSuccessfully": "اپ لوڈ کامیابی سے محفوظ ہو گیا"
   },
   "auth": {
     "error": "خرابی",
@@ -626,5 +627,31 @@
       "facebookAlt": "فیس بک",
       "twitterAlt": "ٹویٹر"
     }
+  },
+  "settingsPage": {
+    "settings": "ترتیبات",
+    "profileInformation": "پروفائل کی معلومات",
+    "updatePersonalInfo": "اپنی ذاتی معلومات کو اپ ڈیٹ کریں",
+    "fullName": "پوری نام",
+    "email": "ای میل",
+    "emailCannotBeChanged": "ای میل تبدیل نہیں کی جا سکتی",
+    "company": "کمپنی",
+    "saveChanges": "تبدیلیاں محفوظ کریں",
+    "saving": "محفوظ ہو رہا ہے...",
+    "cancel": "منسوخ کریں",
+    "security": "سیکیورٹی",
+    "updateSecuritySettings": "اپنی سیکیورٹی کی ترتیبات کو اپ ڈیٹ کریں",
+    "changePassword": "پاس ورڈ تبدیل کریں",
+    "currentPassword": "موجودہ پاس ورڈ",
+    "newPassword": "نیا پاس ورڈ",
+    "confirmNewPassword": "نیا پاس ورڈ کی تصدیق کریں",
+    "savePassword": "پاس ورڈ محفوظ کریں",
+    "passwordsDoNotMatch": "پاس ورڈ مماثل نہیں ہیں",
+    "passwordMinimumLength": "پاس ورڈ کم از کم 8 حروف ہونا چاہیے",
+    "profileUpdatedSuccess": "پروفائل کامیابی سے اپ ڈیٹ ہو گیا",
+    "profileUpdateFailed": "پروفائل اپ ڈیٹ کرنے میں ناکام",
+    "passwordChangedSuccess": "پاس ورڈ کامیابی سے تبدیل ہو گیا",
+    "passwordChangeFailed": "پاس ورڈ تبدیل کرنے میں ناکام",
+    "manageAccountSettings": "اپنی اکاؤنٹ کی ترتیبات اور ترجیحات کا انتظام کریں"
   }
 }

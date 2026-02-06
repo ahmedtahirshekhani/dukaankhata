@@ -59,7 +59,8 @@
     "companyLogoAlt": "Company Logo",
     "authorizedSignatureAlt": "Authorized Signature",
     "saving": "Saving...",
-    "saveUploads": "Save Uploads"
+    "saveUploads": "Save Uploads",
+    "uploadSaveSuccessfully": "Upload saved successfully"
   },
   "auth": {
     "error": "Error",
@@ -626,5 +627,31 @@
       "facebookAlt": "Facebook",
       "twitterAlt": "Twitter"
     }
+  },
+  "settingsPage": {
+    "settings": "Settings",
+    "profileInformation": "Profile Information",
+    "updatePersonalInfo": "Update your personal information",
+    "fullName": "Full Name",
+    "email": "Email",
+    "emailCannotBeChanged": "Email cannot be changed",
+    "company": "Company",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "security": "Security",
+    "updateSecuritySettings": "Update your password and security settings",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "savePassword": "Save Password",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "passwordMinimumLength": "Password must be at least 8 characters",
+    "profileUpdatedSuccess": "Profile updated successfully",
+    "profileUpdateFailed": "Failed to update profile",
+    "passwordChangedSuccess": "Password changed successfully",
+    "passwordChangeFailed": "Failed to change password",
+    "manageAccountSettings": "Manage your account settings and preferences"
   }
 }

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ProtectedRoute } from '@/components/auth/protected-route';
 
 export default function SettingsPage({ params }: { params: { locale: string } }) {
-  const t = useTranslations('common');
+  const t = useTranslations('settingsPage');
   const { user, refreshSession } = useUserProfile();
   
   const [formData, setFormData] = useState({
@@ -60,13 +60,13 @@ export default function SettingsPage({ params }: { params: { locale: string } })
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to update profile');
       }
-      setMessage('Profile updated successfully');
+      setMessage(t('profileUpdatedSuccess'));
       // Refresh session so header/user menu reflects new name
       try { await refreshSession(); } catch {}
       setFormDirty(false);
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage('Failed to update profile');
+      setMessage(t('profileUpdateFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -77,11 +77,11 @@ export default function SettingsPage({ params }: { params: { locale: string } })
     setPasswordError('');
     const { currentPassword, newPassword, confirmPassword } = passwordForm;
     if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match');
+      setPasswordError(t('passwordsDoNotMatch'));
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters');
+      setPasswordError(t('passwordMinimumLength'));
       return;
     }
     try {
@@ -94,12 +94,12 @@ export default function SettingsPage({ params }: { params: { locale: string } })
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to change password');
       }
-      setMessage('Password changed successfully');
+      setMessage(t('passwordChangedSuccess'));
       setShowPasswordForm(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
-      setPasswordError(err?.message || 'Failed to change password');
+      setPasswordError(err?.message || t('passwordChangeFailed'));
     }
   };
 
@@ -109,13 +109,13 @@ export default function SettingsPage({ params }: { params: { locale: string } })
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">{t('settings')}</h1>
-            <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
+            <p className="text-gray-600 mt-2">{t('manageAccountSettings')}</p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
+              <CardTitle>{t('profileInformation')}</CardTitle>
+              <CardDescription>{t('updatePersonalInfo')}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -126,7 +126,7 @@ export default function SettingsPage({ params }: { params: { locale: string } })
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">{t('fullName')}</Label>
                   <Input
                     id="name"
                     name="name"
@@ -137,7 +137,7 @@ export default function SettingsPage({ params }: { params: { locale: string } })
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('email')}</Label>
                   <Input
                     id="email"
                     name="email"
@@ -146,12 +146,12 @@ export default function SettingsPage({ params }: { params: { locale: string } })
                     disabled
                     className="bg-gray-50"
                   />
-                  <p className="text-xs text-gray-500">Email cannot be changed</p>
+                  <p className="text-xs text-gray-500">{t('emailCannotBeChanged')}</p>
                 </div>
 
                 {user?.company && (
                   <div className="space-y-2">
-                    <Label>Company</Label>
+                    <Label>{t('company')}</Label>
                     <Input
                       value={user.company}
                       disabled
@@ -162,10 +162,10 @@ export default function SettingsPage({ params }: { params: { locale: string } })
 
                 <div className="flex gap-4">
                   <Button type="submit" disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ? t('saving') : t('saveChanges')}
                   </Button>
                   <Button type="button" variant="outline">
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </form>
@@ -174,13 +174,13 @@ export default function SettingsPage({ params }: { params: { locale: string } })
 
           <Card className="mt-8">
             <CardHeader>
-              <CardTitle>Security</CardTitle>
-              <CardDescription>Update your password and security settings</CardDescription>
+              <CardTitle>{t('security')}</CardTitle>
+              <CardDescription>{t('updateSecuritySettings')}</CardDescription>
             </CardHeader>
             <CardContent>
               {!showPasswordForm ? (
                 <Button variant="outline" className="w-full sm:w-auto" onClick={() => setShowPasswordForm(true)}>
-                  Change Password
+                  {t('changePassword')}
                 </Button>
               ) : (
                 <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
@@ -190,20 +190,20 @@ export default function SettingsPage({ params }: { params: { locale: string } })
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="current-password">Current Password</Label>
+                    <Label htmlFor="current-password">{t('currentPassword')}</Label>
                     <Input id="current-password" type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="new-password">New Password</Label>
+                    <Label htmlFor="new-password">{t('newPassword')}</Label>
                     <Input id="new-password" type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Label htmlFor="confirm-password">{t('confirmNewPassword')}</Label>
                     <Input id="confirm-password" type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))} />
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit">Save Password</Button>
-                    <Button type="button" variant="outline" onClick={() => { setShowPasswordForm(false); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setPasswordError(''); }}>Cancel</Button>
+                    <Button type="submit">{t('savePassword')}</Button>
+                    <Button type="button" variant="outline" onClick={() => { setShowPasswordForm(false); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setPasswordError(''); }}>{t('cancel')}</Button>
                   </div>
                 </form>
               )}

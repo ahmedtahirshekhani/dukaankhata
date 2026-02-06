@@ -51,7 +51,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setLogoError('Only image files are allowed.');
+      setLogoError(t('onlyImageFilesAllowed'));
       (e.target as HTMLInputElement).value = '';
       return;
     }
@@ -102,7 +102,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
       setMessage(t('uploadsSaved'));
       setTimeout(() => setMessage(''), 2500);
     } catch (err: any) {
-      setMessage(err?.message || 'Failed to save');
+      setMessage(err?.message || t('failedToSave'));
     } finally {
       setIsSaving(false);
     }
@@ -129,12 +129,12 @@ export default function ConfigurationPage({ params }: { params: { locale: string
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>Company Logo</CardTitle>
-                  <CardDescription>Upload and preview your company logo</CardDescription>
+                  <CardTitle>{t('companyLogo')}</CardTitle>
+                  <CardDescription>{t('companyLogoDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="company-logo">Company Logo</Label>
+                    <Label htmlFor="company-logo">{t('companyLogo')}</Label>
                     <Input id="company-logo" type="file" accept="image/*" onChange={handleLogoChange} />
                     {logoError && (
                       <p className="text-xs text-red-600">{logoError}</p>
