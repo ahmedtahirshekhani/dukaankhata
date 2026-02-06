@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { FilePenIcon, TrashIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export interface Product {
   id: number;
@@ -27,29 +28,11 @@ export interface Product {
   branch?: string;
 }
 
-type ProductTableTranslations = {
-  name: string;
-  sellPrice: string;
-  costPrice: string;
-  quantity: string;
-  uom: string;
-  category: string;
-  type: string;
-  branch: string;
-  actions: string;
-  edit: string;
-  delete: string;
-  noProducts: string;
-  goods: string;
-  services: string;
-};
-
 interface ProductsTableProps {
   products: Product[];
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
-  translations?: ProductTableTranslations;
 }
 
 export function ProductsTable({
@@ -57,22 +40,22 @@ export function ProductsTable({
   onEdit,
   onDelete,
   capitalizeFirstLetter,
-  translations,
 }: ProductsTableProps) {
-  const nameLabel = translations?.name ?? "Name";
-  const sellPriceLabel = translations?.sellPrice ?? "Sell Price";
-  const costPriceLabel = translations?.costPrice ?? "Cost Price";
-  const quantityLabel = translations?.quantity ?? "Quantity";
-  const uomLabel = translations?.uom ?? "UOM";
-  const categoryLabel = translations?.category ?? "Category";
-  const typeLabel = translations?.type ?? "Type";
-  const branchLabel = translations?.branch ?? "Branch";
-  const actionsLabel = translations?.actions ?? "Actions";
-  const editLabel = translations?.edit ?? "Edit";
-  const deleteLabel = translations?.delete ?? "Delete";
-  const noProductsLabel = translations?.noProducts ?? "No products found";
-  const goodsLabel = translations?.goods ?? "Goods";
-  const servicesLabel = translations?.services ?? "Services";
+  const t = useTranslations("products");
+  const nameLabel = t("name");
+  const sellPriceLabel = t("sellPrice");
+  const costPriceLabel = t("costPrice");
+  const quantityLabel = t("quantity");
+  const uomLabel = t("uom");
+  const categoryLabel = t("category");
+  const typeLabel = t("type");
+  const branchLabel = t("branch");
+  const actionsLabel = t("actions");
+  const editLabel = t("edit");
+  const deleteLabel = t("delete");
+  const noProductsLabel = t("noProducts");
+  const goodsLabel = t("goods");
+  const servicesLabel = t("services");
   const getTypeLabel = (type?: string) =>
     type === "services" ? servicesLabel : goodsLabel;
 

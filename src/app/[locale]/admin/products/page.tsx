@@ -501,7 +501,6 @@ export default function Products() {
                 onPriceRangeChange={handlePriceRangeChange}
                 onClearAll={clearAllFilters}
                 capitalizeFirstLetter={capitalizeFirstLetter}
-                translations={t}
               />
               <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
                 <DropdownMenu>
@@ -597,7 +596,6 @@ export default function Products() {
               setIsDeleteConfirmationOpen(true);
             }}
             capitalizeFirstLetter={capitalizeFirstLetter}
-            translations={t}
           />
         </CardContent>
         <CardFooter></CardFooter>

@@ -14,23 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SearchIcon, FilterIcon, ChevronDownIcon, XIcon } from "lucide-react";
 
-type ProductTranslations = {
-  searchProducts: string;
-  type: string;
-  all: string;
-  goods: string;
-  services: string;
-  category: string;
-  branch: string;
-  sellPriceRange: string;
-  costPriceRange: string;
-  min: string;
-  max: string;
-  resetFilters: string;
-  priceRanges: string;
-  price?: string;
-};
-
 interface ProductFiltersProps {
   searchTerm: string;
   filters: {
@@ -52,8 +35,6 @@ interface ProductFiltersProps {
   onClearAll: () => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
   isMobileDialog?: boolean;
-  /** Optional override; if not provided, uses next-intl "products" namespace */
-  translations?: ProductTranslations;
 }
 
 export function ProductFilters({
@@ -68,26 +49,22 @@ export function ProductFilters({
   onClearAll,
   capitalizeFirstLetter,
   isMobileDialog = false,
-  translations: translationsProp,
 }: ProductFiltersProps) {
   const t = useTranslations("products");
-  const searchPlaceholder =
-    translationsProp?.searchProducts ?? t("searchProducts");
-  const typeLabel = translationsProp?.type ?? t("type");
-  const allLabel = translationsProp?.all ?? t("all");
-  const goodsLabel = translationsProp?.goods ?? t("goods");
-  const servicesLabel = translationsProp?.services ?? t("services");
-  const categoryLabel = translationsProp?.category ?? t("category");
-  const branchLabel = translationsProp?.branch ?? t("branch");
-  const sellPriceRangeLabel =
-    translationsProp?.sellPriceRange ?? t("sellPriceRange");
-  const costPriceRangeLabel =
-    translationsProp?.costPriceRange ?? t("costPriceRange");
-  const minPlaceholder = translationsProp?.min ?? t("min");
-  const maxPlaceholder = translationsProp?.max ?? t("max");
-  const resetFiltersLabel = translationsProp?.resetFilters ?? t("resetFilters");
-  const priceRangesLabel = translationsProp?.priceRanges ?? t("priceRanges");
-  const priceLabel = translationsProp?.price ?? t("price");
+  const searchPlaceholder = t("searchProducts");
+  const typeLabel = t("type");
+  const allLabel = t("all");
+  const goodsLabel = t("goods");
+  const servicesLabel = t("services");
+  const categoryLabel = t("category");
+  const branchLabel = t("branch");
+  const sellPriceRangeLabel = t("sellPriceRange");
+  const costPriceRangeLabel = t("costPriceRange");
+  const minPlaceholder = t("min");
+  const maxPlaceholder = t("max");
+  const resetFiltersLabel = t("resetFilters");
+  const priceRangesLabel = t("priceRanges");
+  const priceLabel = t("price");
   // Check if any filters are active
   const hasActiveFilters =
     filters.type !== "all" ||
