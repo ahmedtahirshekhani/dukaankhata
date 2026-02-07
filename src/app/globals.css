@@ -1,4 +1,4 @@
-@import './fonts.css';
+@import "./fonts.css";
 
 @tailwind base;
 @tailwind components;
@@ -65,25 +65,75 @@
   * {
     @apply border-border;
   }
-  
-  html, body {
-    font-family: 'Google Sans Flex', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+
+  html,
+  body {
+    font-family:
+      "Google Sans Flex",
+      "Helvetica Neue",
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
-  
+
   body {
     @apply bg-background text-foreground;
-    font-family: 'Google Sans Flex', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+    font-family:
+      "Google Sans Flex",
+      "Helvetica Neue",
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Google Sans Flex', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family:
+      "Google Sans Flex",
+      "Helvetica Neue",
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
-  
-  button, input, textarea, select, label {
-    font-family: 'Google Sans Flex', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+
+  button,
+  input,
+  textarea,
+  select,
+  label {
+    font-family:
+      "Google Sans Flex",
+      "Helvetica Neue",
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
-  
-  p, span, div, a, li {
-    font-family: 'Google Sans Flex', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+
+  p,
+  span,
+  div,
+  a,
+  li {
+    font-family:
+      "Google Sans Flex",
+      "Helvetica Neue",
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+
+  /* Urdu language font override */
+  [lang="ur"] * {
+    font-family:
+      "Noto Nastaliq Urdu",
+      "Google Sans Flex",
+      "Helvetica Neue",
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
 }

@@ -27,6 +27,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     confirmPassword: "",
     name: "",
     companyName: "",
+    phone: "",
   });
 
   const [error, setError] = useState("");
@@ -43,6 +44,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       !formData.companyName
     ) {
       setError(t("requiredField"));
+      return false;
+    }
+
+    if (formData.phone && !/^\d{11}$/.test(formData.phone.replace(/\D/g, ""))) {
+      setError("Please enter a valid 11-digit phone number");
       return false;
     }
 
@@ -87,6 +93,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
           password: formData.password,
           name: formData.name,
           companyName: formData.companyName,
+          phone: formData.phone || undefined,
         }),
       });
 
@@ -157,6 +164,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         confirmPassword: "",
         name: "",
         companyName: "",
+        phone: "",
       });
 
       // Redirect to login after 2 seconds
@@ -183,7 +191,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     }));
   };
 
-  // Check if all form fields are filled
+  // Check if all required form fields are filled
   const isFormComplete = () => {
     return (
       formData.name.trim() !== "" &&
@@ -237,11 +245,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name">{t("name")}</Label>
+              <Label htmlFor="name">
+                {t("name")} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="name"
                 name="name"
-                placeholder="John Doe"
+                placeholder="Muhammad Ali Khan"
                 value={formData.name}
                 onChange={handleChange}
                 required
@@ -250,7 +260,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="companyName">{t("companyName")}</Label>
+              <Label htmlFor="companyName">
+                {t("companyName")} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="companyName"
                 name="companyName"
@@ -263,7 +275,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">{t("email")}</Label>
+              <Label htmlFor="email">
+                {t("email")} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -277,7 +291,22 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">{t("password")}</Label>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                placeholder="03001234567"
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                {t("password")} <span className="text-red-500">*</span>
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -307,7 +336,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
+              <Label htmlFor="confirmPassword">
+                {t("confirmPassword")} <span className="text-red-500">*</span>
+              </Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
