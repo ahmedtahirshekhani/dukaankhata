@@ -1,9 +1,22 @@
 /* Google Sans Flex - Variable Font */
 @font-face {
-  font-family: 'Google Sans Flex';
-  src: url('/fonts/google-sans-flex/google-sans-flex.ttf') format('truetype-variations');
+  font-family: "Google Sans Flex";
+  src: url("/fonts/google-sans-flex/google-sans-flex.ttf")
+    format("truetype-variations");
   font-weight: 100 900;
   font-stretch: 75% 100%;
   font-style: normal;
   font-display: swap;
+}
+
+/* Noto Nastaliq Urdu - Variable Font */
+@font-face {
+  font-family: "Noto Nastaliq Urdu";
+  src: url("/fonts/noto-nastaliq-var/NotoNastaliqUrdu-Variable.ttf")
+    format("truetype-variations");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
 }

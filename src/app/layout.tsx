@@ -59,7 +59,7 @@ export default function RootLayout({
   const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
   return (
-    <html lang="en" dir="ltr">
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
         <meta name="application-name" content="DukaanKhata" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
