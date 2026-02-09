@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, MessageCircle, Phone, Linkedin } from "lucide-react";
+import { Link, Mail, MessageCircle, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -35,7 +35,7 @@ export function LandingContact() {
     },
     {
       key: "linkedin" as const,
-      icon: Linkedin,
+      icon: Link,
       labelKey: "linkedInLabel" as const,
     },
     {
