@@ -54,7 +54,7 @@ export function LandingHeader() {
         {/* Right Side Actions */}
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
-          {dismissedBanner && deferredPrompt && (
+          
             <Button
               size="sm"
               variant="outline"
@@ -64,7 +64,7 @@ export function LandingHeader() {
               <Download className="h-4 w-4" />
               {t("downloadApp")}
             </Button>
-          )}
+        
           {/* <Link
             href={`/login`}
             className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
