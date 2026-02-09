@@ -79,6 +79,7 @@
     "alreadyHaveAccount": "Pehle se account hai?",
     "forgotPassword": "Password Bhool gaye?",
     "rememberMe": "Mujhe Yaad Rakhain",
+    "home": "Home",
     "invalidCredentials": "Galat Email ya Password",
     "sessionExpired": "Aapka session khatm ho gya hai. Baraye Mehrbani dobara login karain.",
     "confirmEmail": "Baraye Mehrbani apne email ki tasdiq karain",

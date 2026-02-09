@@ -79,6 +79,7 @@
     "alreadyHaveAccount": "Already have an account?",
     "forgotPassword": "Forgot Password?",
     "rememberMe": "Remember me",
+    "home": "Home",
     "invalidCredentials": "Invalid email or password",
     "sessionExpired": "Your session has expired. Please login again.",
     "confirmEmail": "Please confirm your email address",

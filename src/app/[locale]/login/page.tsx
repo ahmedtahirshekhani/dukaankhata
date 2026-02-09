@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,6 +105,14 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 left-4 z-10">
+        <Link href={`/${params.locale}`}>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Home className="h-4 w-4" />
+            {t("home")}
+          </Button>
+        </Link>
+      </div>
       <div className="absolute top-4 right-4 z-10">
         <LanguageSwitcher />
       </div>
