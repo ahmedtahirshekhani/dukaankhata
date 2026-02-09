@@ -19,6 +19,9 @@ interface PWAContextType {
   triggerInstall: () => Promise<void>;
   showIOSPrompt: boolean;
   setShowIOSPrompt: (show: boolean) => void;
+  showMacChromePrompt: boolean;
+  setShowMacChromePrompt: (show: boolean) => void;
+  canInstall: boolean;
 }
 
 const PWAContext = createContext<PWAContextType | undefined>(undefined);
@@ -30,10 +33,22 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [dismissedBanner, setDismissedBanner] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
+  const [showMacChromePrompt, setShowMacChromePrompt] = useState(false);
+  const [canInstall, setCanInstall] = useState(false);
 
   // Check if device is iOS
   const isIOS = () => {
     return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  };
+
+  // Check if device is macOS
+  const isMacOS = () => {
+    return /Mac/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+  };
+
+  // Check if browser is Chrome
+  const isChrome = () => {
+    return /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
   };
 
   useEffect(() => {
@@ -84,8 +99,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
 
-      // Only show banner on mobile Chrome
-      if (!isMobileChrome()) {
+      // Only show banner on mobile Chrome or Mac Chrome
+      if (!isMobileChrome() && !(isMacOS() && isChrome())) {
         return;
       }
 
@@ -96,6 +111,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       }
 
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setCanInstall(true);
       setShowBanner(true);
       setDismissedBanner(false);
     };
@@ -127,8 +143,48 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const triggerInstall = useCallback(async () => {
-    // For iOS, show custom prompt
-    if (isIOS()) {
+    // For Mac Chrome, show instructions to click URL bar icon
+    if (isMacOS() && isChrome() && deferredPrompt) {
+      setShowMacChromePrompt(true);
+      
+      // Analytics
+      if (typeof window !== "undefined" && (window as any).gtag) {
+        (window as any).gtag("event", "pwa_mac_chrome_prompt_shown");
+      }
+      return;
+    }
+
+    // Try native prompt for non-Mac or non-Chrome browsers
+    if (deferredPrompt) {
+      setIsInstalling(true);
+      try {
+        await deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+
+        if (choiceResult.outcome === "accepted") {
+          // Analytics
+          if (typeof window !== "undefined" && (window as any).gtag) {
+            (window as any).gtag("event", "pwa_install_accepted");
+          }
+        } else {
+          // Analytics
+          if (typeof window !== "undefined" && (window as any).gtag) {
+            (window as any).gtag("event", "pwa_install_dismissed");
+          }
+        }
+
+        setDeferredPrompt(null);
+        setShowBanner(false);
+      } catch (error) {
+        console.error("PWA installation failed:", error);
+      } finally {
+        setIsInstalling(false);
+      }
+      return;
+    }
+
+    // Fall back to custom prompt for iOS or macOS Safari
+    if (isIOS() || isMacOS()) {
       setShowIOSPrompt(true);
       
       // Analytics
@@ -136,33 +192,6 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         (window as any).gtag("event", "pwa_ios_install_prompt_shown");
       }
       return;
-    }
-
-    if (!deferredPrompt) return;
-
-    setIsInstalling(true);
-    try {
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-
-      if (choiceResult.outcome === "accepted") {
-        // Analytics
-        if (typeof window !== "undefined" && (window as any).gtag) {
-          (window as any).gtag("event", "pwa_install_accepted");
-        }
-      } else {
-        // Analytics
-        if (typeof window !== "undefined" && (window as any).gtag) {
-          (window as any).gtag("event", "pwa_install_dismissed");
-        }
-      }
-
-      setDeferredPrompt(null);
-      setShowBanner(false);
-    } catch (error) {
-      console.error("PWA installation failed:", error);
-    } finally {
-      setIsInstalling(false);
     }
   }, [deferredPrompt]);
 
@@ -178,6 +207,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     triggerInstall,
     showIOSPrompt,
     setShowIOSPrompt,
+    showMacChromePrompt,
+    setShowMacChromePrompt,
+    canInstall: canInstall || isIOS() || isMacOS(),
   };
 
   return <PWAContext.Provider value={value}>{children}</PWAContext.Provider>;

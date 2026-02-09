@@ -2,35 +2,21 @@
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Share, Home, Plus, Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Download, Check } from "lucide-react";
 
-interface IOSInstallPromptProps {
+interface MacChromeInstallPromptProps {
   open: boolean;
   onClose: () => void;
 }
 
-export function IOSInstallPrompt({ open, onClose }: IOSInstallPromptProps) {
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    // Check if device is macOS
-    const macOS = /Mac/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
-    setIsMac(macOS);
-  }, []);
-
-  const title = isMac ? "Install DukaanKhata on Mac" : "Install DukaanKhata";
-  const description = isMac 
-    ? "Add DukaanKhata to your dock for quick access"
-    : "Add DukaanKhata to your home screen for quick access";
-
+export function MacChromeInstallPrompt({ open, onClose }: MacChromeInstallPromptProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>Install DukaanKhata</DialogTitle>
           <DialogDescription>
-            {description}
+            Install the app directly from Chrome
           </DialogDescription>
         </DialogHeader>
 
@@ -41,9 +27,9 @@ export function IOSInstallPrompt({ open, onClose }: IOSInstallPromptProps) {
               1
             </div>
             <div className="pt-1">
-              <p className="font-medium text-foreground">Tap the Share button</p>
+              <p className="font-medium text-foreground">Look for the install icon</p>
               <p className="mt-1 text-sm text-muted-foreground flex items-center gap-1">
-                Look for the <Share className="h-4 w-4" /> icon {isMac ? "in the top right" : "at the bottom"}
+                You'll see a <Download className="h-4 w-4" /> icon in the address bar
               </p>
             </div>
           </div>
@@ -54,9 +40,9 @@ export function IOSInstallPrompt({ open, onClose }: IOSInstallPromptProps) {
               2
             </div>
             <div className="pt-1">
-              <p className="font-medium text-foreground">Scroll down and tap</p>
-              <p className="mt-1 text-sm text-muted-foreground flex items-center gap-1">
-                <Home className="h-4 w-4" /> Add to {isMac ? "Dock" : "Home Screen"}
+              <p className="font-medium text-foreground">Click the icon</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A dialog will appear asking to confirm installation
               </p>
             </div>
           </div>
@@ -68,8 +54,8 @@ export function IOSInstallPrompt({ open, onClose }: IOSInstallPromptProps) {
             </div>
             <div className="pt-1">
               <p className="font-medium text-foreground">Confirm installation</p>
-              <p className="mt-1 text-sm text-muted-foreground flex items-center gap-1">
-                Tap <Plus className="h-4 w-4" /> Add in the top right
+              <p className="mt-1 text-sm text-muted-foreground">
+                The app will be installed on your Mac
               </p>
             </div>
           </div>
@@ -78,7 +64,7 @@ export function IOSInstallPrompt({ open, onClose }: IOSInstallPromptProps) {
           <div className="flex gap-3 rounded-lg bg-green-50 p-3 dark:bg-green-950">
             <Check className="h-5 w-5 flex-shrink-0 text-green-600 dark:text-green-400" />
             <p className="text-sm text-green-900 dark:text-green-200">
-              You can now launch DukaanKhata from your {isMac ? "dock" : "home screen"}!
+              Once installed, you can launch DukaanKhata from your dock!
             </p>
           </div>
         </div>

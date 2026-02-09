@@ -19,7 +19,7 @@ import { usePWA } from "@/components/pwa/pwa-context";
 export function LandingHero() {
   const locale = useLocale();
   const t = useTranslations("landing.hero");
-  const { deferredPrompt, triggerInstall } = usePWA();
+  const { canInstall, triggerInstall } = usePWA();
 
   const features = [
     {
@@ -68,6 +68,7 @@ export function LandingHero() {
                   size="lg"
                   variant="outline"
                   onClick={triggerInstall}
+                  disabled={!canInstall}
                   className="gap-2"
                 >
                   <Download className="h-4 w-4" />

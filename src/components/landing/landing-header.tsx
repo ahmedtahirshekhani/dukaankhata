@@ -13,7 +13,7 @@ import { usePWA } from "@/components/pwa/pwa-context";
 export function LandingHeader() {
   const locale = useLocale();
   const t = useTranslations("landing.header");
-  const { dismissedBanner, deferredPrompt, triggerInstall } = usePWA();
+  const { dismissedBanner, canInstall, triggerInstall } = usePWA();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigationLinks = [
@@ -60,7 +60,8 @@ export function LandingHeader() {
                 size="sm"
                 variant="outline"
                 onClick={triggerInstall}
-                className="hidden sm:inline-flex gap-2"
+                disabled={!canInstall}
+                className="inline-flex gap-2"
               >
                 <Download className="h-4 w-4" />
                 {t("downloadApp")}

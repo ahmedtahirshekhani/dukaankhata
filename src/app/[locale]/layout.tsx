@@ -8,6 +8,7 @@ import { LocaleManager } from "@/components/language/locale-manager";
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { PWAInstallBanner } from "@/components/pwa/pwa-install-banner";
 import { IOSInstallPromptWrapper } from "@/components/pwa/ios-install-prompt-wrapper";
+import { MacChromeInstallPromptWrapper } from "@/components/pwa/mac-chrome-install-prompt-wrapper";
 import { PWAProvider } from "@/components/pwa/pwa-context";
 import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import GTMUserTracker from "@/components/analytics/gtm-user-tracker";
@@ -60,6 +61,7 @@ export default async function LocalizedRootLayout({
           <PWAInstallPrompt />
           <PWAInstallBanner />
           <IOSInstallPromptWrapper />
+          <MacChromeInstallPromptWrapper />
           <OfflineIndicator />
           <NextIntlClientProvider locale={locale} messages={messages}>
             {children}
