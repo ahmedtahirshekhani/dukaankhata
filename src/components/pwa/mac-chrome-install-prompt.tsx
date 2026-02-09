@@ -29,7 +29,7 @@ export function MacChromeInstallPrompt({ open, onClose }: MacChromeInstallPrompt
             <div className="pt-1">
               <p className="font-medium text-foreground">Look for the install icon</p>
               <p className="mt-1 text-sm text-muted-foreground flex items-center gap-1">
-                You'll see a <Download className="h-4 w-4" /> icon in the address bar
+                You&apos;ll see a <Download className="h-4 w-4" /> icon in the address bar
               </p>
             </div>
           </div>
