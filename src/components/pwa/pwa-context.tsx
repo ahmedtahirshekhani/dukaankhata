@@ -46,6 +46,11 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     return /Mac/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
   };
 
+  // Check if device is Windows
+  const isWindows = () => {
+    return /Win/.test(navigator.userAgent);
+  };
+
   // Check if browser is Chrome
   const isChrome = () => {
     return /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
@@ -99,8 +104,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
 
-      // Only show banner on mobile Chrome or Mac Chrome
-      if (!isMobileChrome() && !(isMacOS() && isChrome())) {
+      // Accept beforeinstallprompt on: mobile Chrome, Mac Chrome, or Windows
+      if (!isMobileChrome() && !(isMacOS() && isChrome()) && !isWindows()) {
         return;
       }
 
@@ -143,6 +148,35 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const triggerInstall = useCallback(async () => {
+    // For Windows, use native prompt directly
+    if (isWindows() && deferredPrompt) {
+      setIsInstalling(true);
+      try {
+        await deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+
+        if (choiceResult.outcome === "accepted") {
+          // Analytics
+          if (typeof window !== "undefined" && (window as any).gtag) {
+            (window as any).gtag("event", "pwa_install_accepted");
+          }
+        } else {
+          // Analytics
+          if (typeof window !== "undefined" && (window as any).gtag) {
+            (window as any).gtag("event", "pwa_install_dismissed");
+          }
+        }
+
+        setDeferredPrompt(null);
+        setShowBanner(false);
+      } catch (error) {
+        console.error("PWA installation failed:", error);
+      } finally {
+        setIsInstalling(false);
+      }
+      return;
+    }
+
     // For Mac Chrome, show instructions to click URL bar icon
     if (isMacOS() && isChrome() && deferredPrompt) {
       setShowMacChromePrompt(true);
@@ -154,7 +188,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Try native prompt for non-Mac or non-Chrome browsers
+    // Try native prompt for other browsers with deferredPrompt
     if (deferredPrompt) {
       setIsInstalling(true);
       try {
