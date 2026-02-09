@@ -17,6 +17,8 @@ interface PWAContextType {
   dismissedBanner: boolean;
   setDismissedBanner: (dismissed: boolean) => void;
   triggerInstall: () => Promise<void>;
+  showIOSPrompt: boolean;
+  setShowIOSPrompt: (show: boolean) => void;
 }
 
 const PWAContext = createContext<PWAContextType | undefined>(undefined);
@@ -27,6 +29,12 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [dismissedBanner, setDismissedBanner] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const [showIOSPrompt, setShowIOSPrompt] = useState(false);
+
+  // Check if device is iOS
+  const isIOS = () => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  };
 
   useEffect(() => {
     // Check if app is already installed
@@ -119,6 +127,17 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const triggerInstall = useCallback(async () => {
+    // For iOS, show custom prompt
+    if (isIOS()) {
+      setShowIOSPrompt(true);
+      
+      // Analytics
+      if (typeof window !== "undefined" && (window as any).gtag) {
+        (window as any).gtag("event", "pwa_ios_install_prompt_shown");
+      }
+      return;
+    }
+
     if (!deferredPrompt) return;
 
     setIsInstalling(true);
@@ -157,6 +176,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     dismissedBanner,
     setDismissedBanner,
     triggerInstall,
+    showIOSPrompt,
+    setShowIOSPrompt,
   };
 
   return <PWAContext.Provider value={value}>{children}</PWAContext.Provider>;
