@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { PaymentMethodSection } from '@/components/configuration/payment-method-section';
 
 export default function ConfigurationPage({ params }: { params: { locale: string } }) {
   const tNav = useTranslations('navigation');
@@ -113,8 +114,11 @@ export default function ConfigurationPage({ params }: { params: { locale: string
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">{tNav('configuration')}</h1>
-            <p className="text-gray-600 mt-2">{tNav('configurationDescription')}</p>
+            <h1 className="text-3xl font-bold">{tNav("configuration")}</h1>
+            <p className="text-gray-600 mt-2">
+              {tNav("configurationDescription")}
+            </p>
+          <PaymentMethodSection locale={params.locale} />
           </div>
 
           {message && (
@@ -124,31 +128,46 @@ export default function ConfigurationPage({ params }: { params: { locale: string
           )}
 
           {isLoading ? (
-            <div className="p-4 text-sm text-muted-foreground">{t('loading')}</div>
+            <div className="p-4 text-sm text-muted-foreground">
+              {t("loading")}
+            </div>
           ) : (
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>{t('companyLogo')}</CardTitle>
-                  <CardDescription>{t('companyLogoDescription')}</CardDescription>
+                  <CardTitle>{t("companyLogo")}</CardTitle>
+                  <CardDescription>
+                    {t("companyLogoDescription")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="company-logo">{t('companyLogo')}</Label>
-                    <Input id="company-logo" type="file" accept="image/*" onChange={handleLogoChange} />
+                    <Label htmlFor="company-logo">{t("companyLogo")}</Label>
+                    <Input
+                      id="company-logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                    />
                     {logoError && (
                       <p className="text-xs text-red-600">{logoError}</p>
                     )}
                     {companyLogo && (
                       <div className="mt-2">
-                        <img src={companyLogo} alt={t('companyLogoAlt')} className="h-16 w-auto rounded border" />
+                        <img
+                          src={companyLogo}
+                          alt={t("companyLogoAlt")}
+                          className="h-16 w-auto rounded border"
+                        />
                         <div className="mt-2 flex gap-2">
                           <Button
                             variant="ghost"
                             onClick={() => {
                               setCompanyLogo(null);
                             }}
-                          >{tCommon('delete')}</Button>
+                          >
+                            {tCommon("delete")}
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -158,26 +177,41 @@ export default function ConfigurationPage({ params }: { params: { locale: string
 
               <Card className="mt-8">
                 <CardHeader>
-                  <CardTitle>{t('authorizedSignature')}</CardTitle>
-                  <CardDescription>{t('authorizedSignatureDescription')}</CardDescription>
+                  <CardTitle>{t("authorizedSignature")}</CardTitle>
+                  <CardDescription>
+                    {t("authorizedSignatureDescription")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="authorized-signature">{t('authorizedSignature')}</Label>
-                    <Input id="authorized-signature" type="file" accept="image/*" onChange={handleSignatureChange} />
+                    <Label htmlFor="authorized-signature">
+                      {t("authorizedSignature")}
+                    </Label>
+                    <Input
+                      id="authorized-signature"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSignatureChange}
+                    />
                     {signatureError && (
                       <p className="text-xs text-red-600">{signatureError}</p>
                     )}
                     {signatureImage && (
                       <div className="mt-2">
-                        <img src={signatureImage} alt={t('authorizedSignatureAlt')} className="h-16 w-auto rounded border" />
+                        <img
+                          src={signatureImage}
+                          alt={t("authorizedSignatureAlt")}
+                          className="h-16 w-auto rounded border"
+                        />
                         <div className="mt-2 flex gap-2">
                           <Button
                             variant="ghost"
                             onClick={() => {
                               setSignatureImage(null);
                             }}
-                          >{tCommon('delete')}</Button>
+                          >
+                            {tCommon("delete")}
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -187,7 +221,7 @@ export default function ConfigurationPage({ params }: { params: { locale: string
 
               <div className="mt-6 flex justify-end">
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? t('saving') : t('saveUploads')}
+                  {isSaving ? t("saving") : t("saveUploads")}
                 </Button>
               </div>
             </>

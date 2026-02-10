@@ -55,6 +55,7 @@ export const COLLECTIONS = {
   ORDERS: "orders",
   ORDER_ITEMS: "order_items",
   PAYMENT_METHODS: "payment_methods",
+  PAYMENT_METHOD: "payment_method",
   TRANSACTIONS: "transactions",
   PASSWORD_RESETS: "password_resets",
   CATEGORIES: "categories",
@@ -121,6 +122,11 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.PAYMENT_METHODS)
       .createIndex({ name: 1 }, { unique: true });
+
+    // Payment method (configuration) collection indexes
+    await db
+      .collection(COLLECTIONS.PAYMENT_METHOD)
+      .createIndex({ user_id: 1 });
 
     // Transactions collection indexes
     await db.collection(COLLECTIONS.TRANSACTIONS).createIndex({ user_id: 1 });
