@@ -93,8 +93,8 @@ export function LandingPricing() {
               )}
               <CardHeader className="text-center space-y-2 pb-2">
                 <h3 className="font-semibold text-lg">{plan.name}</h3>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-3xl font-bold tracking-tight">
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="text-3xl font-bold ">
                     {plan.price}
                   </span>
                 </div>

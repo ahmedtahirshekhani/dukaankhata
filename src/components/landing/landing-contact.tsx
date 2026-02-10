@@ -19,7 +19,7 @@ const CONTACT_LINKS = {
     label: "ahmedtahir.developer@gmail.com",
   },
   phone: {
-    href: "tel:+923352575725",
+    href: "https://wa.me/923352575725",
     label: "+92 335 2575725 (M. Kashan Shekhani)",
   },
 } as const;
