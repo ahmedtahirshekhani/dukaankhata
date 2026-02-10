@@ -57,6 +57,7 @@ export default function InvoicePage() {
   const t = useTranslations("invoice");
   const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
+  console.log('products', products);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<POSProduct[]>([]);
@@ -209,6 +210,17 @@ export default function InvoicePage() {
     setSelectedProducts(
       selectedProducts.map((p) =>
         p.id === productId ? { ...p, discountType: newType } : p,
+      ),
+    );
+  };
+
+  const handleSellPriceChange = (productId: number, newSellPrice: number) => {
+    const safePrice = Number.isNaN(newSellPrice)
+      ? 0
+      : Math.max(0, newSellPrice);
+    setSelectedProducts(
+      selectedProducts.map((p) =>
+        p.id === productId ? { ...p, sell_price: safePrice } : p,
       ),
     );
   };
@@ -485,7 +497,22 @@ export default function InvoicePage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {t("currencySymbol")} {Math.floor(getSalePrice(product))}
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground text-sm">{t("currencySymbol")}</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={getSalePrice(product)}
+                          onChange={(e) =>
+                            handleSellPriceChange(
+                              product.id,
+                              parseFloat(e.target.value) || 0,
+                            )
+                          }
+                          className="w-24 p-1 h-8 text-sm"
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <input
@@ -582,9 +609,22 @@ export default function InvoicePage() {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <p className="text-xs text-muted-foreground">{t("sellPrice")}</p>
-                      <p className="font-semibold">
-                        {t("currencySymbol")} {Math.floor(getSalePrice(product))}
-                      </p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">{t("currencySymbol")}</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={getSalePrice(product)}
+                          onChange={(e) =>
+                            handleSellPriceChange(
+                              product.id,
+                              parseFloat(e.target.value) || 0,
+                            )
+                          }
+                          className="w-20 h-7 p-1 text-xs"
+                        />
+                      </div>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">{t("qty")} / {t("uom")}</p>
@@ -661,11 +701,14 @@ export default function InvoicePage() {
                 <TableRow>
                   <TableCell>
                     <Combobox
-                      items={products}
-                      placeholder={t("addItem")}
-                      noSelect
-                      onSelect={handleSelectProduct}
-                    />
+  items={products.map((p) => ({
+    ...p,
+    description: truncateDescription(p.description, 50),
+  }))}
+  placeholder={t("addItem")}
+  noSelect
+  onSelect={handleSelectProduct}
+/>
                   </TableCell>
                   <TableCell colSpan={6}></TableCell>
                 </TableRow>
@@ -677,7 +720,10 @@ export default function InvoicePage() {
           <div className="md:hidden mt-3">
             <Label className="text-xs font-medium">{t("addItem")}</Label>
             <Combobox
-              items={products}
+              items={products.map((p) => ({
+                ...p,
+                description: truncateDescription(p.description, 50),
+              }))}
               placeholder={t("selectProductToAdd")}
               noSelect
               onSelect={handleSelectProduct}
