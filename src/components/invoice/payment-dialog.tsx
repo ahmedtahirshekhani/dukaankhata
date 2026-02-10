@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,10 +49,15 @@ export function PaymentDialog({
   onConfirm,
 }: PaymentDialogProps) {
   const t = useTranslations("invoice");
+  const locale = useLocale();
   const [paymentType, setPaymentType] = useState<PaymentKind>("full");
   const [paymentAmount, setPaymentAmount] = useState<number>(total);
   const [paymentMethod, setPaymentMethod] = useState(defaultMethod);
   const [paymentDate, setPaymentDate] = useState(defaultDate);
+  const [dynamicMethods, setDynamicMethods] = useState<
+    { name: string; details: string }[]
+  >([]);
+  const [methodsError, setMethodsError] = useState<string | null>(null);
   const [paymentErrors, setPaymentErrors] = useState<{
     method?: string;
     amount?: string;
@@ -69,6 +74,62 @@ export function PaymentDialog({
     setPaymentDate(defaultDate);
     setPaymentErrors({});
   }, [open, defaultAmount, defaultDate, defaultMethod, total]);
+
+  useEffect(() => {
+    if (!open) return;
+    let isActive = true;
+    const controller = new AbortController();
+    const loadMethods = async () => {
+      setMethodsError(null);
+      try {
+        const res = await fetch(`/${locale}/api/configuration/payment-method`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          throw new Error("Failed to fetch payment methods");
+        }
+        const data = await res.json();
+        const list = Array.isArray(data)
+          ? data
+              .map((item) => ({
+                name:
+                  typeof item?.bankName === "string"
+                    ? item.bankName.trim()
+                    : "",
+                details:
+                  typeof item?.bankDetails === "string"
+                    ? item.bankDetails.trim()
+                    : "",
+              }))
+              .filter((item) => Boolean(item.name))
+          : [];
+        const filtered = list.filter(
+          (item) => item.name !== "Cash" && item.name !== "Cheque",
+        );
+        const unique = Array.from(
+          new Map(filtered.map((item) => [item.name, item])).values(),
+        );
+        if (isActive) {
+          setDynamicMethods(unique);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+        if (isActive) {
+          setDynamicMethods([]);
+          setMethodsError(t("failedToFetchPaymentMethods"));
+        }
+      }
+    };
+
+    loadMethods();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [open, locale, t]);
 
   const remainingBalance = useMemo(
     () => Math.max(0, total - paymentAmount),
@@ -149,7 +210,8 @@ export function PaymentDialog({
             {paymentType === "partial" && (
               <div className="flex justify-end">
                 <p className="text-xs text-muted-foreground text-right">
-                  {t("remainingBalanceLabel")} {formatCurrencyString(remainingBalance)}
+                  {t("remainingBalanceLabel")}{" "}
+                  {formatCurrencyString(remainingBalance)}
                 </p>
               </div>
             )}
@@ -171,13 +233,22 @@ export function PaymentDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Cash">{t("cash")}</SelectItem>
-                <SelectItem value="Bank Transfer">{t("bankTransfer")}</SelectItem>
                 <SelectItem value="Cheque">{t("cheque")}</SelectItem>
-                <SelectItem value="Easypaisa">{t("easypaisa")}</SelectItem>
-                <SelectItem value="JazzCash">{t("jazzCash")}</SelectItem>
-                <SelectItem value="Nayapay">{t("nayapay")}</SelectItem>
+                {dynamicMethods.map((method) => (
+                  <SelectItem key={method.name} value={method.name}>
+                    <span className="font-medium">{method.name}</span>
+                    {method.details && (
+                      <p className="text-xs text-muted-foreground">
+                        {method.details}
+                      </p>
+                    )}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {methodsError && (
+              <p className="text-xs text-red-600">{methodsError}</p>
+            )}
             {paymentErrors.method && (
               <p className="text-xs text-red-600">{paymentErrors.method}</p>
             )}
