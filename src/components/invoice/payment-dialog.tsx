@@ -235,13 +235,22 @@ export function PaymentDialog({
                 <SelectItem value="Cash">{t("cash")}</SelectItem>
                 <SelectItem value="Cheque">{t("cheque")}</SelectItem>
                 {dynamicMethods.map((method) => (
-                  <SelectItem key={method.name} value={method.name}>
-                    <span className="font-medium">{method.name}</span>
-                    {method.details && (
-                      <p className="text-xs text-muted-foreground">
-                        {method.details}
-                      </p>
-                    )}
+                  <SelectItem
+                    key={method.name}
+                    value={method.name}
+                    className="group"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium group-data-[highlighted]:text-accent-foreground">
+                        {method.name}
+                      </span>
+
+                      {method.details && (
+                        <p className="text-xs text-muted-foreground group-data-[highlighted]:text-accent-foreground">
+                          {method.details}
+                        </p>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>

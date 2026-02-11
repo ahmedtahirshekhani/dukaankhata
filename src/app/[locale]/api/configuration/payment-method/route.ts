@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getCollection, COLLECTIONS, toObjectId } from '@/lib/db/mongodb';
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function GET() {
   try {
     const session = await auth();
@@ -67,6 +71,17 @@ export async function POST(req: NextRequest) {
     }
 
     const collection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const existing = await collection.findOne({
+      user_id: toObjectId(userId),
+      bank_name: { $regex: new RegExp(`^${escapeRegex(bankName)}$`, 'i') },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: 'A payment method with this bank name already exists' },
+        { status: 409 }
+      );
+    }
+
     const now = new Date();
     const result = await collection.insertOne({
       user_id: toObjectId(userId),

@@ -66,6 +66,7 @@
     "paymentMethodBankName": "Bank Name",
     "paymentMethodBankNamePlaceholder": "e.g. HBL, MCB",
     "paymentMethodBankNameRequired": "Bank name is required",
+    "paymentMethodBankNameDuplicate": "A payment method with this bank name already exists",
     "paymentMethodBankDetails": "Bank Details",
     "paymentMethodBankDetailsPlaceholder": "Account number, branch, IBAN, etc.",
     "paymentMethodSave": "Save",

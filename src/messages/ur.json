@@ -66,6 +66,7 @@
     "paymentMethodBankName": "بینک کا نام",
     "paymentMethodBankNamePlaceholder": "مثلاً HBL، MCB",
     "paymentMethodBankNameRequired": "بینک کا نام درکار ہے",
+    "paymentMethodBankNameDuplicate": "اس بینک کے نام کے ساتھ ادائیگی کا طریقہ پہلے سے موجود ہے",
     "paymentMethodBankDetails": "بینک کی تفصیلات",
     "paymentMethodBankDetailsPlaceholder": "اکاؤنٹ نمبر، برانچ، IBAN وغیرہ",
     "paymentMethodSave": "محفوظ کریں",
