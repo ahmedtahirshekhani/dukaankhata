@@ -8,6 +8,10 @@ import {
   isValidObjectId,
 } from '@/lib/db/mongodb';
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface PaymentMethodDoc {
   _id: ObjectId;
   user_id: ObjectId;
@@ -90,6 +94,18 @@ export async function PUT(
     }
 
     const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const duplicate = await collection.findOne({
+      user_id: toObjectId(userId),
+      _id: { $ne: toObjectId(id) },
+      bank_name: { $regex: new RegExp(`^${escapeRegex(bankName)}$`, 'i') },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'A payment method with this bank name already exists' },
+        { status: 409 }
+      );
+    }
+
     const now = new Date();
     const result = await collection.findOneAndUpdate(
       { _id: toObjectId(id), user_id: toObjectId(userId) },

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { Eye, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,8 +53,6 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [viewItem, setViewItem] = useState<PaymentMethodItem | null>(null);
-  const [deleteItem, setDeleteItem] = useState<PaymentMethodItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const baseUrl = `/${locale}/api/configuration/payment-method`;
 
@@ -108,7 +106,7 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data?.error || 'Failed to update');
+          throw new Error(res.status === 409 ? t('paymentMethodBankNameDuplicate') : (data?.error || 'Failed to update'));
         }
         setList((prev) =>
           prev.map((item) =>
@@ -130,7 +128,7 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data?.error || 'Failed to save');
+          throw new Error(res.status === 409 ? t('paymentMethodBankNameDuplicate') : (data?.error || 'Failed to save'));
         }
         setList((prev) => [
           {
@@ -156,25 +154,6 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
     setBankName(item.bankName);
     setBankDetails(item.bankDetails);
     setEditingId(item.id);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteItem) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`${baseUrl}/${deleteItem.id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || 'Failed to delete');
-      }
-      setList((prev) => prev.filter((item) => item.id !== deleteItem.id));
-      showMessage(t('paymentMethodDeleted'));
-      setDeleteItem(null);
-    } catch (err: unknown) {
-      showMessage(err instanceof Error ? err.message : t('failedToSave'), true);
-    } finally {
-      setDeleting(false);
-    }
   };
 
   return (
@@ -239,13 +218,13 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {list.map((item) => (
-              <Card key={item.id} className="flex flex-col">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base truncate" title={item.bankName}>
+              <Card key={item.id} className="flex flex-col relative">
+                <CardHeader className="pb-2 pr-24">
+                  <div className="flex items-start justify-between gap-2 min-h-[2.5rem]">
+                    <CardTitle className="text-base font-semibold break-words min-w-0 flex-1 leading-snug">
                       {item.bankName}
                     </CardTitle>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="absolute top-4 right-4 flex items-center gap-1 shrink-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -265,16 +244,6 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
                         type="button"
                       >
                         <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteItem(item)}
-                        title={tCommon('delete')}
-                        type="button"
-                      >
-                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -303,26 +272,6 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewItem(null)}>
               {tCommon('cancel')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('paymentMethodDeleteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('paymentMethodDeleteDescription', { name: deleteItem?.bankName ?? '' })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteItem(null)} disabled={deleting}>
-              {tCommon('cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleting}>
-              {deleting ? t('saving') : tCommon('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
