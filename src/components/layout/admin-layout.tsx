@@ -24,6 +24,7 @@ import {
   Menu,
   X,
   MessageSquare,
+  ArrowDown,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -44,6 +45,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const pageNames: { [key: string]: string } = {
     "/admin": tNav("dashboard"),
+    "/admin/payment-in": tNav("paymentIn"),
     "/admin/customers": tNav("customers"),
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
@@ -143,6 +145,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-col min-w-0">
                   <span className="font-medium text-xs md:text-sm">{tNav("dashboard")}</span>
                   <span className="text-xs opacity-70 hidden md:block">{tNav("dashboardDescription")}</span>
+                </div>
+              </Link>
+            </div>
+            <div>
+              <Link
+                href={`/${locale}/admin/payment-in`}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                  pathWithoutLocale === "/admin/payment-in"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ArrowDown className="h-5 w-5 flex-shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium text-xs md:text-sm">{tNav("paymentIn")}</span>
+                  <span className="text-xs opacity-70 hidden md:block">{tNav("paymentInDescription")}</span>
                 </div>
               </Link>
             </div>
