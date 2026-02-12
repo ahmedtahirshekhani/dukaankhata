@@ -6,6 +6,7 @@ import {
   toObjectId,
   isValidObjectId,
 } from '@/lib/db/mongodb';
+import { deductPaymentFromBalance } from '@/lib/customer-balance';
 
 export async function GET() {
   try {
@@ -112,6 +113,8 @@ export async function POST(req: NextRequest) {
     if (!insertedId) {
       return NextResponse.json({ error: 'Failed to create record' }, { status: 500 });
     }
+
+    await deductPaymentFromBalance(customerId, user.id, paymentAmount);
 
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),

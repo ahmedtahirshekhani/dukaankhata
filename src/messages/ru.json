@@ -24,7 +24,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "Overview aur analytics dekhen",
-    "paymentIn": "Payment Transactions",
+    "paymentIn": "Payment In",
     "paymentInDescription": "Record customer payments received",
     "invoice": "Invoicing",
     "invoiceDescription": "Frookhat ke transaction ka intezaam",

@@ -25,7 +25,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "View overview and analytics",
-    "paymentIn": "Payment Transactions",
+    "paymentIn": "Payment In",
     "paymentInDescription": "Record customer payments received",
     "invoice": "Invoicing",
     "invoiceDescription": "Manage invoice transactions",

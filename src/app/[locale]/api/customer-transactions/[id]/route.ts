@@ -7,6 +7,7 @@ import {
   toObjectId,
   isValidObjectId,
 } from '@/lib/db/mongodb';
+import { addPaymentToBalance, deductPaymentFromBalance } from '@/lib/customer-balance';
 
 interface CustomerTransactionDoc {
   _id: ObjectId;
@@ -93,6 +94,26 @@ export async function PUT(
     const date = new Date(dateStr + 'T12:00:00.000Z');
 
     const collection = await getCollection<CustomerTransactionDoc>(COLLECTIONS.CUSTOMER_TRANSACTIONS);
+    const existing = await collection.findOne({
+      _id: toObjectId(id),
+      user_id: toObjectId(user.id),
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const oldCustomerId = existing.customer_id?.toString();
+    const oldAmount = existing.payment_amount ?? 0;
+    const newCustomerId = customerId;
+
+    if (oldCustomerId && isValidObjectId(oldCustomerId) && oldAmount > 0) {
+      await addPaymentToBalance(oldCustomerId, user.id, oldAmount);
+    }
+    if (newCustomerId && isValidObjectId(newCustomerId) && paymentAmount > 0) {
+      await deductPaymentFromBalance(newCustomerId, user.id, paymentAmount);
+    }
+
     const now = new Date();
     const result = await collection.findOneAndUpdate(
       { _id: toObjectId(id), user_id: toObjectId(user.id) },
@@ -142,6 +163,21 @@ export async function DELETE(
     }
 
     const collection = await getCollection<CustomerTransactionDoc>(COLLECTIONS.CUSTOMER_TRANSACTIONS);
+    const existing = await collection.findOne({
+      _id: toObjectId(id),
+      user_id: toObjectId(user.id),
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const customerId = existing.customer_id?.toString();
+    const paymentAmount = existing.payment_amount ?? 0;
+    if (customerId && isValidObjectId(customerId) && paymentAmount > 0) {
+      await addPaymentToBalance(customerId, user.id, paymentAmount);
+    }
+
     const result = await collection.deleteOne({
       _id: toObjectId(id),
       user_id: toObjectId(user.id),

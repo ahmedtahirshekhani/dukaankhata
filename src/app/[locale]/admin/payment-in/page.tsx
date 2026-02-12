@@ -60,6 +60,7 @@ type Customer = {
 type PaymentMethod = {
   id: string;
   name: string;
+  bankDetails?: string;
 };
 
 type CustomerTransaction = {
@@ -136,9 +137,10 @@ export default function PaymentInPage() {
       if (!res.ok) return;
       const data = await res.json();
       const list = Array.isArray(data)
-        ? data.map((item: { id?: string; bankName?: string }) => ({
+        ? data.map((item: { id?: string; bankName?: string; bankDetails?: string }) => ({
             id: item.id ?? "",
             name: item.bankName ?? "",
+            bankDetails: item.bankDetails ?? "",
           })).filter((item) => item.id && item.name)
         : [];
       setPaymentMethods([
@@ -378,17 +380,28 @@ export default function PaymentInPage() {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 shrink-0"
+                  >
                     <FilterIcon className="w-4 h-4" />
                     <span>{tCommon("filter")}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 max-h-[70vh] overflow-y-auto">
-                  <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-56 max-h-[70vh] overflow-y-auto"
+                >
+                  <DropdownMenuLabel>
+                    {t("filterByPaymentMethod")}
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.paymentMethod === "all"}
-                    onCheckedChange={(checked) => checked && handleFilterPaymentMethod("all")}
+                    onCheckedChange={(checked) =>
+                      checked && handleFilterPaymentMethod("all")
+                    }
                   >
                     {t("allPaymentMethods")}
                   </DropdownMenuCheckboxItem>
@@ -396,7 +409,9 @@ export default function PaymentInPage() {
                     <DropdownMenuCheckboxItem
                       key={pm.id}
                       checked={filters.paymentMethod === pm.id}
-                      onCheckedChange={(checked) => checked && handleFilterPaymentMethod(pm.id)}
+                      onCheckedChange={(checked) =>
+                        checked && handleFilterPaymentMethod(pm.id)
+                      }
                     >
                       {pm.name}
                     </DropdownMenuCheckboxItem>
@@ -406,7 +421,9 @@ export default function PaymentInPage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.customer === "all"}
-                    onCheckedChange={(checked) => checked && handleFilterCustomer("all")}
+                    onCheckedChange={(checked) =>
+                      checked && handleFilterCustomer("all")
+                    }
                   >
                     {t("allCustomers")}
                   </DropdownMenuCheckboxItem>
@@ -414,7 +431,9 @@ export default function PaymentInPage() {
                     <DropdownMenuCheckboxItem
                       key={c.id}
                       checked={filters.customer === c.id}
-                      onCheckedChange={(checked) => checked && handleFilterCustomer(c.id)}
+                      onCheckedChange={(checked) =>
+                        checked && handleFilterCustomer(c.id)
+                      }
                     >
                       {c.name}
                     </DropdownMenuCheckboxItem>
@@ -443,7 +462,10 @@ export default function PaymentInPage() {
               <TableBody>
                 {filteredTransactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       {t("noRecords")}
                     </TableCell>
                   </TableRow>
@@ -451,12 +473,18 @@ export default function PaymentInPage() {
                   filteredTransactions.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{item.customerName || "-"}</TableCell>
-                      <TableCell>Rs. {Math.round(item.paymentAmount)}</TableCell>
+                      <TableCell>
+                        Rs. {Math.round(item.paymentAmount)}
+                      </TableCell>
                       <TableCell>{item.paymentMethodName || "-"}</TableCell>
                       <TableCell>{item.date || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button size="icon" variant="ghost" onClick={() => openEditDialog(item)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openEditDialog(item)}
+                          >
                             <FilePenIcon className="w-4 h-4" />
                             <span className="sr-only">{tCommon("edit")}</span>
                           </Button>
@@ -517,14 +545,24 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("paymentMethod")}</Label>
-              <Select value={formPaymentMethodId} onValueChange={setFormPaymentMethodId}>
+              <Select
+                value={formPaymentMethodId}
+                onValueChange={setFormPaymentMethodId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t("selectPaymentMethod")} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[20rem] max-w-[90vw]">
                   {paymentMethods.map((pm) => (
                     <SelectItem key={pm.id} value={pm.id}>
-                      {pm.name}
+                      <div className="flex flex-col gap-0.5 py-0.5">
+                        <span className="font-medium">{pm.name}</span>
+                        {pm.bankDetails && (
+                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
+                            {pm.bankDetails}
+                          </span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -540,7 +578,11 @@ export default function PaymentInPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={isSaving}>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddDialog(false)}
+              disabled={isSaving}
+            >
               {tCommon("cancel")}
             </Button>
             <Button onClick={handleAdd} disabled={isSaving}>
@@ -585,14 +627,24 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("paymentMethod")}</Label>
-              <Select value={formPaymentMethodId} onValueChange={setFormPaymentMethodId}>
+              <Select
+                value={formPaymentMethodId}
+                onValueChange={setFormPaymentMethodId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t("selectPaymentMethod")} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[20rem] max-w-[90vw]">
                   {paymentMethods.map((pm) => (
                     <SelectItem key={pm.id} value={pm.id}>
-                      {pm.name}
+                      <div className="flex flex-col gap-0.5 py-0.5">
+                        <span className="font-medium">{pm.name}</span>
+                        {pm.bankDetails && (
+                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
+                            {pm.bankDetails}
+                          </span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -608,7 +660,11 @@ export default function PaymentInPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={isSaving}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              disabled={isSaving}
+            >
               {tCommon("cancel")}
             </Button>
             <Button onClick={handleEdit} disabled={isSaving}>
@@ -625,13 +681,23 @@ export default function PaymentInPage() {
             <DialogTitle>{t("confirmDelete")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {t("confirmDeleteMessage", { customer: transactionToDelete?.customerName ?? "" })}
+            {t("confirmDeleteMessage", {
+              customer: transactionToDelete?.customerName ?? "",
+            })}
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
               {tCommon("cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
               {isDeleting ? tCommon("loading") : tCommon("delete")}
             </Button>
           </DialogFooter>
