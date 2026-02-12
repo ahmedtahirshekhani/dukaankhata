@@ -185,9 +185,13 @@ export default function InvoicePage() {
   };
 
   const handleQuantityChange = (productId: number, newQuantity: number) => {
+    const safeQty =
+      Number.isNaN(newQuantity) || newQuantity < 0
+        ? (selectedProducts.find((p) => p.id === productId)?.quantity ?? 1)
+        : newQuantity;
     setSelectedProducts(
       selectedProducts.map((p) =>
-        p.id === productId ? { ...p, quantity: newQuantity } : p,
+        p.id === productId ? { ...p, quantity: safeQty } : p,
       ),
     );
   };
@@ -517,14 +521,15 @@ export default function InvoicePage() {
                     <TableCell>
                       <input
                         type="number"
-                        min="1"
-                        value={product.quantity || 1}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            product.id,
-                            parseInt(e.target.value),
-                          )
-                        }
+                        min="0"
+                        step="0.01"
+                        value={product.quantity ?? 1}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!Number.isNaN(val)) {
+                            handleQuantityChange(product.id, val);
+                          }
+                        }}
                         className="w-16 p-1 border rounded"
                       />
                     </TableCell>
@@ -631,14 +636,15 @@ export default function InvoicePage() {
                       <div className="flex gap-1">
                         <input
                           type="number"
-                          min="1"
-                          value={product.quantity || 1}
-                          onChange={(e) =>
-                            handleQuantityChange(
-                              product.id,
-                              parseInt(e.target.value),
-                            )
-                          }
+                          min="0"
+                          step="0.01"
+                          value={product.quantity ?? 1}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!Number.isNaN(val)) {
+                              handleQuantityChange(product.id, val);
+                            }
+                          }}
                           className="w-12 h-7 p-1 border rounded text-xs"
                         />
                         <span className="text-xs text-muted-foreground pt-1">
