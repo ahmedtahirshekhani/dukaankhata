@@ -23,6 +23,7 @@ export interface Product {
   cost_price?: number;
   in_stock?: number;
   quantity?: number;
+  damaged_quantity?: number;
   category: string;
   unit_of_measurement?: string;
   branch?: string;
@@ -46,6 +47,7 @@ export function ProductsTable({
   const sellPriceLabel = t("sellPrice");
   const costPriceLabel = t("costPrice");
   const quantityLabel = t("quantity");
+  const damagedQuantityLabel = t("damagedQuantity");
   const uomLabel = t("uom");
   const categoryLabel = t("category");
   const typeLabel = t("type");
@@ -75,6 +77,7 @@ export function ProductsTable({
               <TableHead>{sellPriceLabel}</TableHead>
               <TableHead>{costPriceLabel}</TableHead>
               <TableHead>{quantityLabel}</TableHead>
+              <TableHead>{damagedQuantityLabel}</TableHead>
               <TableHead>{uomLabel}</TableHead>
               <TableHead>{categoryLabel}</TableHead>
               <TableHead>{typeLabel}</TableHead>
@@ -91,7 +94,7 @@ export function ProductsTable({
                     {product.description && (
                       <span className="text-xs text-muted-foreground leading-snug">
                         {capitalizeFirstLetter(
-                          truncateDescription(product.description)
+                          truncateDescription(product.description),
                         )}
                       </span>
                     )}
@@ -112,6 +115,12 @@ export function ProductsTable({
 
                 <TableCell className="text-xs">
                   {product.quantity || product.in_stock || "-"}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {product.damaged_quantity !== undefined &&
+                  product.damaged_quantity !== null
+                    ? product.damaged_quantity
+                    : "-"}
                 </TableCell>
                 <TableCell className="text-xs">
                   {capitalizeFirstLetter(product.unit_of_measurement)}
@@ -161,7 +170,7 @@ export function ProductsTable({
                 <h3 className="font-semibold text-sm">{product.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   {capitalizeFirstLetter(
-                    truncateDescription(product.description)
+                    truncateDescription(product.description),
                   )}
                 </p>
               </div>
@@ -224,6 +233,18 @@ export function ProductsTable({
                   </span>
                 </div>
               )}
+
+              {product.damaged_quantity !== undefined &&
+                product.damaged_quantity !== null && (
+                  <div>
+                    <span className="text-muted-foreground">
+                      {damagedQuantityLabel}:
+                    </span>
+                    <span className="ml-1 font-medium">
+                      {product.damaged_quantity}
+                    </span>
+                  </div>
+                )}
 
               {product.branch && (
                 <div>

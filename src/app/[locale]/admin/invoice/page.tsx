@@ -48,6 +48,7 @@ type PaymentMethod = {
 
 interface POSProduct extends Product {
   quantity: number;
+  quantityType?: "prime" | "damaged";
   discount?: number;
   discountType?: "value" | "percentage";
   discountInput?: string;
@@ -57,7 +58,7 @@ export default function InvoicePage() {
   const t = useTranslations("invoice");
   const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
-  console.log('products', products);
+  console.log("products", products);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<POSProduct[]>([]);
@@ -105,7 +106,9 @@ export default function InvoicePage() {
   }, []);
 
   useEffect(() => {
-    setCustomerNotes((prev) => (prev === "" ? t("thanksForYourBusiness") : prev));
+    setCustomerNotes((prev) =>
+      prev === "" ? t("thanksForYourBusiness") : prev,
+    );
   }, [t]);
 
   const generateInvoiceNo = () => {
@@ -162,6 +165,7 @@ export default function InvoicePage() {
         {
           ...product,
           quantity: 1,
+          quantityType: "prime",
           discount: 0,
           discountType: "value",
           discountInput: "0",
@@ -214,6 +218,17 @@ export default function InvoicePage() {
     setSelectedProducts(
       selectedProducts.map((p) =>
         p.id === productId ? { ...p, discountType: newType } : p,
+      ),
+    );
+  };
+
+  const handleQuantityTypeChange = (
+    productId: number,
+    newType: "prime" | "damaged",
+  ) => {
+    setSelectedProducts(
+      selectedProducts.map((p) =>
+        p.id === productId ? { ...p, quantityType: newType } : p,
       ),
     );
   };
@@ -337,6 +352,7 @@ export default function InvoicePage() {
             name: p.name,
             description: p.description,
             quantity: p.quantity,
+            quantityType: p.quantityType || "prime",
             price: p.sell_price,
             discount: p.discount || 0,
             discountType: p.discountType || "value",
@@ -481,6 +497,7 @@ export default function InvoicePage() {
                   <TableHead>{t("item")}</TableHead>
                   <TableHead>{t("sellPrice")}</TableHead>
                   <TableHead>{t("quantity")}</TableHead>
+                  <TableHead>{t("qtyType")}</TableHead>
                   <TableHead>{t("uom")}</TableHead>
                   <TableHead>{t("discount")}</TableHead>
                   <TableHead>{t("amount")}</TableHead>
@@ -502,7 +519,9 @@ export default function InvoicePage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground text-sm">{t("currencySymbol")}</span>
+                        <span className="text-muted-foreground text-sm">
+                          {t("currencySymbol")}
+                        </span>
                         <Input
                           type="number"
                           min="0"
@@ -532,6 +551,27 @@ export default function InvoicePage() {
                         }}
                         className="w-16 p-1 border rounded"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={product.quantityType || "prime"}
+                        onValueChange={(val) =>
+                          handleQuantityTypeChange(
+                            product.id,
+                            val as "prime" | "damaged",
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-24 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="prime">{t("prime")}</SelectItem>
+                          <SelectItem value="damaged">
+                            {t("damaged")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {formatUom(product.unit_of_measurement)}
@@ -570,7 +610,8 @@ export default function InvoicePage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {t("currencySymbol")} {Math.floor(calculateLineTotal(product))}
+                      {t("currencySymbol")}{" "}
+                      {Math.floor(calculateLineTotal(product))}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -613,9 +654,13 @@ export default function InvoicePage() {
 
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <p className="text-xs text-muted-foreground">{t("sellPrice")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("sellPrice")}
+                      </p>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">{t("currencySymbol")}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t("currencySymbol")}
+                        </span>
                         <Input
                           type="number"
                           min="0"
@@ -632,7 +677,9 @@ export default function InvoicePage() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">{t("qty")} / {t("uom")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("qty")} / {t("uom")}
+                      </p>
                       <div className="flex gap-1">
                         <input
                           type="number"
@@ -652,6 +699,29 @@ export default function InvoicePage() {
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("qtyType")}
+                    </p>
+                    <Select
+                      value={product.quantityType || "prime"}
+                      onValueChange={(val) =>
+                        handleQuantityTypeChange(
+                          product.id,
+                          val as "prime" | "damaged",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prime">{t("prime")}</SelectItem>
+                        <SelectItem value="damaged">{t("damaged")}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -684,15 +754,20 @@ export default function InvoicePage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="value">{t("pkr")}</SelectItem>
-                        <SelectItem value="percentage">{t("percentage")}</SelectItem>
+                        <SelectItem value="percentage">
+                          {t("percentage")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="pt-1 border-t">
-                    <p className="text-xs text-muted-foreground">{t("amount")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("amount")}
+                    </p>
                     <p className="font-bold text-sm">
-                      {t("currencySymbol")} {Math.floor(calculateLineTotal(product))}
+                      {t("currencySymbol")}{" "}
+                      {Math.floor(calculateLineTotal(product))}
                     </p>
                   </div>
                 </div>
@@ -707,14 +782,14 @@ export default function InvoicePage() {
                 <TableRow>
                   <TableCell>
                     <Combobox
-  items={products.map((p) => ({
-    ...p,
-    description: truncateDescription(p.description, 50),
-  }))}
-  placeholder={t("addItem")}
-  noSelect
-  onSelect={handleSelectProduct}
-/>
+                      items={products.map((p) => ({
+                        ...p,
+                        description: truncateDescription(p.description, 50),
+                      }))}
+                      placeholder={t("addItem")}
+                      noSelect
+                      onSelect={handleSelectProduct}
+                    />
                   </TableCell>
                   <TableCell colSpan={6}></TableCell>
                 </TableRow>
@@ -747,13 +822,15 @@ export default function InvoicePage() {
                     {t("currencySymbol")} {Math.round(total)}
                   </span>
 
-                  <span className="text-sm text-right">{t("overallDiscount")}</span>
-                  <div className="flex gap-1 items-center">
+                  <span className="text-sm text-right">
+                    {t("overallDiscount")}
+                  </span>
+                  <div className="flex gap-1 items-center justify-end">
                     <Input
                       type="number"
                       placeholder="0"
                       min="0"
-                      className="w-16 h-8 text-sm"
+                      className="w-14 h-8 text-sm"
                       value={overallDiscount || ""}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value);
@@ -766,17 +843,21 @@ export default function InvoicePage() {
                         setOverallDiscountType(val as "value" | "percentage")
                       }
                     >
-                      <SelectTrigger className="w-16 h-8 text-xs">
+                      <SelectTrigger className="w-20 h-8 text-xs">
                         <SelectValue placeholder={t("pkr")} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="value">{t("pkr")}</SelectItem>
-                        <SelectItem value="percentage">{t("percentage")}</SelectItem>
+                        <SelectItem value="percentage">
+                          {t("percentage")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <span className="text-sm text-right">{t("shippingCharges")}</span>
+                  <span className="text-sm text-right">
+                    {t("shippingCharges")}
+                  </span>
                   <Input
                     type="number"
                     placeholder="0"
@@ -792,7 +873,7 @@ export default function InvoicePage() {
 
                 {/* Add Charge Form */}
                 <div className="space-y-2">
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center justify-end">
                     <Input
                       id="new-charge-item"
                       placeholder={t("adjustment")}
@@ -827,7 +908,10 @@ export default function InvoicePage() {
                   <div className="space-y-2">
                     {/* Display Added Charges */}
                     {charges.map((charge) => (
-                      <div key={charge.id} className="flex gap-2 items-center">
+                      <div
+                        key={charge.id}
+                        className="flex gap-2 items-center justify-end"
+                      >
                         <Input
                           placeholder={t("adjustment")}
                           value={charge.item}
@@ -919,7 +1003,9 @@ export default function InvoicePage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="value">{t("pkr")}</SelectItem>
-                          <SelectItem value="percentage">{t("percentage")}</SelectItem>
+                          <SelectItem value="percentage">
+                            {t("percentage")}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -947,7 +1033,9 @@ export default function InvoicePage() {
               {/* Add Charge Form - Mobile */}
               <Card className="p-3">
                 <div className="space-y-2">
-                  <p className="text-xs font-medium">{t("additionalCharges")}</p>
+                  <p className="text-xs font-medium">
+                    {t("additionalCharges")}
+                  </p>
                   <div className="flex gap-2">
                     <Input
                       id="new-charge-item"
@@ -1037,7 +1125,9 @@ export default function InvoicePage() {
             {/* Customer Notes */}
             <div className="mt-4 md:mt-6">
               <div className="flex flex-col gap-1 w-full md:max-w-md">
-                <Label className="text-sm font-medium">{t("customerNotes")}</Label>
+                <Label className="text-sm font-medium">
+                  {t("customerNotes")}
+                </Label>
                 <textarea
                   className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   value={customerNotes}
@@ -1083,6 +1173,7 @@ export default function InvoicePage() {
           name: p.name,
           description: p.description,
           quantity: p.quantity,
+          quantityType: p.quantityType,
           sell_price: p.sell_price,
           unit_of_measurement: p.unit_of_measurement,
           discount: p.discount,

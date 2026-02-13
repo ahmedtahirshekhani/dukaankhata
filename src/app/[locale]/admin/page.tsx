@@ -40,8 +40,8 @@ export default function Page() {
     typeof params?.locale === "string"
       ? params.locale
       : Array.isArray(params?.locale)
-      ? params?.locale?.[0]
-      : "en";
+        ? params?.locale?.[0]
+        : "en";
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
@@ -70,7 +70,7 @@ export default function Page() {
     setIsPrivacyMode(newPrivacyMode);
     localStorage.setItem(
       "dashboardPrivacyMode",
-      JSON.stringify(newPrivacyMode)
+      JSON.stringify(newPrivacyMode),
     );
   };
 
@@ -161,7 +161,7 @@ export default function Page() {
             setIsPrivacyMode(newPrivacyMode);
             localStorage.setItem(
               "dashboardPrivacyMode",
-              JSON.stringify(newPrivacyMode)
+              JSON.stringify(newPrivacyMode),
             );
           }}
           className="h-5 w-9 sm:h-6 sm:w-11"
@@ -334,7 +334,7 @@ export default function Page() {
               <a
                 href={`https://wa.me/${supportContact.whatsapp.replace(
                   /[^\d]/g,
-                  ""
+                  "",
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -526,7 +526,7 @@ function PiechartcustomChart({
         label: category,
         color: `hsl(var(--chart-${index + 1}))`,
       },
-    ])
+    ]),
   ) as ChartConfig;
 
   return (

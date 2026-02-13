@@ -35,6 +35,7 @@ interface Product {
   cost_price?: number;
   in_stock?: number;
   quantity?: number;
+  damaged_quantity?: number;
   category: string;
   unit_of_measurement?: string;
   branch?: string;
@@ -144,8 +145,8 @@ const selectStyles = {
     backgroundColor: state.isSelected
       ? "#111827"
       : state.isFocused
-      ? "#f3f4f6"
-      : "white",
+        ? "#f3f4f6"
+        : "white",
     color: state.isSelected ? "white" : "black",
     cursor: "pointer",
     fontSize: "14px",
@@ -178,6 +179,7 @@ export function ProductDialog({
   const [sellPrice, setSellPrice] = useState<number | "">("");
   const [costPrice, setCostPrice] = useState<number | "">("");
   const [productInStock, setProductInStock] = useState<number | "">("");
+  const [damagedQuantity, setDamagedQuantity] = useState<number | "">("");
   const [productCategory, setProductCategory] = useState("");
   const [unitOfMeasurement, setUnitOfMeasurement] = useState("");
   const [branch, setBranch] = useState("");
@@ -194,6 +196,7 @@ export function ProductDialog({
         setSellPrice(selectedProduct.sell_price || "");
         setCostPrice(selectedProduct.cost_price || "");
         setProductInStock(selectedProduct.quantity || "");
+        setDamagedQuantity(selectedProduct.damaged_quantity || "");
         setUnitOfMeasurement(selectedProduct.unit_of_measurement || "");
         setBranch(selectedProduct.branch || "");
       } else {
@@ -213,6 +216,7 @@ export function ProductDialog({
     setSellPrice("");
     setCostPrice("");
     setProductInStock("");
+    setDamagedQuantity("");
     setProductCategory("");
     setUnitOfMeasurement("");
     setBranch("");
@@ -266,6 +270,7 @@ export function ProductDialog({
     sellPrice,
     costPrice,
     productInStock,
+    damagedQuantity,
     productCategory,
     unitOfMeasurement,
     branch,
@@ -286,6 +291,7 @@ export function ProductDialog({
           sell_price: sellPrice === "" ? 0 : sellPrice,
           cost_price: costPrice === "" ? 0 : costPrice,
           quantity: productInStock === "" ? 0 : productInStock,
+          damaged_quantity: damagedQuantity === "" ? 0 : damagedQuantity,
           unit_of_measurement: unitOfMeasurement,
           branch: branch,
         }),
@@ -323,6 +329,7 @@ export function ProductDialog({
     sellPrice,
     costPrice,
     productInStock,
+    damagedQuantity,
     productCategory,
     unitOfMeasurement,
     branch,
@@ -348,47 +355,41 @@ export function ProductDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Label className="text-right">{t("type")}</Label>
-              </div>
-              <div className="col-span-3">
-                <RadioGroup
-                  value={itemType}
-                  onValueChange={(value) =>
-                    setItemType(value as "goods" | "services")
-                  }
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="goods" id="goods" />
-                      <Label
-                        htmlFor="goods"
-                        className="font-normal cursor-pointer"
-                      >
-                        {t("goods")}
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="services" id="services" />
-                      <Label
-                        htmlFor="services"
-                        className="font-normal cursor-pointer"
-                      >
-                        {t("services")}
-                      </Label>
-                    </div>
+            <div className="space-y-2">
+              <Label>{t("type")}</Label>
+              <RadioGroup
+                value={itemType}
+                onValueChange={(value) =>
+                  setItemType(value as "goods" | "services")
+                }
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="goods" id="goods" />
+                    <Label
+                      htmlFor="goods"
+                      className="font-normal cursor-pointer"
+                    >
+                      {t("goods")}
+                    </Label>
                   </div>
-                </RadioGroup>
-              </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="services" id="services" />
+                    <Label
+                      htmlFor="services"
+                      className="font-normal cursor-pointer"
+                    >
+                      {t("services")}
+                    </Label>
+                  </div>
+                </div>
+              </RadioGroup>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="name" className="">
-                    {t("name")}
-                  </Label>
+                  <Label htmlFor="name">{t("name")}</Label>
                   <span className="text-red-500 text-xs">{t("required")}</span>
                   <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
@@ -410,9 +411,7 @@ export function ProductDialog({
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="description" className="">
-                    {t("description")}
-                  </Label>
+                  <Label htmlFor="description">{t("description")}</Label>
                   <span className="text-xs text-muted-foreground">
                     {t("descriptionMaxChars")}
                   </span>
@@ -439,71 +438,7 @@ export function ProductDialog({
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="quantity" className="">
-                        {t("quantity")}
-                      </Label>
-                      <Tooltip delayDuration={0}>
-                        <TooltipTrigger asChild>
-                          <button type="button" className="cursor-help">
-                            <Info className="w-3 h-3 text-gray-400" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("quantityTooltip")}</TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={productInStock}
-                      onChange={(e) => {
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setProductInStock(val === "" ? "" : Math.max(0, val));
-                      }}
-                      placeholder="0"
-                      min="0"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="unitOfMeasurement" className="">
-                        {t("unitOfMeasurement")}
-                      </Label>
-                      <Tooltip delayDuration={0}>
-                        <TooltipTrigger asChild>
-                          <button type="button" className="cursor-help">
-                            <Info className="w-3 h-3 text-gray-400" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("unitTooltip")}</TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Select
-                      inputId="unitOfMeasurement"
-                      isClearable
-                      isSearchable
-                      options={sortedUnitOptions}
-                      placeholder={t("selectUnit")}
-                      styles={selectStyles}
-                      value={
-                        sortedUnitOptions.find(
-                          (unit) => unit.value === unitOfMeasurement
-                        ) || null
-                      }
-                      onChange={(option: SingleValue<UnitOption>) =>
-                        setUnitOfMeasurement(option?.value || "")
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="sellPrice" className="">
-                        {t("sellPrice")}
-                      </Label>
+                      <Label htmlFor="sellPrice">{t("sellPrice")}</Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
@@ -529,9 +464,7 @@ export function ProductDialog({
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="costPrice" className="">
-                        {t("costPrice")}
-                      </Label>
+                      <Label htmlFor="costPrice">{t("costPrice")}</Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
@@ -557,6 +490,98 @@ export function ProductDialog({
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="quantity">{t("quantity")}</Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("quantityTooltip")}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      value={productInStock}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? "" : Number(e.target.value);
+                        setProductInStock(val === "" ? "" : Math.max(0, val));
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="damagedQuantity">
+                        {t("damagedQuantity")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t("damagedQuantityTooltip")}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="damagedQuantity"
+                      type="number"
+                      value={damagedQuantity}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? "" : Number(e.target.value);
+                        setDamagedQuantity(val === "" ? "" : Math.max(0, val));
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="unitOfMeasurement">
+                        {t("unitOfMeasurement")}
+                      </Label>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-gray-400" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("unitTooltip")}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Select
+                      inputId="unitOfMeasurement"
+                      isClearable
+                      isSearchable
+                      options={sortedUnitOptions}
+                      placeholder={t("selectUnit")}
+                      styles={selectStyles}
+                      value={
+                        sortedUnitOptions.find(
+                          (unit) => unit.value === unitOfMeasurement,
+                        ) || null
+                      }
+                      onChange={(option: SingleValue<UnitOption>) =>
+                        setUnitOfMeasurement(option?.value || "")
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
                   <CategorySelector
                     value={productCategory}
                     onChange={setProductCategory}
@@ -570,9 +595,7 @@ export function ProductDialog({
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="sellPrice" className="">
-                        {t("sellPrice")}
-                      </Label>
+                      <Label htmlFor="sellPrice">{t("sellPrice")}</Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
@@ -614,8 +637,8 @@ export function ProductDialog({
               {loading
                 ? t("processing")
                 : isEditMode
-                ? t("updateItem")
-                : t("addProduct")}
+                  ? t("updateItem")
+                  : t("addProduct")}
             </Button>
           </DialogFooter>
         </DialogContent>
