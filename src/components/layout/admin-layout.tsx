@@ -29,7 +29,7 @@ import {
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -39,6 +39,39 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const tNav = useTranslations("navigation");
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [companyName, setCompanyName] = useState<string>("");
+
+  // Fetch company name from localStorage or session
+  useEffect(() => {
+    const savedCompanyName = localStorage.getItem("companyName");
+    if (savedCompanyName) {
+      setCompanyName(savedCompanyName);
+    } else if (user?.company) {
+      setCompanyName(user.company);
+    }
+  }, [user]);
+
+  // Listen for company details updates
+  useEffect(() => {
+    const handleCompanyDetailsUpdate = (event: CustomEvent) => {
+      const { companyName: updatedName } = event.detail;
+      if (updatedName) {
+        setCompanyName(updatedName);
+      }
+    };
+
+    window.addEventListener(
+      "companyDetailsUpdated",
+      handleCompanyDetailsUpdate as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "companyDetailsUpdated",
+        handleCompanyDetailsUpdate as EventListener,
+      );
+    };
+  }, []);
 
   // Remove locale and /admin from pathname to get current page
   const pathWithoutLocale = pathname.replace(`/${locale}`, "");
@@ -74,7 +107,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           className="sm:hidden"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {sidebarOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </Button>
         <Link
           href={`/${locale}/admin`}
@@ -83,53 +120,66 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <Package2Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           <span className="hidden sm:inline">{t("common.appName")}</span>
         </Link>
-        <h1 className="text-sm sm:text-xl font-bold truncate flex-shrink">{pageNames[pathWithoutLocale] || "Dashboard"}</h1>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <h1 className="text-sm sm:text-xl font-bold truncate flex-shrink-0">
+          {pageNames[pathWithoutLocale] || "Dashboard"}
+        </h1>
+        {companyName && (
+          <div className="hidden sm:flex flex-1 justify-center items-center min-w-0">
+            <span className="text-lg font-bold text-foreground truncate">
+              {companyName}
+            </span>
+          </div>
+        )}
+        <div
+          className={`ml-auto ${companyName ? "sm:ml-0" : ""} flex items-center gap-1 sm:gap-2 flex-shrink-0`}
+        >
           <LanguageSwitcher />
           <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="overflow-hidden rounded-full"
-            >
-              <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                {user?.name?.charAt(0).toUpperCase() || "U"}
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="overflow-hidden rounded-full"
+              >
+                <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                  {user?.name?.charAt(0).toUpperCase() || "U"}
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
+                {user?.company && (
+                  <p className="text-xs text-gray-500">{user.company}</p>
+                )}
               </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
-              {user?.company && (
-                <p className="text-xs text-gray-500">{user.company}</p>
-              )}
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={goToSettings}>
-              <Settings className="mr-2 h-4 w-4" />
-              {t("common.settings")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-              <LogOutIcon className="mr-2 h-4 w-4" />
-              {t("common.logout")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={goToSettings}>
+                <Settings className="mr-2 h-4 w-4" />
+                {t("common.settings")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                <LogOutIcon className="mr-2 h-4 w-4" />
+                {t("common.logout")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-48 md:pl-64">
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-10 bg-black/50 sm:hidden"
+            className="fixed inset-0 mt-14 z-10 bg-black/50 sm:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <aside className={`fixed mt-[56px] inset-y-0 left-0 z-20 w-48 md:w-64 flex-col border-r bg-background transition-transform flex ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
-        }`}>
+        <aside
+          className={`fixed top-14 inset-y-0 left-0 z-20 w-64 sm:w-48 md:w-64 flex-col border-r bg-background transition-transform flex ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+          }`}
+        >
           <nav className="flex h-full flex-col gap-2 md:gap-4 px-2 md:px-4 py-3 md:py-5 overflow-y-auto">
             <div>
               <Link
@@ -143,8 +193,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("dashboard")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("dashboardDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("dashboard")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("dashboardDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -160,8 +214,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <ArrowDown className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("paymentIn")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("paymentInDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("paymentIn")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("paymentInDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -177,8 +235,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <span className="text-xs font-bold flex-shrink-0">PKR</span>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("counterSale")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("counterSaleDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("counterSale")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("counterSaleDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -194,8 +256,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <PackageIcon className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("products")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("productsDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("products")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("productsDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -211,8 +277,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <UsersIcon className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("customers")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("customersDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("customers")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("customersDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -228,8 +298,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <ShoppingBagIcon className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("orders")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("ordersDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("orders")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("ordersDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -245,8 +319,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <ShoppingCartIcon className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("invoice")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("invoiceDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("invoice")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("invoiceDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -260,10 +338,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-              <MessageSquare className="h-5 w-5 flex-shrink-0" />
+                <MessageSquare className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("aiChat")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("aiChatDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("aiChat")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("aiChatDescription")}
+                  </span>
                 </div>
               </Link>
             </div>
@@ -279,8 +361,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               >
                 <Settings className="h-5 w-5 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-xs md:text-sm">{tNav("configuration")}</span>
-                  <span className="text-xs opacity-70 hidden md:block">{tNav("configurationDescription")}</span>
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("configuration")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("configurationDescription")}
+                  </span>
                 </div>
               </Link>
             </div>

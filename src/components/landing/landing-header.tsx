@@ -53,20 +53,20 @@ export function LandingHeader() {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 ml-auto">
             <LanguageSwitcher />
-            
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={triggerInstall}
-                disabled={!canInstall}
-                className="inline-flex gap-2"
-              >
-                <Download className="h-4 w-4" />
-                {t("downloadApp")}
-              </Button>
-          
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={triggerInstall}
+              disabled={!canInstall}
+              className="hidden md:inline-flex gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {t("downloadApp")}
+            </Button>
+
             {/* <Link
               href={`/login`}
               className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -95,11 +95,11 @@ export function LandingHeader() {
       {mobileMenuOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="md:hidden fixed inset-0 top-16 z-20 bg-black/20 transition-all duration-200"
             onClick={() => setMobileMenuOpen(false)}
           />
-          
+
           {/* Menu Panel */}
           <div className="md:hidden fixed top-16 right-0 z-30 w-80 max-w-[90vw] border-l border-border bg-background shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto animate-in slide-in-from-right-52 duration-300">
             <nav className="px-6 py-6 flex flex-col gap-2">
