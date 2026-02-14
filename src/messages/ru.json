@@ -567,7 +567,12 @@
     "confirmPayment": "Adaigi ki Tasdeeq Karain",
     "paymentMethodRequired": "Adaigi ka tareeqa zaroori hai.",
     "amountBetweenOneAndTotal": "1 aur total ke darmiyan raqam daral karain.",
-    "currencySymbol": "Rs."
+    "currencySymbol": "Rs.",
+    "overstockWarningTitle": "Kuch products maujooda stock se zyada hain",
+    "quantityRequested": "talab",
+    "inStock": "stock mein",
+    "overstockWarningProceed": "Kya aap aage barhna chahte hain? Stock negative hone ki ijazat di jayegi.",
+    "overstockProceed": "Proceed"
   },
   "payments": {
     "paymentMethod": "Adaigi ka Tareeka",

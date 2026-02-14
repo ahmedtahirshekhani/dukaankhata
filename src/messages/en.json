@@ -568,7 +568,12 @@
     "confirmPayment": "Confirm Payment",
     "paymentMethodRequired": "Payment method is required.",
     "amountBetweenOneAndTotal": "Enter an amount between 1 and the total.",
-    "currencySymbol": "Rs."
+    "currencySymbol": "Rs.",
+    "overstockWarningTitle": "Some products exceed available stock",
+    "quantityRequested": "requested",
+    "inStock": "in stock",
+    "overstockWarningProceed": "Do you want to proceed? Stock will be allowed to go negative.",
+    "overstockProceed": "Proceed"
   },
   "payments": {
     "paymentMethod": "Payment Method",
