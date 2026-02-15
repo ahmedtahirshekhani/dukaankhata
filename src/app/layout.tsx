@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import Script from "next/script";
 import GATracker from "@/components/analytics/ga-tracker";
 import GTMTracker from "@/components/analytics/gtm-tracker";
+import MetaPixelTracker from "@/components/analytics/meta-pixel-tracker";
 import "./globals.css";
 
 const locales = ["en", "ur", "ru"];
@@ -111,12 +112,12 @@ export default function RootLayout({
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${GTM_ID};`}</Script>
+})(window,document,'script','dataLayer','${GTM_ID}');`}</Script>
         ) : null}
 
-        {/* Meta Pixel Code */}
+        {/* Meta Pixel - Loaded via Script tag below */}
         <Script
-          id="meta-pixel"
+          id="meta-pixel-loader"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
@@ -128,21 +129,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               t.src=v;s=b.getElementsByTagName(e)[0];
               s.parentNode.insertBefore(t,s)}(window, document,'script',
               'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '1232753608301996');
-              fbq('track', 'PageView');
             `,
           }}
         />
-        <noscript>
-          <img
-            height="1"
-            width="1"
-            style={{ display: "none" }}
-            src="https://www.facebook.com/tr?id=1232753608301996&ev=PageView&noscript=1"
-            alt=""
-          />
-        </noscript>
-        {/* End Meta Pixel Code */}
       </head>
       <body>
         <main>{children}</main>
@@ -150,6 +139,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         {GA_ID ? <GATracker measurementId={GA_ID} /> : null}
         {/* GTM client-side tracker */}
         {GTM_ID ? <GTMTracker gtmId={GTM_ID} /> : null}
+        {/* Meta Pixel client-side tracker */}
+        <MetaPixelTracker pixelId="1232753608301996" />
       </body>
     </html>
   );
