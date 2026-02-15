@@ -24,14 +24,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 
 type Product = {
-  id: number;
+  id: number | string;
   name: string;
   description?: string;
   sell_price: number;
   unit_of_measurement?: string;
+  quantity?: number;
+  in_stock?: number;
+  damaged_quantity?: number;
+  type?: string;
 };
 
 type Customer = {
@@ -58,7 +63,6 @@ export default function InvoicePage() {
   const t = useTranslations("invoice");
   const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
-  console.log("products", products);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<POSProduct[]>([]);
@@ -89,6 +93,10 @@ export default function InvoicePage() {
   >("value");
   const [shippingCharges, setShippingCharges] = useState<number>(0);
   const [customerNotes, setCustomerNotes] = useState<string>("");
+  const [showOverstockDialog, setShowOverstockDialog] = useState(false);
+  const [overstockItems, setOverstockItems] = useState<
+    { name: string; requested: number; inStock: number }[]
+  >([]);
 
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const formatUom = (uom?: string) =>
@@ -188,7 +196,7 @@ export default function InvoicePage() {
     }
   };
 
-  const handleQuantityChange = (productId: number, newQuantity: number) => {
+  const handleQuantityChange = (productId: number | string, newQuantity: number) => {
     const safeQty =
       Number.isNaN(newQuantity) || newQuantity < 0
         ? (selectedProducts.find((p) => p.id === productId)?.quantity ?? 1)
@@ -200,7 +208,7 @@ export default function InvoicePage() {
     );
   };
 
-  const handleDiscountChange = (productId: number, newDiscount: number) => {
+  const handleDiscountChange = (productId: number | string, newDiscount: number) => {
     const safeDiscount = Number.isNaN(newDiscount)
       ? 0
       : Math.max(0, newDiscount);
@@ -212,7 +220,7 @@ export default function InvoicePage() {
   };
 
   const handleDiscountTypeChange = (
-    productId: number,
+    productId: number | string,
     newType: "value" | "percentage",
   ) => {
     setSelectedProducts(
@@ -223,7 +231,7 @@ export default function InvoicePage() {
   };
 
   const handleQuantityTypeChange = (
-    productId: number,
+    productId: number | string,
     newType: "prime" | "damaged",
   ) => {
     setSelectedProducts(
@@ -233,7 +241,7 @@ export default function InvoicePage() {
     );
   };
 
-  const handleSellPriceChange = (productId: number, newSellPrice: number) => {
+  const handleSellPriceChange = (productId: number | string, newSellPrice: number) => {
     const safePrice = Number.isNaN(newSellPrice)
       ? 0
       : Math.max(0, newSellPrice);
@@ -244,7 +252,7 @@ export default function InvoicePage() {
     );
   };
 
-  const handleRemoveProduct = (productId: number) => {
+  const handleRemoveProduct = (productId: number | string) => {
     setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
   };
 
@@ -318,12 +326,53 @@ export default function InvoicePage() {
       chargesTotal,
   );
 
-  const handleSaveOrder = async () => {
+  const handleSaveOrder = () => {
     if (!selectedCustomer || selectedProducts.length === 0 || !invoiceNo) {
       return;
     }
-    // Show the invoice preview dialog instead of directly saving
+
+    // Check for products exceeding available stock (only for goods type)
+    const items: { name: string; requested: number; inStock: number }[] = [];
+    for (const selected of selectedProducts) {
+      const product = products.find(
+        (p) =>
+          String(p.id) === String(selected.id) || p.id === selected.id,
+      );
+      const isGoods =
+        !product?.type || product.type === "goods" || product.type === "good";
+      if (!isGoods) continue;
+
+      const isDamaged = selected.quantityType === "damaged";
+      const availableStock = isDamaged
+        ? ((product?.damaged_quantity ?? 0) as number)
+        : ((product?.quantity ?? product?.in_stock ?? 0) as number);
+      const requestedQty = selected.quantity ?? 1;
+      if (requestedQty > availableStock) {
+        items.push({
+          name: selected.name,
+          requested: requestedQty,
+          inStock: availableStock,
+        });
+      }
+    }
+
+    if (items.length > 0) {
+      setOverstockItems(items);
+      setShowOverstockDialog(true);
+      return;
+    }
+
     setShowInvoicePreview(true);
+  };
+
+  const handleOverstockConfirm = () => {
+    setShowOverstockDialog(false);
+    setOverstockItems([]);
+    setShowInvoicePreview(true);
+  };
+
+  const handleOverstockCancel = () => {
+    setOverstockItems([]);
   };
 
   const handleCreateOrder = async (paymentDetails: {
@@ -378,6 +427,9 @@ export default function InvoicePage() {
       if (!response.ok) throw new Error("Failed to create order");
 
       const order = await response.json();
+
+      // Refetch products to sync stock with inventory
+      fetchProducts();
 
       // Reset the form
       setSelectedProducts([]);
@@ -1155,6 +1207,31 @@ export default function InvoicePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Overstock Warning Dialog - shown before invoice preview when stock exceeded */}
+      <ConfirmDialog
+        open={showOverstockDialog}
+        onOpenChange={setShowOverstockDialog}
+        title={t("overstockWarningTitle")}
+        description={
+          <div className="space-y-3">
+            <ul className="list-disc list-inside space-y-1 text-foreground">
+              {overstockItems.map((item, idx) => (
+                <li key={idx}>
+                  {item.name}: {item.requested} {t("quantityRequested")},{" "}
+                  {item.inStock} {t("inStock")}
+                </li>
+              ))}
+            </ul>
+            <p className="pt-1">{t("overstockWarningProceed")}</p>
+          </div>
+        }
+        confirmLabel={t("overstockProceed")}
+        cancelLabel={t("cancel")}
+        onConfirm={handleOverstockConfirm}
+        onCancel={handleOverstockCancel}
+        variant="warning"
+      />
 
       {/* Invoice Preview Dialog */}
       <InvoicePreviewDialog

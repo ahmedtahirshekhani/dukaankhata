@@ -567,7 +567,12 @@
     "confirmPayment": "ادائیگی کی تصدیق کریں",
     "paymentMethodRequired": "ادائیگی کا طریقہ ضروری ہے۔",
     "amountBetweenOneAndTotal": "1 اور کل کے درمیان رقم درج کریں۔",
-    "currencySymbol": "Rs."
+    "currencySymbol": "Rs.",
+    "overstockWarningTitle": "کچھ مصنوعات دستیاب اسٹاک سے زیادہ ہیں",
+    "quantityRequested": "درخواست کردہ",
+    "inStock": "اسٹاک میں",
+    "overstockWarningProceed": "کیا آپ آگے بڑھنا چاہتے ہیں؟ اسٹاک منفی ہونے کی اجازت دی جائے گی۔",
+    "overstockProceed": "آگے بڑھیں"
   },
   "payments": {
     "paymentMethod": "ادائیگی کا طریقہ",

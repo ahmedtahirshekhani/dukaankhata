@@ -7,6 +7,10 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
 
@@ -91,8 +95,39 @@ export async function POST(request: Request) {
     const transactionsCollection = await getCollection(
       COLLECTIONS.TRANSACTIONS,
     );
+    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const resolvePaymentMethodId = async (
+      rawValue: unknown,
+    ): Promise<string | null> => {
+      if (typeof rawValue !== "string") return null;
+      const value = rawValue.trim();
+      if (!value) return null;
+
+      const lower = value.toLowerCase();
+      if (lower === "cash" || lower === "cheque") {
+        return lower;
+      }
+      if (isValidObjectId(value)) {
+        return value;
+      }
+
+      const methodDoc = await paymentMethodCollection.findOne(
+        {
+          user_id: toObjectId(user.id),
+          bank_name: { $regex: new RegExp(`^${escapeRegex(value)}$`, "i") },
+        },
+        { projection: { _id: 1 } },
+      );
+
+      return methodDoc?._id
+        ? (methodDoc._id as { toString: () => string }).toString()
+        : null;
+    };
+    const resolvedPaymentMethodId = await resolvePaymentMethodId(
+      payment?.method ?? paymentMethodId,
+    );
 
     // Build order items array - fetch product names from DB when needed
     const orderItems = await Promise.all(
@@ -102,6 +137,7 @@ export async function POST(request: Request) {
           name?: string;
           description?: string;
           quantity: number;
+          quantityType?: "prime" | "damaged";
           price: number;
           discount?: number;
           discountType?: "value" | "percentage";
@@ -137,6 +173,7 @@ export async function POST(request: Request) {
             name: productName,
             description: productDescription,
             quantity: product.quantity,
+            quantityType: product.quantityType || "prime",
             price: product.price,
             discount: product.discount || 0,
             discountType: product.discountType || "value",
@@ -162,7 +199,7 @@ export async function POST(request: Request) {
       items: orderItems,
       payment: payment
         ? {
-            method: payment.method || null,
+            method: resolvedPaymentMethodId,
             paid_amount: payment.paidAmount || 0,
             paid_date: payment.paidDate ? new Date(payment.paidDate) : null,
             no_payment_at_all: payment.noPaymentAtAll || false,
@@ -213,10 +250,14 @@ export async function POST(request: Request) {
             : new Date(),
         created_at: new Date(),
       };
-      transactionDoc.payment_method_id =
-        paymentMethodId && isValidObjectId(paymentMethodId)
-          ? toObjectId(paymentMethodId)
-          : null;
+      if (resolvedPaymentMethodId === "cash" || resolvedPaymentMethodId === "cheque") {
+        transactionDoc.payment_method_id = resolvedPaymentMethodId;
+      } else {
+        transactionDoc.payment_method_id =
+          resolvedPaymentMethodId && isValidObjectId(resolvedPaymentMethodId)
+            ? toObjectId(resolvedPaymentMethodId)
+            : null;
+      }
       const transactionResult =
         await transactionsCollection.insertOne(transactionDoc);
 
@@ -225,6 +266,58 @@ export async function POST(request: Request) {
         await ordersCollection.deleteOne({ _id: orderId });
         throw new Error("Failed to create transaction");
       }
+    }
+
+    // Deduct stock from products (only for goods type)
+    for (const item of orderItems) {
+      if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
+        continue;
+      }
+      const productDoc = await productsCollection.findOne(
+        { _id: item.product_id },
+        {
+          projection: {
+            type: 1,
+            quantity: 1,
+            in_stock: 1,
+            damaged_quantity: 1,
+          },
+        },
+      );
+      if (!productDoc) continue;
+
+      const productType = (productDoc as { type?: string }).type;
+      const isGoods =
+        !productType ||
+        productType === "goods" ||
+        productType === "good";
+      if (!isGoods) continue;
+
+      const orderQty = item.quantity || 0;
+      if (orderQty <= 0) continue;
+
+      const quantityType =
+        (item as { quantityType?: string }).quantityType || "prime";
+      const isDamaged = quantityType === "damaged";
+
+      let stockField: string;
+      if (isDamaged) {
+        stockField = "damaged_quantity";
+      } else {
+        const productQuantity = (productDoc as { quantity?: number }).quantity;
+        const productInStock = (productDoc as { in_stock?: number }).in_stock;
+        stockField =
+          productQuantity !== undefined && productQuantity !== null
+            ? "quantity"
+            : productInStock !== undefined && productInStock !== null
+              ? "in_stock"
+              : "quantity";
+      }
+
+      await productsCollection.updateOne(
+        { _id: item.product_id },
+        { $inc: { [stockField]: -orderQty } },
+      );
     }
 
     // Get customer data

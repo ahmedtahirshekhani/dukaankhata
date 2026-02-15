@@ -50,12 +50,20 @@ export function PaymentDialog({
 }: PaymentDialogProps) {
   const t = useTranslations("invoice");
   const locale = useLocale();
+  const normalizePaymentMethodValue = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "cash") return "cash";
+    if (normalized === "cheque") return "cheque";
+    return value.trim();
+  };
   const [paymentType, setPaymentType] = useState<PaymentKind>("full");
   const [paymentAmount, setPaymentAmount] = useState<number>(total);
-  const [paymentMethod, setPaymentMethod] = useState(defaultMethod);
+  const [paymentMethod, setPaymentMethod] = useState(
+    normalizePaymentMethodValue(defaultMethod),
+  );
   const [paymentDate, setPaymentDate] = useState(defaultDate);
   const [dynamicMethods, setDynamicMethods] = useState<
-    { name: string; details: string }[]
+    { id: string; name: string; details: string }[]
   >([]);
   const [methodsError, setMethodsError] = useState<string | null>(null);
   const [paymentErrors, setPaymentErrors] = useState<{
@@ -70,7 +78,7 @@ export function PaymentDialog({
     setPaymentAmount(
       nextType === "full" ? total : Math.max(0, Math.min(total, defaultAmount)),
     );
-    setPaymentMethod(defaultMethod);
+    setPaymentMethod(normalizePaymentMethodValue(defaultMethod));
     setPaymentDate(defaultDate);
     setPaymentErrors({});
   }, [open, defaultAmount, defaultDate, defaultMethod, total]);
@@ -92,6 +100,7 @@ export function PaymentDialog({
         const list = Array.isArray(data)
           ? data
               .map((item) => ({
+                id: typeof item?.id === "string" ? item.id.trim() : "",
                 name:
                   typeof item?.bankName === "string"
                     ? item.bankName.trim()
@@ -101,13 +110,17 @@ export function PaymentDialog({
                     ? item.bankDetails.trim()
                     : "",
               }))
-              .filter((item) => Boolean(item.name))
+              .filter((item) => Boolean(item.id) && Boolean(item.name))
           : [];
         const filtered = list.filter(
-          (item) => item.name !== "Cash" && item.name !== "Cheque",
+          (item) =>
+            item.id !== "cash" &&
+            item.id !== "cheque" &&
+            item.name.toLowerCase() !== "cash" &&
+            item.name.toLowerCase() !== "cheque",
         );
         const unique = Array.from(
-          new Map(filtered.map((item) => [item.name, item])).values(),
+          new Map(filtered.map((item) => [item.id, item])).values(),
         );
         if (isActive) {
           setDynamicMethods(unique);
@@ -130,6 +143,28 @@ export function PaymentDialog({
       controller.abort();
     };
   }, [open, locale, t]);
+
+  useEffect(() => {
+    if (!open || !paymentMethod) return;
+
+    const normalizedMethod = normalizePaymentMethodValue(paymentMethod);
+    if (normalizedMethod !== paymentMethod) {
+      setPaymentMethod(normalizedMethod);
+      return;
+    }
+
+    if (paymentMethod === "cash" || paymentMethod === "cheque") return;
+
+    const hasMatchingId = dynamicMethods.some((item) => item.id === paymentMethod);
+    if (hasMatchingId) return;
+
+    const matchedByName = dynamicMethods.find(
+      (item) => item.name.toLowerCase() === paymentMethod.toLowerCase(),
+    );
+    if (matchedByName) {
+      setPaymentMethod(matchedByName.id);
+    }
+  }, [open, paymentMethod, dynamicMethods]);
 
   const remainingBalance = useMemo(
     () => Math.max(0, total - paymentAmount),
@@ -232,15 +267,15 @@ export function PaymentDialog({
                 <SelectValue placeholder={t("selectPaymentMethod")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Cash">{t("cash")}</SelectItem>
-                <SelectItem value="Cheque">{t("cheque")}</SelectItem>
+                <SelectItem value="cash">{t("cash")}</SelectItem>
+                <SelectItem value="cheque">{t("cheque")}</SelectItem>
                 {dynamicMethods.map((method) => (
                   <SelectItem
-                    key={method.name}
-                    value={method.name}
+                    key={method.id}
+                    value={method.id}
                     className="group"
                   >
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-start">
                       <span className="font-medium group-data-[highlighted]:text-accent-foreground">
                         {method.name}
                       </span>
