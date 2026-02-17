@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Eye, EyeOff, X } from "lucide-react";
+import { Eye, EyeOff, X, Home } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,180 +217,206 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
-      <div className="absolute top-4 right-4 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col relative">
+      {/* Mobile Navbar */}
+      <div className="md:hidden sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+        <div className="flex items-center justify-between px-4 py-3">
+          <Link href={`/${params.locale}`}>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Home className="h-4 w-4" />
+              {t("home")}
+            </Button>
+          </Link>
+          <LanguageSwitcher />
+        </div>
+      </div>
+
+      {/* Desktop Buttons */}
+      <div className="hidden md:block absolute top-4 left-4 z-10">
+        <Link href={`/${params.locale}`}>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Home className="h-4 w-4" />
+            {t("home")}
+          </Button>
+        </Link>
+      </div>
+      <div className="hidden md:block absolute top-4 right-4 z-10">
         <LanguageSwitcher />
       </div>
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl text-center">
-            {t("signUpTitle")}
-          </CardTitle>
-          <CardDescription className="text-center">
-            {t("signUpSubtitle")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                {error}
-              </div>
-            )}
 
-            {success && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-                {success}
-              </div>
-            )}
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-2xl text-center">
+              {t("signUpTitle")}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {t("signUpSubtitle")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="name">
-                {t("name")} <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Muhammad Ali Khan"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
+              {success && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                  {success}
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="companyName">
-                {t("companyName")} <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="companyName"
-                name="companyName"
-                placeholder={t("companyNamePlaceholder")}
-                value={formData.companyName}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">
-                {t("email")} <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder={t("emailPlaceholder")}
-                value={formData.email}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="03001234567"
-                value={formData.phone}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                {t("password")} <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
+              <div className="space-y-2">
+                <Label htmlFor="name">
+                  {t("name")} <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="At least 8 characters"
-                  value={formData.password}
+                  id="name"
+                  name="name"
+                  placeholder="Muhammad Ali Khan"
+                  value={formData.name}
                   onChange={handleChange}
                   required
                   disabled={isLoading}
-                  className={showPasswordMismatch() ? "pr-20" : "pr-10"}
                 />
-                {showPasswordMismatch() && (
-                  <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
-                    <X size={18} />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">
-                {t("confirmPassword")} <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
+              <div className="space-y-2">
+                <Label htmlFor="companyName">
+                  {t("companyName")} <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder={t("confirmPasswordPlaceholder")}
-                  value={formData.confirmPassword}
+                  id="companyName"
+                  name="companyName"
+                  placeholder={t("companyNamePlaceholder")}
+                  value={formData.companyName}
                   onChange={handleChange}
                   required
                   disabled={isLoading}
-                  className={showPasswordMismatch() ? "pr-20" : "pr-10"}
                 />
-                {showPasswordMismatch() && (
-                  <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
-                    <X size={18} />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">
+                  {t("email")} <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder={t("emailPlaceholder")}
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
                   disabled={isLoading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="03001234567"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  {t("password")} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 8 characters"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    disabled={isLoading}
+                    className={showPasswordMismatch() ? "pr-20" : "pr-10"}
+                  />
+                  {showPasswordMismatch() && (
+                    <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                      <X size={18} />
+                    </div>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading || !isFormComplete()}
-            >
-              {isLoading ? t("creatingAccount") : t("signUp")}
-            </Button>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">
+                  {t("confirmPassword")} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder={t("confirmPasswordPlaceholder")}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    disabled={isLoading}
+                    className={showPasswordMismatch() ? "pr-20" : "pr-10"}
+                  />
+                  {showPasswordMismatch() && (
+                    <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                      <X size={18} />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
 
-            <div className="text-center text-sm">
-              <span>{t("alreadyHaveAccount")} </span>
-              <Link
-                href={`/${params.locale}/login`}
-                className="text-blue-600 hover:underline font-medium"
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || !isFormComplete()}
               >
-                {t("signIn")}
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                {isLoading ? t("creatingAccount") : t("signUp")}
+              </Button>
+
+              <div className="text-center text-sm">
+                <span>{t("alreadyHaveAccount")} </span>
+                <Link
+                  href={`/${params.locale}/login`}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  {t("signIn")}
+                </Link>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

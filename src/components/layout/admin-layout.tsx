@@ -25,6 +25,8 @@ import {
   X,
   MessageSquare,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -39,6 +41,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const tNav = useTranslations("navigation");
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [companyName, setCompanyName] = useState<string>("");
 
   // Fetch company name from localStorage or session
@@ -168,19 +171,44 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </div>
       </header>
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-48 md:pl-64">
+      <div
+        className={`flex flex-col sm:gap-4 sm:py-4 transition-all ${
+          sidebarMinimized ? "sm:pl-16 md:pl-16" : "sm:pl-48 md:pl-64"
+        }`}
+      >
         {sidebarOpen && (
           <div
             className="fixed inset-0 mt-14 z-10 bg-black/50 sm:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <aside
-          className={`fixed top-14 inset-y-0 left-0 z-20 w-64 sm:w-48 md:w-64 flex-col border-r bg-background transition-transform flex ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+
+        {/* Floating Toggle Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          className={`hidden sm:flex fixed top-16 z-30 h-8 w-8 items-center justify-center rounded-lg border-2 bg-background shadow-lg transition-all hover:bg-accent ${
+            sidebarMinimized ? "left-[4.5rem]" : "left-[11rem] md:left-[15rem]"
           }`}
+          onClick={() => setSidebarMinimized(!sidebarMinimized)}
         >
-          <nav className="flex h-full flex-col gap-2 md:gap-4 px-2 md:px-4 py-3 md:py-5 overflow-y-auto">
+          {sidebarMinimized ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+
+        <aside
+          className={`fixed top-14 inset-y-0 left-0 z-20 flex-col border-r bg-background transition-all flex ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+          } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-64 sm:w-48 md:w-64"}`}
+        >
+          <nav
+            className={`flex h-full flex-col gap-2 md:gap-4 py-3 md:py-5 ${
+              sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-4"
+            }`}
+          >
             <div>
               <Link
                 href={`/${locale}/admin`}
@@ -189,10 +217,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("dashboard") : ""}
               >
                 <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("dashboard")}
                   </span>
@@ -210,10 +241,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/payment-in"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("paymentIn") : ""}
               >
                 <ArrowDown className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("paymentIn")}
                   </span>
@@ -231,10 +265,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/counter-sale"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("counterSale") : ""}
               >
                 <span className="text-xs font-bold flex-shrink-0">PKR</span>
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("counterSale")}
                   </span>
@@ -252,10 +289,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/products"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("products") : ""}
               >
                 <PackageIcon className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("products")}
                   </span>
@@ -273,10 +313,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/customers"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("customers") : ""}
               >
                 <UsersIcon className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("customers")}
                   </span>
@@ -294,10 +337,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/orders"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("orders") : ""}
               >
                 <ShoppingBagIcon className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("orders")}
                   </span>
@@ -315,10 +361,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/invoice"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("invoice") : ""}
               >
                 <ShoppingCartIcon className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("invoice")}
                   </span>
@@ -336,10 +385,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/ai-chat"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("aiChat") : ""}
               >
                 <MessageSquare className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("aiChat")}
                   </span>
@@ -357,10 +409,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   pathWithoutLocale === "/admin/configuration"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("configuration") : ""}
               >
                 <Settings className="h-5 w-5 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
                   <span className="font-medium text-xs md:text-sm">
                     {tNav("configuration")}
                   </span>
@@ -372,7 +427,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </div>
           </nav>
         </aside>
-        <main className="flex-1 p-3 sm:p-4 md:px-6 md:py-0">{children}</main>
+        <main
+          className={`flex-1 p-3 sm:p-4 md:px-6 md:py-0 transition-all ${
+            sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
+          }`}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );
