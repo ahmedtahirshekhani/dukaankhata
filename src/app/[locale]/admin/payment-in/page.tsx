@@ -552,13 +552,19 @@ export default function PaymentInPage() {
                 <SelectTrigger>
                   <SelectValue placeholder={t("selectPaymentMethod")} />
                 </SelectTrigger>
+
                 <SelectContent className="min-w-[20rem] max-w-[90vw]">
                   {paymentMethods.map((pm) => (
-                    <SelectItem key={pm.id} value={pm.id}>
-                      <div className="flex flex-col gap-0.5 py-0.5">
-                        <span className="font-medium">{pm.name}</span>
+                    <SelectItem
+                      key={pm.id}
+                      value={pm.id}
+                      className="text-left group"
+                    >
+                      <div className="flex flex-col items-start text-left gap-0.5 py-0.5 w-full">
+                        <span className="font-medium w-full">{pm.name}</span>
+
                         {pm.bankDetails && (
-                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
+                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap w-full group-data-[highlighted]:text-white">
                             {pm.bankDetails}
                           </span>
                         )}

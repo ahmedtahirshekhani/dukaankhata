@@ -25,6 +25,7 @@ import {
   X,
   MessageSquare,
   ArrowDown,
+  FileText,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -83,6 +84,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
     "/admin/invoice": tNav("invoice"),
+    "/admin/account-statement": tNav("accountStatement"),
     "/admin/counter-sale": tNav("counterSale"),
     "/admin/ai-chat": tNav("aiChat"),
   };
@@ -324,6 +326,27 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block">
                     {tNav("invoiceDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+            <div>
+              <Link
+                href={`/${locale}/admin/account-statement`}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                  pathWithoutLocale === "/admin/account-statement"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <FileText className="h-5 w-5 flex-shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("accountStatement")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("accountStatementDescription")}
                   </span>
                 </div>
               </Link>
