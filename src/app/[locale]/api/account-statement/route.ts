@@ -33,12 +33,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const currentDate = searchParams.get("currentDate");
+
     const userId = toObjectId(user.id);
     const customerObjId = toObjectId(customerId);
     const from = new Date(fromDate);
     const to = new Date(toDate);
     // Set end of day for toDate to include all records on that day
     to.setHours(23, 59, 59, 999);
+
+    // Use currentDate if provided (for reference / future use)
+    const today = currentDate ? new Date(currentDate) : new Date();
+    today.setHours(23, 59, 59, 999);
 
     // Fetch orders for this customer within date range
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
         customer_id: customerObjId,
         $or: [
           {
-            sale_date: { $gte: from.toISOString(), $lte: to.toISOString() },
+            sale_date: { $gte: from, $lte: to },
           },
           {
             created_at: { $gte: from, $lte: to },
@@ -79,27 +85,32 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     // Transform orders into statement records
+    // Use created_at for exact transaction time; sale_date is only a user-chosen date with no time component
     const orderRecords = orders.map((order) => ({
       id: order._id.toString(),
       type: "order" as const,
       amount: order.total_amount ?? 0,
+      invoiceNo: order.invoice_no || null,
       dateTime:
-        order.sale_date ||
         order.created_at?.toISOString?.() ||
         order.created_at ||
+        order.sale_date?.toISOString?.() ||
+        order.sale_date ||
         "",
     }));
 
     // Transform payment-in records into statement records
+    // Use created_at for exact transaction time; date is only a user-chosen date with no time component
     const paymentRecords = payments.map((payment) => ({
       id: payment._id.toString(),
       type: "payment_in" as const,
       amount: payment.payment_amount ?? 0,
+      invoiceNo: null,
       dateTime:
-        payment.date?.toISOString?.() ||
-        payment.date ||
         payment.created_at?.toISOString?.() ||
         payment.created_at ||
+        payment.date?.toISOString?.() ||
+        payment.date ||
         "",
     }));
 
