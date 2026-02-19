@@ -99,6 +99,32 @@ export async function GET(request: NextRequest) {
         "",
     }));
 
+    // Extract payments embedded inside orders (payment made at order time)
+    const embeddedPaymentRecords = orders
+      .filter(
+        (order) =>
+          order.payment &&
+          !order.payment.no_payment_at_all &&
+          typeof order.payment.paid_amount === "number" &&
+          order.payment.paid_amount > 0,
+      )
+      .map((order) => {
+        // Use paid_date if available, otherwise fall back to order's created_at
+        const paidDate =
+          order.payment.paid_date?.toISOString?.() ||
+          order.payment.paid_date ||
+          order.created_at?.toISOString?.() ||
+          order.created_at ||
+          "";
+        return {
+          id: order._id.toString() + "_payment",
+          type: "payment_in" as const,
+          amount: order.payment.paid_amount as number,
+          invoiceNo: null,
+          dateTime: paidDate,
+        };
+      });
+
     // Transform payment-in records into statement records
     // Use created_at for exact transaction time; date is only a user-chosen date with no time component
     const paymentRecords = payments.map((payment) => ({
@@ -115,7 +141,11 @@ export async function GET(request: NextRequest) {
     }));
 
     // Combine and sort by date descending (latest first)
-    const allRecords = [...orderRecords, ...paymentRecords].sort((a, b) => {
+    const allRecords = [
+      ...orderRecords,
+      ...embeddedPaymentRecords,
+      ...paymentRecords,
+    ].sort((a, b) => {
       const dateA = new Date(a.dateTime).getTime();
       const dateB = new Date(b.dateTime).getTime();
       return dateA - dateB; // ascending by date for balance calculation
@@ -139,11 +169,16 @@ export async function GET(request: NextRequest) {
     // Reverse to descending order (latest first) for display
     recordsWithBalance.reverse();
 
+    // Total payments = separate customer_transactions + embedded order payments
+    const totalPaymentAmount =
+      paymentRecords.reduce((sum, r) => sum + r.amount, 0) +
+      embeddedPaymentRecords.reduce((sum, r) => sum + r.amount, 0);
+
     return NextResponse.json({
       transactions: recordsWithBalance,
       summary: {
         totalOrders: orderRecords.reduce((sum, r) => sum + r.amount, 0),
-        totalPayments: paymentRecords.reduce((sum, r) => sum + r.amount, 0),
+        totalPayments: totalPaymentAmount,
         currentBalance: runningBalance,
       },
     });
