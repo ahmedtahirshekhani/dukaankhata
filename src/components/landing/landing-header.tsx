@@ -40,7 +40,7 @@ export function LandingHeader() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-8 ml-8">
             {navigationLinks.map((link) => (
               <a
                 key={link.href}
