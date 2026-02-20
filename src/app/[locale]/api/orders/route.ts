@@ -6,6 +6,10 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import {
+  adjustCustomerBalance,
+  deductPaymentFromBalance,
+} from "@/lib/customer-balance";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -95,7 +99,9 @@ export async function POST(request: Request) {
     const transactionsCollection = await getCollection(
       COLLECTIONS.TRANSACTIONS,
     );
-    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const paymentMethodCollection = await getCollection(
+      COLLECTIONS.PAYMENT_METHOD,
+    );
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
     const resolvePaymentMethodId = async (
@@ -250,7 +256,10 @@ export async function POST(request: Request) {
             : new Date(),
         created_at: new Date(),
       };
-      if (resolvedPaymentMethodId === "cash" || resolvedPaymentMethodId === "cheque") {
+      if (
+        resolvedPaymentMethodId === "cash" ||
+        resolvedPaymentMethodId === "cheque"
+      ) {
         transactionDoc.payment_method_id = resolvedPaymentMethodId;
       } else {
         transactionDoc.payment_method_id =
@@ -288,9 +297,7 @@ export async function POST(request: Request) {
 
       const productType = (productDoc as { type?: string }).type;
       const isGoods =
-        !productType ||
-        productType === "goods" ||
-        productType === "good";
+        !productType || productType === "goods" || productType === "good";
       if (!isGoods) continue;
 
       const orderQty = item.quantity || 0;
@@ -317,6 +324,26 @@ export async function POST(request: Request) {
       await productsCollection.updateOne(
         { _id: item.product_id },
         { $inc: { [stockField]: -orderQty } },
+      );
+    }
+
+    // Update customer balance: order increases balance (customer owes more)
+    await adjustCustomerBalance(customerId, user.id, total);
+
+    // If payment was made at order time, deduct from balance
+    const paymentInfo2 = payment || {
+      paidAmount: paidAmount,
+      noPaymentAtAll: noPaymentAtAll,
+    };
+    if (
+      !paymentInfo2.noPaymentAtAll &&
+      typeof paymentInfo2.paidAmount === "number" &&
+      paymentInfo2.paidAmount > 0
+    ) {
+      await deductPaymentFromBalance(
+        customerId,
+        user.id,
+        paymentInfo2.paidAmount,
       );
     }
 

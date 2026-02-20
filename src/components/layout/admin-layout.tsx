@@ -25,6 +25,7 @@ import {
   X,
   MessageSquare,
   ArrowDown,
+  FileText,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -86,6 +87,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
     "/admin/invoice": tNav("invoice"),
+    "/admin/account-statement": tNav("accountStatement"),
     "/admin/counter-sale": tNav("counterSale"),
     "/admin/ai-chat": tNav("aiChat"),
   };
@@ -187,7 +189,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <Button
           variant="outline"
           size="icon"
-          className={`hidden sm:flex fixed top-16 z-30 h-8 w-8 items-center justify-center rounded-lg border-2 bg-background shadow-lg transition-all hover:bg-accent ${
+          className={`hidden sm:flex fixed top-16 z-50 h-8 w-8 items-center justify-center rounded-lg border-2 bg-background shadow-lg transition-all hover:bg-accent ${
             sidebarMinimized ? "left-[4.5rem]" : "left-[11rem] md:left-[15rem]"
           }`}
           onClick={() => setSidebarMinimized(!sidebarMinimized)}
@@ -200,7 +202,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </Button>
 
         <aside
-          className={`fixed top-14 inset-y-0 left-0 z-20 flex-col border-r bg-background transition-all flex ${
+          className={`fixed top-14 inset-y-0 left-0 z-40 flex-col border-r bg-background transition-all flex ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
           } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-64 sm:w-48 md:w-64"}`}
         >
@@ -373,6 +375,30 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block">
                     {tNav("invoiceDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+            <div>
+              <Link
+                href={`/${locale}/admin/account-statement`}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                  pathWithoutLocale === "/admin/account-statement"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("accountStatement") : ""}
+              >
+                <FileText className="h-5 w-5 flex-shrink-0" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("accountStatement")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("accountStatementDescription")}
                   </span>
                 </div>
               </Link>
