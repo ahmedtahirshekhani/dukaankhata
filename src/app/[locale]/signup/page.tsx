@@ -167,10 +167,10 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         phone: "",
       });
 
-      // Redirect to login after 2 seconds
+      // Redirect to welcome page after 1.5 seconds
       setTimeout(() => {
-        router.push(`/${params.locale}/login`);
-      }, 2000);
+        router.push(`/${params.locale}/welcome`);
+      }, 1500);
     } catch (err) {
       // Handle network errors, fetch failures, etc.
       if (err instanceof TypeError && err.message.includes("fetch")) {
