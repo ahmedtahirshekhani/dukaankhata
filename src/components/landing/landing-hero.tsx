@@ -92,13 +92,12 @@ export function LandingHero() {
 
             {/* Right Column - Hero Image */}
             <div className="flex items-center justify-center">
-              <div className="w-full max-w-md h-96 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl border border-primary/20 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-6xl mb-4">📊</div>
-                  <p className="text-muted-foreground">
-                    {t("dashboardPreview")}
-                  </p>
-                </div>
+              <div className="w-full relative">
+                <img
+                  src="/images/dashboard.jpeg"
+                  alt={t("dashboardPreview")}
+                  className="w-full h-auto rounded-2xl shadow-2xl border border-border"
+                />
               </div>
             </div>
           </div>
