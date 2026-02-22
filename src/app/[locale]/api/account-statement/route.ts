@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get("customerId");
     const fromDate = searchParams.get("fromDate");
     const toDate = searchParams.get("toDate");
+    const openingBalanceParam = searchParams.get("openingBalance");
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json(
@@ -45,6 +46,17 @@ export async function GET(request: NextRequest) {
     // Use currentDate if provided (for reference / future use)
     const today = currentDate ? new Date(currentDate) : new Date();
     today.setHours(23, 59, 59, 999);
+
+    // Use opening balance from frontend (already have customer data there)
+    const openingBalance = openingBalanceParam ? parseFloat(openingBalanceParam) : 0;
+
+    // Fetch customer's created_at for opening balance dateTime
+    const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
+    const customer = await customersCollection.findOne(
+      { _id: customerObjId, user_id: userId },
+      { projection: { created_at: 1 } }
+    );
+    const customerCreatedAt = customer?.created_at?.toISOString?.() || customer?.created_at || new Date().toISOString();
 
     // Fetch orders for this customer within date range
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
@@ -89,7 +101,13 @@ export async function GET(request: NextRequest) {
     const orderRecords = orders.map((order) => ({
       id: order._id.toString(),
       type: "order" as const,
-      amount: order.total_amount ?? 0,
+      orderValue: order.total_amount ?? 0,
+      paidAmount:
+        order.payment &&
+        !order.payment.no_payment_at_all &&
+        typeof order.payment.paid_amount === "number"
+          ? order.payment.paid_amount
+          : null,
       invoiceNo: order.invoice_no || null,
       dateTime:
         order.created_at?.toISOString?.() ||
@@ -97,40 +115,21 @@ export async function GET(request: NextRequest) {
         order.sale_date?.toISOString?.() ||
         order.sale_date ||
         "",
+      paidDate:
+        order.payment &&
+        !order.payment.no_payment_at_all &&
+        order.payment.paid_date
+          ? order.payment.paid_date.toISOString?.() || order.payment.paid_date
+          : null,
     }));
 
-    // Extract payments embedded inside orders (payment made at order time)
-    const embeddedPaymentRecords = orders
-      .filter(
-        (order) =>
-          order.payment &&
-          !order.payment.no_payment_at_all &&
-          typeof order.payment.paid_amount === "number" &&
-          order.payment.paid_amount > 0,
-      )
-      .map((order) => {
-        // Use paid_date if available, otherwise fall back to order's created_at
-        const paidDate =
-          order.payment.paid_date?.toISOString?.() ||
-          order.payment.paid_date ||
-          order.created_at?.toISOString?.() ||
-          order.created_at ||
-          "";
-        return {
-          id: order._id.toString() + "_payment",
-          type: "payment_in" as const,
-          amount: order.payment.paid_amount as number,
-          invoiceNo: null,
-          dateTime: paidDate,
-        };
-      });
-
-    // Transform payment-in records into statement records
+    // Transform payment-in records into statement records (only separate customer payments, not embedded order payments)
     // Use created_at for exact transaction time; date is only a user-chosen date with no time component
     const paymentRecords = payments.map((payment) => ({
       id: payment._id.toString(),
       type: "payment_in" as const,
-      amount: payment.payment_amount ?? 0,
+      orderValue: null,
+      paidAmount: payment.payment_amount ?? 0,
       invoiceNo: null,
       dateTime:
         payment.created_at?.toISOString?.() ||
@@ -138,12 +137,13 @@ export async function GET(request: NextRequest) {
         payment.date?.toISOString?.() ||
         payment.date ||
         "",
+      paidDate:
+        payment.date?.toISOString?.() || payment.date || null,
     }));
 
     // Combine and sort by date descending (latest first)
     const allRecords = [
       ...orderRecords,
-      ...embeddedPaymentRecords,
       ...paymentRecords,
     ].sort((a, b) => {
       const dateA = new Date(a.dateTime).getTime();
@@ -151,14 +151,16 @@ export async function GET(request: NextRequest) {
       return dateA - dateB; // ascending by date for balance calculation
     });
 
-    // Calculate running balance
-    // Walk through chronologically and compute balance
-    let runningBalance = 0;
+    // Calculate running balance starting from opening balance
+    let runningBalance = openingBalance;
     const recordsWithBalance = allRecords.map((record) => {
       if (record.type === "order") {
-        runningBalance += record.amount;
+        runningBalance += record.orderValue || 0;
+        if (record.paidAmount) {
+          runningBalance -= record.paidAmount;
+        }
       } else if (record.type === "payment_in") {
-        runningBalance -= record.amount;
+        runningBalance -= record.paidAmount || 0;
       }
       return {
         ...record,
@@ -169,15 +171,29 @@ export async function GET(request: NextRequest) {
     // Reverse to descending order (latest first) for display
     recordsWithBalance.reverse();
 
-    // Total payments = separate customer_transactions + embedded order payments
+    // Always add opening balance as the last entry
+    const allTransactions = recordsWithBalance;
+    allTransactions.push({
+      id: "opening_balance",
+      type: "opening_balance" as any,
+      orderValue: null,
+      paidAmount: null,
+      invoiceNo: null,
+      dateTime: customerCreatedAt,
+      paidDate: null,
+      balance: openingBalance,
+    });
+
+    // Total payments = customer transactions + paid amounts in orders
     const totalPaymentAmount =
-      paymentRecords.reduce((sum, r) => sum + r.amount, 0) +
-      embeddedPaymentRecords.reduce((sum, r) => sum + r.amount, 0);
+      paymentRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0) +
+      orderRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
 
     return NextResponse.json({
-      transactions: recordsWithBalance,
+      transactions: allTransactions,
       summary: {
-        totalOrders: orderRecords.reduce((sum, r) => sum + r.amount, 0),
+        openingBalance,
+        totalOrders: orderRecords.reduce((sum, r) => sum + (r.orderValue || 0), 0),
         totalPayments: totalPaymentAmount,
         currentBalance: runningBalance,
       },

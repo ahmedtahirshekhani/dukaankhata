@@ -37,6 +37,7 @@ export async function GET(request: Request) {
     phone: customer.phone,
     company_name: customer.company_name,
     company_address: customer.company_address,
+    opening_balance: customer.opening_balance ?? 0,
     balance:
       customer.balance !== undefined
         ? customer.balance
