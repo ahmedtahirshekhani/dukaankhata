@@ -11,7 +11,6 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { LandingContact } from "@/components/landing/landing-contact";
-import { LandingPricing } from "@/components/landing/landing-pricing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePWA } from "@/components/pwa/pwa-context";
@@ -173,9 +172,6 @@ export function LandingHero() {
           </div>
         </div>
       </section>
-
-      {/* Payment / Pricing Section */}
-      <LandingPricing />
 
       {/* CTA Section */}
       <section className="w-full py-12 md:py-20 border-t border-border">
