@@ -125,9 +125,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <Package2Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           <span className="hidden sm:inline">{t("common.appName")}</span>
         </Link>
-        <h1 className="text-sm sm:text-xl font-bold truncate flex-shrink-0">
-          {pageNames[pathWithoutLocale] || "Dashboard"}
-        </h1>
         {companyName && (
           <div className="hidden sm:flex flex-1 justify-center items-center min-w-0">
             <span className="text-lg font-bold text-foreground truncate">
