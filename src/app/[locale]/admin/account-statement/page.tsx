@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrencyString } from "@/lib/utils";
+import { formatCurrencyString, formatStatementDateTime, formatStatementDate } from "@/lib/utils";
 import { FileText, Loader2, Calendar, Search } from "lucide-react";
 
 interface Customer {
@@ -137,42 +137,14 @@ export default function AccountStatementPage() {
   };
 
   const handleGenerateStatement = () => {
-    if (!selectedCustomerId || !fromDate || !toDate) return;
+    if (!isFormValid) return;
     fetchStatement();
   };
 
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return "-";
-    try {
-      const date = new Date(dateStr);
-      return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }).format(date);
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    try {
-      const date = new Date(dateStr);
-      return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-      }).format(date);
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const isFormValid = selectedCustomerId && fromDate && toDate;
+  const isFormValid = useMemo(
+    () => selectedCustomerId && fromDate && toDate,
+    [selectedCustomerId, fromDate, toDate]
+  );
 
   return (
     <div className="space-y-4">
@@ -341,7 +313,7 @@ export default function AccountStatementPage() {
                   {transactions.map((txn) => (
                     <TableRow key={txn.id}>
                       <TableCell className="text-muted-foreground">
-                        {formatDateTime(txn.dateTime)}
+                        {formatStatementDateTime(txn.dateTime)}
                       </TableCell>
                       <TableCell className="text-right">
                         {txn.type === "opening_balance"
@@ -361,7 +333,7 @@ export default function AccountStatementPage() {
                         {txn.type === "opening_balance"
                           ? "-"
                           : txn.paidDate
-                            ? formatDate(txn.paidDate)
+                            ? formatStatementDate(txn.paidDate)
                             : "-"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -402,7 +374,7 @@ export default function AccountStatementPage() {
                 <div key={txn.id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      {formatDateTime(txn.dateTime)}
+                      {formatStatementDateTime(txn.dateTime)}
                     </span>
                     {txn.type === "opening_balance" ? (
                       <Badge variant="outline">{t("openingBalance")}</Badge>

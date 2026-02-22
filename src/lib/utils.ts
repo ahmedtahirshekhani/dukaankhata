@@ -83,3 +83,42 @@ export function formatCurrencyWithSuper(amount: number): { whole: string; decima
     decimal: ''
   }
 }
+
+/**
+ * Format date and time for display in account statement entry date column
+ * Shows full date with time (e.g., "Feb 20, 2026, 10:30 AM")
+ */
+export function formatStatementDateTime(dateStr: string): string {
+  if (!dateStr) return "-";
+  try {
+    const date = new Date(dateStr);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Format date only for display in account statement paid date column
+ * Shows date without time (e.g., "Feb 20, 2026")
+ */
+export function formatStatementDate(dateStr: string): string {
+  if (!dateStr) return "-";
+  try {
+    const date = new Date(dateStr);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+}
