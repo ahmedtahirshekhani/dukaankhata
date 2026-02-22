@@ -240,12 +240,12 @@ export default function AccountStatementPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("totalOrders")}
+                {t("totalOrders")} + {t("openingBalance")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {formatCurrencyString(summary.totalOrders)}
+                {formatCurrencyString(summary.totalOrders + summary.openingBalance)}
               </p>
             </CardContent>
           </Card>
