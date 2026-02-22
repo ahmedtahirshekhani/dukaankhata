@@ -110,23 +110,22 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
             </div>
 
             <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-              Welcome to Dukaan Khata!
+              {t("welcomeTitle")}
             </h1>
 
             {/* Funny Messages */}
             <div className="space-y-3 mt-6">
               <p className="text-xl text-gray-700 font-semibold">
-                You've just joined the club! 🎉
+                {t("welcomeHeading")}
               </p>
               <p className="text-lg text-gray-600">
-                Your ledger is now as organized as your messy desk could never be.
+                {t("welcomeMessage1")}
               </p>
               <p className="text-lg text-gray-600">
-                No more calculating on napkins or confused notes. Welcome to the
-                future of your business!
+                {t("welcomeMessage2")}
               </p>
               <p className="text-lg text-purple-600 font-medium">
-                Now let's turn those dreams of perfect bookkeeping into reality...
+                {t("welcomeMessage3")}
               </p>
             </div>
           </div>
@@ -135,21 +134,19 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
           <div className="grid md:grid-cols-2 gap-4 mt-8">
             <div className="p-6 bg-white/80 backdrop-blur rounded-xl border border-blue-200 shadow-lg hover:shadow-xl transition">
               <h3 className="font-bold text-lg text-blue-600 mb-2">
-                📊 See Your Dashboard
+                {t("welcomeCardDashboard")}
               </h3>
               <p className="text-gray-600 text-sm">
-                Get a quick overview of your business metrics and performance at a
-                glance.
+                {t("welcomeCardDashboardDesc")}
               </p>
             </div>
 
             <div className="p-6 bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-lg hover:shadow-xl transition">
               <h3 className="font-bold text-lg text-purple-600 mb-2">
-                📝 Start Tracking Sales
+                {t("welcomeCardSales")}
               </h3>
               <p className="text-gray-600 text-sm">
-                Record your first transaction and watch your business intelligence
-                unfold.
+                {t("welcomeCardSalesDesc")}
               </p>
             </div>
           </div>
@@ -157,8 +154,7 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
           {/* Funny Footer Message */}
           <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6 text-center">
             <p className="text-sm text-gray-600 mb-2">
-              💡 <span className="font-semibold">Pro Tip:</span> The best time to
-              organize your accounts was yesterday. The second best time is right now!
+              {t("welcomeProTip")}
             </p>
           </div>
 
@@ -169,14 +165,14 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
               size="lg"
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 px-8 shadow-lg hover:shadow-xl transition"
             >
-              Login Again
+              {t("welcomeButtonText")}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
 
           {/* Small disclaimer */}
           <p className="text-center text-sm text-gray-500">
-            Your business is now in safe hands. Let's make your accounting amazing! 🚀
+            {t("welcomeFooter")}
           </p>
         </div>
       </div>

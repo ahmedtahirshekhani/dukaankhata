@@ -140,7 +140,19 @@
     "emailPlaceholder": "name@example.com",
     "passwordPlaceholder": "Kam az kam 8 characters",
     "confirmPasswordPlaceholder": "Apne password ki tasdiq karain",
-    "needHelpContactSupport": "Madad chahiye? Support se Rabta Karain"
+    "needHelpContactSupport": "Madad chahiye? Support se Rabta Karain",
+    "welcomeTitle": "Dukaan Khata mein Khush Amdeed!",
+    "welcomeHeading": "Aap ne abhi club mein shamoliyat ikhtiyar ki hai! 🎉",
+    "welcomeMessage1": "Aapka ledger ab itna munazzam hai jitna aapke be-tartib desk kabhi nahi ho sakti.",
+    "welcomeMessage2": "Ab napkin par ya ulajhe hue notes ki koi hisaab kitaab nahi. Aapke karobaar ke mustaqbil mein khush amdeed!",
+    "welcomeMessage3": "Ab aayiye mukammal bookkeeping ke khwaabon ko haqiqat mein badal dein...",
+    "welcomeCardDashboard": "📊 Apna Dashboard Dekhen",
+    "welcomeCardDashboardDesc": "Apne karobar ke aedan-o-shomar aur performance ka fori jaiza hasil karain.",
+    "welcomeCardSales": "📝 Farosh ki Tracking Shuru Karain",
+    "welcomeCardSalesDesc": "Apni pehli transaction record karain aur apni karobar ki zehanaanat ko dekhen.",
+    "welcomeProTip": "💡 Tip: Apne hisaabat ko munazzam karne ka behtar waqt kal tha. Doosra behtar waqt abhi hai!",
+    "welcomeButtonText": "Dobara Login Karain",
+    "welcomeFooter": "Aapka karobar ab mehfooz hatho mein hai. Aayiye aapki bookkeeping ko shandar banain! 🚀"
   },
   "products": {
     "title": "Mausoolaat",

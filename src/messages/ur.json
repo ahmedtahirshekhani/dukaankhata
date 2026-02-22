@@ -140,7 +140,19 @@
     "emailPlaceholder": "name@example.com",
     "passwordPlaceholder": "کم از کم 8 حروف",
     "confirmPasswordPlaceholder": "اپنے پاس ورڈ کی تصدیق کریں",
-    "needHelpContactSupport": "مدد چاہیے؟ سپورٹ سے رابطہ کریں"
+    "needHelpContactSupport": "مدد چاہیے؟ سپورٹ سے رابطہ کریں",
+    "welcomeTitle": "دکان خاتہ میں خوش آمدید!",
+    "welcomeHeading": "آپ نے ابھی کلب میں شمولیت اختیار کی ہے! 🎉",
+    "welcomeMessage1": "آپ کی لیجر اب اتنا منظم ہے جتنا آپ کی بے ترتیب میز کبھی نہیں ہو سکتی۔",
+    "welcomeMessage2": "اب نیپکن پر یا الجھے ہوئے نوٹس کی کوئی حساب کتاب نہیں۔ آپ کے کاروبار کے مستقبل میں خوش آمدید!",
+    "welcomeMessage3": "اب آئیے مکمل بک کپنگ کے خوابوں کو حقیقت میں تبدیل کریں...",
+    "welcomeCardDashboard": "📊 اپنا ڈیش بورڈ دیکھیں",
+    "welcomeCardDashboardDesc": "اپنے کاروباری اعدادوشمار اور کارکردگی کا فوری جائزہ حاصل کریں۔",
+    "welcomeCardSales": "📝 فروخت کی ٹریکنگ شروع کریں",
+    "welcomeCardSalesDesc": "اپنی پہلی ٹرانزیکشن ریکارڈ کریں اور اپنی کاروباری ذہانت کو دیکھیں۔",
+    "welcomeProTip": "💡 ٹپ: اپنے حسابات کو منظم کرنے کا بہترین وقت کل تھا۔ دوسرا بہترین وقت ابھی ہے!",
+    "welcomeButtonText": "دوبارہ لاگ ان کریں",
+    "welcomeFooter": "آپ کا کاروبار اب محفوظ ہاتھوں میں ہے۔ آئیے آپ کی بک کپنگ کو شاندار بنائیں! 🚀"
   },
   "products": {
     "title": "مصنوعات",
