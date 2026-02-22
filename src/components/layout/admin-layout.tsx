@@ -126,15 +126,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <span className="hidden sm:inline">{t("common.appName")}</span>
         </Link>
         {companyName && (
-          <div className="hidden sm:flex flex-1 justify-center items-center min-w-0">
-            <span className="text-lg font-bold text-foreground truncate">
+          <div className="flex flex-1 justify-center items-center min-w-0">
+            <span className="text-sm sm:text-lg font-bold text-foreground truncate">
               {companyName}
             </span>
           </div>
         )}
-        <div
-          className={`ml-auto ${companyName ? "sm:ml-0" : ""} flex items-center gap-1 sm:gap-2 flex-shrink-0`}
-        >
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <LanguageSwitcher />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
