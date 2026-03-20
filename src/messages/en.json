@@ -605,7 +605,7 @@
     "totalOrders": "Total Orders",
     "totalPayments": "Total Payments",
     "currentBalance": "Current Balance",
-    "date": "Entry Date",
+    "date": "Date",
     "orderValue": "Order Value",
     "paidAmount": "Paid Amount",
     "paidDate": "Paid Date",
@@ -614,6 +614,7 @@
     "dateTime": "Date/Time",
     "typeOrder": "Order",
     "typePaymentIn": "Payment In",
+    "typeAdjustment": "Adjustment",
     "noTransactions": "No transactions found for the selected period.",
     "loadingTransactions": "Loading transactions..."
   },

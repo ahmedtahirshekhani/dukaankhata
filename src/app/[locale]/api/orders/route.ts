@@ -6,10 +6,8 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
-import {
-  adjustCustomerBalance,
-  deductPaymentFromBalance,
-} from "@/lib/customer-balance";
+import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
+import { setDateToMidnight } from "@/lib/utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -195,8 +193,8 @@ export async function POST(request: Request) {
       total_amount: total,
       subtotal: typeof subtotal === "number" ? subtotal : total,
       invoice_no: invoiceNo ?? null,
-      sale_date: saleDate ? new Date(saleDate) : new Date(),
-      due_date: dueDate ? new Date(dueDate) : null,
+      sale_date: saleDate ? setDateToMidnight(saleDate) : setDateToMidnight(new Date()),
+      due_date: dueDate ? setDateToMidnight(dueDate) : null,
       charges: Array.isArray(charges) ? charges : [],
       overallDiscount:
         typeof overallDiscount === "number" ? overallDiscount : 0,
@@ -207,7 +205,7 @@ export async function POST(request: Request) {
         ? {
             method: resolvedPaymentMethodId,
             paid_amount: payment.paidAmount || 0,
-            paid_date: payment.paidDate ? new Date(payment.paidDate) : null,
+            paid_date: payment.paidDate ? setDateToMidnight(payment.paidDate) : null,
             no_payment_at_all: payment.noPaymentAtAll || false,
           }
         : null,
@@ -250,10 +248,10 @@ export async function POST(request: Request) {
         type: "income",
         description: `Payment for order #${orderId.toString()}`,
         payment_date: paymentInfo.paidDate
-          ? new Date(paymentInfo.paidDate)
+          ? setDateToMidnight(paymentInfo.paidDate)
           : paymentDate
-            ? new Date(paymentDate)
-            : new Date(),
+            ? setDateToMidnight(paymentDate)
+            : setDateToMidnight(new Date()),
         created_at: new Date(),
       };
       if (
@@ -327,8 +325,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update customer balance: order increases balance (customer owes more)
-    await adjustCustomerBalance(customerId, user.id, total);
+    // Ledger event: order increases balance (customer owes more)
+    await appendCustomerLedgerEntry({
+      userId: user.id,
+      customerId,
+      eventKey: `order_debit:${orderId.toString()}`,
+      eventType: "order_debit",
+      eventSource: "order",
+      eventSourceId: orderId.toString(),
+      amountDelta: total,
+      effectiveAt: setDateToMidnight(saleDate || new Date()),
+      metadata: {
+        invoice_no: invoiceNo || null,
+        total_amount: total,
+      },
+    });
 
     // If payment was made at order time, deduct from balance
     const paymentInfo2 = payment || {
@@ -340,11 +351,22 @@ export async function POST(request: Request) {
       typeof paymentInfo2.paidAmount === "number" &&
       paymentInfo2.paidAmount > 0
     ) {
-      await deductPaymentFromBalance(
+      await appendCustomerLedgerEntry({
+        userId: user.id,
         customerId,
-        user.id,
-        paymentInfo2.paidAmount,
-      );
+        eventKey: `order_payment_credit:${orderId.toString()}`,
+        eventType: "order_payment_credit",
+        eventSource: "order",
+        eventSourceId: orderId.toString(),
+        amountDelta: -paymentInfo2.paidAmount,
+        effectiveAt: setDateToMidnight(
+          paymentInfo2.paidDate || paymentDate || saleDate || new Date()
+        ),
+        metadata: {
+          invoice_no: invoiceNo || null,
+          paid_amount: paymentInfo2.paidAmount,
+        },
+      });
     }
 
     // Get customer data

@@ -6,7 +6,8 @@ import {
   toObjectId,
   isValidObjectId,
 } from '@/lib/db/mongodb';
-import { deductPaymentFromBalance } from '@/lib/customer-balance';
+import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
+import { setDateToMidnight } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = new Date(dateStr + 'T12:00:00.000Z');
+    const date = setDateToMidnight(dateStr);
 
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const now = new Date();
@@ -114,7 +115,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create record' }, { status: 500 });
     }
 
-    await deductPaymentFromBalance(customerId, user.id, paymentAmount);
+    await appendCustomerLedgerEntry({
+      userId: user.id,
+      customerId,
+      eventKey: `payment_in_credit:${insertedId.toString()}`,
+      eventType: 'payment_in_credit',
+      eventSource: 'customer_transaction',
+      eventSourceId: insertedId.toString(),
+      amountDelta: -paymentAmount,
+      effectiveAt: date,
+      metadata: {
+        payment_method_id: paymentMethodId,
+      },
+    });
 
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),

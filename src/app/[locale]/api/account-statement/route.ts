@@ -6,13 +6,16 @@ import {
   toObjectId,
   isValidObjectId,
 } from "@/lib/db/mongodb";
-import {
-  calculateRunningBalance,
-  calculateSummary,
-  toISOString,
-  parseStatementParams,
-  sortRecordsChronologically,
-} from "@/lib/account-statement";
+
+function toISOString(date: unknown): string {
+  if (!date) return "";
+  if (typeof date === "string") return date;
+  if (date instanceof Date) return date.toISOString();
+  if (typeof (date as { toISOString?: () => string }).toISOString === "function") {
+    return (date as { toISOString: () => string }).toISOString();
+  }
+  return new Date(date as string | number).toISOString();
+}
 
 /**
  * Validates required parameters for account statement generation
@@ -37,90 +40,6 @@ function prepareDateRange(fromDate: string, toDate: string) {
   return { from, to };
 }
 
-/**
- * Fetches and transforms order records
- */
-async function fetchOrderRecords(
-  ordersCollection: any,
-  userId: any,
-  customerObjId: any,
-  from: Date,
-  to: Date
-) {
-  const orders = await ordersCollection
-    .find({
-      user_id: userId,
-      customer_id: customerObjId,
-      $or: [
-        { sale_date: { $gte: from, $lte: to } },
-        {
-          created_at: { $gte: from, $lte: to },
-          sale_date: { $exists: false },
-        },
-      ],
-    })
-    .sort({ created_at: -1 })
-    .toArray();
-
-  return orders.map((order: any) => ({
-    id: order._id.toString(),
-    type: "order" as const,
-    orderValue: order.total_amount ?? 0,
-    paidAmount:
-      order.payment &&
-      !order.payment.no_payment_at_all &&
-      typeof order.payment.paid_amount === "number"
-        ? order.payment.paid_amount
-        : null,
-    invoiceNo: order.invoice_no || null,
-    dateTime: toISOString(order.created_at || order.sale_date || ""),
-    paidDate:
-      order.payment &&
-      !order.payment.no_payment_at_all &&
-      order.payment.paid_date
-        ? toISOString(order.payment.paid_date)
-        : null,
-  }));
-}
-
-/**
- * Fetches and transforms payment records
- */
-async function fetchPaymentRecords(
-  paymentsCollection: any,
-  userId: any,
-  customerObjId: any,
-  from: Date,
-  to: Date
-) {
-  const payments = await paymentsCollection
-    .find({
-      user_id: userId,
-      customer_id: customerObjId,
-      $or: [
-        { date: { $gte: from, $lte: to } },
-        {
-          created_at: { $gte: from, $lte: to },
-          date: { $exists: false },
-        },
-      ],
-    })
-    .sort({ date: -1 })
-    .toArray();
-
-  return payments.map((payment: any) => ({
-    id: payment._id.toString(),
-    type: "payment_in" as const,
-    orderValue: null,
-    paidAmount: payment.payment_amount ?? 0,
-    invoiceNo: null,
-    dateTime: toISOString(payment.created_at || payment.date || ""),
-    paidDate: toISOString(payment.date) || null,
-  }));
-}
-
-
-
 export async function GET(request: NextRequest) {
   try {
     const user = (await getCurrentUser()) as { id: string } | null;
@@ -129,77 +48,238 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const params = parseStatementParams(searchParams);
+    const customerId = searchParams.get("customerId");
+    const fromDate = searchParams.get("fromDate");
+    const toDate = searchParams.get("toDate");
 
     // Validate parameters
-    const validation = validateParams(params.customerId, params.fromDate, params.toDate);
+    const validation = validateParams(customerId, fromDate, toDate);
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: validation.status });
     }
 
     const userId = toObjectId(user.id);
-    const customerObjId = toObjectId(params.customerId!);
-    const { from, to } = prepareDateRange(params.fromDate!, params.toDate!);
+    const customerObjId = toObjectId(customerId!);
+    const { from, to } = prepareDateRange(fromDate!, toDate!);
 
-    // Fetch customer's created_at for opening balance dateTime
+    // Fetch customer metadata for opening marker fallback
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
+    const usersCollection = await getCollection(COLLECTIONS.USERS);
     const customer = await customersCollection.findOne(
       { _id: customerObjId, user_id: userId },
-      { projection: { created_at: 1 } }
+      { projection: { created_at: 1, opening_balance: 1, name: 1, company_name: 1, company_address: 1 } }
+    );
+    const userDoc = await usersCollection.findOne(
+      { _id: userId },
+      { projection: { company_name: 1, company_address: 1, company_logo: 1 } }
     );
     const customerCreatedAt = toISOString(customer?.created_at || new Date().toISOString());
 
-    // Fetch orders and payments in parallel for better performance
+    const ledgerCollection = await getCollection(COLLECTIONS.CUSTOMER_LEDGER_ENTRIES);
+    const balanceStateCollection = await getCollection(COLLECTIONS.CUSTOMER_BALANCE_STATE);
+
+    const [allEntries, openingEntryBeforeRange, balanceState] = await Promise.all([
+      ledgerCollection
+        .find({
+          user_id: userId,
+          customer_id: customerObjId,
+          effective_at: { $gte: from, $lte: to },
+        })
+        .sort({ effective_at: -1, created_at: -1 })
+        .toArray(),
+      ledgerCollection.findOne(
+        {
+          user_id: userId,
+          customer_id: customerObjId,
+          effective_at: { $lt: from },
+        },
+        {
+          sort: { effective_at: -1, created_at: -1 },
+          projection: { running_balance: 1 },
+        }
+      ),
+      balanceStateCollection.findOne(
+        {
+          user_id: userId,
+          customer_id: customerObjId,
+        },
+        { projection: { current_balance: 1 } }
+      ),
+    ]);
+
+    const openingBalance =
+      openingEntryBeforeRange?.running_balance ??
+      customer?.opening_balance ??
+      0;
+
+    const entries = allEntries.filter(
+      (entry: any) => entry.event_type !== "opening_balance"
+    );
+
+    const orderIds = entries
+      .filter((entry: any) => entry.event_source === "order" && entry.event_source_id)
+      .map((entry: any) => entry.event_source_id.toString())
+      .filter((id: string) => isValidObjectId(id));
+
+    const paymentIds = entries
+      .filter((entry: any) => entry.event_source === "customer_transaction" && entry.event_source_id)
+      .map((entry: any) => entry.event_source_id.toString())
+      .filter((id: string) => isValidObjectId(id));
+
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
 
-    const [orderRecords, paymentRecords] = await Promise.all([
-      fetchOrderRecords(ordersCollection, userId, customerObjId, from, to),
-      fetchPaymentRecords(paymentsCollection, userId, customerObjId, from, to),
+    const [orderDocs, paymentDocs] = await Promise.all([
+      orderIds.length
+        ? ordersCollection
+            .find({ _id: { $in: orderIds.map((id) => toObjectId(id)) }, user_id: userId })
+            .toArray()
+        : Promise.resolve([]),
+      paymentIds.length
+        ? paymentsCollection
+            .find({ _id: { $in: paymentIds.map((id) => toObjectId(id)) }, user_id: userId })
+            .toArray()
+        : Promise.resolve([]),
     ]);
 
-    // Combine and sort records chronologically
-    const allRecords = sortRecordsChronologically([...orderRecords, ...paymentRecords]);
+    const orderMap = new Map(orderDocs.map((doc: any) => [doc._id.toString(), doc]));
+    const paymentMap = new Map(paymentDocs.map((doc: any) => [doc._id.toString(), doc]));
 
-    // Calculate running balance
-    const balanceData = calculateRunningBalance(allRecords as any, params.openingBalance);
-    const recordsWithBalance = allRecords.map((record, idx) => ({
-      ...record,
-      balance: balanceData[idx].balance,
-    }));
+    const transactions = entries.map((entry: any) => {
+      const eventType = entry.event_type as string;
+      const isOrderDebit = eventType === "order_debit";
+      const isPaymentCredit =
+        eventType === "payment_in_credit" ||
+        eventType === "order_payment_credit";
+      const sourceId = entry.event_source_id?.toString?.() || null;
+      const sourceOrder = sourceId ? orderMap.get(sourceId) : null;
+      const sourcePayment = sourceId ? paymentMap.get(sourceId) : null;
 
-    // Reverse for latest-first display
-    recordsWithBalance.reverse();
+      const items = Array.isArray(sourceOrder?.items) ? sourceOrder.items : [];
+      const qty = isOrderDebit
+        ? items.reduce((sum: number, item: any) => sum + Number(item?.quantity || 0), 0)
+        : null;
+      const unitPrice =
+        isOrderDebit && items.length === 1
+          ? Number(items[0]?.price || 0)
+          : null;
 
-    // Always add opening balance as the last entry
+      let description = "Adjustment";
+      if (isOrderDebit) {
+        const names = items
+          .map((item: any) => item?.name)
+          .filter((name: unknown) => typeof name === "string" && name.trim() !== "")
+          .slice(0, 3);
+        description = names.length > 0 ? names.join(", ") : "Order";
+      } else if (isPaymentCredit) {
+        description = "Payment In";
+      } else if (eventType === "manual_adjustment") {
+        description = "Manual Adjustment";
+      }
+
+      const amount = Math.abs(Number(entry.amount_delta || 0));
+      const debit = Number(entry.amount_delta || 0) > 0 ? amount : 0;
+      const credit = Number(entry.amount_delta || 0) < 0 ? amount : 0;
+
+      return {
+        id: entry._id.toString(),
+        type:
+          eventType === "opening_balance"
+            ? "opening_balance"
+            : isOrderDebit
+              ? "order"
+              : isPaymentCredit
+                ? "payment_in"
+                : "adjustment",
+        orderValue: isOrderDebit ? Math.abs(Number(entry.amount_delta || 0)) : null,
+        paidAmount: isPaymentCredit ? Math.abs(Number(entry.amount_delta || 0)) : null,
+        orderId:
+          sourceOrder?.invoice_no ||
+          sourceOrder?._id?.toString?.() ||
+          (isOrderDebit ? sourceId : null),
+        description,
+        qty,
+        unitPrice,
+        amount,
+        debit,
+        credit,
+        invoiceNo:
+          typeof entry.metadata?.invoice_no === "string"
+            ? entry.metadata.invoice_no
+            : null,
+        dateTime: toISOString(entry.effective_at || entry.created_at),
+        paidDate: isPaymentCredit ? toISOString(entry.effective_at || entry.created_at) : null,
+        balance: Number(entry.running_balance ?? 0),
+      };
+    });
+
     const finalBalance =
-      recordsWithBalance.length > 0
-        ? recordsWithBalance[0].balance
-        : params.openingBalance;
+      transactions.length > 0
+        ? transactions[0].balance
+        : openingBalance;
 
     const openingBalanceRecord = {
       id: "opening_balance" as const,
       type: "opening_balance" as const,
       orderValue: null,
       paidAmount: null,
+      orderId: null,
+      description: "Opening Balance",
+      qty: null,
+      unitPrice: null,
+      amount: Math.abs(Number(openingBalance || 0)),
+      debit: Number(openingBalance || 0) > 0 ? Math.abs(Number(openingBalance || 0)) : 0,
+      credit: Number(openingBalance || 0) < 0 ? Math.abs(Number(openingBalance || 0)) : 0,
       invoiceNo: null,
       dateTime: customerCreatedAt,
       paidDate: null,
-      balance: params.openingBalance,
+      balance: openingBalance,
     };
-    recordsWithBalance.push(openingBalanceRecord);
 
-    // Calculate summary
-    const summary = calculateSummary(
-      orderRecords,
-      paymentRecords,
-      params.openingBalance,
-      finalBalance
-    );
+    const totalOrders = entries
+      .filter((entry: any) => entry.event_type === "order_debit")
+      .reduce((sum: number, entry: any) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalPayments = entries
+      .filter(
+        (entry: any) =>
+          entry.event_type === "payment_in_credit" ||
+          entry.event_type === "order_payment_credit"
+      )
+      .reduce((sum: number, entry: any) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const summary = {
+      openingBalance,
+      totalOrders,
+      totalPayments,
+      currentBalance:
+        Number(balanceState?.current_balance ?? finalBalance),
+      grandTotal: totalOrders,
+    };
+
+    const reportNow = new Date();
 
     return NextResponse.json({
-      transactions: recordsWithBalance,
+      transactions: [...transactions, openingBalanceRecord],
       summary,
+      reportMeta: {
+        title: "Account Ledger",
+        fromDate,
+        toDate,
+        reportDate: reportNow.toISOString().split("T")[0],
+        reportTime: reportNow.toTimeString().split(" ")[0],
+        companyName:
+          userDoc?.company_name ||
+          customer?.company_name ||
+          "-",
+        companyAddress:
+          (userDoc as any)?.company_address ||
+          customer?.company_address ||
+          "-",
+        companyLogo: (userDoc as any)?.company_logo || null,
+        customerId: customerId,
+        customerName: customer?.name || "-",
+      },
     });
   } catch (err: unknown) {
     console.error("account-statement GET error", err);

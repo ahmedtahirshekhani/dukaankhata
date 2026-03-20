@@ -604,7 +604,7 @@
     "totalOrders": "کل آرڈرز",
     "totalPayments": "کل ادائیگیاں",
     "currentBalance": "موجودہ بیلنس",
-    "date": "درج ہونے کی تاریخ",
+    "date": "تاریخ",
     "orderValue": "آرڈر کی قیمت",
     "paidAmount": "ادا شدہ رقم",
     "paidDate": "ادائیگی کی تاریخ",
@@ -613,6 +613,7 @@
     "dateTime": "تاریخ/وقت",
     "typeOrder": "آرڈر",
     "typePaymentIn": "ادائیگی",
+    "typeAdjustment": "ایڈجسٹمنٹ",
     "noTransactions": "منتخب مدت کے لیے کوئی لین دین نہیں ملا۔",
     "loadingTransactions": "لین دین لوڈ ہو رہے ہیں..."
   },

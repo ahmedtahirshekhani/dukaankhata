@@ -6,6 +6,7 @@ import {
 } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { NextResponse } from "next/server";
+import { setCustomerBalanceTarget } from "@/lib/ledger/customer-ledger";
 
 export async function PUT(
   request: Request,
@@ -23,7 +24,8 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid customer ID" }, { status: 400 });
   }
 
-  
+  const explicitBalanceProvided = updatedCustomer.balance !== undefined;
+
   if (updatedCustomer.balance !== undefined) {
     updatedCustomer.opening_balance = updatedCustomer.balance;
   }
@@ -50,6 +52,19 @@ export async function PUT(
     return NextResponse.json(
       { error: "Customer not found or not authorized" },
       { status: 404 },
+    );
+  }
+
+  if (explicitBalanceProvided && Number.isFinite(Number(updatedCustomer.balance))) {
+    await setCustomerBalanceTarget(
+      user.id,
+      customerId,
+      Number(updatedCustomer.balance),
+      `customer_balance_set:${customerId}:${Number(updatedCustomer.balance)}`,
+      new Date(),
+      {
+        reason: "customer_profile_balance_update",
+      }
     );
   }
 

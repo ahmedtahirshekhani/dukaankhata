@@ -1,0 +1,723 @@
+{
+  "BranchesSchema": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "_id",
+        "createdAt",
+        "name",
+        "user_id"
+      ],
+      "properties": {
+        "_id": {
+          "bsonType": "objectId"
+        },
+        "createdAt": {
+          "bsonType": "date"
+        },
+        "name": {
+          "bsonType": "string"
+        },
+        "user_id": {
+          "bsonType": "objectId"
+        }
+      }
+    }
+  },
+  "CategoriesSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "createdAt",
+      "name",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "createdAt": {
+        "bsonType": "date"
+      },
+      "name": {
+        "bsonType": "string"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+}
+,
+"CustomerTransactionsSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "created_at",
+      "customer_id",
+      "date",
+      "payment_amount",
+      "payment_method_id",
+      "updated_at",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "customer_id": {
+        "bsonType": "objectId"
+      },
+      "date": {
+        "bsonType": "date"
+      },
+      "payment_amount": {
+        "bsonType": "int"
+      },
+      "payment_method_id": {
+        "bsonType": [
+          "string",
+          "objectId"
+        ]
+      },
+      "updated_at": {
+        "bsonType": "date"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+
+
+},
+"CustomersSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "created_at",
+      "name",
+      "phone",
+      "status",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "balance": {
+        "bsonType": "int"
+      },
+      "company_address": {
+        "bsonType": "string"
+      },
+      "company_name": {
+        "bsonType": "string"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "email": {
+        "bsonType": "string"
+      },
+      "id": {
+        "bsonType": "string"
+      },
+      "is_delete": {
+        "bsonType": "int"
+      },
+      "name": {
+        "bsonType": "string"
+      },
+      "opening_balance": {
+        "bsonType": "int"
+      },
+      "phone": {
+        "bsonType": "string"
+      },
+      "status": {
+        "bsonType": "string"
+      },
+      "updated_at": {
+        "bsonType": "date"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+},
+"OrdersSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "charges",
+      "created_at",
+      "customer_id",
+      "due_date",
+      "invoice_no",
+      "items",
+      "payment",
+      "sale_date",
+      "status",
+      "subtotal",
+      "total_amount",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "charges": {
+        "bsonType": "array",
+        "items": {
+          "bsonType": "object",
+          "properties": {
+            "item": {
+              "bsonType": "string"
+            },
+            "value": {
+              "bsonType": "int"
+            }
+          },
+          "required": [
+            "item",
+            "value"
+          ]
+        }
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "customer_id": {
+        "bsonType": "objectId"
+      },
+      "due_date": {
+        "bsonType": [
+          "null",
+          "date"
+        ]
+      },
+      "invoice_no": {
+        "bsonType": "string"
+      },
+      "items": {
+        "bsonType": "array",
+        "items": {
+          "bsonType": "object",
+          "properties": {
+            "description": {
+              "bsonType": "string"
+            },
+            "discount": {
+              "bsonType": "int"
+            },
+            "discountType": {
+              "bsonType": "string"
+            },
+            "name": {
+              "bsonType": "string"
+            },
+            "price": {
+              "bsonType": "int"
+            },
+            "product_id": {
+              "bsonType": "objectId"
+            },
+            "quantity": {
+              "bsonType": [
+                "int",
+                "double"
+              ]
+            },
+            "quantityType": {
+              "bsonType": "string"
+            },
+            "unit_of_measurement": {
+              "bsonType": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "price",
+            "product_id",
+            "quantity"
+          ]
+        }
+      },
+      "overallDiscount": {
+        "bsonType": "int"
+      },
+      "payment": {
+        "bsonType": "object",
+        "properties": {
+          "method": {
+            "bsonType": [
+              "string",
+              "null"
+            ]
+          },
+          "no_payment_at_all": {
+            "bsonType": "bool"
+          },
+          "paid_amount": {
+            "bsonType": [
+              "int",
+              "double"
+            ]
+          },
+          "paid_date": {
+            "bsonType": [
+              "date",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "method",
+          "no_payment_at_all",
+          "paid_amount",
+          "paid_date"
+        ]
+      },
+      "sale_date": {
+        "bsonType": "date"
+      },
+      "shippingCharges": {
+        "bsonType": "int"
+      },
+      "status": {
+        "bsonType": "string"
+      },
+      "subtotal": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "total_amount": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+},
+"PasswordResetTokensSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "properties": {}
+  }
+},
+"PaymentMethodsSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "bank_details",
+      "bank_name",
+      "created_at",
+      "updated_at",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "bank_details": {
+        "bsonType": "string"
+      },
+      "bank_name": {
+        "bsonType": "string"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "updated_at": {
+        "bsonType": "date"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+},
+"ProductsSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "category",
+      "description",
+      "name",
+      "sell_price",
+      "type",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "branch": {
+        "bsonType": "string"
+      },
+      "category": {
+        "bsonType": "string"
+      },
+      "cost_price": {
+        "bsonType": "int"
+      },
+      "damaged_quantity": {
+        "bsonType": "double"
+      },
+      "description": {
+        "bsonType": "string"
+      },
+      "name": {
+        "bsonType": "string"
+      },
+      "quantity": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "sell_price": {
+        "bsonType": "int"
+      },
+      "type": {
+        "bsonType": "string"
+      },
+      "unit_of_measurement": {
+        "bsonType": "string"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+},
+"TransactionsSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "amount",
+      "created_at",
+      "type",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "amount": {
+        "bsonType": [
+          "int",
+          "string",
+          "double"
+        ]
+      },
+      "category": {
+        "bsonType": "string"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "customerName": {
+        "bsonType": "string"
+      },
+      "customerNumber": {
+        "bsonType": "string"
+      },
+      "description": {
+        "bsonType": "string"
+      },
+      "order_id": {
+        "bsonType": [
+          "objectId",
+          "null"
+        ]
+      },
+      "payment_date": {
+        "bsonType": "date"
+      },
+      "payment_method_id": {
+        "bsonType": [
+          "objectId",
+          "null"
+        ]
+      },
+      "productDescription": {
+        "bsonType": "string"
+      },
+      "productId": {
+        "bsonType": [
+          "string",
+          "double"
+        ]
+      },
+      "productName": {
+        "bsonType": "string"
+      },
+      "quantity": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "status": {
+        "bsonType": "string"
+      },
+      "type": {
+        "bsonType": "string"
+      },
+      "unitPrice": {
+        "bsonType": "int"
+      },
+      "uom": {
+        "bsonType": "string"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      }
+    }
+  }
+},
+"CustomerLedgerEntriesSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "user_id",
+      "customer_id",
+      "event_key",
+      "event_type",
+      "event_source",
+      "amount_delta",
+      "effective_at",
+      "running_balance",
+      "created_at"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      },
+      "customer_id": {
+        "bsonType": "objectId"
+      },
+      "event_key": {
+        "bsonType": "string"
+      },
+      "event_type": {
+        "bsonType": "string"
+      },
+      "event_source": {
+        "bsonType": "string"
+      },
+      "event_source_id": {
+        "bsonType": [
+          "objectId",
+          "string",
+          "null"
+        ]
+      },
+      "amount_delta": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "effective_at": {
+        "bsonType": "date"
+      },
+      "running_balance": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "metadata": {
+        "bsonType": [
+          "object",
+          "null"
+        ]
+      }
+    }
+  }
+},
+"CustomerBalanceStateSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "user_id",
+      "customer_id",
+      "current_balance",
+      "updated_at"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "user_id": {
+        "bsonType": "objectId"
+      },
+      "customer_id": {
+        "bsonType": "objectId"
+      },
+      "current_balance": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "last_entry_id": {
+        "bsonType": [
+          "objectId",
+          "null"
+        ]
+      },
+      "last_effective_at": {
+        "bsonType": [
+          "date",
+          "null"
+        ]
+      },
+      "version": {
+        "bsonType": [
+          "int",
+          "double"
+        ]
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "updated_at": {
+        "bsonType": "date"
+      }
+    }
+  }
+},
+"UsersSchema": {
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "company_name",
+      "created_at",
+      "email",
+      "name",
+      "password_hash",
+      "updated_at"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "company_logo": {
+        "bsonType": "string"
+      },
+      "company_name": {
+        "bsonType": "string"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "email": {
+        "bsonType": "string"
+      },
+      "name": {
+        "bsonType": "string"
+      },
+      "password_hash": {
+        "bsonType": "string"
+      },
+      "signature_image": {
+        "bsonType": "string"
+      },
+      "updated_at": {
+        "bsonType": "date"
+      }
+    }
+  }
+  },
+  "WaitListSchema": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "_id",
+        "category",
+        "company_address",
+        "company_name",
+        "created_at",
+        "description",
+        "name",
+        "status",
+        "updated_at",
+        "whatsapp_number"
+      ],
+      "properties": {
+        "_id": {
+          "bsonType": "objectId"
+        },
+        "category": {
+          "bsonType": "string"
+        },
+        "company_address": {
+          "bsonType": [
+            "string",
+            "null"
+          ]
+        },
+        "company_name": {
+          "bsonType": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "bsonType": "date"
+        },
+        "description": {
+          "bsonType": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "bsonType": "string"
+        },
+        "status": {
+          "bsonType": "string"
+        },
+        "updated_at": {
+          "bsonType": "date"
+        },
+        "whatsapp_number": {
+          "bsonType": "string"
+        }
+      }
+    }
+  }
+}

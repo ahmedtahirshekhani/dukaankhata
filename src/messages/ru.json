@@ -605,7 +605,7 @@
     "totalOrders": "Kul Orders",
     "totalPayments": "Kul Adaigiyan",
     "currentBalance": "Maujuda Balance",
-    "date": "Entry Date",
+    "date": "Date",
     "orderValue": "Order Ki Qeemat",
     "paidAmount": "Ada Shuda Raqam",
     "paidDate": "Payment Date",
@@ -614,6 +614,7 @@
     "dateTime": "Tareekh/Waqt",
     "typeOrder": "Order",
     "typePaymentIn": "Payment In",
+    "typeAdjustment": "Adjustment",
     "noTransactions": "Chunee hui muddat ke liye koi transaction nahi mila.",
     "loadingTransactions": "Transactions load ho rahe hain..."
   },

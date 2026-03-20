@@ -106,8 +106,8 @@ export function formatStatementDateTime(dateStr: string): string {
 }
 
 /**
- * Format date only for display in account statement paid date column
- * Shows date without time (e.g., "Feb 20, 2026")
+ * Format date only (no time) for display in account statement
+ * Shows only date (e.g., "Feb 20, 2026")
  */
 export function formatStatementDate(dateStr: string): string {
   if (!dateStr) return "-";
@@ -121,4 +121,19 @@ export function formatStatementDate(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+/**
+ * Set a date to midnight (00:00:00) UTC
+ * Accepts a Date object or ISO string
+ * Returns a new Date set to midnight
+ */
+export function setDateToMidnight(date: Date | string): Date {
+  const dt = typeof date === 'string' ? new Date(date) : date;
+  return new Date(Date.UTC(
+    dt.getUTCFullYear(),
+    dt.getUTCMonth(),
+    dt.getUTCDate(),
+    0, 0, 0, 0
+  ));
 }

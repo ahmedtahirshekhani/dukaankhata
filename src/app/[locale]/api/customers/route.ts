@@ -1,6 +1,7 @@
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { seedCustomerOpeningBalance } from "@/lib/ledger/customer-ledger";
 
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
@@ -92,6 +93,17 @@ export async function POST(request: Request) {
     const customer = await customersCollection.findOne({
       _id: result.insertedId,
     });
+
+    if (customer?._id) {
+      const openingBalance =
+        customer.opening_balance ?? customer.balance ?? 0;
+      await seedCustomerOpeningBalance(
+        user.id,
+        customer._id.toString(),
+        openingBalance,
+        customer.created_at ?? new Date()
+      );
+    }
 
     return NextResponse.json({
       id: customer?._id.toString(),

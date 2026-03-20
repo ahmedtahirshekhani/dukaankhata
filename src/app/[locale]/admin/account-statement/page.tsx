@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -17,7 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyString, formatStatementDateTime, formatStatementDate } from "@/lib/utils";
-import { FileText, Loader2, Calendar, Search } from "lucide-react";
+import { FileText, Loader2, Calendar, Search, Download } from "lucide-react";
 
 interface Customer {
   id: string;
@@ -30,9 +30,16 @@ interface Customer {
 
 interface Transaction {
   id: string;
-  type: "order" | "payment_in" | "opening_balance";
+  type: "order" | "payment_in" | "opening_balance" | "adjustment";
   orderValue: number | null;
   paidAmount: number | null;
+  orderId?: string | null;
+  description?: string;
+  qty?: number | null;
+  unitPrice?: number | null;
+  amount?: number;
+  debit?: number;
+  credit?: number;
   balance: number;
   dateTime: string;
   paidDate: string | null;
@@ -43,6 +50,20 @@ interface StatementSummary {
   totalOrders: number;
   totalPayments: number;
   currentBalance: number;
+  grandTotal?: number;
+}
+
+interface ReportMeta {
+  title: string;
+  fromDate: string;
+  toDate: string;
+  reportDate: string;
+  reportTime: string;
+  companyName: string;
+  companyAddress: string;
+  companyLogo?: string | null;
+  customerId: string;
+  customerName: string;
 }
 
 export default function AccountStatementPage() {
@@ -53,7 +74,6 @@ export default function AccountStatementPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
-  const [selectedCustomerOpeningBalance, setSelectedCustomerOpeningBalance] = useState<number>(0);
   const [customersLoading, setCustomersLoading] = useState(false);
 
   // Date range
@@ -65,8 +85,11 @@ export default function AccountStatementPage() {
   // Transactions
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<StatementSummary | null>(null);
+  const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // Fetch customers
   useEffect(() => {
@@ -104,8 +127,6 @@ export default function AccountStatementPage() {
         customerId: selectedCustomerId,
         fromDate,
         toDate,
-        openingBalance: selectedCustomerOpeningBalance.toString(),
-        currentDate: new Date().toISOString().split("T")[0],
       });
       const res = await fetch(
         `/${locale}/api/account-statement?${params.toString()}`,
@@ -114,26 +135,28 @@ export default function AccountStatementPage() {
         const data = await res.json();
         setTransactions(data.transactions || []);
         setSummary(data.summary || null);
+        setReportMeta(data.reportMeta || null);
       } else {
         console.error("Failed to fetch statement");
         setTransactions([]);
         setSummary(null);
+        setReportMeta(null);
       }
     } catch (err) {
       console.error("Failed to fetch account statement:", err);
       setTransactions([]);
       setSummary(null);
+      setReportMeta(null);
     } finally {
       setLoading(false);
     }
-  }, [selectedCustomerId, selectedCustomerOpeningBalance, fromDate, toDate, locale]);
+  }, [selectedCustomerId, fromDate, toDate, locale]);
 
   const handleCustomerSelect = (id: number | string) => {
     const custId = id.toString();
     setSelectedCustomerId(custId);
     const customer = customers.find((c) => c.id === custId);
     setSelectedCustomerName(customer?.name || "");
-    setSelectedCustomerOpeningBalance(customer?.opening_balance ?? 0);
   };
 
   const handleGenerateStatement = () => {
@@ -145,6 +168,42 @@ export default function AccountStatementPage() {
     () => selectedCustomerId && fromDate && toDate,
     [selectedCustomerId, fromDate, toDate]
   );
+
+  const grandTotal = useMemo(() => {
+    return transactions.reduce((sum, txn) => sum + Number(txn.amount || 0), 0);
+  }, [transactions]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!reportRef.current) return;
+    setExportingPdf(true);
+    try {
+      // Show header for PDF export
+      const headerDiv = reportRef.current.querySelector(".pdf-header") as HTMLElement;
+      if (headerDiv) {
+        headerDiv.style.display = "block";
+      }
+
+      const mod = await import("html2pdf.js");
+      const html2pdf = (mod as any).default || mod;
+      await html2pdf()
+        .set({
+          margin: 8,
+          filename: `account-ledger-${reportMeta?.customerId || "customer"}-${reportMeta?.fromDate || ""}-to-${reportMeta?.toDate || ""}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
+        })
+        .from(reportRef.current)
+        .save();
+
+      // Hide header again after PDF is generated
+      if (headerDiv) {
+        headerDiv.style.display = "none";
+      }
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [reportMeta]);
 
   return (
     <div className="space-y-4">
@@ -278,6 +337,19 @@ export default function AccountStatementPage() {
         </div>
       )}
 
+      {transactions.length > 0 && (
+        <div className="flex justify-end">
+          <Button onClick={handleExportPdf} disabled={exportingPdf}>
+            {exportingPdf ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Print PDF
+          </Button>
+        </div>
+      )}
+
       {/* Transactions Table */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -295,48 +367,96 @@ export default function AccountStatementPage() {
         </Card>
       ) : transactions.length > 0 ? (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0" ref={reportRef}>
+            <div style={{ display: "none" }} className="pdf-header p-8 border-b space-y-4">
+              {/* Company Header Section */}
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex-1">
+                  {reportMeta?.companyLogo && (
+                    <div className="mb-4">
+                      <img
+                        src={reportMeta.companyLogo}
+                        alt="Company Logo"
+                        className="h-16 w-auto"
+                      />
+                    </div>
+                  )}
+                  <h2 className="text-3xl font-bold leading-tight mb-2">{reportMeta?.companyName || "Company"}</h2>
+                  <div className="space-y-1 text-sm text-gray-700">
+                    <p>{reportMeta?.companyAddress || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Report Title */}
+              <div className="border-t border-b py-3 mb-4">
+                <h3 className="text-2xl font-bold text-center">{reportMeta?.title || "Account Statement"}</h3>
+              </div>
+
+              {/* Report Details Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600 font-medium">From Date</p>
+                  <p className="font-semibold">{reportMeta?.fromDate || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 font-medium">To Date</p>
+                  <p className="font-semibold">{reportMeta?.toDate || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 font-medium">Report Date</p>
+                  <p className="font-semibold">{reportMeta?.reportDate || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 font-medium">Report Time</p>
+                  <p className="font-semibold">{reportMeta?.reportTime || "-"}</p>
+                </div>
+              </div>
+
+              {/* Customer Details Section */}
+              <div className="border-t pt-3 mt-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 font-medium">Customer ID</p>
+                    <p className="font-semibold">{reportMeta?.customerId || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 font-medium">Customer Name</p>
+                    <p className="font-semibold">{reportMeta?.customerName || "-"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Desktop Table */}
-            <div className="hidden sm:block">
-              <Table>
+            <div className="hidden sm:block overflow-x-auto p-5">
+              <Table className="text-sm">
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("date")}</TableHead>
-                    <TableHead className="text-right">{t("orderValue")}</TableHead>
-                    <TableHead className="text-right">{t("paidAmount")}</TableHead>
-                    <TableHead className="text-right">{t("paidDate")}</TableHead>
-                    <TableHead className="text-right">{t("balance")}</TableHead>
-                    <TableHead>{t("type")}</TableHead>
+                  <TableRow className="text-xs">
+                    <TableHead className="w-24 px-1 py-1">{t("date")}</TableHead>
+                    <TableHead className="w-20 px-1 py-1">Order Id</TableHead>
+                    <TableHead className="w-28 px-1 py-1">Description</TableHead>
+                    <TableHead className="text-right w-12 px-1 py-1">Qty</TableHead>
+                    <TableHead className="text-right w-20 px-1 py-1">Unit Price</TableHead>
+                    <TableHead className="text-right w-20 px-1 py-1">Amount</TableHead>
+                    <TableHead className="text-right w-20 px-1 py-1">Debit</TableHead>
+                    <TableHead className="text-right w-20 px-1 py-1">Credit</TableHead>
+                    <TableHead className="text-right w-24 px-1 py-1">{t("balance")}</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="text-xs">
                   {transactions.map((txn) => (
-                    <TableRow key={txn.id}>
-                      <TableCell className="text-muted-foreground">
-                        {formatStatementDateTime(txn.dateTime)}
+                    <TableRow key={txn.id} className="h-8">
+                      <TableCell className="text-muted-foreground px-1 py-1 whitespace-nowrap">
+                        {formatStatementDate(txn.dateTime)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {txn.type === "opening_balance"
-                          ? "-"
-                          : txn.orderValue !== null
-                            ? formatCurrencyString(txn.orderValue)
-                            : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {txn.type === "opening_balance"
-                          ? "-"
-                          : txn.paidAmount !== null
-                            ? formatCurrencyString(txn.paidAmount)
-                            : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {txn.type === "opening_balance"
-                          ? "-"
-                          : txn.paidDate
-                            ? formatStatementDate(txn.paidDate)
-                            : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="px-1 py-1 truncate">{txn.orderId || "-"}</TableCell>
+                      <TableCell className="px-1 py-1 truncate">{txn.description || "-"}</TableCell>
+                      <TableCell className="text-right px-1 py-1">{txn.qty ?? "-"}</TableCell>
+                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{txn.unitPrice !== null && txn.unitPrice !== undefined ? formatCurrencyString(txn.unitPrice) : "-"}</TableCell>
+                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{formatCurrencyString(Number(txn.amount || 0))}</TableCell>
+                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{formatCurrencyString(Number(txn.debit || 0))}</TableCell>
+                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{formatCurrencyString(Number(txn.credit || 0))}</TableCell>
+                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">
                         <span
                           className={
                             txn.balance > 0
@@ -347,23 +467,15 @@ export default function AccountStatementPage() {
                           {formatCurrencyString(txn.balance)}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        {txn.type === "opening_balance" ? (
-                          <Badge variant="outline">{t("openingBalance")}</Badge>
-                        ) : (
-                          <Badge
-                            variant={
-                              txn.type === "order" ? "destructive" : "income"
-                            }
-                          >
-                            {txn.type === "order"
-                              ? t("typeOrder")
-                              : t("typePaymentIn")}
-                          </Badge>
-                        )}
-                      </TableCell>
                     </TableRow>
                   ))}
+                  <TableRow className="h-8 bg-muted/50">
+                    <TableCell colSpan={5} className="font-bold text-right px-1 py-1">Grand Total</TableCell>
+                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(grandTotal)}</TableCell>
+                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(transactions.reduce((sum, txn) => sum + Number(txn.debit || 0), 0))}</TableCell>
+                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(transactions.reduce((sum, txn) => sum + Number(txn.credit || 0), 0))}</TableCell>
+                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(summary?.currentBalance || 0)}</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
@@ -374,46 +486,17 @@ export default function AccountStatementPage() {
                 <div key={txn.id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      {formatStatementDateTime(txn.dateTime)}
+                      {formatStatementDate(txn.dateTime)}
                     </span>
-                    {txn.type === "opening_balance" ? (
-                      <Badge variant="outline">{t("openingBalance")}</Badge>
-                    ) : (
-                      <Badge
-                        variant={
-                          txn.type === "order" ? "destructive" : "income"
-                        }
-                      >
-                        {txn.type === "order"
-                          ? t("typeOrder")
-                          : t("typePaymentIn")}
-                      </Badge>
-                    )}
+                    <Badge variant="outline">{txn.type}</Badge>
                   </div>
-                  {txn.type !== "opening_balance" && (
-                    <>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {t("orderValue")}:
-                        </span>
-                        <span className="font-medium">
-                          {txn.orderValue !== null
-                            ? formatCurrencyString(txn.orderValue)
-                            : "-"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {t("paidAmount")}:
-                        </span>
-                        <span className="font-medium">
-                          {txn.paidAmount !== null
-                            ? formatCurrencyString(txn.paidAmount)
-                            : "-"}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Order ID:</span><span>{txn.orderId || "-"}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Description:</span><span>{txn.description || "-"}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Qty:</span><span>{txn.qty ?? "-"}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Unit Price:</span><span>{txn.unitPrice !== null && txn.unitPrice !== undefined ? formatCurrencyString(txn.unitPrice) : "-"}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Amount:</span><span>{formatCurrencyString(Number(txn.amount || 0))}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Debit:</span><span>{formatCurrencyString(Number(txn.debit || 0))}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Credit:</span><span>{formatCurrencyString(Number(txn.credit || 0))}</span></div>
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span className="text-muted-foreground">
                       {t("balance")}:
@@ -430,6 +513,12 @@ export default function AccountStatementPage() {
                   </div>
                 </div>
               ))}
+              <div className="p-4">
+                <div className="flex items-center justify-between text-sm font-bold">
+                  <span>Grand Total</span>
+                  <span>{formatCurrencyString(grandTotal)}</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

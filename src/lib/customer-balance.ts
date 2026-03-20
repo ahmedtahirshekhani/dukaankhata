@@ -1,4 +1,4 @@
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 
 /**
  * Adjusts a customer's balance by a given amount.
@@ -14,25 +14,17 @@ export async function adjustCustomerBalance(
 ): Promise<void> {
   if (delta === 0) return;
 
-  const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
-  const customerObjId = toObjectId(customerId);
-  const userObjId = toObjectId(userId);
-
-  await customersCollection.updateOne(
-    { _id: customerObjId, user_id: userObjId },
-    [
-      {
-        $set: {
-          balance: {
-            $add: [
-              { $ifNull: ["$balance", { $ifNull: ["$opening_balance", 0] }] },
-              delta,
-            ],
-          },
-        },
-      },
-    ]
-  );
+  await appendCustomerLedgerEntry({
+    userId,
+    customerId,
+    eventKey: `legacy_adjust:${customerId}:${Date.now()}:${Math.abs(delta)}`,
+    eventType: "manual_adjustment",
+    eventSource: "system",
+    eventSourceId: customerId,
+    amountDelta: delta,
+    effectiveAt: new Date(),
+    metadata: { source: "legacy_adjustCustomerBalance" },
+  });
 }
 
 /**
@@ -43,7 +35,18 @@ export async function deductPaymentFromBalance(
   userId: string,
   amount: number
 ): Promise<void> {
-  await adjustCustomerBalance(customerId, userId, -amount);
+  if (amount === 0) return;
+  await appendCustomerLedgerEntry({
+    userId,
+    customerId,
+    eventKey: `legacy_payment_deduct:${customerId}:${Date.now()}:${Math.abs(amount)}`,
+    eventType: "payment_in_credit",
+    eventSource: "system",
+    eventSourceId: customerId,
+    amountDelta: -amount,
+    effectiveAt: new Date(),
+    metadata: { source: "legacy_deductPaymentFromBalance" },
+  });
 }
 
 /**
@@ -54,5 +57,16 @@ export async function addPaymentToBalance(
   userId: string,
   amount: number
 ): Promise<void> {
-  await adjustCustomerBalance(customerId, userId, amount);
+  if (amount === 0) return;
+  await appendCustomerLedgerEntry({
+    userId,
+    customerId,
+    eventKey: `legacy_payment_add:${customerId}:${Date.now()}:${Math.abs(amount)}`,
+    eventType: "manual_adjustment",
+    eventSource: "system",
+    eventSourceId: customerId,
+    amountDelta: amount,
+    effectiveAt: new Date(),
+    metadata: { source: "legacy_addPaymentToBalance" },
+  });
 }

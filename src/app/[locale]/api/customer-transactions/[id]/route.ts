@@ -7,7 +7,7 @@ import {
   toObjectId,
   isValidObjectId,
 } from '@/lib/db/mongodb';
-import { addPaymentToBalance, deductPaymentFromBalance } from '@/lib/customer-balance';
+import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 
 interface CustomerTransactionDoc {
   _id: ObjectId;
@@ -108,10 +108,36 @@ export async function PUT(
     const newCustomerId = customerId;
 
     if (oldCustomerId && isValidObjectId(oldCustomerId) && oldAmount > 0) {
-      await addPaymentToBalance(oldCustomerId, user.id, oldAmount);
+      await appendCustomerLedgerEntry({
+        userId: user.id,
+        customerId: oldCustomerId,
+        eventKey: `payment_in_update_reversal:${id}:${oldCustomerId}:${oldAmount}:${new Date(existing.date).getTime()}`,
+        eventType: 'manual_adjustment',
+        eventSource: 'customer_transaction',
+        eventSourceId: id,
+        amountDelta: oldAmount,
+        effectiveAt: new Date(),
+        metadata: {
+          reason: 'payment_update_reversal',
+          transaction_id: id,
+        },
+      });
     }
     if (newCustomerId && isValidObjectId(newCustomerId) && paymentAmount > 0) {
-      await deductPaymentFromBalance(newCustomerId, user.id, paymentAmount);
+      await appendCustomerLedgerEntry({
+        userId: user.id,
+        customerId: newCustomerId,
+        eventKey: `payment_in_update_apply:${id}:${newCustomerId}:${paymentAmount}:${date.getTime()}`,
+        eventType: 'payment_in_credit',
+        eventSource: 'customer_transaction',
+        eventSourceId: id,
+        amountDelta: -paymentAmount,
+        effectiveAt: date,
+        metadata: {
+          reason: 'payment_update_apply',
+          transaction_id: id,
+        },
+      });
     }
 
     const now = new Date();
@@ -175,7 +201,20 @@ export async function DELETE(
     const customerId = existing.customer_id?.toString();
     const paymentAmount = existing.payment_amount ?? 0;
     if (customerId && isValidObjectId(customerId) && paymentAmount > 0) {
-      await addPaymentToBalance(customerId, user.id, paymentAmount);
+      await appendCustomerLedgerEntry({
+        userId: user.id,
+        customerId,
+        eventKey: `payment_in_delete_reversal:${id}:${customerId}:${paymentAmount}:${new Date(existing.date).getTime()}`,
+        eventType: 'manual_adjustment',
+        eventSource: 'customer_transaction',
+        eventSourceId: id,
+        amountDelta: paymentAmount,
+        effectiveAt: new Date(),
+        metadata: {
+          reason: 'payment_delete_reversal',
+          transaction_id: id,
+        },
+      });
     }
 
     const result = await collection.deleteOne({
