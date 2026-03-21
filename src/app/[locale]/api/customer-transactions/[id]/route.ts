@@ -8,6 +8,7 @@ import {
   isValidObjectId,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
+import { setDateToCurrentTime } from '@/lib/utils';
 
 interface CustomerTransactionDoc {
   _id: ObjectId;
@@ -91,7 +92,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = new Date(dateStr + 'T12:00:00.000Z');
+    const date = setDateToCurrentTime(dateStr);
 
     const collection = await getCollection<CustomerTransactionDoc>(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const existing = await collection.findOne({

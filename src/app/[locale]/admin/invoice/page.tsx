@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,6 +32,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
+import {
+  InvoicePreview,
+  type InvoiceProduct,
+  type InvoiceCharge,
+} from "@/components/invoice/invoice-preview";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 
@@ -97,6 +110,29 @@ export default function InvoicePage() {
   const [overstockItems, setOverstockItems] = useState<
     { name: string; requested: number; inStock: number }[]
   >([]);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [showOrderCreatedDialog, setShowOrderCreatedDialog] = useState(false);
+  const [createdOrderShareData, setCreatedOrderShareData] = useState<{
+    customerName: string;
+    phone: string;
+    customerEmail?: string;
+    invoiceNo: string;
+    saleDate: string;
+    dueDate: string | null;
+    products: InvoiceProduct[];
+    subtotal: number;
+    charges: InvoiceCharge[];
+    overallDiscount: number;
+    shippingCharges: number;
+    total: number;
+    paidAmount: number;
+    paidDate: string | null;
+    noPaymentAtAll: boolean;
+    companyName: string;
+    customerNotes: string;
+  } | null>(null);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const formatUom = (uom?: string) =>
@@ -375,6 +411,97 @@ export default function InvoicePage() {
     setOverstockItems([]);
   };
 
+  const normalizeWhatsAppNumber = (phone?: string) => {
+    if (!phone) return "";
+    let normalized = phone.replace(/[^\d+]/g, "");
+
+    if (normalized.startsWith("0")) {
+      normalized = `+92${normalized.slice(1)}`;
+    } else if (!normalized.startsWith("+") && normalized.startsWith("92")) {
+      normalized = `+${normalized}`;
+    } else if (!normalized.startsWith("+")) {
+      normalized = `+${normalized}`;
+    }
+
+    return normalized;
+  };
+
+  const getWhatsAppNumberForLink = () => {
+    const phone = normalizeWhatsAppNumber(createdOrderShareData?.phone);
+    return phone.replace(/\D/g, "");
+  };
+
+  const getWhatsAppLink = () => {
+    if (!createdOrderShareData) return "";
+    const normalizedNumber = getWhatsAppNumberForLink();
+    if (!normalizedNumber) return "";
+
+    const message = t("whatsappOrderMessage", {
+      customerName: createdOrderShareData.customerName || t("customer"),
+      invoiceNo: createdOrderShareData.invoiceNo,
+      currency: t("currencySymbol"),
+      total: Math.floor(createdOrderShareData.total),
+    });
+
+    return `https://wa.me/${normalizedNumber}?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleSendInvoicePdfOnWhatsApp = async () => {
+    if (!createdOrderShareData || !invoiceShareRef.current) return;
+
+    const whatsappNumber = getWhatsAppNumberForLink();
+    if (!whatsappNumber) return;
+
+    setIsSendingWhatsApp(true);
+    try {
+      const mod = await import("html2pdf.js");
+      const html2pdf = (mod as any).default || mod;
+
+      const pdfBlob: Blob = await html2pdf()
+        .set({
+          margin: 10,
+          filename: `${createdOrderShareData.invoiceNo}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(invoiceShareRef.current)
+        .outputPdf("blob");
+
+      const message = t("whatsappOrderMessage", {
+        customerName: createdOrderShareData.customerName || t("customer"),
+        invoiceNo: createdOrderShareData.invoiceNo,
+        currency: t("currencySymbol"),
+        total: Math.floor(createdOrderShareData.total),
+      });
+
+      const pdfFile = new File([pdfBlob], `${createdOrderShareData.invoiceNo}.pdf`, {
+        type: "application/pdf",
+      });
+
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.share &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [pdfFile] })
+      ) {
+        await navigator.share({
+          files: [pdfFile],
+          title: createdOrderShareData.invoiceNo,
+          text: message,
+        });
+        return;
+      }
+
+      const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappLink, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Failed to send invoice PDF on WhatsApp:", error);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
   const handleCreateOrder = async (paymentDetails: {
     paymentMethod: string;
     paidAmount: number;
@@ -385,6 +512,37 @@ export default function InvoicePage() {
       return;
     }
 
+    const shareData = {
+      customerName: selectedCustomer.name,
+      phone: selectedCustomer.phone || "",
+      customerEmail: selectedCustomer.email || "",
+      invoiceNo,
+      saleDate: selectedDate,
+      dueDate: addDueDate ? dueDate : null,
+      products: selectedProducts.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        quantity: p.quantity,
+        quantityType: p.quantityType,
+        sell_price: p.sell_price,
+        unit_of_measurement: p.unit_of_measurement,
+        discount: p.discount,
+        discountType: p.discountType,
+      })),
+      subtotal: total,
+      charges: displayCharges.map((c) => ({ item: c.item, value: c.value })),
+      overallDiscount: overallDiscountAmount,
+      shippingCharges: shippingChargesNum,
+      total: finalTotal,
+      paidAmount: paymentDetails.paidAmount,
+      paidDate: paymentDetails.paidDate,
+      noPaymentAtAll: paymentDetails.noPaymentAtAll,
+      companyName: session?.user?.company || session?.user?.name || "",
+      customerNotes,
+    };
+
+    setIsCreatingOrder(true);
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -427,6 +585,7 @@ export default function InvoicePage() {
       if (!response.ok) throw new Error("Failed to create order");
 
       const order = await response.json();
+      setCreatedOrderShareData(shareData);
 
       // Refetch products to sync stock with inventory
       fetchProducts();
@@ -441,8 +600,11 @@ export default function InvoicePage() {
       setCharges([]);
       setShowAddCharge(false);
       setShowInvoicePreview(false);
+      setShowOrderCreatedDialog(true);
     } catch (error) {
       console.error("Error creating order:", error);
+    } finally {
+      setIsCreatingOrder(false);
     }
   };
 
@@ -1233,6 +1395,63 @@ export default function InvoicePage() {
         variant="warning"
       />
 
+      <Dialog open={showOrderCreatedDialog} onOpenChange={setShowOrderCreatedDialog}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>{t("orderCreatedTitle")}</DialogTitle>
+            <DialogDescription>{t("orderCreatedDescription")}</DialogDescription>
+          </DialogHeader>
+          {createdOrderShareData?.phone ? (
+            <p className="text-sm text-muted-foreground">
+              {t("whatsappContactNumber", {
+                phone: normalizeWhatsAppNumber(createdOrderShareData.phone),
+              })}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {t("whatsappNumberUnavailable")}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleSendInvoicePdfOnWhatsApp}
+              disabled={!getWhatsAppLink() || isSendingWhatsApp}
+            >
+              {isSendingWhatsApp ? t("sendingOnWhatsApp") : t("sendInvoicePdfOnWhatsApp")}
+            </Button>
+            <Button onClick={() => setShowOrderCreatedDialog(false)}>{t("ok")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {createdOrderShareData && (
+        <div className="hidden" aria-hidden>
+          <InvoicePreview
+            ref={invoiceShareRef}
+            invoiceNo={createdOrderShareData.invoiceNo}
+            customer={{
+              name: createdOrderShareData.customerName,
+              email: createdOrderShareData.customerEmail,
+              phone: createdOrderShareData.phone,
+            }}
+            saleDate={createdOrderShareData.saleDate}
+            dueDate={createdOrderShareData.dueDate}
+            products={createdOrderShareData.products}
+            subtotal={createdOrderShareData.subtotal}
+            charges={createdOrderShareData.charges}
+            overallDiscount={createdOrderShareData.overallDiscount}
+            shippingCharges={createdOrderShareData.shippingCharges}
+            total={createdOrderShareData.total}
+            noPaymentAtAll={createdOrderShareData.noPaymentAtAll}
+            paidAmount={createdOrderShareData.paidAmount}
+            paidDate={createdOrderShareData.paidDate}
+            companyName={createdOrderShareData.companyName}
+            customerNotes={createdOrderShareData.customerNotes}
+          />
+        </div>
+      )}
+
       {/* Invoice Preview Dialog */}
       <InvoicePreviewDialog
         open={showInvoicePreview}
@@ -1267,6 +1486,7 @@ export default function InvoicePage() {
         companyName={session?.user?.company || session?.user?.name || ""}
         customerNotes={customerNotes}
         onCreateOrder={handleCreateOrder}
+        isCreatingOrder={isCreatingOrder}
       />
     </div>
   );

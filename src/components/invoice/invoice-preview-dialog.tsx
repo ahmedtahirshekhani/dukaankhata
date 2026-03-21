@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import {
   InvoicePreview,
   type InvoiceCharge,
@@ -47,7 +47,8 @@ interface InvoicePreviewDialogProps {
     paidAmount: number;
     paidDate: string | null;
     noPaymentAtAll: boolean;
-  }) => void;
+  }) => Promise<void> | void;
+  isCreatingOrder?: boolean;
   hidePaymentActions?: boolean;
   initialPayment?: {
     method: string;
@@ -74,6 +75,7 @@ export function InvoicePreviewDialog({
   total,
   onMakePayment,
   onCreateOrder,
+  isCreatingOrder = false,
   hidePaymentActions = false,
   initialPayment = null,
   companyName,
@@ -433,19 +435,32 @@ export function InvoicePreviewDialog({
 
                   <div>
                     <Button
-                      onClick={() =>
-                        onCreateOrder({
-                          paymentMethod,
-                          paidAmount,
-                          paidDate,
-                          noPaymentAtAll,
-                        })
-                      }
+                      onClick={async () => {
+                        if (isCreatingRef.current || isCreatingOrder) return;
+                        isCreatingRef.current = true;
+                        try {
+                          await onCreateOrder({
+                            paymentMethod,
+                            paidAmount,
+                            paidDate,
+                            noPaymentAtAll,
+                          });
+                        } finally {
+                          isCreatingRef.current = false;
+                        }
+                      }}
                       variant="outline"
                       className="w-full"
-                      disabled={!(isPaymentMade || noPaymentAtAll)}
+                      disabled={!(isPaymentMade || noPaymentAtAll) || isCreatingOrder}
                     >
-                      {t("createOrder")}
+                      {isCreatingOrder ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t("creatingOrder")}
+                        </>
+                      ) : (
+                        t("createOrder")
+                      )}
                     </Button>
                   </div>
 

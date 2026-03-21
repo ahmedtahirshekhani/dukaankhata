@@ -137,3 +137,22 @@ export function setDateToMidnight(date: Date | string): Date {
     0, 0, 0, 0
   ));
 }
+
+/**
+ * Set a date's year/month/day while preserving the current local time.
+ * Useful for date-picker inputs where we want "today's time" instead of midnight.
+ */
+export function setDateToCurrentTime(date: Date | string): Date {
+  const source = typeof date === "string" ? new Date(date) : date;
+  const now = new Date();
+
+  return new Date(
+    source.getFullYear(),
+    source.getMonth(),
+    source.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds(),
+  );
+}

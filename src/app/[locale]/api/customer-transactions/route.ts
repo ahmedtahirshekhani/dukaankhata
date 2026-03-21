@@ -7,7 +7,7 @@ import {
   isValidObjectId,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToMidnight } from '@/lib/utils';
+import { setDateToCurrentTime } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = setDateToMidnight(dateStr);
+    const date = setDateToCurrentTime(dateStr);
 
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const now = new Date();

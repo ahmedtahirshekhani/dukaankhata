@@ -7,7 +7,7 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToMidnight } from "@/lib/utils";
+import { setDateToCurrentTime } from "@/lib/utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -193,8 +193,8 @@ export async function POST(request: Request) {
       total_amount: total,
       subtotal: typeof subtotal === "number" ? subtotal : total,
       invoice_no: invoiceNo ?? null,
-      sale_date: saleDate ? setDateToMidnight(saleDate) : setDateToMidnight(new Date()),
-      due_date: dueDate ? setDateToMidnight(dueDate) : null,
+      sale_date: saleDate ? setDateToCurrentTime(saleDate) : setDateToCurrentTime(new Date()),
+      due_date: dueDate ? setDateToCurrentTime(dueDate) : null,
       charges: Array.isArray(charges) ? charges : [],
       overallDiscount:
         typeof overallDiscount === "number" ? overallDiscount : 0,
@@ -205,7 +205,7 @@ export async function POST(request: Request) {
         ? {
             method: resolvedPaymentMethodId,
             paid_amount: payment.paidAmount || 0,
-            paid_date: payment.paidDate ? setDateToMidnight(payment.paidDate) : null,
+            paid_date: payment.paidDate ? setDateToCurrentTime(payment.paidDate) : null,
             no_payment_at_all: payment.noPaymentAtAll || false,
           }
         : null,
@@ -248,10 +248,10 @@ export async function POST(request: Request) {
         type: "income",
         description: `Payment for order #${orderId.toString()}`,
         payment_date: paymentInfo.paidDate
-          ? setDateToMidnight(paymentInfo.paidDate)
+          ? setDateToCurrentTime(paymentInfo.paidDate)
           : paymentDate
-            ? setDateToMidnight(paymentDate)
-            : setDateToMidnight(new Date()),
+            ? setDateToCurrentTime(paymentDate)
+            : setDateToCurrentTime(new Date()),
         created_at: new Date(),
       };
       if (
@@ -334,7 +334,7 @@ export async function POST(request: Request) {
       eventSource: "order",
       eventSourceId: orderId.toString(),
       amountDelta: total,
-      effectiveAt: setDateToMidnight(saleDate || new Date()),
+      effectiveAt: setDateToCurrentTime(saleDate || new Date()),
       metadata: {
         invoice_no: invoiceNo || null,
         total_amount: total,
@@ -359,7 +359,7 @@ export async function POST(request: Request) {
         eventSource: "order",
         eventSourceId: orderId.toString(),
         amountDelta: -paymentInfo2.paidAmount,
-        effectiveAt: setDateToMidnight(
+        effectiveAt: setDateToCurrentTime(
           paymentInfo2.paidDate || paymentDate || saleDate || new Date()
         ),
         metadata: {
