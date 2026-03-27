@@ -9,6 +9,52 @@ import {
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
 
+type SaleReturnItem = {
+  id: string;
+  productId?: string;
+  itemName: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+};
+
+function sanitizeItems(items: unknown): SaleReturnItem[] {
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((raw, index) => {
+      const item = raw as {
+        id?: string;
+        productId?: string;
+        itemName?: string;
+        quantity?: number | string;
+        rate?: number | string;
+        amount?: number | string;
+      };
+      const quantity =
+        typeof item.quantity === "number"
+          ? item.quantity
+          : parseFloat(item.quantity ?? "0") || 0;
+      const rate =
+        typeof item.rate === "number" ? item.rate : parseFloat(item.rate ?? "0") || 0;
+      const fallbackAmount = Number((quantity * rate).toFixed(2));
+      const amount =
+        typeof item.amount === "number"
+          ? item.amount
+          : parseFloat(item.amount ?? "0") || fallbackAmount;
+
+      return {
+        id: item.id?.toString() || `item-${index + 1}`,
+        productId: item.productId?.toString() || "",
+        itemName: item.itemName?.toString().trim() || "",
+        quantity,
+        rate,
+        amount,
+      };
+    })
+    .filter((item) => item.itemName && item.amount > 0);
+}
+
 export async function GET() {
   try {
     const user = (await getCurrentUser()) as { id: string } | null;
@@ -68,14 +114,31 @@ export async function GET() {
 
     const list = items.map((item) => ({
       id: (item._id as { toString: () => string }).toString(),
+      returnNumber: item.return_number ?? "",
       customerId: item.customer_id?.toString() ?? "",
       customerName: item.customer_id
         ? customerMap[item.customer_id.toString()] ?? ""
         : "",
-      paymentAmount: item.payment_amount ?? 0,
+      items: Array.isArray(item.items) ? item.items : [],
+      totalAmount: item.total_amount ?? item.payment_amount ?? 0,
+      paidAmount: item.paid_amount ?? 0,
+      balanceDue:
+        item.balance_due ??
+        Number(
+          (
+            (item.total_amount ?? item.payment_amount ?? 0) -
+            (item.paid_amount ?? 0)
+          ).toFixed(2)
+        ),
+      paymentAmount: item.payment_amount ?? item.total_amount ?? 0,
       paymentMethodId: item.payment_method_id?.toString() ?? "",
       paymentMethodName: item.payment_method_id
         ? paymentMethodMap[item.payment_method_id.toString()] ?? ""
+        : "",
+      paymentRefNo: item.payment_ref_no ?? "",
+      invoiceNo: item.invoice_no ?? "",
+      invoiceDate: item.invoice_date
+        ? new Date(item.invoice_date).toISOString().split("T")[0]
         : "",
       date: item.date ? new Date(item.date).toISOString().split("T")[0] : "",
     }));
@@ -96,16 +159,38 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const customerId = body?.customerId ?? body?.customer_id ?? "";
-    const paymentAmount =
-      typeof body?.paymentAmount === "number"
-        ? body.paymentAmount
-        : parseFloat(body?.paymentAmount) || 0;
+    const returnNumber = (body?.returnNumber ?? body?.return_number ?? "").toString().trim();
+    const lineItems = sanitizeItems(body?.items);
+    const totalAmount =
+      typeof body?.totalAmount === "number"
+        ? body.totalAmount
+        : parseFloat(body?.totalAmount) || 0;
+    const paidAmount =
+      typeof body?.paidAmount === "number"
+        ? body.paidAmount
+        : parseFloat(body?.paidAmount) || 0;
+    const paymentAmount = totalAmount;
+    const balanceDue = Number((paymentAmount - paidAmount).toFixed(2));
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? "";
+    const paymentRefNo = (body?.paymentRefNo ?? body?.payment_ref_no ?? "")
+      .toString()
+      .trim();
+    const invoiceNo = (body?.invoiceNo ?? body?.invoice_no ?? "").toString().trim();
+    const invoiceDateRaw = (body?.invoiceDate ?? body?.invoice_date ?? "")
+      .toString()
+      .trim();
     const dateStr = body?.date ?? new Date().toISOString().split("T")[0];
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json(
         { error: "Valid customer is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!returnNumber) {
+      return NextResponse.json(
+        { error: "Return number is required" },
         { status: 400 }
       );
     }
@@ -125,17 +210,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (paidAmount < 0 || paidAmount > paymentAmount) {
+      return NextResponse.json(
+        { error: "Paid amount must be between 0 and total amount" },
+        { status: 400 }
+      );
+    }
+
+    if (lineItems.length === 0) {
+      return NextResponse.json(
+        { error: "At least one return item is required" },
+        { status: 400 }
+      );
+    }
+
     const date = setDateToCurrentTime(dateStr);
+    const invoiceDate = invoiceDateRaw ? setDateToCurrentTime(invoiceDateRaw) : null;
 
     const collection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
     const now = new Date();
     const result = await collection.insertOne({
       user_id: toObjectId(user.id),
+      return_number: returnNumber,
       customer_id: toObjectId(customerId),
+      items: lineItems,
+      total_amount: paymentAmount,
+      paid_amount: paidAmount,
+      balance_due: balanceDue,
       payment_amount: paymentAmount,
       payment_method_id: isHardcodedMethod
         ? paymentMethodId
         : toObjectId(paymentMethodId),
+      payment_ref_no: paymentRefNo,
+      invoice_no: invoiceNo,
+      invoice_date: invoiceDate,
       date,
       created_at: now,
       updated_at: now,
@@ -166,9 +274,17 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),
+      returnNumber,
       customerId,
+      items: lineItems,
+      totalAmount: paymentAmount,
+      paidAmount,
+      balanceDue,
       paymentAmount,
       paymentMethodId,
+      paymentRefNo,
+      invoiceNo,
+      invoiceDate: invoiceDate ? invoiceDate.toISOString().split("T")[0] : "",
       date: date.toISOString().split("T")[0],
     });
   } catch (err: unknown) {

@@ -154,6 +154,9 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
       .createIndex({ date: -1 });
+    await db
+      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
+      .createIndex({ user_id: 1, return_number: 1 });
 
     // Customer ledger collections indexes
     await db
