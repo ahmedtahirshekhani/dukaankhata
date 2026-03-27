@@ -280,51 +280,14 @@ export default function Page() {
         </div>
       </div>
 
-      {/* KPI Cards - Top Metrics */}
-      <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Revenue Card */}
+      {/* KPI Cards */}
+      <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-1">
         <StatCard
-          title={tDash("totalRevenue") || "Total Revenue"}
+          title={tDash("saleCurrentMonth") || "Sale (Current Month)"}
           value={totalRevenue}
-          icon={<span className="text-xs sm:text-sm font-bold">PKR</span>}
-          isPrivacy={isPrivacyMode}
-          trend={growthRate}
-          trendLabel={tDash("growthRate") || "30-Day Growth"}
-          trendTooltip={tDash("growthRateTooltip") || "Compared to previous 30 days"}
-          currency="PKR"
-        />
-
-        {/* Total Expenses Card */}
-        <StatCard
-          title={tDash("totalExpenses") || "Total Expenses"}
-          value={totalExpenses}
-          icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
-          isPrivacy={isPrivacyMode}
-          currency="PKR"
-          isExpense
-        />
-
-        {/* Total Profit Card */}
-        <StatCard
-          title={tDash("totalProfit") || "Total Profit"}
-          value={totalProfit}
           icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
           isPrivacy={isPrivacyMode}
           currency="PKR"
-          isProfit
-        />
-
-        {/* Profit Margin Card */}
-        <StatCard
-          title={tDash("profitMargin") || "Profit Margin"}
-          value={
-            totalRevenue > 0
-              ? ((totalProfit / totalRevenue) * 100).toFixed(1)
-              : 0
-          }
-          icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
-          isPrivacy={isPrivacyMode}
-          isSuffix="%"
         />
       </div>
 

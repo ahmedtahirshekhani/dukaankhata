@@ -15,12 +15,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
-    const expensesData = await transactionsCollection
+    const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
+    const expensesData = await expensesCollection
       .find({
-        type: 'expense',
         user_id: toObjectId(user.id),
-        status: 'completed'
       })
       .toArray();
 

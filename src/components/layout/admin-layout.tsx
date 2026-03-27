@@ -98,6 +98,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/payment-in": tNav("paymentIn"),
     "/admin/sales": tNav("sales"),
     "/admin/sale-return": tNav("saleReturn"),
+    "/admin/expenses": tNav("expenses"),
     "/admin/customers": tNav("customers"),
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
@@ -216,7 +217,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-64 sm:w-48 md:w-64"}`}
         >
           <nav
-            className={`flex h-full flex-col gap-2 md:gap-4 py-3 md:py-5 ${
+            className={`flex h-full overflow-y-auto flex-col gap-2 md:gap-4 py-3 md:py-5 ${
               sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-4"
             }`}
           >
@@ -352,6 +353,30 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block">
                     {tNav("productsDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+            <div>
+              <Link
+                href={`/${locale}/admin/expenses`}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                  pathWithoutLocale === "/admin/expenses"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                title={sidebarMinimized ? tNav("expenses") : ""}
+              >
+                <FileText className="h-5 w-5 flex-shrink-0" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium text-xs md:text-sm">
+                    {tNav("expenses")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block">
+                    {tNav("expensesDescription")}
                   </span>
                 </div>
               </Link>

@@ -60,6 +60,7 @@ export const COLLECTIONS = {
   SALE_RETURN_TRANSACTIONS: "sale_return_transaction",
   CUSTOMER_LEDGER_ENTRIES: "customer_ledger_entries",
   CUSTOMER_BALANCE_STATE: "customer_balance_state",
+  EXPENSES: "expenses",
   TRANSACTIONS: "transactions",
   PASSWORD_RESETS: "password_resets",
   CATEGORIES: "categories",
@@ -167,6 +168,13 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.CUSTOMER_BALANCE_STATE)
       .createIndex({ user_id: 1, customer_id: 1 }, { unique: true });
+
+    // Expenses collection indexes
+    await db.collection(COLLECTIONS.EXPENSES).createIndex({ user_id: 1 });
+    await db.collection(COLLECTIONS.EXPENSES).createIndex({ date: -1 });
+    await db.collection(COLLECTIONS.EXPENSES).createIndex({ expense_number: 1 });
+    await db.collection(COLLECTIONS.EXPENSES).createIndex({ category: 1 });
+    await db.collection(COLLECTIONS.EXPENSES).createIndex({ item_name: 1 });
 
     // Transactions collection indexes
     await db.collection(COLLECTIONS.TRANSACTIONS).createIndex({ user_id: 1 });
