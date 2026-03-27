@@ -24,7 +24,6 @@ import {
   Menu,
   X,
   MessageSquare,
-  ArrowDown,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -43,6 +42,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
+  const [salesExpanded, setSalesExpanded] = useState(true);
   const [companyName, setCompanyName] = useState<string>("");
 
   // Fetch company name from localStorage or session
@@ -79,16 +79,30 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   // Remove locale and /admin from pathname to get current page
   const pathWithoutLocale = pathname.replace(`/${locale}`, "");
+  const salesSubRoutes = [
+    "/admin/invoice",
+    "/admin/payment-in",
+    "/admin/sale-return",
+  ];
+  const isSalesSectionActive =
+    pathWithoutLocale === "/admin/sales" || salesSubRoutes.includes(pathWithoutLocale);
+
+  useEffect(() => {
+    if (isSalesSectionActive) {
+      setSalesExpanded(true);
+    }
+  }, [isSalesSectionActive]);
 
   const pageNames: { [key: string]: string } = {
     "/admin": tNav("dashboard"),
     "/admin/payment-in": tNav("paymentIn"),
+    "/admin/sales": tNav("sales"),
+    "/admin/sale-return": tNav("saleReturn"),
     "/admin/customers": tNav("customers"),
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
     "/admin/invoice": tNav("invoice"),
     "/admin/account-statement": tNav("accountStatement"),
-    "/admin/counter-sale": tNav("counterSale"),
     "/admin/ai-chat": tNav("aiChat"),
   };
 
@@ -231,52 +245,92 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
             <div>
-              <Link
-                href={`/${locale}/admin/payment-in`}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/payment-in"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
-                title={sidebarMinimized ? tNav("paymentIn") : ""}
-              >
-                <ArrowDown className="h-5 w-5 flex-shrink-0" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+              <div className="flex items-stretch gap-1">
+                <Link
+                  href={`/${locale}/admin/sales`}
+                  onClick={() => setSidebarOpen(false)}
+                  aria-current={pathWithoutLocale === "/admin/sales" ? "page" : undefined}
+                  className={`flex flex-1 items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                    isSalesSectionActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                  title={sidebarMinimized ? tNav("sales") : ""}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <ShoppingCartIcon className="h-5 w-5 flex-shrink-0" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium text-xs md:text-sm">
+                      {tNav("sales")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block">
+                      {tNav("salesDescription")}
+                    </span>
+                  </div>
+                </Link>
+
+                {!sidebarMinimized && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`h-auto px-2 rounded-lg ${
+                      isSalesSectionActive
+                        ? "text-primary-foreground hover:bg-primary/90"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
+                    aria-expanded={salesExpanded}
+                    onClick={() => setSalesExpanded((prev) => !prev)}
+                  >
+                    <ChevronRight
+                      className={`h-4 w-4 transition-transform ${salesExpanded ? "rotate-90" : ""}`}
+                    />
+                  </Button>
+                )}
+              </div>
+
+              {!sidebarMinimized && salesExpanded && (
+                <div className="ml-7 mt-1 border-l pl-2 flex flex-col gap-1">
+                  <Link
+                    href={`/${locale}/admin/invoice`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/invoice" ? "page" : undefined}
+                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                      pathWithoutLocale === "/admin/invoice"
+                        ? "bg-accent font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("invoice")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/payment-in`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/payment-in" ? "page" : undefined}
+                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                      pathWithoutLocale === "/admin/payment-in"
+                        ? "bg-accent font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
                     {tNav("paymentIn")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block">
-                    {tNav("paymentInDescription")}
-                  </span>
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/sale-return`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/sale-return" ? "page" : undefined}
+                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                      pathWithoutLocale === "/admin/sale-return"
+                        ? "bg-accent font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("saleReturn")}
+                  </Link>
                 </div>
-              </Link>
-            </div>
-            <div>
-              <Link
-                href={`/${locale}/admin/counter-sale`}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/counter-sale"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
-                title={sidebarMinimized ? tNav("counterSale") : ""}
-              >
-                <span className="text-xs font-bold flex-shrink-0">PKR</span>
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium text-xs md:text-sm">
-                    {tNav("counterSale")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block">
-                    {tNav("counterSaleDescription")}
-                  </span>
-                </div>
-              </Link>
+              )}
             </div>
             <div>
               <Link
@@ -346,30 +400,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block">
                     {tNav("ordersDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
-            <div>
-              <Link
-                href={`/${locale}/admin/invoice`}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/invoice"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
-                title={sidebarMinimized ? tNav("invoice") : ""}
-              >
-                <ShoppingCartIcon className="h-5 w-5 flex-shrink-0" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium text-xs md:text-sm">
-                    {tNav("invoice")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block">
-                    {tNav("invoiceDescription")}
                   </span>
                 </div>
               </Link>

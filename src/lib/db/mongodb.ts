@@ -57,6 +57,7 @@ export const COLLECTIONS = {
   PAYMENT_METHODS: "payment_methods",
   PAYMENT_METHOD: "payment_method",
   CUSTOMER_TRANSACTIONS: "customer_transaction",
+  SALE_RETURN_TRANSACTIONS: "sale_return_transaction",
   CUSTOMER_LEDGER_ENTRIES: "customer_ledger_entries",
   CUSTOMER_BALANCE_STATE: "customer_balance_state",
   TRANSACTIONS: "transactions",
@@ -140,6 +141,17 @@ export async function createIndexes() {
       .createIndex({ customer_id: 1 });
     await db
       .collection(COLLECTIONS.CUSTOMER_TRANSACTIONS)
+      .createIndex({ date: -1 });
+
+    // Sale return transactions collection indexes
+    await db
+      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
+      .createIndex({ user_id: 1 });
+    await db
+      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
+      .createIndex({ customer_id: 1 });
+    await db
+      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
       .createIndex({ date: -1 });
 
     // Customer ledger collections indexes

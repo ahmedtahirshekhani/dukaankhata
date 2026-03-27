@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   Card,
@@ -10,6 +11,15 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { supportContact } from "@/lib/constants";
 import {
   ChartTooltipContent,
@@ -74,16 +84,52 @@ export default function Page() {
     { date: string; income: number; expense: number }[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+  const [isPrivacyMode, setIsPrivacyMode] = useState(true);
   const [growthRate, setGrowthRate] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [avgDailyRevenue, setAvgDailyRevenue] = useState(0);
+  const [salesRows, setSalesRows] = useState<
+    Array<{
+      id: string;
+      invoiceNo: string;
+      customerName: string;
+      total: number;
+      paid: number;
+      balance: number;
+      date: string;
+    }>
+  >([]);
+  const [customerRows, setCustomerRows] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      balance: number;
+      status: string;
+    }>
+  >([]);
+  const [itemRows, setItemRows] = useState<
+    Array<{
+      id: string;
+      name: string;
+      category: string;
+      stock: number;
+      price: number;
+    }>
+  >([]);
+  const [activeDashboardTab, setActiveDashboardTab] = useState<
+    "customers" | "sales" | "items" | "charts"
+  >("customers");
 
   // Load privacy preference from localStorage on mount
   useEffect(() => {
     const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
     if (savedPrivacyMode) {
       setIsPrivacyMode(JSON.parse(savedPrivacyMode));
+    } else {
+      setIsPrivacyMode(true);
+      localStorage.setItem("dashboardPrivacyMode", JSON.stringify(true));
     }
   }, []);
 
@@ -100,8 +146,17 @@ export default function Page() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Single API call to get all dashboard data
-        const dashboardRes = await fetch("/api/admin/dashboard/summary");
+        const [
+          dashboardRes,
+          ordersRes,
+          customersRes,
+          productsRes,
+        ] = await Promise.all([
+          fetch("/api/admin/dashboard/summary"),
+          fetch("/api/orders"),
+          fetch("/api/customers"),
+          fetch("/api/products"),
+        ]);
 
         if (dashboardRes.status === 401) {
           router.replace(`/${locale}/login`);
@@ -120,6 +175,57 @@ export default function Page() {
         setGrowthRate(dashboardData.growthRate || 0);
         setTotalOrders(dashboardData.totalOrders || 0);
         setAvgDailyRevenue(dashboardData.avgDailyRevenue || 0);
+
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          const orderRows = Array.isArray(ordersData)
+            ? ordersData.map((order: any, index: number) => {
+                const total = Number(order?.total_amount || 0);
+                const paid = Number(order?.payment?.paid_amount || 0);
+                return {
+                  id: order?.id || String(index),
+                  invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
+                  customerName: order?.customer?.name || "-",
+                  total,
+                  paid,
+                  balance: Math.max(0, total - paid),
+                  date: order?.sale_date || order?.created_at
+                    ? new Date(order?.sale_date || order?.created_at).toLocaleDateString()
+                    : "-",
+                };
+              })
+            : [];
+          setSalesRows(orderRows);
+        }
+
+        if (customersRes.ok) {
+          const customersData = await customersRes.json();
+          const rows = Array.isArray(customersData)
+            ? customersData.map((item: any, index: number) => ({
+                id: item?.id || String(index),
+                name: item?.name || "-",
+                email: item?.email || "-",
+                phone: item?.phone || "-",
+                balance: Number(item?.balance || 0),
+                status: item?.status || "active",
+              }))
+            : [];
+          setCustomerRows(rows);
+        }
+
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          const pRows = Array.isArray(productsData)
+            ? productsData.map((item: any, index: number) => ({
+                id: item?.id || String(index),
+                name: item?.name || item?.title || "-",
+                category: item?.category || "-",
+                stock: Number(item?.stock || item?.quantity || 0),
+                price: Number(item?.sell_price || item?.price || 0),
+              }))
+            : [];
+          setItemRows(pRows);
+        }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -221,6 +327,175 @@ export default function Page() {
           isSuffix="%"
         />
       </div>
+
+      {/* Dashboard Sub Navigation */}
+      <div className="mt-2">
+        <h2 className="text-lg sm:text-xl font-semibold">
+          {tDash("dashboardSections") || "Dashboard Sections"}
+        </h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          {tDash("dashboardSectionsDescription") || "Switch between customer transactions, sales, items, and charts"}
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2 p-3 sm:p-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={activeDashboardTab === "customers" ? "default" : "outline"}
+              onClick={() => setActiveDashboardTab("customers")}
+            >
+              {tDash("customers") || "Customers"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeDashboardTab === "sales" ? "default" : "outline"}
+              onClick={() => setActiveDashboardTab("sales")}
+            >
+              {tDash("sales") || "Sales"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeDashboardTab === "items" ? "default" : "outline"}
+              onClick={() => setActiveDashboardTab("items")}
+            >
+              {tDash("items") || "Items"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeDashboardTab === "charts" ? "default" : "outline"}
+              onClick={() => setActiveDashboardTab("charts")}
+            >
+              {tDash("charts") || "Charts"}
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {activeDashboardTab !== "charts" && (
+        <Card>
+          <CardContent className="p-2 sm:p-3 pt-3">
+            <div className="overflow-x-auto max-h-[28rem] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {activeDashboardTab === "sales" && (
+                      <>
+                        <TableHead>{tDash("invoiceNo") || "Invoice No"}</TableHead>
+                        <TableHead>{tDash("customer") || "Customer"}</TableHead>
+                        <TableHead>{tDash("total") || "Total"}</TableHead>
+                        <TableHead>{tDash("paid") || "Paid"}</TableHead>
+                        <TableHead>{tDash("balance") || "Balance"}</TableHead>
+                        <TableHead>{tDash("date") || "Date"}</TableHead>
+                      </>
+                    )}
+                    {activeDashboardTab === "customers" && (
+                      <>
+                        <TableHead>{tDash("name") || "Name"}</TableHead>
+                        <TableHead>{tDash("email") || "Email"}</TableHead>
+                        <TableHead>{tDash("phone") || "Phone"}</TableHead>
+                        <TableHead>{tDash("balance") || "Balance"}</TableHead>
+                        <TableHead>{tDash("status") || "Status"}</TableHead>
+                        <TableHead>{tDash("actions") || "Actions"}</TableHead>
+                      </>
+                    )}
+                    {activeDashboardTab === "items" && (
+                      <>
+                        <TableHead>{tDash("name") || "Name"}</TableHead>
+                        <TableHead>{tDash("category") || "Category"}</TableHead>
+                        <TableHead>{tDash("stock") || "Stock"}</TableHead>
+                        <TableHead>{tDash("price") || "Price"}</TableHead>
+                      </>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeDashboardTab === "sales" &&
+                    (salesRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-muted-foreground text-center">
+                          {tDash("noData") || "No data"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      salesRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>{row.invoiceNo}</TableCell>
+                          <TableCell>{row.customerName}</TableCell>
+                          <TableCell>{isPrivacyMode ? "***" : `PKR ${Math.round(row.total).toLocaleString()}`}</TableCell>
+                          <TableCell>{isPrivacyMode ? "***" : `PKR ${Math.round(row.paid).toLocaleString()}`}</TableCell>
+                          <TableCell>{isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}</TableCell>
+                          <TableCell>{row.date}</TableCell>
+                        </TableRow>
+                      ))
+                    ))}
+
+                  {activeDashboardTab === "customers" &&
+                    (customerRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-muted-foreground text-center">
+                          {tDash("noData") || "No data"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      customerRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>{row.email}</TableCell>
+                          <TableCell>{row.phone}</TableCell>
+                          <TableCell>{isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}</TableCell>
+                          <TableCell>{row.status}</TableCell>
+                          <TableCell>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/${locale}/admin/customer-transactions/${row.id}`}>
+                                {tDash("viewTransactions") || "View Transactions"}
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ))}
+
+                  {activeDashboardTab === "items" &&
+                    (itemRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-muted-foreground text-center">
+                          {tDash("noData") || "No data"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      itemRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>{row.category}</TableCell>
+                          <TableCell>{row.stock}</TableCell>
+                          <TableCell>{isPrivacyMode ? "***" : `PKR ${Math.round(row.price).toLocaleString()}`}</TableCell>
+                        </TableRow>
+                      ))
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeDashboardTab === "charts" && (
+        <>
+          {/* Charts Subsection */}
+          <div className="mt-2">
+            <h2 className="text-lg sm:text-xl font-semibold">
+              {tDash("charts") || "Charts"}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {tDash("chartsOverview") || "Visual overview of your sales and performance"}
+            </p>
+          </div>
 
       {/* Charts Grid - Row 1 */}
       <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 lg:grid-cols-3">
@@ -337,6 +612,8 @@ export default function Page() {
           </CardContent>
         </Card>
       </div>
+        </>
+      )}
 
       {/* Support contact on dashboard footer */}
       <Card className="mt-10">
