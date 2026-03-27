@@ -3,6 +3,7 @@ import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 
 interface DashboardData {
+  totalBalance: number;
   totalRevenue: number;
   totalExpenses: number;
   totalProfit: number;
@@ -32,6 +33,26 @@ function getCurrentMonthRange(): { start: Date; end: Date } {
   return { start, end };
 }
 
+function parsePaidAmount(order: any): number {
+  if (Array.isArray(order?.payments)) {
+    return order.payments.reduce(
+      (sum: number, payment: any) =>
+        sum + parseAmount(payment?.paid_amount ?? payment?.amount ?? 0),
+      0,
+    );
+  }
+
+  if (order?.payments && typeof order.payments === "object") {
+    return parseAmount(order.payments?.paid_amount ?? order.payments?.amount ?? 0);
+  }
+
+  if (order?.payment && typeof order.payment === "object") {
+    return parseAmount(order.payment?.paid_amount ?? order.payment?.amount ?? 0);
+  }
+
+  return parseAmount(order?.paid_amount ?? order?.amount_paid ?? 0);
+}
+
 export async function GET(): Promise<NextResponse> {
   try {
     let user;
@@ -46,32 +67,60 @@ export async function GET(): Promise<NextResponse> {
     }
 
     const userId = toObjectId(user.id);
-    const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+    const [ordersCollection, expensesCollection] = await Promise.all([
+      getCollection(COLLECTIONS.ORDERS),
+      getCollection(COLLECTIONS.EXPENSES),
+    ]);
 
     const { start, end } = getCurrentMonthRange();
-    const orders = await ordersCollection
-      .find({
-        user_id: userId,
-        $or: [
-          { sale_date: { $gte: start, $lte: end } },
-          { created_at: { $gte: start, $lte: end } },
-          { order_date: { $gte: start, $lte: end } },
-        ],
-      })
-      .toArray();
 
-    const currentMonthSales = orders.reduce((sum, order: any) => {
+    const [allOrders, currentMonthOrders, currentMonthExpenses] = await Promise.all([
+      ordersCollection.find({ user_id: userId }).toArray(),
+      ordersCollection
+        .find({
+          user_id: userId,
+          $or: [
+            { sale_date: { $gte: start, $lte: end } },
+            { created_at: { $gte: start, $lte: end } },
+            { order_date: { $gte: start, $lte: end } },
+          ],
+        })
+        .toArray(),
+      expensesCollection
+        .find({
+          user_id: userId,
+          $or: [
+            { date: { $gte: start, $lte: end } },
+            { created_at: { $gte: start, $lte: end } },
+          ],
+        })
+        .toArray(),
+    ]);
+
+    const currentMonthSales = currentMonthOrders.reduce((sum, order: any) => {
       const total = parseAmount(order?.total_amount ?? order?.total ?? 0);
       return sum + total;
     }, 0);
 
+    const totalBalance = allOrders.reduce((sum, order: any) => {
+      const total = parseAmount(order?.total_amount ?? order?.total ?? 0);
+      const paid = parsePaidAmount(order);
+      return sum + Math.max(0, total - paid);
+    }, 0);
+
+    const currentMonthExpensesTotal = currentMonthExpenses.reduce(
+      (sum, expense: any) => sum + parseAmount(expense?.amount ?? 0),
+      0,
+    );
+
     const dashboardData: DashboardData = {
+      totalBalance: Math.round(totalBalance * 100) / 100,
       totalRevenue: Math.round(currentMonthSales * 100) / 100,
-      totalExpenses: 0,
+      totalExpenses: Math.round(currentMonthExpensesTotal * 100) / 100,
       totalProfit: 0,
       profitMargin: 0,
       avgDailyRevenue: 0,
-      totalOrders: orders.length,
+      totalOrders: currentMonthOrders.length,
       revenueTrend: [],
       topProducts: [],
       cashflow: [],
@@ -84,6 +133,7 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json(
       {
         error: "Internal server error",
+        totalBalance: 0,
         totalRevenue: 0,
         totalExpenses: 0,
         totalProfit: 0,

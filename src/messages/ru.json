@@ -731,6 +731,7 @@
   "dashboard": {
     "analyticalDashboard": "Analytics Dashboard",
     "dashboardDescription": "Apne Karobar ki Real-time Insights aur Analytics",
+    "totalBalanceYoullGet": "Total Balance (Aap ko milay ga)",
     "totalRevenue": "Kul Aamidni",
     "saleCurrentMonth": "Sale (Current Month)",
     "totalExpenses": "Kul Kharche",
@@ -750,7 +751,7 @@
     "charts": "Charts",
     "chartsOverview": "Aapki sales aur performance ka visual overview",
     "dashboardSections": "Dashboard Sections",
-    "dashboardSectionsDescription": "Customer transactions, sales, items, aur charts ke darmiyan switch karain",
+    "dashboardSectionsDescription": "Customer transactions, sales, aur items ke darmiyan switch karain",
     "tables": "Tables",
     "tablesDescription": "Sales, customers, aur items ko table form mein dekhein",
     "sales": "Sales",

@@ -731,6 +731,7 @@
   "dashboard": {
     "analyticalDashboard": "Analytics Dashboard",
     "dashboardDescription": "Real-time insights and analytics of your business",
+    "totalBalanceYoullGet": "Total Balance (You'll get)",
     "totalRevenue": "Total Revenue",
     "totalExpenses": "Total Expenses",
     "totalProfit": "Total Profit (selling)",
@@ -749,7 +750,7 @@
     "charts": "Charts",
     "chartsOverview": "Visual overview of your sales and performance",
     "dashboardSections": "Dashboard Sections",
-    "dashboardSectionsDescription": "Switch between customer transactions, sales, items, and charts",
+    "dashboardSectionsDescription": "Switch between customer transactions, sales, and items",
     "tables": "Tables",
     "tablesDescription": "Sales, customers, and items in tabular format",
     "sales": "Sales",

@@ -731,6 +731,7 @@
   "dashboard": {
     "analyticalDashboard": "تجزیاتی ڈیش بورڈ",
     "dashboardDescription": "اپنے کاروبار کی حقیقی وقت کی بصیرت اور تجزیات",
+    "totalBalanceYoullGet": "کل بیلنس (جو آپ کو ملے گا)",
     "totalRevenue": "کل آمدنی",
     "totalExpenses": "کل اخراجات",
     "totalProfit": "کل منافع (فروخت)",
@@ -749,7 +750,7 @@
     "charts": "چارٹس",
     "chartsOverview": "آپ کی فروخت اور کارکردگی کا بصری جائزہ",
     "dashboardSections": "ڈیش بورڈ سیکشنز",
-    "dashboardSectionsDescription": "گاہک ٹرانزیکشنز، سیلز، آئٹمز اور چارٹس کے درمیان تبدیل کریں",
+    "dashboardSectionsDescription": "گاہک ٹرانزیکشنز، سیلز، اور آئٹمز کے درمیان تبدیل کریں",
     "tables": "ٹیبلز",
     "tablesDescription": "فروخت، گاہک، اور آئٹمز ٹیبل کی صورت میں",
     "sales": "فروخت",
