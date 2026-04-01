@@ -18,7 +18,6 @@ import {
   PackageIcon,
   ShoppingCartIcon,
   UsersIcon,
-  ShoppingBagIcon,
   LogOutIcon,
   Settings,
   Menu,
@@ -401,30 +400,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block">
                     {tNav("customersDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
-            <div>
-              <Link
-                href={`/${locale}/admin/orders`}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/orders"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
-                title={sidebarMinimized ? tNav("orders") : ""}
-              >
-                <ShoppingBagIcon className="h-5 w-5 flex-shrink-0" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium text-xs md:text-sm">
-                    {tNav("orders")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block">
-                    {tNav("ordersDescription")}
                   </span>
                 </div>
               </Link>
