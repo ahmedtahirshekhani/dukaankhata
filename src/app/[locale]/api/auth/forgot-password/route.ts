@@ -33,8 +33,8 @@ function createTransporter(port: number) {
       servername: MAIL_TLS_SERVERNAME,
       minVersion: "TLSv1.2",
     },
-      debug: true,
-  logger: true,
+      debug: false,
+  logger: false,
   });
 }
 
@@ -108,6 +108,7 @@ export async function POST(req: Request) {
           <p>If you didn't request this, you can ignore this email.</p>
         </div>
       `;
+
 
       try {
         if (!MAIL_USER || !MAIL_PASSWORD) {
