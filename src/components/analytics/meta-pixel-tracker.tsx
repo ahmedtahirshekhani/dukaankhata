@@ -33,6 +33,19 @@ function MetaPixelTrackerContent({ pixelId }: Props) {
     const handleRouteChange = () => {
       if (typeof fbq !== "undefined") {
         fbq("track", "PageView");
+
+        const isWelcomeRoute = /^\/[^/]+\/welcome\/?$/.test(pathname || "");
+        if (isWelcomeRoute) {
+          const conversionKey = "meta_complete_registration_tracked";
+          const alreadyTracked = window.sessionStorage.getItem(conversionKey);
+
+          if (!alreadyTracked) {
+            fbq("track", "CompleteRegistration", {
+              content_name: "signup_success",
+            });
+            window.sessionStorage.setItem(conversionKey, "1");
+          }
+        }
       }
     };
 
