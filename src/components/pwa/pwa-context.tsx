@@ -38,21 +38,25 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
 
   // Check if device is iOS
   const isIOS = () => {
+    if (typeof navigator === "undefined") return false;
     return /iPad|iPhone|iPod/.test(navigator.userAgent);
   };
 
   // Check if device is macOS
   const isMacOS = () => {
+    if (typeof navigator === "undefined") return false;
     return /Mac/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
   };
 
   // Check if device is Windows
   const isWindows = () => {
+    if (typeof navigator === "undefined") return false;
     return /Win/.test(navigator.userAgent);
   };
 
   // Check if browser is Chrome
   const isChrome = () => {
+    if (typeof navigator === "undefined") return false;
     return /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
   };
 

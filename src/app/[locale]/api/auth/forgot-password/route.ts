@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 // Assumptions:
 // - You have a users collection in MongoDB. We'll query by email to check existence.
@@ -9,11 +10,55 @@ import crypto from "crypto";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const MAIL_FROM = process.env.MAIL_FROM || "no-reply@example.com";
 
-// Nodemailer transport via SMTP envs
-// Brevo API configuration
-const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
-const BREVO_API_KEY = process.env.BREVO_API_KEY || process.env.MAIL_PASS; // fallback if using SMTP API key in MAIL_PASS
-const SENDER_NAME = process.env.MAIL_SENDER_NAME || "DukaanKhata";
+const MAIL_HOST = process.env.MAIL_HOST || "smtp.gmail.com";
+const MAIL_PORT = Number(process.env.MAIL_PORT || 465);
+const MAIL_USER = process.env.MAIL_USER || "";
+const MAIL_PASSWORD = (process.env.MAIL_PASSWORD || process.env.MAIL_PASS || "").replace(/\s+/g, "");
+const MAIL_TLS_SERVERNAME = process.env.MAIL_TLS_SERVERNAME || "smtp.gmail.com";
+
+function createTransporter(port: number) {
+  return nodemailer.createTransport({
+    host: MAIL_HOST,
+    port,
+    secure: port === 465,
+    requireTLS: port !== 465,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    auth: {
+      user: MAIL_USER,
+      pass: MAIL_PASSWORD,
+    },
+    tls: {
+      servername: MAIL_TLS_SERVERNAME,
+      minVersion: "TLSv1.2",
+    },
+      debug: true,
+  logger: true,
+  });
+}
+
+async function sendMailWithFallback(options: nodemailer.SendMailOptions) {
+  const orderedPorts = Array.from(new Set([MAIL_PORT, 465, 587]));
+  let lastError: unknown;
+
+  for (const port of orderedPorts) {
+    try {
+      const transporter = createTransporter(port);
+      await transporter.sendMail(options);
+      return { usedPort: port };
+    } catch (err) {
+      lastError = err;
+      console.error("SMTP attempt failed", {
+        host: MAIL_HOST,
+        port,
+        error: err,
+      });
+    }
+  }
+
+  throw lastError;
+}
 
 // Simple HMAC token builder with 15-min expiry encoded in token
 function buildResetToken(email: string) {
@@ -55,7 +100,7 @@ export async function POST(req: Request) {
       const token = buildResetToken(email);
       const resetLink = `${APP_URL}/en/reset-password?token=${token}`;
 
-        const html = `
+      const html = `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
           <h2>Password Reset Request</h2>
           <p>If you requested a password reset, click the link below. This link expires in 15 minutes.</p>
@@ -64,35 +109,29 @@ export async function POST(req: Request) {
         </div>
       `;
 
-        if (!BREVO_API_KEY) {
-          throw new Error("Missing BREVO_API_KEY env value");
+      try {
+        if (!MAIL_USER || !MAIL_PASSWORD) {
+          throw new Error("Missing MAIL_USER or MAIL_PASSWORD env values");
         }
 
-        const payload = {
-          sender: {
-            name: SENDER_NAME,
-            email: MAIL_FROM.replace(/.*<([^>]+)>.*/, "$1") || MAIL_FROM, // extract email if formatted
-          },
-          to: [{ email }],
+        const result = await sendMailWithFallback({
+          from: MAIL_FROM,
+          to: email,
           subject: "Reset your password",
-          htmlContent: html,
-        };
-
-        const res = await fetch(BREVO_API_URL, {
-          method: "POST",
-          headers: {
-            accept: "application/json",
-            "api-key": BREVO_API_KEY,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(payload),
+          html,
         });
-
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`Brevo API error: ${res.status} ${errText}`);
-        }
-      console.log("Brevo reset email queued for:", email);
+        console.log("Reset email sent via Nodemailer to:", email, "on port", result.usedPort);
+      } catch (emailError) {
+        console.error("Failed to send email via Nodemailer:", {
+          host: MAIL_HOST,
+          port: MAIL_PORT,
+          hasUser: Boolean(MAIL_USER),
+          hasPassword: Boolean(MAIL_PASSWORD),
+          tlsServername: MAIL_TLS_SERVERNAME,
+          error: emailError,
+        });
+        throw new Error(`Email send failed: ${emailError}`);
+      }
     }
 
     // Always return success to avoid user enumeration
