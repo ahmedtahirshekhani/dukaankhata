@@ -50,13 +50,13 @@
   }
 }
 ,
-"CustomerTransactionsSchema": {
+"PartyTransactionsSchema": {
   "$jsonSchema": {
     "bsonType": "object",
     "required": [
       "_id",
       "created_at",
-      "customer_id",
+      "party_id",
       "date",
       "payment_amount",
       "payment_method_id",
@@ -70,7 +70,7 @@
       "created_at": {
         "bsonType": "date"
       },
-      "customer_id": {
+      "party_id": {
         "bsonType": "objectId"
       },
       "date": {
@@ -96,7 +96,7 @@
 
 
 },
-"CustomersSchema": {
+"PartiesSchema": {
   "$jsonSchema": {
     "bsonType": "object",
     "required": [
@@ -160,7 +160,7 @@
       "_id",
       "charges",
       "created_at",
-      "customer_id",
+      "party_id",
       "due_date",
       "invoice_no",
       "items",
@@ -196,7 +196,7 @@
       "created_at": {
         "bsonType": "date"
       },
-      "customer_id": {
+      "party_id": {
         "bsonType": "objectId"
       },
       "due_date": {
@@ -498,13 +498,13 @@
     }
   }
 },
-"CustomerLedgerEntriesSchema": {
+"PartyLedgerEntriesSchema": {
   "$jsonSchema": {
     "bsonType": "object",
     "required": [
       "_id",
       "user_id",
-      "customer_id",
+      "party_id",
       "event_key",
       "event_type",
       "event_source",
@@ -520,7 +520,7 @@
       "user_id": {
         "bsonType": "objectId"
       },
-      "customer_id": {
+      "party_id": {
         "bsonType": "objectId"
       },
       "event_key": {
@@ -566,13 +566,13 @@
     }
   }
 },
-"CustomerBalanceStateSchema": {
+"PartyBalanceStateSchema": {
   "$jsonSchema": {
     "bsonType": "object",
     "required": [
       "_id",
       "user_id",
-      "customer_id",
+      "party_id",
       "current_balance",
       "updated_at"
     ],
@@ -583,7 +583,7 @@
       "user_id": {
         "bsonType": "objectId"
       },
-      "customer_id": {
+      "party_id": {
         "bsonType": "objectId"
       },
       "current_balance": {
