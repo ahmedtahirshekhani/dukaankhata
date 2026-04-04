@@ -114,10 +114,10 @@ export async function createIndexes() {
     await db.collection(COLLECTIONS.PRODUCTS).createIndex({ category: 1 });
 
     // Parties collection indexes
+    await db.collection(COLLECTIONS.PARTIES).createIndex({ user_id: 1 });
     await db
       .collection(COLLECTIONS.PARTIES)
-      .createIndex({ email: 1, user_id: 1 }, { unique: true, sparse: true });
-    await db.collection(COLLECTIONS.PARTIES).createIndex({ user_id: 1 });
+      .createIndex({ user_id: 1, name: 1 });
 
     // Orders collection indexes
     await db.collection(COLLECTIONS.ORDERS).createIndex({ user_id: 1 });
