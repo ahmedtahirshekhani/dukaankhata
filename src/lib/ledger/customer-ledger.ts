@@ -5,31 +5,39 @@ import clientPromise, {
   toObjectId,
 } from "@/lib/db/mongodb";
 
-export type CustomerLedgerEventType =
+export type PartyLedgerEventType =
   | "opening_balance"
   | "order_debit"
   | "order_payment_credit"
   | "payment_in_credit"
   | "manual_adjustment";
 
-export interface AppendCustomerLedgerEntryInput {
+// Backward compatibility aliases
+export type CustomerLedgerEventType = PartyLedgerEventType;
+
+export interface AppendPartyLedgerEntryInput {
   userId: string;
-  customerId: string;
+  partyId: string;
   eventKey: string;
-  eventType: CustomerLedgerEventType;
-  eventSource: "customer" | "order" | "customer_transaction" | "system";
+  eventType: PartyLedgerEventType;
+  eventSource: "party" | "order" | "party_transaction" | "system";
   eventSourceId?: string | null;
   amountDelta: number;
   effectiveAt: Date;
   metadata?: Record<string, unknown> | null;
 }
 
-interface CustomerLedgerEntryDoc {
+// Backward compatibility alias
+export interface AppendCustomerLedgerEntryInput extends AppendPartyLedgerEntryInput {
+  customerId: string;
+}
+
+interface PartyLedgerEntryDoc {
   _id?: ObjectId;
   user_id: ObjectId;
-  customer_id: ObjectId;
+  party_id: ObjectId;
   event_key: string;
-  event_type: CustomerLedgerEventType;
+  event_type: PartyLedgerEventType;
   event_source: string;
   event_source_id: ObjectId | string | null;
   amount_delta: number;
@@ -39,10 +47,10 @@ interface CustomerLedgerEntryDoc {
   metadata?: Record<string, unknown> | null;
 }
 
-interface CustomerBalanceStateDoc {
+interface PartyBalanceStateDoc {
   _id: ObjectId;
   user_id: ObjectId;
-  customer_id: ObjectId;
+  party_id: ObjectId;
   current_balance: number;
   last_entry_id: ObjectId | null;
   last_effective_at: Date | null;
@@ -51,15 +59,18 @@ interface CustomerBalanceStateDoc {
   updated_at: Date;
 }
 
-export interface AppendCustomerLedgerEntryResult {
+export interface AppendPartyLedgerEntryResult {
   entryId: string;
   runningBalance: number;
   alreadyExists: boolean;
 }
 
-export async function appendCustomerLedgerEntry(
-  input: AppendCustomerLedgerEntryInput
-): Promise<AppendCustomerLedgerEntryResult> {
+// Backward compatibility alias
+export interface AppendCustomerLedgerEntryResult extends AppendPartyLedgerEntryResult {}
+
+export async function appendPartyLedgerEntry(
+  input: AppendPartyLedgerEntryInput
+): Promise<AppendPartyLedgerEntryResult> {
   if (!input.eventKey || input.eventKey.trim() === "") {
     throw new Error("eventKey is required");
   }
@@ -68,22 +79,22 @@ export async function appendCustomerLedgerEntry(
   }
 
   const userObjId = toObjectId(input.userId);
-  const customerObjId = toObjectId(input.customerId);
+  const partyObjId = toObjectId(input.partyId);
   const eventSourceId = input.eventSourceId
     ? toEventSourceId(input.eventSourceId)
     : null;
 
-  const ledgerCollection = await getCollection<CustomerLedgerEntryDoc>(
-    COLLECTIONS.CUSTOMER_LEDGER_ENTRIES
+  const ledgerCollection = await getCollection<PartyLedgerEntryDoc>(
+    COLLECTIONS.PARTY_LEDGER_ENTRIES
   );
-  const balanceStateCollection = await getCollection<CustomerBalanceStateDoc>(
-    COLLECTIONS.CUSTOMER_BALANCE_STATE
+  const balanceStateCollection = await getCollection<PartyBalanceStateDoc>(
+    COLLECTIONS.PARTY_BALANCE_STATE
   );
-  const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
+  const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
 
   const existing = await ledgerCollection.findOne({
     user_id: userObjId,
-    customer_id: customerObjId,
+    party_id: partyObjId,
     event_key: input.eventKey,
   });
 
@@ -99,17 +110,17 @@ export async function appendCustomerLedgerEntry(
   const session = client.startSession();
 
   try {
-    let output: AppendCustomerLedgerEntryResult | null = null;
+    let output: AppendPartyLedgerEntryResult | null = null;
 
     await session.withTransaction(async () => {
       const now = new Date();
 
       const state = await balanceStateCollection.findOneAndUpdate(
-        { user_id: userObjId, customer_id: customerObjId },
+        { user_id: userObjId, party_id: partyObjId },
         {
           $setOnInsert: {
             user_id: userObjId,
-            customer_id: customerObjId,
+            party_id: partyObjId,
             last_entry_id: null,
             last_effective_at: null,
             created_at: now,
@@ -124,7 +135,7 @@ export async function appendCustomerLedgerEntry(
       );
 
       if (!state) {
-        throw new Error("Failed to update customer balance state");
+        throw new Error("Failed to update party balance state");
       }
 
       const runningBalance = state.current_balance;
@@ -132,7 +143,7 @@ export async function appendCustomerLedgerEntry(
       const insertResult = await ledgerCollection.insertOne(
         {
           user_id: userObjId,
-          customer_id: customerObjId,
+          party_id: partyObjId,
           event_key: input.eventKey,
           event_type: input.eventType,
           event_source: input.eventSource,
@@ -147,7 +158,7 @@ export async function appendCustomerLedgerEntry(
       );
 
       await balanceStateCollection.updateOne(
-        { user_id: userObjId, customer_id: customerObjId },
+        { user_id: userObjId, party_id: partyObjId },
         {
           $set: {
             last_entry_id: insertResult.insertedId,
@@ -158,8 +169,8 @@ export async function appendCustomerLedgerEntry(
         { session }
       );
 
-      await customersCollection.updateOne(
-        { _id: customerObjId, user_id: userObjId },
+      await partiesCollection.updateOne(
+        { _id: partyObjId, user_id: userObjId },
         { $set: { balance: runningBalance, updated_at: now } },
         { session }
       );
@@ -181,7 +192,7 @@ export async function appendCustomerLedgerEntry(
     if (mongoError?.code === 11000) {
       const dupe = await ledgerCollection.findOne({
         user_id: userObjId,
-        customer_id: customerObjId,
+        party_id: partyObjId,
         event_key: input.eventKey,
       });
       if (dupe) {
@@ -198,9 +209,26 @@ export async function appendCustomerLedgerEntry(
   }
 }
 
-export async function seedCustomerOpeningBalance(
+// Backward compatibility wrapper
+export async function appendCustomerLedgerEntry(
+  input: AppendCustomerLedgerEntryInput
+): Promise<AppendCustomerLedgerEntryResult> {
+  return appendPartyLedgerEntry({
+    userId: input.userId,
+    partyId: input.customerId,
+    eventKey: input.eventKey,
+    eventType: input.eventType as PartyLedgerEventType,
+    eventSource: input.eventSource as "party" | "order" | "party_transaction" | "system",
+    eventSourceId: input.eventSourceId,
+    amountDelta: input.amountDelta,
+    effectiveAt: input.effectiveAt,
+    metadata: input.metadata,
+  });
+}
+
+export async function seedPartyOpeningBalance(
   userId: string,
-  customerId: string,
+  partyId: string,
   openingBalance: number,
   effectiveAt: Date
 ): Promise<void> {
@@ -208,22 +236,32 @@ export async function seedCustomerOpeningBalance(
     return;
   }
 
-  await appendCustomerLedgerEntry({
+  await appendPartyLedgerEntry({
     userId,
-    customerId,
-    eventKey: `customer_opening:${customerId}`,
+    partyId,
+    eventKey: `party_opening:${partyId}`,
     eventType: "opening_balance",
-    eventSource: "customer",
-    eventSourceId: customerId,
+    eventSource: "party",
+    eventSourceId: partyId,
     amountDelta: openingBalance,
     effectiveAt,
-    metadata: { source: "customer_opening_balance" },
+    metadata: { source: "party_opening_balance" },
   });
 }
 
-export async function setCustomerBalanceTarget(
+// Backward compatibility wrapper
+export async function seedCustomerOpeningBalance(
   userId: string,
   customerId: string,
+  openingBalance: number,
+  effectiveAt: Date
+): Promise<void> {
+  return seedPartyOpeningBalance(userId, customerId, openingBalance, effectiveAt);
+}
+
+export async function setPartyBalanceTarget(
+  userId: string,
+  partyId: string,
   targetBalance: number,
   eventKey: string,
   effectiveAt: Date,
@@ -233,20 +271,20 @@ export async function setCustomerBalanceTarget(
     throw new Error("targetBalance must be a finite number");
   }
 
-  const current = await getCurrentCustomerBalance(userId, customerId);
+  const current = await getCurrentPartyBalance(userId, partyId);
   const delta = targetBalance - current;
 
   if (delta === 0) {
     return;
   }
 
-  await appendCustomerLedgerEntry({
+  await appendPartyLedgerEntry({
     userId,
-    customerId,
+    partyId,
     eventKey,
     eventType: "manual_adjustment",
     eventSource: "system",
-    eventSourceId: customerId,
+    eventSourceId: partyId,
     amountDelta: delta,
     effectiveAt,
     metadata: {
@@ -257,27 +295,39 @@ export async function setCustomerBalanceTarget(
   });
 }
 
-export async function getCurrentCustomerBalance(
+// Backward compatibility wrapper
+export async function setCustomerBalanceTarget(
   userId: string,
-  customerId: string
+  customerId: string,
+  targetBalance: number,
+  eventKey: string,
+  effectiveAt: Date,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  return setPartyBalanceTarget(userId, customerId, targetBalance, eventKey, effectiveAt, metadata);
+}
+
+export async function getCurrentPartyBalance(
+  userId: string,
+  partyId: string
 ): Promise<number> {
-  const balanceStateCollection = await getCollection<CustomerBalanceStateDoc>(
-    COLLECTIONS.CUSTOMER_BALANCE_STATE
+  const balanceStateCollection = await getCollection<PartyBalanceStateDoc>(
+    COLLECTIONS.PARTY_BALANCE_STATE
   );
 
   const state = await balanceStateCollection.findOne({
     user_id: toObjectId(userId),
-    customer_id: toObjectId(customerId),
+    party_id: toObjectId(partyId),
   });
 
   if (state) {
     return state.current_balance ?? 0;
   }
 
-  const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
-  const customer = await customersCollection.findOne(
+  const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
+  const party = await partiesCollection.findOne(
     {
-      _id: toObjectId(customerId),
+      _id: toObjectId(partyId),
       user_id: toObjectId(userId),
     },
     {
@@ -285,7 +335,15 @@ export async function getCurrentCustomerBalance(
     }
   );
 
-  return customer?.balance ?? customer?.opening_balance ?? 0;
+  return party?.balance ?? party?.opening_balance ?? 0;
+}
+
+// Backward compatibility wrapper
+export async function getCurrentCustomerBalance(
+  userId: string,
+  customerId: string
+): Promise<number> {
+  return getCurrentPartyBalance(userId, customerId);
 }
 
 function toEventSourceId(

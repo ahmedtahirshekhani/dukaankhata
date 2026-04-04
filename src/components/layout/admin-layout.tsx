@@ -42,6 +42,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [salesExpanded, setSalesExpanded] = useState(true);
+  const [purchaseExpanded, setPurchaseExpanded] = useState(true);
   const [companyName, setCompanyName] = useState<string>("");
 
   // Fetch company name from localStorage or session
@@ -83,8 +84,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/payment-in",
     "/admin/sale-return",
   ];
+  const purchaseSubRoutes = [
+    "/admin/purchase-bill",
+    "/admin/payment-out",
+  ];
   const isSalesSectionActive =
     pathWithoutLocale === "/admin/sales" || salesSubRoutes.includes(pathWithoutLocale);
+  const isPurchaseSectionActive =
+    pathWithoutLocale === "/admin/purchase" || purchaseSubRoutes.includes(pathWithoutLocale);
 
   useEffect(() => {
     if (isSalesSectionActive) {
@@ -92,11 +99,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isSalesSectionActive]);
 
+  useEffect(() => {
+    if (isPurchaseSectionActive) {
+      setPurchaseExpanded(true);
+    }
+  }, [isPurchaseSectionActive]);
+
   const pageNames: { [key: string]: string } = {
     "/admin": tNav("dashboard"),
     "/admin/payment-in": tNav("paymentIn"),
     "/admin/sales": tNav("sales"),
     "/admin/sale-return": tNav("saleReturn"),
+    "/admin/purchase": tNav("purchase"),
+    "/admin/payment-out": tNav("paymentOut"),
+    "/admin/purchase-bill": tNav("purchase"),
     "/admin/expenses": tNav("expenses"),
     "/admin/customers": tNav("customers"),
     "/admin/products": tNav("products"),
@@ -328,6 +344,82 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     }`}
                   >
                     {tNav("saleReturn")}
+                  </Link>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <Link
+                  href={`/${locale}/admin/purchase`}
+                  onClick={() => setSidebarOpen(false)}
+                  aria-current={pathWithoutLocale === "/admin/purchase" ? "page" : undefined}
+                  className={`flex flex-1 items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
+                    isPurchaseSectionActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                  title={sidebarMinimized ? tNav("purchase") : ""}
+                >
+                  <ShoppingBagIcon className="h-5 w-5 flex-shrink-0" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium text-xs md:text-sm">
+                      {tNav("purchase")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block">
+                      {tNav("purchaseDescription")}
+                    </span>
+                  </div>
+                </Link>
+
+                {!sidebarMinimized && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`h-auto px-2 rounded-lg ${
+                      isPurchaseSectionActive
+                        ? "text-primary-foreground hover:bg-primary/90"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
+                    aria-expanded={purchaseExpanded}
+                    onClick={() => setPurchaseExpanded((prev) => !prev)}
+                  >
+                    <ChevronRight
+                      className={`h-4 w-4 transition-transform ${purchaseExpanded ? "rotate-90" : ""}`}
+                    />
+                  </Button>
+                )}
+              </div>
+
+              {!sidebarMinimized && purchaseExpanded && (
+                <div className="ml-7 mt-1 border-l pl-2 flex flex-col gap-1">
+                  <Link
+                    href={`/${locale}/admin/purchase-bill`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/purchase-bill" ? "page" : undefined}
+                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                      pathWithoutLocale === "/admin/purchase-bill"
+                        ? "bg-accent font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("purchaseBill")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/payment-out`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/payment-out" ? "page" : undefined}
+                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                      pathWithoutLocale === "/admin/payment-out"
+                        ? "bg-accent font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("paymentOut")}
                   </Link>
                 </div>
               )}

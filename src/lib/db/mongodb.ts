@@ -51,15 +51,19 @@ export async function getCollection<T extends Document = Document>(
 export const COLLECTIONS = {
   USERS: "users",
   PRODUCTS: "products",
-  CUSTOMERS: "customers",
+  PARTIES: "parties",
+  CUSTOMERS: "parties", // Alias for backward compatibility
   ORDERS: "orders",
   ORDER_ITEMS: "order_items",
   PAYMENT_METHODS: "payment_methods",
   PAYMENT_METHOD: "payment_method",
-  CUSTOMER_TRANSACTIONS: "customer_transaction",
+  PARTY_TRANSACTIONS: "party_transaction",
+  CUSTOMER_TRANSACTIONS: "party_transaction", // Alias for backward compatibility
   SALE_RETURN_TRANSACTIONS: "sale_return_transaction",
-  CUSTOMER_LEDGER_ENTRIES: "customer_ledger_entries",
-  CUSTOMER_BALANCE_STATE: "customer_balance_state",
+  PARTY_LEDGER_ENTRIES: "party_ledger_entries",
+  CUSTOMER_LEDGER_ENTRIES: "party_ledger_entries", // Alias for backward compatibility
+  PARTY_BALANCE_STATE: "party_balance_state",
+  CUSTOMER_BALANCE_STATE: "party_balance_state", // Alias for backward compatibility
   EXPENSES: "expenses",
   TRANSACTIONS: "transactions",
   PASSWORD_RESETS: "password_resets",
@@ -108,15 +112,15 @@ export async function createIndexes() {
     await db.collection(COLLECTIONS.PRODUCTS).createIndex({ user_id: 1 });
     await db.collection(COLLECTIONS.PRODUCTS).createIndex({ category: 1 });
 
-    // Customers collection indexes
+    // Parties collection indexes
     await db
-      .collection(COLLECTIONS.CUSTOMERS)
+      .collection(COLLECTIONS.PARTIES)
       .createIndex({ email: 1, user_id: 1 }, { unique: true, sparse: true });
-    await db.collection(COLLECTIONS.CUSTOMERS).createIndex({ user_id: 1 });
+    await db.collection(COLLECTIONS.PARTIES).createIndex({ user_id: 1 });
 
     // Orders collection indexes
     await db.collection(COLLECTIONS.ORDERS).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.ORDERS).createIndex({ customer_id: 1 });
+    await db.collection(COLLECTIONS.ORDERS).createIndex({ party_id: 1 });
     await db.collection(COLLECTIONS.ORDERS).createIndex({ created_at: -1 });
 
     // Order items collection indexes
@@ -133,15 +137,15 @@ export async function createIndexes() {
       .collection(COLLECTIONS.PAYMENT_METHOD)
       .createIndex({ user_id: 1 });
 
-    // Customer transactions (payment in) collection indexes
+    // Party transactions (payment in) collection indexes
     await db
-      .collection(COLLECTIONS.CUSTOMER_TRANSACTIONS)
+      .collection(COLLECTIONS.PARTY_TRANSACTIONS)
       .createIndex({ user_id: 1 });
     await db
-      .collection(COLLECTIONS.CUSTOMER_TRANSACTIONS)
-      .createIndex({ customer_id: 1 });
+      .collection(COLLECTIONS.PARTY_TRANSACTIONS)
+      .createIndex({ party_id: 1 });
     await db
-      .collection(COLLECTIONS.CUSTOMER_TRANSACTIONS)
+      .collection(COLLECTIONS.PARTY_TRANSACTIONS)
       .createIndex({ date: -1 });
 
     // Sale return transactions collection indexes
@@ -150,7 +154,7 @@ export async function createIndexes() {
       .createIndex({ user_id: 1 });
     await db
       .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
-      .createIndex({ customer_id: 1 });
+      .createIndex({ party_id: 1 });
     await db
       .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
       .createIndex({ date: -1 });
@@ -158,19 +162,19 @@ export async function createIndexes() {
       .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
       .createIndex({ user_id: 1, return_number: 1 });
 
-    // Customer ledger collections indexes
+    // Party ledger collections indexes
     await db
-      .collection(COLLECTIONS.CUSTOMER_LEDGER_ENTRIES)
-      .createIndex({ user_id: 1, customer_id: 1, effective_at: -1 });
+      .collection(COLLECTIONS.PARTY_LEDGER_ENTRIES)
+      .createIndex({ user_id: 1, party_id: 1, effective_at: -1 });
     await db
-      .collection(COLLECTIONS.CUSTOMER_LEDGER_ENTRIES)
-      .createIndex({ user_id: 1, customer_id: 1, created_at: -1 });
+      .collection(COLLECTIONS.PARTY_LEDGER_ENTRIES)
+      .createIndex({ user_id: 1, party_id: 1, created_at: -1 });
     await db
-      .collection(COLLECTIONS.CUSTOMER_LEDGER_ENTRIES)
-      .createIndex({ user_id: 1, customer_id: 1, event_key: 1 }, { unique: true });
+      .collection(COLLECTIONS.PARTY_LEDGER_ENTRIES)
+      .createIndex({ user_id: 1, party_id: 1, event_key: 1 }, { unique: true });
     await db
-      .collection(COLLECTIONS.CUSTOMER_BALANCE_STATE)
-      .createIndex({ user_id: 1, customer_id: 1 }, { unique: true });
+      .collection(COLLECTIONS.PARTY_BALANCE_STATE)
+      .createIndex({ user_id: 1, party_id: 1 }, { unique: true });
 
     // Expenses collection indexes
     await db.collection(COLLECTIONS.EXPENSES).createIndex({ user_id: 1 });
