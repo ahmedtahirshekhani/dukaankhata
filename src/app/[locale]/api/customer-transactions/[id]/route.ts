@@ -53,6 +53,7 @@ export async function GET(
       paymentAmount: item.payment_amount,
       paymentMethodId: typeof pmId === 'string' ? pmId : pmId.toString(),
       date: new Date(item.date).toISOString().split('T')[0],
+      type: (item as any).type ?? 'payment-in',
     });
   } catch (err: unknown) {
     console.error('customer-transactions GET [id] error', err);
@@ -80,6 +81,7 @@ export async function PUT(
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
     const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
+    const type = body?.type ?? 'payment-in';
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json({ error: 'Valid customer is required' }, { status: 400 });
@@ -114,7 +116,7 @@ export async function PUT(
         customerId: oldCustomerId,
         eventKey: `payment_in_update_reversal:${id}:${oldCustomerId}:${oldAmount}:${new Date(existing.date).getTime()}`,
         eventType: 'manual_adjustment',
-        eventSource: 'customer_transaction',
+        eventSource: 'party_transaction',
         eventSourceId: id,
         amountDelta: oldAmount,
         effectiveAt: new Date(),
@@ -130,7 +132,7 @@ export async function PUT(
         customerId: newCustomerId,
         eventKey: `payment_in_update_apply:${id}:${newCustomerId}:${paymentAmount}:${date.getTime()}`,
         eventType: 'payment_in_credit',
-        eventSource: 'customer_transaction',
+        eventSource: 'party_transaction',
         eventSourceId: id,
         amountDelta: -paymentAmount,
         effectiveAt: date,
@@ -150,6 +152,7 @@ export async function PUT(
           payment_amount: paymentAmount,
           payment_method_id: isHardcodedMethod ? paymentMethodId : toObjectId(paymentMethodId),
           date,
+          type,
           updated_at: now,
         },
       },
@@ -167,6 +170,7 @@ export async function PUT(
       paymentAmount: result.payment_amount,
       paymentMethodId: typeof pmId === 'string' ? pmId : pmId.toString(),
       date: new Date(result.date).toISOString().split('T')[0],
+      type: (result as any).type ?? 'payment-in',
     });
   } catch (err: unknown) {
     console.error('customer-transactions PUT [id] error', err);
@@ -207,7 +211,7 @@ export async function DELETE(
         customerId,
         eventKey: `payment_in_delete_reversal:${id}:${customerId}:${paymentAmount}:${new Date(existing.date).getTime()}`,
         eventType: 'manual_adjustment',
-        eventSource: 'customer_transaction',
+        eventSource: 'party_transaction',
         eventSourceId: id,
         amountDelta: paymentAmount,
         effectiveAt: new Date(),

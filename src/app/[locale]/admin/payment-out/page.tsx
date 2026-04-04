@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
-type Customer = {
+type Party = {
   id: string;
   name: string;
   email?: string;
@@ -63,7 +63,7 @@ type PaymentMethod = {
   bankDetails?: string;
 };
 
-type CustomerTransaction = {
+type PartyTransaction = {
   id: string;
   customerId: string;
   customerName: string;
@@ -71,15 +71,16 @@ type CustomerTransaction = {
   paymentMethodId: string;
   paymentMethodName: string;
   date: string;
+  type: string;
 };
 
-export default function PaymentInPage() {
+export default function PaymentOutPage() {
   const locale = useLocale();
-  const t = useTranslations("paymentIn");
+  const t = useTranslations("paymentOut");
   const tCommon = useTranslations("common");
 
-  const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [transactions, setTransactions] = useState<PartyTransaction[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,11 +88,11 @@ export default function PaymentInPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [transactionToDelete, setTransactionToDelete] = useState<CustomerTransaction | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<PartyTransaction | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     paymentMethod: "all",
-    customer: "all",
+    party: "all",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -102,14 +103,27 @@ export default function PaymentInPage() {
     isSuccess?: boolean;
   }>({ open: false, message: "" });
 
-  const [formCustomerId, setFormCustomerId] = useState("");
+  const [formPartyId, setFormPartyId] = useState("");
   const [formPaymentAmount, setFormPaymentAmount] = useState("");
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
 
+  // Fetch vendors (not customers for payment out)
+  const fetchParties = useCallback(async () => {
+    try {
+      const res = await fetch(`/${locale}/api/customers`);
+      if (!res.ok) return;
+      const data = await res.json();
+      console.log("Fetched Parties for payment out:", data);
+      setParties(data.filter((p: Party & { is_delete?: number }) => p.is_delete !== 1));
+    } catch {
+      // ignore
+    }
+  }, [locale]);
+
   const fetchTransactions = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-in`);
+      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-out`);
       if (!res.ok) throw new Error(t("failedToFetch"));
       const data = await res.json();
       setTransactions(data);
@@ -118,18 +132,7 @@ export default function PaymentInPage() {
     } finally {
       setLoading(false);
     }
-  }, [locale, t]);
-
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/customers`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setCustomers(data.filter((c: Customer & { is_delete?: number }) => c.is_delete !== 1));
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  }, [locale, t]); // <- Fixed: Added closing bracket and dependencies
 
   const fetchPaymentMethods = useCallback(async () => {
     try {
@@ -154,13 +157,13 @@ export default function PaymentInPage() {
   }, [locale]);
 
   useEffect(() => {
-    fetchTransactions();
-    fetchCustomers();
+    fetchParties(); // Fetch parties first
     fetchPaymentMethods();
-  }, [fetchTransactions, fetchCustomers, fetchPaymentMethods]);
+    fetchTransactions();
+  }, [fetchParties, fetchPaymentMethods, fetchTransactions]);
 
   const resetForm = useCallback(() => {
-    setFormCustomerId("");
+    setFormPartyId("");
     setFormPaymentAmount("");
     setFormPaymentMethodId("");
     setFormDate(new Date().toISOString().split("T")[0]);
@@ -172,8 +175,8 @@ export default function PaymentInPage() {
     if (filters.paymentMethod !== "all") {
       result = result.filter((item) => item.paymentMethodId === filters.paymentMethod);
     }
-    if (filters.customer !== "all") {
-      result = result.filter((item) => item.customerId === filters.customer);
+    if (filters.party !== "all") {
+      result = result.filter((item) => item.customerId === filters.party);
     }
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
@@ -189,7 +192,7 @@ export default function PaymentInPage() {
   }, [transactions, searchTerm, filters]);
 
   const handleAdd = useCallback(async () => {
-    if (!formCustomerId || !formPaymentMethodId) {
+    if (!formPartyId || !formPaymentMethodId) {
       setErrorDialog({ open: true, title: t("validationError"), message: t("allFieldsRequired") });
       return;
     }
@@ -205,31 +208,19 @@ export default function PaymentInPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerId: formCustomerId,
+          customerId: formPartyId,
           paymentAmount: amount,
           paymentMethodId: formPaymentMethodId,
           date: formDate,
+          type: "payment-out",
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || t("failedToCreate"));
 
-      setTransactions((prev) => {
-        const customer = customers.find((c) => c.id === formCustomerId);
-        const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
-        return [
-          {
-            id: data.id,
-            customerId: formCustomerId,
-            customerName: customer?.name ?? "",
-            paymentAmount: amount,
-            paymentMethodId: formPaymentMethodId,
-            paymentMethodName: pm?.name ?? "",
-            date: formDate,
-          },
-          ...prev,
-        ];
-      });
+      // Refresh transactions after add
+      await fetchTransactions();
+      
       setShowAddDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("createdSuccess"), isSuccess: true });
@@ -238,11 +229,11 @@ export default function PaymentInPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [locale, formCustomerId, formPaymentAmount, formPaymentMethodId, formDate, customers, paymentMethods, resetForm, t, tCommon]);
+  }, [locale, formPartyId, formPaymentAmount, formPaymentMethodId, formDate, fetchTransactions, resetForm, t, tCommon]);
 
   const handleEdit = useCallback(async () => {
     if (!selectedId) return;
-    if (!formCustomerId || !formPaymentMethodId) {
+    if (!formPartyId || !formPaymentMethodId) {
       setErrorDialog({ open: true, title: t("validationError"), message: t("allFieldsRequired") });
       return;
     }
@@ -258,32 +249,19 @@ export default function PaymentInPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerId: formCustomerId,
+          customerId: formPartyId,
           paymentAmount: amount,
           paymentMethodId: formPaymentMethodId,
           date: formDate,
+          type: "payment-out",
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || t("failedToUpdate"));
 
-      const customer = customers.find((c) => c.id === formCustomerId);
-      const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
-      setTransactions((prev) =>
-        prev.map((item) =>
-          item.id === selectedId
-            ? {
-                ...item,
-                customerId: formCustomerId,
-                customerName: customer?.name ?? "",
-                paymentAmount: amount,
-                paymentMethodId: formPaymentMethodId,
-                paymentMethodName: pm?.name ?? "",
-                date: formDate,
-              }
-            : item
-        )
-      );
+      // Refresh transactions after edit
+      await fetchTransactions();
+      
       setShowEditDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("updatedSuccess"), isSuccess: true });
@@ -292,7 +270,7 @@ export default function PaymentInPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [locale, selectedId, formCustomerId, formPaymentAmount, formPaymentMethodId, formDate, customers, paymentMethods, resetForm, t, tCommon]);
+  }, [locale, selectedId, formPartyId, formPaymentAmount, formPaymentMethodId, formDate, fetchTransactions, resetForm, t, tCommon]);
 
   const handleDelete = useCallback(async () => {
     if (!transactionToDelete) return;
@@ -303,7 +281,10 @@ export default function PaymentInPage() {
         const data = await res.json();
         throw new Error(data?.error || t("failedToDelete"));
       }
-      setTransactions((prev) => prev.filter((t) => t.id !== transactionToDelete.id));
+      
+      // Refresh transactions after delete
+      await fetchTransactions();
+      
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
       setErrorDialog({ open: true, title: tCommon("success"), message: t("deletedSuccess"), isSuccess: true });
@@ -312,7 +293,7 @@ export default function PaymentInPage() {
     } finally {
       setIsDeleting(false);
     }
-  }, [locale, transactionToDelete, t, tCommon]);
+  }, [locale, transactionToDelete, fetchTransactions, t, tCommon]);
 
   const openAddDialog = () => {
     resetForm();
@@ -324,13 +305,13 @@ export default function PaymentInPage() {
     setFilters((prev) => ({ ...prev, paymentMethod: value }));
   };
 
-  const handleFilterCustomer = (value: string) => {
-    setFilters((prev) => ({ ...prev, customer: value }));
+  const handleFilterParty = (value: string) => {
+    setFilters((prev) => ({ ...prev, party: value }));
   };
 
-  const openEditDialog = (item: CustomerTransaction) => {
+  const openEditDialog = (item: PartyTransaction) => {
     setSelectedId(item.id);
-    setFormCustomerId(item.customerId);
+    setFormPartyId(item.customerId);
     setFormPaymentAmount(item.paymentAmount.toString());
     setFormPaymentMethodId(item.paymentMethodId);
     setFormDate(item.date || new Date().toISOString().split("T")[0]);
@@ -417,25 +398,25 @@ export default function PaymentInPage() {
                     </DropdownMenuCheckboxItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("filterByParty")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
-                    checked={filters.customer === "all"}
+                    checked={filters.party === "all"}
                     onCheckedChange={(checked) =>
-                      checked && handleFilterCustomer("all")
+                      checked && handleFilterParty("all")
                     }
                   >
-                    {t("allCustomers")}
+                    {t("allParties")}
                   </DropdownMenuCheckboxItem>
-                  {customers.map((c) => (
+                  {parties.map((p) => (
                     <DropdownMenuCheckboxItem
-                      key={c.id}
-                      checked={filters.customer === c.id}
+                      key={p.id}
+                      checked={filters.party === p.id}
                       onCheckedChange={(checked) =>
-                        checked && handleFilterCustomer(c.id)
+                        checked && handleFilterParty(p.id)
                       }
                     >
-                      {c.name}
+                      {p.name}
                     </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
@@ -452,7 +433,7 @@ export default function PaymentInPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("customer")}</TableHead>
+                  <TableHead>{t("party")}</TableHead>
                   <TableHead>{t("paymentAmount")}</TableHead>
                   <TableHead>{t("paymentMethod")}</TableHead>
                   <TableHead>{t("date")}</TableHead>
@@ -474,7 +455,7 @@ export default function PaymentInPage() {
                     <TableRow key={item.id}>
                       <TableCell>{item.customerName || "-"}</TableCell>
                       <TableCell>
-                        Rs. {Math.round(item.paymentAmount)}
+                        Rs. {Math.round(item.paymentAmount).toLocaleString()}
                       </TableCell>
                       <TableCell>{item.paymentMethodName || "-"}</TableCell>
                       <TableCell>{item.date || "-"}</TableCell>
@@ -518,15 +499,15 @@ export default function PaymentInPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{t("customer")}</Label>
-              <Select value={formCustomerId} onValueChange={setFormCustomerId}>
+              <Label>{t("party")}</Label>
+              <Select value={formPartyId} onValueChange={setFormPartyId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("selectCustomer")} />
+                  <SelectValue placeholder={t("selectParty")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
+                  {parties.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -606,15 +587,15 @@ export default function PaymentInPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{t("customer")}</Label>
-              <Select value={formCustomerId} onValueChange={setFormCustomerId}>
+              <Label>{t("party")}</Label>
+              <Select value={formPartyId} onValueChange={setFormPartyId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("selectCustomer")} />
+                  <SelectValue placeholder={t("selectParty")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
+                  {parties.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -688,7 +669,7 @@ export default function PaymentInPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {t("confirmDeleteMessage", {
-              customer: transactionToDelete?.customerName ?? "",
+              party: transactionToDelete?.customerName ?? "",
             })}
           </p>
           <DialogFooter>
