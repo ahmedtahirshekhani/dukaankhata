@@ -28,9 +28,12 @@ export interface AppendPartyLedgerEntryInput {
 }
 
 // Backward compatibility alias
-export interface AppendCustomerLedgerEntryInput extends AppendPartyLedgerEntryInput {
+export type AppendCustomerLedgerEntryInput = Omit<
+  AppendPartyLedgerEntryInput,
+  "partyId"
+> & {
   customerId: string;
-}
+};
 
 interface PartyLedgerEntryDoc {
   _id?: ObjectId;

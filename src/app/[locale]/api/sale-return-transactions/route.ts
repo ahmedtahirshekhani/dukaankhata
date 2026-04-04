@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
       customerId,
       eventKey: `sale_return_credit:${insertedId.toString()}`,
       eventType: "manual_adjustment",
-      eventSource: "customer_transaction",
+      eventSource: "party_transaction",
       eventSourceId: insertedId.toString(),
       amountDelta: -paymentAmount,
       effectiveAt: date,

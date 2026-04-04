@@ -18,24 +18,24 @@ export function useUserProfile() {
     company?: string;
   } | null>(null);
 
-  const baseUser: UserProfile | null = session?.user
-    ? {
-        id: session.user.id,
-        email: session.user.email || "",
-        name: session.user.name || undefined,
-        company: (session.user as any).company || undefined,
-        image: session.user.image || null,
-      }
-    : null;
-
   const user: UserProfile | null = useMemo(() => {
+    const baseUser: UserProfile | null = session?.user
+      ? {
+          id: session.user.id,
+          email: session.user.email || "",
+          name: session.user.name || undefined,
+          company: (session.user as any).company || undefined,
+          image: session.user.image || null,
+        }
+      : null;
+
     if (!baseUser) return null;
     return {
       ...baseUser,
       name: overrides?.name ?? baseUser.name,
       company: overrides?.company ?? baseUser.company,
     };
-  }, [baseUser, overrides]);
+  }, [session?.user, overrides]);
 
   const isLoading = status === "loading";
   const isAuthenticated = status === "authenticated";

@@ -93,7 +93,7 @@ export function CategorySelector({
     if (!value) {
       onChange("General");
     }
-  }, [categories]);
+  }, [categories, onChange, value]);
 
   const handleCreateOption = async (inputValue: string) => {
     try {
