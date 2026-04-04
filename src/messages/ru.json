@@ -345,6 +345,9 @@
   "salesModule": {
     "openModule": "Open"
   },
+  "purchaseModule": {
+    "openModule": "Open"
+  },
   "saleReturn": {
     "title": "Sale Return",
     "creditNote": "Credit Note",

@@ -345,6 +345,9 @@
   "salesModule": {
     "openModule": "کھولیں"
   },
+  "purchaseModule": {
+    "openModule": "کھولیں"
+  },
   "saleReturn": {
     "title": "سیل ریٹرن",
     "creditNote": "کریڈٹ نوٹ",

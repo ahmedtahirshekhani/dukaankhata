@@ -17,6 +17,7 @@ import {
   LayoutDashboardIcon,
   PackageIcon,
   ShoppingCartIcon,
+  ShoppingBagIcon,
   UsersIcon,
   LogOutIcon,
   Settings,
@@ -85,7 +86,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/sale-return",
   ];
   const purchaseSubRoutes = [
-    "/admin/purchase-bill",
     "/admin/payment-out",
   ];
   const isSalesSectionActive =
@@ -112,7 +112,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/sale-return": tNav("saleReturn"),
     "/admin/purchase": tNav("purchase"),
     "/admin/payment-out": tNav("paymentOut"),
-    "/admin/purchase-bill": tNav("purchase"),
     "/admin/expenses": tNav("expenses"),
     "/admin/customers": tNav("customers"),
     "/admin/products": tNav("products"),
@@ -132,6 +131,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const goToSettings = () => {
     router.push(`/${locale}/admin/settings`);
   };
+
+  const navItemBase =
+    "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200";
+  const navItemActive =
+    "bg-accent/70 text-foreground ring-1 ring-border/60 shadow-sm";
+  const navItemInactive =
+    "text-foreground/70 hover:bg-accent/70 hover:text-foreground";
+  const navItemCompact = sidebarMinimized ? "sm:justify-center sm:px-0" : "";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -227,34 +234,32 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </Button>
 
         <aside
-          className={`fixed top-14 inset-y-0 left-0 z-40 flex-col border-r bg-background transition-all flex ${
+          className={`fixed top-14 inset-y-0 left-0 z-40 flex-col border-r border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all flex ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
           } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-64 sm:w-48 md:w-64"}`}
         >
           <nav
-            className={`flex h-full overflow-y-auto flex-col gap-2 md:gap-4 py-3 md:py-5 ${
-              sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-4"
+            className={`flex h-full overflow-y-auto flex-col gap-1.5 py-3 md:py-4 ${
+              sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-3"
             }`}
           >
             <div>
               <Link
                 href={`/${locale}/admin`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("dashboard") : ""}
               >
-                <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0" />
+                <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <span className="font-medium leading-none">
                     {tNav("dashboard")}
                   </span>
-                  <span className="text-xs opacity-70 hidden md:block">
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("dashboardDescription")}
                   </span>
                 </div>
@@ -266,21 +271,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   href={`/${locale}/admin/sales`}
                   onClick={() => setSidebarOpen(false)}
                   aria-current={pathWithoutLocale === "/admin/sales" ? "page" : undefined}
-                  className={`flex flex-1 items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                    isSalesSectionActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                  className={`${navItemBase} flex-1 ${
+                    isSalesSectionActive ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
                   title={sidebarMinimized ? tNav("sales") : ""}
                 >
-                  <ShoppingCartIcon className="h-5 w-5 flex-shrink-0" />
+                  <ShoppingCartIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
                   <div
                     className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                   >
-                    <span className="font-medium text-xs md:text-sm">
+                    <span className="font-medium leading-none">
                       {tNav("sales")}
                     </span>
-                    <span className="text-xs opacity-70 hidden md:block">
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
                       {tNav("salesDescription")}
                     </span>
                   </div>
@@ -291,10 +294,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={`h-auto px-2 rounded-lg ${
+                    className={`h-auto px-2 rounded-xl border border-transparent ${
                       isSalesSectionActive
-                        ? "text-primary-foreground hover:bg-primary/90"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "text-primary hover:bg-primary/10"
+                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                     }`}
                     aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
                     aria-expanded={salesExpanded}
@@ -308,15 +311,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </div>
 
               {!sidebarMinimized && salesExpanded && (
-                <div className="ml-7 mt-1 border-l pl-2 flex flex-col gap-1">
+                <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
                   <Link
                     href={`/${locale}/admin/invoice`}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/invoice" ? "page" : undefined}
-                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
                       pathWithoutLocale === "/admin/invoice"
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     }`}
                   >
                     {tNav("invoice")}
@@ -325,10 +328,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     href={`/${locale}/admin/payment-in`}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/payment-in" ? "page" : undefined}
-                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
                       pathWithoutLocale === "/admin/payment-in"
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     }`}
                   >
                     {tNav("paymentIn")}
@@ -337,10 +340,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     href={`/${locale}/admin/sale-return`}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/sale-return" ? "page" : undefined}
-                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
                       pathWithoutLocale === "/admin/sale-return"
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     }`}
                   >
                     {tNav("saleReturn")}
@@ -354,21 +357,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   href={`/${locale}/admin/purchase`}
                   onClick={() => setSidebarOpen(false)}
                   aria-current={pathWithoutLocale === "/admin/purchase" ? "page" : undefined}
-                  className={`flex flex-1 items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                    isPurchaseSectionActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                  className={`${navItemBase} flex-1 ${
+                    isPurchaseSectionActive ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
                   title={sidebarMinimized ? tNav("purchase") : ""}
                 >
-                  <ShoppingBagIcon className="h-5 w-5 flex-shrink-0" />
+                  <ShoppingBagIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
                   <div
                     className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                   >
-                    <span className="font-medium text-xs md:text-sm">
+                    <span className="font-medium leading-none">
                       {tNav("purchase")}
                     </span>
-                    <span className="text-xs opacity-70 hidden md:block">
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
                       {tNav("purchaseDescription")}
                     </span>
                   </div>
@@ -379,10 +380,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={`h-auto px-2 rounded-lg ${
+                    className={`h-auto px-2 rounded-xl border border-transparent ${
                       isPurchaseSectionActive
-                        ? "text-primary-foreground hover:bg-primary/90"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "text-primary hover:bg-primary/10"
+                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                     }`}
                     aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
                     aria-expanded={purchaseExpanded}
@@ -396,27 +397,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </div>
 
               {!sidebarMinimized && purchaseExpanded && (
-                <div className="ml-7 mt-1 border-l pl-2 flex flex-col gap-1">
-                  <Link
-                    href={`/${locale}/admin/purchase-bill`}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/purchase-bill" ? "page" : undefined}
-                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
-                      pathWithoutLocale === "/admin/purchase-bill"
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {tNav("purchaseBill")}
-                  </Link>
+                <div className="ml-5 mt-1 border-l border-border/70 pl-3">
                   <Link
                     href={`/${locale}/admin/payment-out`}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/payment-out" ? "page" : undefined}
-                    className={`rounded-md px-2 py-1 text-xs md:text-sm transition-colors ${
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
                       pathWithoutLocale === "/admin/payment-out"
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     }`}
                   >
                     {tNav("paymentOut")}
@@ -428,21 +417,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Link
                 href={`/${locale}/admin/products`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/products"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin/products" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("products") : ""}
               >
-                <PackageIcon className="h-5 w-5 flex-shrink-0" />
+                <PackageIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <span className="font-medium leading-none">
                     {tNav("products")}
                   </span>
-                  <span className="text-xs opacity-70 hidden md:block">
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("productsDescription")}
                   </span>
                 </div>
@@ -452,21 +439,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Link
                 href={`/${locale}/admin/expenses`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/expenses"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin/expenses" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("expenses") : ""}
               >
-                <FileText className="h-5 w-5 flex-shrink-0" />
+                <FileText className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <span className="font-medium leading-none">
                     {tNav("expenses")}
                   </span>
-                  <span className="text-xs opacity-70 hidden md:block">
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("expensesDescription")}
                   </span>
                 </div>
@@ -476,21 +461,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Link
                 href={`/${locale}/admin/customers`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/customers"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin/customers" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("customers") : ""}
               >
-                <UsersIcon className="h-5 w-5 flex-shrink-0" />
+                <UsersIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <span className="font-medium leading-none">
                     {tNav("customers")}
                   </span>
-                  <span className="text-xs opacity-70 hidden md:block">
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("customersDescription")}
                   </span>
                 </div>
@@ -500,21 +483,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Link
                 href={`/${locale}/admin/account-statement`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/account-statement"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin/account-statement" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("accountStatement") : ""}
               >
-                <FileText className="h-5 w-5 flex-shrink-0" />
+                <FileText className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <span className="font-medium leading-none">
                     {tNav("accountStatement")}
                   </span>
-                  <span className="text-xs opacity-70 hidden md:block">
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("accountStatementDescription")}
                   </span>
                 </div>
@@ -524,21 +505,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Link
                 href={`/${locale}/admin/ai-chat`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${
-                  pathWithoutLocale === "/admin/ai-chat"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("aiChat") : ""}
               >
-                <MessageSquare className="h-5 w-5 flex-shrink-0" />
+                <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
-                  <span className="font-medium text-xs md:text-sm">
+                  <span className="font-medium leading-none">
                     {tNav("aiChat")}
                   </span>
-                  <span className="text-xs opacity-70 hidden md:block">
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("aiChatDescription")}
                   </span>
                 </div>
