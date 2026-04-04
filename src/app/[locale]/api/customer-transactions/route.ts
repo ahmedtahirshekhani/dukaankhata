@@ -9,19 +9,22 @@ import {
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = (await getCurrentUser()) as { id: string } | null;
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const url = new URL(req.url);
+    const type = url.searchParams.get('type') ?? 'payment-in';
+
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
 
     const items = await collection
-      .find({ user_id: toObjectId(user.id) })
+      .find({ user_id: toObjectId(user.id), type: type })
       .sort({ date: -1 })
       .toArray();
 
@@ -63,6 +66,7 @@ export async function GET() {
       paymentMethodId: item.payment_method_id?.toString() ?? '',
       paymentMethodName: item.payment_method_id ? paymentMethodMap[item.payment_method_id.toString()] ?? '' : '',
       date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
+      type: item.type ?? 'payment-in',
     }));
 
     return NextResponse.json(list);
@@ -84,6 +88,7 @@ export async function POST(req: NextRequest) {
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
     const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
+    const type = body?.type ?? 'payment-in';
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json({ error: 'Valid customer is required' }, { status: 400 });
@@ -106,6 +111,7 @@ export async function POST(req: NextRequest) {
       payment_amount: paymentAmount,
       payment_method_id: isHardcodedMethod ? paymentMethodId : toObjectId(paymentMethodId),
       date,
+      type,
       created_at: now,
       updated_at: now,
     });
@@ -120,7 +126,7 @@ export async function POST(req: NextRequest) {
       customerId,
       eventKey: `payment_in_credit:${insertedId.toString()}`,
       eventType: 'payment_in_credit',
-      eventSource: 'customer_transaction',
+      eventSource: 'party_transaction',
       eventSourceId: insertedId.toString(),
       amountDelta: -paymentAmount,
       effectiveAt: date,

@@ -59,6 +59,7 @@ export const COLLECTIONS = {
   PAYMENT_METHOD: "payment_method",
   PARTY_TRANSACTIONS: "party_transaction",
   CUSTOMER_TRANSACTIONS: "party_transaction", // Alias for backward compatibility
+  VENDOR_TRANSACTIONS: "vendor_transaction",
   SALE_RETURN_TRANSACTIONS: "sale_return_transaction",
   PARTY_LEDGER_ENTRIES: "party_ledger_entries",
   CUSTOMER_LEDGER_ENTRIES: "party_ledger_entries", // Alias for backward compatibility
