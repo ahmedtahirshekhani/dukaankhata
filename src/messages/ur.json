@@ -114,6 +114,7 @@
     "sessionExpired": "آپ کی سیشن ختم ہو گئی ہے۔ براہ کرم دوبارہ لاگ ان کریں۔",
     "confirmEmail": "براہ کرم اپنے ای میل کی تصدیق کریں",
     "emailAlreadyExists": "ای میل پہلے سے رجسٹرڈ ہے",
+    "phoneAlreadyExists": "فون نمبر پہلے سے رجسٹرڈ ہے",
     "passwordTooShort": "پاس ورڈ کم از کم 8 حروف ہونا چاہیے",
     "passwordMismatch": "پاس ورڈ مماثل نہیں ہیں",
     "requiredField": "یہ فیلڈ ضروری ہے",

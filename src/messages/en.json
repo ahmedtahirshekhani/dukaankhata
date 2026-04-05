@@ -114,6 +114,7 @@
     "sessionExpired": "Your session has expired. Please login again.",
     "confirmEmail": "Please confirm your email address",
     "emailAlreadyExists": "Email already registered",
+    "phoneAlreadyExists": "Phone number already registered",
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordMismatch": "Passwords do not match",
     "requiredField": "This field is required",

@@ -1,10 +1,16 @@
-import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react";
+import {
+  signIn as nextAuthSignIn,
+  signOut as nextAuthSignOut,
+} from "next-auth/react";
 
 export interface SignUpData {
   email: string;
   password: string;
   name: string;
   companyName: string;
+  phone: string;
+  phoneCountryCode?: string;
+  phoneNumber?: string;
 }
 
 export interface SignInCredentials {
@@ -39,7 +45,8 @@ export class AuthService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
