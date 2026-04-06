@@ -10,12 +10,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+const COUNTRY_CODES = [
+  { code: "+92", label: "Pakistan (+92)" },
+  { code: "+91", label: "India (+91)" },
+  { code: "+971", label: "UAE (+971)" },
+  { code: "+1", label: "USA/Canada (+1)" },
+  { code: "+44", label: "UK (+44)" },
+];
 
 export default function SignUpPage({ params }: { params: { locale: string } }) {
   const t = useTranslations("auth");
@@ -27,7 +42,8 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     confirmPassword: "",
     name: "",
     companyName: "",
-    phone: "",
+    countryCode: "+92",
+    phoneNumber: "",
   });
 
   const [error, setError] = useState("");
@@ -41,14 +57,16 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       !formData.email ||
       !formData.password ||
       !formData.name ||
-      !formData.companyName
+      !formData.companyName ||
+      !formData.phoneNumber
     ) {
       setError(t("requiredField"));
       return false;
     }
 
-    if (formData.phone && !/^\d{11}$/.test(formData.phone.replace(/\D/g, ""))) {
-      setError("Please enter a valid 11-digit phone number");
+    const phoneDigits = formData.phoneNumber.replace(/\D/g, "");
+    if (phoneDigits.length !== 10) {
+      setError("Phone number must be exactly 10 digits");
       return false;
     }
 
@@ -83,6 +101,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     setIsLoading(true);
 
     try {
+      const normalizedLocalPhone = formData.phoneNumber.replace(/\D/g, "");
+      const fullPhone = `${formData.countryCode}${normalizedLocalPhone}`;
+
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
@@ -93,7 +114,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
           password: formData.password,
           name: formData.name,
           companyName: formData.companyName,
-          phone: formData.phone || undefined,
+          phone: fullPhone,
+          phoneCountryCode: formData.countryCode,
+          phoneNumber: formData.phoneNumber,
         }),
       });
 
@@ -123,6 +146,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               apiError.includes("email already")
             ) {
               errorMessage = t("emailAlreadyExists");
+            } else if (
+              apiError.includes("phone number already") ||
+              apiError.includes("phone already")
+            ) {
+              errorMessage = t("phoneAlreadyExists");
             } else if (
               apiError.includes("failed to create user") ||
               apiError.includes("internal server error")
@@ -164,7 +192,8 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         confirmPassword: "",
         name: "",
         companyName: "",
-        phone: "",
+        countryCode: "+92",
+        phoneNumber: "",
       });
 
       // Redirect to welcome page after 1.5 seconds
@@ -185,9 +214,26 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
+    if (name === "phoneNumber") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      setFormData((prev) => ({
+        ...prev,
+        phoneNumber: digitsOnly,
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleCountryCodeChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      countryCode: value,
     }));
   };
 
@@ -197,6 +243,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       formData.name.trim() !== "" &&
       formData.companyName.trim() !== "" &&
       formData.email.trim() !== "" &&
+      formData.phoneNumber.trim() !== "" &&
       formData.password.trim() !== "" &&
       formData.confirmPassword.trim() !== ""
     );
@@ -316,16 +363,45 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  placeholder="03001234567"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                />
+                <Label htmlFor="phone">
+                  Phone Number <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.countryCode}
+                    onValueChange={handleCountryCodeChange}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger
+                      className="w-[170px]"
+                      aria-label="Country code"
+                    >
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_CODES.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    id="phone"
+                    name="phoneNumber"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    placeholder="3001234567"
+                    value={formData.phoneNumber}
+                    onChange={handleChange}
+                    required
+                    disabled={isLoading}
+                    className="flex-1"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

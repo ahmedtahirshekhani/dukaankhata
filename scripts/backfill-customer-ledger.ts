@@ -14,7 +14,7 @@ type BackfillEvent = {
     | "order_debit"
     | "order_payment_credit"
     | "payment_in_credit";
-  eventSource: "order" | "customer_transaction";
+  eventSource: "order" | "party_transaction";
   eventSourceId: string;
   customerId: string;
   userId: string;
@@ -107,7 +107,7 @@ async function runBackfill() {
       events.push({
         key: `backfill:payment_in_credit:${paymentId}`,
         eventType: "payment_in_credit",
-        eventSource: "customer_transaction",
+        eventSource: "party_transaction",
         eventSourceId: paymentId,
         customerId,
         userId,

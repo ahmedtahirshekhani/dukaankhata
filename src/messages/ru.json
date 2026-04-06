@@ -119,6 +119,7 @@
     "sessionExpired": "Aapka session khatm ho gya hai. Baraye Mehrbani dobara login karain.",
     "confirmEmail": "Baraye Mehrbani apne email ki tasdiq karain",
     "emailAlreadyExists": "Email pehle se registered hai",
+    "phoneAlreadyExists": "Phone number pehle se registered hai",
     "passwordTooShort": "Password kam az kam 8 characters hona chahye",
     "passwordMismatch": "Passwords mamasal nahi hain",
     "requiredField": "Yeh field zaroori hai",
@@ -343,6 +344,9 @@
     "allParties": "All Parties"
   },
   "salesModule": {
+    "openModule": "Open"
+  },
+  "purchaseModule": {
     "openModule": "Open"
   },
   "saleReturn": {

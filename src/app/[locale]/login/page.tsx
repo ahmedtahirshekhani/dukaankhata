@@ -29,6 +29,47 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const mapAuthError = (rawError?: string | null) => {
+    if (!rawError) return t("loginError");
+
+    const err = rawError.toLowerCase();
+
+    if (
+      err === "credentialssignin" ||
+      err.includes("credential") ||
+      err.includes("invalid")
+    ) {
+      return t("invalidCredentials");
+    }
+
+    if (
+      err.includes("email already") ||
+      err.includes("duplicate") ||
+      err.includes("already registered")
+    ) {
+      return t("emailAlreadyExists");
+    }
+
+    if (err.includes("missing required") || err.includes("required fields")) {
+      return t("missingFields");
+    }
+
+    if (err.includes("network") || err.includes("fetch")) {
+      return t("networkError");
+    }
+
+    if (
+      err === "configuration" ||
+      err === "callbackrouteerror" ||
+      err.includes("server") ||
+      err.includes("internal")
+    ) {
+      return t("serverError");
+    }
+
+    return rawError;
+  };
+
   // Avoid SSR/CSR markup mismatches by rendering only after mount
   useEffect(() => {
     setMounted(true);
@@ -61,18 +102,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
       });
 
       if (result?.error) {
-        // NextAuth returns different error types
-        // "CredentialsSignin" is the standard error for invalid credentials
-        // Other errors might indicate server issues
-        if (
-          result.error === "CredentialsSignin" ||
-          result.error.toLowerCase().includes("credential")
-        ) {
-          setError(t("invalidCredentials"));
-        } else {
-          // For other errors (network, server, etc.), show generic error
-          setError(t("loginError"));
-        }
+        setError(mapAuthError(result.error));
       } else if (result?.ok) {
         // Successful login - redirect to admin
         router.push(`/${params.locale}/admin`);
@@ -227,7 +257,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
                 <a
                   href={`https://wa.me/${supportContact.whatsapp.replace(
                     /[^\d]/g,
-                    ""
+                    "",
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

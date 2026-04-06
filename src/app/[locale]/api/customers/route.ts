@@ -76,6 +76,21 @@ export async function POST(request: Request) {
     }
 
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
+
+    // Check for duplicate name only
+    const existingCustomer = await customersCollection.findOne({
+      user_id: toObjectId(user.id),
+      name: newCustomer.name,
+      is_delete: { $ne: 1 },
+    });
+
+    if (existingCustomer) {
+      return NextResponse.json(
+        { error: "A party with this name already exists" },
+        { status: 409 },
+      );
+    }
+
     const result = await customersCollection.insertOne({
       ...newCustomer,
       user_id: toObjectId(user.id),
@@ -121,12 +136,6 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("Error creating customer:", error);
-    if (error.code === 11000) {
-      return NextResponse.json(
-        { error: "A customer with this email already exists" },
-        { status: 409 },
-      );
-    }
     return NextResponse.json(
       { error: "Internal Server Error: " + (error as Error).message },
       { status: 500 },
