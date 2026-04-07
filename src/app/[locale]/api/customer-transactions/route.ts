@@ -121,17 +121,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create record' }, { status: 500 });
     }
 
+const isPaymentIn = type === 'payment-in';
     await appendCustomerLedgerEntry({
       userId: user.id,
       customerId,
-      eventKey: `payment_in_credit:${insertedId.toString()}`,
-      eventType: 'payment_in_credit',
+      eventKey: `${isPaymentIn ? 'payment_in_credit' : 'payment_out_debit'}:${insertedId.toString()}`,
+      eventType: isPaymentIn ? 'payment_in_credit' : 'payment_out_debit' as any,
       eventSource: 'party_transaction',
       eventSourceId: insertedId.toString(),
-      amountDelta: -paymentAmount,
+      amountDelta: isPaymentIn ? -paymentAmount : paymentAmount,
       effectiveAt: date,
       metadata: {
         payment_method_id: paymentMethodId,
+        transaction_type: type,
       },
     });
 

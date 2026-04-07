@@ -111,34 +111,39 @@ export async function PUT(
     const newCustomerId = customerId;
 
     if (oldCustomerId && isValidObjectId(oldCustomerId) && oldAmount > 0) {
+      const isPaymentInOld = (existing as any).type === 'payment-in';
       await appendCustomerLedgerEntry({
         userId: user.id,
         customerId: oldCustomerId,
-        eventKey: `payment_in_update_reversal:${id}:${oldCustomerId}:${oldAmount}:${new Date(existing.date).getTime()}`,
+        eventKey: `payment_${isPaymentInOld ? 'in' : 'out'}_update_reversal:${id}:${oldCustomerId}:${oldAmount}:${new Date(existing.date).getTime()}`,
         eventType: 'manual_adjustment',
         eventSource: 'party_transaction',
         eventSourceId: id,
-        amountDelta: oldAmount,
+        amountDelta: isPaymentInOld ? oldAmount : -oldAmount,
         effectiveAt: new Date(),
         metadata: {
           reason: 'payment_update_reversal',
           transaction_id: id,
+          old_type: (existing as any).type,
         },
       });
     }
+
+    const isPaymentInNew = type === 'payment-in';
     if (newCustomerId && isValidObjectId(newCustomerId) && paymentAmount > 0) {
       await appendCustomerLedgerEntry({
         userId: user.id,
         customerId: newCustomerId,
-        eventKey: `payment_in_update_apply:${id}:${newCustomerId}:${paymentAmount}:${date.getTime()}`,
-        eventType: 'payment_in_credit',
+        eventKey: `payment_${isPaymentInNew ? 'in_credit' : 'out_debit'}:${id}:${newCustomerId}:${paymentAmount}:${date.getTime()}`,
+        eventType: isPaymentInNew ? 'payment_in_credit' : 'payment_out_debit' as any,
         eventSource: 'party_transaction',
         eventSourceId: id,
-        amountDelta: -paymentAmount,
+        amountDelta: isPaymentInNew ? -paymentAmount : paymentAmount,
         effectiveAt: date,
         metadata: {
           reason: 'payment_update_apply',
           transaction_id: id,
+          new_type: type,
         },
       });
     }
@@ -206,18 +211,20 @@ export async function DELETE(
     const customerId = existing.customer_id?.toString();
     const paymentAmount = existing.payment_amount ?? 0;
     if (customerId && isValidObjectId(customerId) && paymentAmount > 0) {
+      const isPaymentInDelete = (existing as any).type === 'payment-in';
       await appendCustomerLedgerEntry({
         userId: user.id,
         customerId,
-        eventKey: `payment_in_delete_reversal:${id}:${customerId}:${paymentAmount}:${new Date(existing.date).getTime()}`,
+        eventKey: `payment_${isPaymentInDelete ? 'in' : 'out'}_delete_reversal:${id}:${customerId}:${paymentAmount}:${new Date(existing.date).getTime()}`,
         eventType: 'manual_adjustment',
         eventSource: 'party_transaction',
         eventSourceId: id,
-        amountDelta: paymentAmount,
+        amountDelta: isPaymentInDelete ? paymentAmount : -paymentAmount,
         effectiveAt: new Date(),
         metadata: {
           reason: 'payment_delete_reversal',
           transaction_id: id,
+          type: (existing as any).type,
         },
       });
     }
