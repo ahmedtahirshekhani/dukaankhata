@@ -30,7 +30,7 @@ interface Customer {
 
 interface Transaction {
   id: string;
-  type: "order" | "payment_in" | "opening_balance" | "adjustment";
+  type: "order" | "payment_in" | "payment_out" | "opening_balance" | "adjustment";
   orderValue: number | null;
   paidAmount: number | null;
   orderId?: string | null;
@@ -49,6 +49,8 @@ interface StatementSummary {
   openingBalance: number;
   totalOrders: number;
   totalPayments: number;
+  totalPaymentsIn?: number;
+  totalPaymentsOut?: number;
   currentBalance: number;
   grandTotal?: number;
 }
@@ -295,7 +297,7 @@ export default function AccountStatementPage() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -311,12 +313,24 @@ export default function AccountStatementPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("totalPayments")}
+                {t("totalPaymentsIn")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">
-                {formatCurrencyString(summary.totalPayments)}
+                {formatCurrencyString(summary.totalPaymentsIn || 0)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {t("totalPaymentsOut")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-orange-600">
+                {formatCurrencyString(summary.totalPaymentsOut || 0)}
               </p>
             </CardContent>
           </Card>

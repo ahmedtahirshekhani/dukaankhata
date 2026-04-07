@@ -10,6 +10,7 @@ export type PartyLedgerEventType =
   | "order_debit"
   | "order_payment_credit"
   | "payment_in_credit"
+  | "payment_out_debit"      
   | "manual_adjustment";
 
 // Backward compatibility aliases
@@ -69,7 +70,7 @@ export interface AppendPartyLedgerEntryResult {
 }
 
 // Backward compatibility alias
-export interface AppendCustomerLedgerEntryResult extends AppendPartyLedgerEntryResult {}
+export interface AppendCustomerLedgerEntryResult extends AppendPartyLedgerEntryResult { }
 
 export async function appendPartyLedgerEntry(
   input: AppendPartyLedgerEntryInput

@@ -425,13 +425,13 @@ export async function GET(request: NextRequest) {
       ledgerCollection
         .find({
           user_id: userId,
-          customer_id: customerObjId,
+          party_id: customerObjId,
           effective_at: { $gte: from, $lte: to },
         })
         .sort({ effective_at: 1, created_at: 1, _id: 1 })
         .toArray(),
       balanceStateCollection.findOne(
-        { user_id: userId, customer_id: customerObjId },
+        { user_id: userId, party_id: customerObjId },
         { projection: { current_balance: 1 } }
       ),
     ]);
@@ -441,7 +441,7 @@ export async function GET(request: NextRequest) {
         {
           $match: {
             user_id: userId,
-            customer_id: customerObjId,
+            party_id: customerObjId,
             effective_at: { $lt: from },
           },
         },
@@ -458,7 +458,8 @@ export async function GET(request: NextRequest) {
       openingAgg[0]?.total ?? customer?.opening_balance ?? 0
     );
 
-    const entries = rangeEntries.filter(
+const allEntries = rangeEntries;
+    const entries = allEntries.filter(
       (entry) => entry.event_type !== "opening_balance"
     );
 
@@ -470,7 +471,7 @@ export async function GET(request: NextRequest) {
     const paymentIds = entries
       .filter(
         (entry) =>
-          entry.event_source === "customer_transaction" &&
+          (entry.event_source === "party_transaction" || entry.event_source === "customer_transaction") &&
           entry.event_source_id
       )
       .map((entry) => entry.event_source_id!.toString())
@@ -507,9 +508,10 @@ export async function GET(request: NextRequest) {
       runningBalance += amountDelta;
 
       const isOrderDebit = entry.event_type === "order_debit";
-      const isPaymentCredit =
+const isPaymentCredit =
         entry.event_type === "payment_in_credit" ||
         entry.event_type === "order_payment_credit";
+      const isPaymentOutDebit = entry.event_type === "payment_out_debit";
 
       const sourceId = entry.event_source_id?.toString?.() || null;
       const sourceOrder = sourceId ? orderMap.get(sourceId) : null;
@@ -527,7 +529,7 @@ export async function GET(request: NextRequest) {
       const unitPrice =
         isOrderDebit && items.length === 1 ? Number(items[0]?.price || 0) : null;
 
-      let description = "Adjustment";
+let description = "Adjustment";
       if (isOrderDebit) {
         const names = items
           .map((item: any) => item?.name)
@@ -536,6 +538,8 @@ export async function GET(request: NextRequest) {
         description = names.length > 0 ? names.join(", ") : "Order";
       } else if (isPaymentCredit) {
         description = "Payment In";
+      } else if (isPaymentOutDebit) {
+        description = "Payment Out";
       } else if (entry.event_type === "manual_adjustment") {
         description = "Manual Adjustment";
       }
@@ -546,11 +550,13 @@ export async function GET(request: NextRequest) {
 
       return {
         id: entry._id.toString(),
-        type: isOrderDebit
+type: isOrderDebit
           ? "order"
           : isPaymentCredit
             ? "payment_in"
-            : "adjustment",
+            : isPaymentOutDebit
+              ? "payment_out"
+              : "adjustment",
         orderValue: isOrderDebit ? Math.abs(amountDelta) : null,
         paidAmount: isPaymentCredit ? Math.abs(amountDelta) : null,
         orderId:
@@ -597,13 +603,19 @@ export async function GET(request: NextRequest) {
       .filter((entry) => entry.event_type === "order_debit")
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
 
-    const totalPayments = entries
+const totalPaymentsIn = entries
       .filter(
         (entry) =>
           entry.event_type === "payment_in_credit" ||
           entry.event_type === "order_payment_credit"
       )
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalPaymentsOut = entries
+      .filter((entry) => entry.event_type === "payment_out_debit")
+      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalPayments = totalPaymentsIn - totalPaymentsOut;
 
     const currentBalance = Number(
       balanceState?.current_balance ??
@@ -615,9 +627,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       transactions: [openingBalanceRecord, ...transactions],
-      summary: {
+summary: {
         openingBalance,
         totalOrders,
+        totalPaymentsIn,
+        totalPaymentsOut,
         totalPayments,
         currentBalance,
         grandTotal: totalOrders,
