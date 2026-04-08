@@ -405,7 +405,7 @@ export async function GET(request: NextRequest) {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
 
-    const [customer, userDoc, rangeEntries, balanceState] = await Promise.all([
+    const [customer, userDoc, rangeEntries, balanceState, lastEntryBefore] = await Promise.all([
       customersCollection.findOne(
         { _id: customerObjId, user_id: userId },
         {
@@ -423,39 +423,50 @@ export async function GET(request: NextRequest) {
         { projection: { company_name: 1, company_address: 1, company_logo: 1 } }
       ),
       ledgerCollection
-        .find({
-          user_id: userId,
-          party_id: customerObjId,
-          effective_at: { $gte: from, $lte: to },
-        })
-        .sort({ effective_at: 1, created_at: 1, _id: 1 })
+        .aggregate<LedgerEntryDoc>([
+          {
+            $match: {
+              user_id: userId,
+              $or: [
+                { party_id: customerObjId },
+                { customer_id: customerObjId }
+              ],
+              effective_at: { $gte: from, $lte: to },
+            },
+          },
+          {
+            $sort: { effective_at: 1, created_at: 1, _id: 1 }
+          }
+        ])
         .toArray(),
       balanceStateCollection.findOne(
-        { user_id: userId, party_id: customerObjId },
+        {
+          user_id: userId,
+          $or: [
+            { party_id: customerObjId },
+            { customer_id: customerObjId }
+          ]
+        },
         { projection: { current_balance: 1 } }
+      ),
+      ledgerCollection.findOne(
+        {
+          user_id: userId,
+          $or: [
+            { party_id: customerObjId },
+            { customer_id: customerObjId }
+          ],
+          effective_at: { $lt: from },
+        },
+        {
+          sort: { effective_at: -1, created_at: -1 },
+          projection: { running_balance: 1 },
+        }
       ),
     ]);
 
-    const openingAgg = await ledgerCollection
-      .aggregate<{ _id: null; total: number }>([
-        {
-          $match: {
-            user_id: userId,
-            party_id: customerObjId,
-            effective_at: { $lt: from },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$amount_delta" },
-          },
-        },
-      ])
-      .toArray();
-
     const openingBalance = Number(
-      openingAgg[0]?.total ?? customer?.opening_balance ?? 0
+      lastEntryBefore?.running_balance ?? customer?.opening_balance ?? 0
     );
 
 const allEntries = rangeEntries;
