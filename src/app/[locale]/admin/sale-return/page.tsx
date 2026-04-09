@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -741,7 +742,7 @@ export default function SaleReturnPage() {
           </Button>
         </div>
 
-        <div className="border rounded-md">
+        <div className="border rounded-md overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -955,7 +956,8 @@ export default function SaleReturnPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View - hidden on mobile */}
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1010,6 +1012,29 @@ export default function SaleReturnPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Cards View - visible only on mobile */}
+          <div className="block md:hidden space-y-3">
+            {filteredTransactions.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                {t("noRecords")}
+              </div>
+            ) : (
+              filteredTransactions.map((item) => (
+                <SaleReturnCard
+                  key={item.id}
+                  transaction={item}
+                  onEdit={() => openEditDialog(item)}
+                  onDelete={() => {
+                    setTransactionToDelete(item);
+                    setShowDeleteDialog(true);
+                  }}
+                  t={t}
+                  tCommon={tCommon}
+                />
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1080,6 +1105,73 @@ export default function SaleReturnPage() {
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
       />
+    </div>
+  );
+}
+
+// Mobile Card Component for Sale Return Transaction
+function SaleReturnCard({
+  transaction,
+  onEdit,
+  onDelete,
+  t,
+  tCommon,
+}: {
+  transaction: SaleReturnTransaction;
+  onEdit: () => void;
+  onDelete: () => void;
+  t: (key: string) => string;
+  tCommon: (key: string) => string;
+}) {
+  return (
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-semibold text-base truncate max-w-[60%]">
+          {transaction.returnNumber || "-"}
+        </h3>
+        <div className="flex gap-1">
+          <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8">
+            <FilePenIcon className="w-4 h-4" />
+            <span className="sr-only">{tCommon("edit")}</span>
+          </Button>
+          <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8">
+            <Trash2 className="w-4 h-4" />
+            <span className="sr-only">{tCommon("delete")}</span>
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("customer")}:</span>
+          <span>{transaction.customerName || "-"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("date")}:</span>
+          <span>{transaction.date || "-"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("totalAmount")}:</span>
+          <span className="font-medium">Rs. {transaction.totalAmount?.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("paidAmount")}:</span>
+          <span>Rs. {transaction.paidAmount?.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("balanceDue")}:</span>
+          <span>Rs. {transaction.balanceDue?.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("paymentMethod")}:</span>
+          <span>{transaction.paymentMethodName || "-"}</span>
+        </div>
+        {transaction.invoiceNo && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{t("invoiceNo")}:</span>
+            <span>{transaction.invoiceNo}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
