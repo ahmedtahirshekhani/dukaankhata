@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CreatableSelect from "react-select/creatable";
-import { PlusCircle, Trash2, PencilIcon } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -832,7 +832,6 @@ function ExpenseCard({
         </div>
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8">
-            <PencilIcon className="w-4 h-4" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
           <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8">
