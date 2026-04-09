@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CreatableSelect from "react-select/creatable";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -235,11 +235,11 @@ export default function ExpensesPage() {
         const qty = parseNumericInput(line.qty);
         const rate = parseNumericInput(line.rate);
         return (
-        !line.category.trim() ||
-        !line.itemName.trim() ||
-        qty <= 0 ||
-        rate < 0 ||
-        qty * rate <= 0
+          !line.category.trim() ||
+          !line.itemName.trim() ||
+          qty <= 0 ||
+          rate < 0 ||
+          qty * rate <= 0
         );
       },
     );
@@ -684,13 +684,13 @@ export default function ExpensesPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("editExpense")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("expenseNumber")}</Label>
                 <Input
@@ -708,7 +708,7 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("category")}</Label>
                 <CreatableSelect
@@ -737,7 +737,7 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>{t("qty")}</Label>
                 <Input
@@ -832,6 +832,7 @@ function ExpenseCard({
         </div>
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8">
+            <Edit className="w-4 h-4" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
           <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -185,7 +186,8 @@ export default function CustomerTransactionsDetailPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="overflow-x-auto max-h-[28rem] overflow-y-auto">
+          {/* Desktop Table View - hidden on mobile */}
+          <div className="hidden md:block overflow-x-auto max-h-[28rem] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -225,8 +227,80 @@ export default function CustomerTransactionsDetailPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile Cards View - visible only on mobile */}
+          <div className="block md:hidden space-y-3 max-h-[28rem] overflow-y-auto">
+            {transactions.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                {tStatement("noTransactions") || (tDash("noData") || "No data")}
+              </div>
+            ) : (
+              transactions.map((row) => (
+                <TransactionCard
+                  key={row.id}
+                  transaction={row}
+                  tStatement={tStatement}
+                />
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Mobile Card Component for Transaction Row
+function TransactionCard({
+  transaction,
+  tStatement,
+}: {
+  transaction: StatementTransaction;
+  tStatement: (key: string) => string;
+}) {
+  return (
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-semibold text-sm text-muted-foreground">
+            {tStatement("date") || "Date"}
+          </h3>
+          <p className="text-base">{formatStatementDate(transaction.dateTime)}</p>
+        </div>
+        <div className="text-right">
+          <h3 className="font-semibold text-sm text-muted-foreground">
+            {tStatement("balance") || "Balance"}
+          </h3>
+          <p className={`text-base font-bold ${transaction.balance > 0 ? "text-red-600" : "text-green-600"}`}>
+            {formatCurrencyString(Number(transaction.balance || 0))}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 text-sm mt-3">
+        {transaction.orderId && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{tStatement("orderId") || "Order ID"}:</span>
+            <span>{transaction.orderId}</span>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{tStatement("description") || "Description"}:</span>
+          <span className="text-right max-w-[60%] break-words">{transaction.description || "-"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{tStatement("amount") || "Amount"}:</span>
+          <span>{formatCurrencyString(Number(transaction.amount || 0))}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{tStatement("debit") || "Debit"}:</span>
+          <span>{formatCurrencyString(Number(transaction.debit || 0))}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{tStatement("credit") || "Credit"}:</span>
+          <span>{formatCurrencyString(Number(transaction.credit || 0))}</span>
+        </div>
+      </div>
     </div>
   );
 }
