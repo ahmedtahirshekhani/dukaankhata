@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -284,7 +285,8 @@ export default function Page() {
 
       <Card>
         <CardContent className="p-2 sm:p-3 pt-3">
-          <div className="overflow-x-auto max-h-[28rem] overflow-y-auto">
+          {/* Desktop Table View - hidden on mobile */}
+          <div className="hidden md:block overflow-x-auto max-h-[28rem] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -405,6 +407,67 @@ export default function Page() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile Cards View - visible only on mobile */}
+          <div className="block md:hidden space-y-3 max-h-[28rem] overflow-y-auto">
+            {activeDashboardTab === "customers" && (
+              <>
+                {customerRows.length === 0 ? (
+                  <div className="text-muted-foreground text-center py-8">
+                    {tDash("noData") || "No data"}
+                  </div>
+                ) : (
+                  customerRows.map((row) => (
+                    <CustomerCard
+                      key={row.id}
+                      row={row}
+                      isPrivacyMode={isPrivacyMode}
+                      onClick={() => router.push(`/${locale}/admin/customer-transactions/${row.id}`)}
+                      t={tDash}
+                    />
+                  ))
+                )}
+              </>
+            )}
+
+            {activeDashboardTab === "sales" && (
+              <>
+                {salesRows.length === 0 ? (
+                  <div className="text-muted-foreground text-center py-8">
+                    {tDash("noData") || "No data"}
+                  </div>
+                ) : (
+                  salesRows.map((row) => (
+                    <SalesCard
+                      key={row.id}
+                      row={row}
+                      isPrivacyMode={isPrivacyMode}
+                      t={tDash}
+                    />
+                  ))
+                )}
+              </>
+            )}
+
+            {activeDashboardTab === "items" && (
+              <>
+                {itemRows.length === 0 ? (
+                  <div className="text-muted-foreground text-center py-8">
+                    {tDash("noData") || "No data"}
+                  </div>
+                ) : (
+                  itemRows.map((row) => (
+                    <ItemCard
+                      key={row.id}
+                      row={row}
+                      isPrivacyMode={isPrivacyMode}
+                      t={tDash}
+                    />
+                  ))
+                )}
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -492,5 +555,159 @@ function StatCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// Mobile Card Components
+function CustomerCard({
+  row,
+  isPrivacyMode,
+  onClick,
+  t,
+}: {
+  row: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    balance: number;
+    status: string;
+  };
+  isPrivacyMode: boolean;
+  onClick: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-card border rounded-lg p-4 shadow-sm cursor-pointer active:bg-muted/50 transition-colors"
+    >
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-semibold text-base">{row.name}</h3>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${
+          row.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+        }`}>
+          {row.status}
+        </span>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("email") || "Email"}:</span>
+          <span className="font-mono text-right break-all max-w-[60%]">{row.email}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("phone") || "Phone"}:</span>
+          <span>{row.phone}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("balance") || "Balance"}:</span>
+          <span className="font-medium">
+            {isPrivacyMode
+              ? "***"
+              : `PKR ${Math.round(row.balance).toLocaleString()}`}
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 text-xs text-blue-600 text-right">
+        {t("viewTransactions") || "View Transactions"} →
+      </div>
+    </div>
+  );
+}
+
+function SalesCard({
+  row,
+  isPrivacyMode,
+  t,
+}: {
+  row: {
+    id: string;
+    invoiceNo: string;
+    customerName: string;
+    total: number;
+    paid: number;
+    balance: number;
+    date: string;
+  };
+  isPrivacyMode: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-semibold text-base">{row.invoiceNo}</h3>
+        <span className="text-xs text-muted-foreground">{row.date}</span>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("customer") || "Customer"}:</span>
+          <span>{row.customerName}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("total") || "Total"}:</span>
+          <span>
+            {isPrivacyMode
+              ? "***"
+              : `PKR ${Math.round(row.total).toLocaleString()}`}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("paid") || "Paid"}:</span>
+          <span>
+            {isPrivacyMode
+              ? "***"
+              : `PKR ${Math.round(row.paid).toLocaleString()}`}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("balance") || "Balance"}:</span>
+          <span className="font-medium">
+            {isPrivacyMode
+              ? "***"
+              : `PKR ${Math.round(row.balance).toLocaleString()}`}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ItemCard({
+  row,
+  isPrivacyMode,
+  t,
+}: {
+  row: {
+    id: string;
+    name: string;
+    category: string;
+    stock: number;
+    price: number;
+  };
+  isPrivacyMode: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <h3 className="font-semibold text-base mb-2">{row.name}</h3>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("category") || "Category"}:</span>
+          <span>{row.category}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("stock") || "Stock"}:</span>
+          <span>{row.stock}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("price") || "Price"}:</span>
+          <span>
+            {isPrivacyMode
+              ? "***"
+              : `PKR ${Math.round(row.price).toLocaleString()}`}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
