@@ -19,7 +19,7 @@ import { supportContact } from "@/lib/constants";
 import { Loader2Icon, TrendingDown, TrendingUp, Activity } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
-export default function Page() {
+export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const params = useParams();
