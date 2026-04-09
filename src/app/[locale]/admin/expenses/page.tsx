@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CreatableSelect from "react-select/creatable";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, PencilIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -432,77 +433,104 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
           <div>
             <CardTitle>{t("title")}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">{t("pageDescription")}</p>
           </div>
-          <Button onClick={openAddDialog}>
+          <Button onClick={openAddDialog} className="shrink-0">
             <PlusCircle className="mr-2 h-4 w-4" />
             {t("addExpense")}
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("expenseNumber")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("category")}</TableHead>
-                <TableHead>{t("itemName")}</TableHead>
-                <TableHead className="text-right">{t("qty")}</TableHead>
-                <TableHead className="text-right">{t("rate")}</TableHead>
-                <TableHead className="text-right">{t("amount")}</TableHead>
-                <TableHead className="text-right">{tCommon("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          {/* Desktop Table View - hidden on mobile */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    {tCommon("loading")}
-                  </TableCell>
+                  <TableHead>{t("expenseNumber")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("category")}</TableHead>
+                  <TableHead>{t("itemName")}</TableHead>
+                  <TableHead className="text-right">{t("qty")}</TableHead>
+                  <TableHead className="text-right">{t("rate")}</TableHead>
+                  <TableHead className="text-right">{t("amount")}</TableHead>
+                  <TableHead className="text-right">{tCommon("actions")}</TableHead>
                 </TableRow>
-              ) : expenses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    {t("noExpenses")}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>{expense.expenseNumber}</TableCell>
-                    <TableCell>{expense.date}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
-                    <TableCell>{expense.itemName}</TableCell>
-                    <TableCell className="text-right">{formatNumber(expense.qty)}</TableCell>
-                    <TableCell className="text-right">{formatNumber(expense.rate)}</TableCell>
-                    <TableCell className="text-right">{formatNumber(expense.amount)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditDialog(expense)}
-                        >
-                          {tCommon("edit")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => requestDeleteExpense(expense)}
-                          disabled={isDeleting}
-                        >
-                          {tCommon("delete")}
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      {tCommon("loading")}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : expenses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      {t("noExpenses")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  expenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell>{expense.expenseNumber}</TableCell>
+                      <TableCell>{expense.date}</TableCell>
+                      <TableCell>{expense.category}</TableCell>
+                      <TableCell>{expense.itemName}</TableCell>
+                      <TableCell className="text-right">{formatNumber(expense.qty)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(expense.rate)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(expense.amount)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditDialog(expense)}
+                          >
+                            {tCommon("edit")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => requestDeleteExpense(expense)}
+                            disabled={isDeleting}
+                          >
+                            {tCommon("delete")}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards View - visible only on mobile */}
+          <div className="block md:hidden space-y-3">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                {tCommon("loading")}
+              </div>
+            ) : expenses.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                {t("noExpenses")}
+              </div>
+            ) : (
+              expenses.map((expense) => (
+                <ExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  onEdit={() => openEditDialog(expense)}
+                  onDelete={() => requestDeleteExpense(expense)}
+                  t={t}
+                  tCommon={tCommon}
+                />
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -537,7 +565,7 @@ export default function ExpensesPage() {
               {lines.map((line, index) => (
                 <div
                   key={line.id}
-                  className="grid gap-3 rounded-md border p-3 md:grid-cols-[1.4fr_1.4fr_0.7fr_0.8fr_0.8fr_auto]"
+                  className="grid gap-3 rounded-md border p-3 grid-cols-1 sm:grid-cols-[1.4fr_1.4fr_0.7fr_0.8fr_0.8fr_auto]"
                 >
                   <div className="space-y-1">
                     <Label>{t("category")}</Label>
@@ -777,6 +805,64 @@ export default function ExpensesPage() {
         onConfirm={handleDeleteExpense}
         variant="destructive"
       />
+    </div>
+  );
+}
+
+// Mobile Card Component for Expense Row
+function ExpenseCard({
+  expense,
+  onEdit,
+  onDelete,
+  t,
+  tCommon,
+}: {
+  expense: ExpenseRow;
+  onEdit: () => void;
+  onDelete: () => void;
+  t: (key: string) => string;
+  tCommon: (key: string) => string;
+}) {
+  return (
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-semibold text-base">{expense.expenseNumber}</h3>
+          <p className="text-xs text-muted-foreground">{expense.date}</p>
+        </div>
+        <div className="flex gap-1">
+          <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8">
+            <PencilIcon className="w-4 h-4" />
+            <span className="sr-only">{tCommon("edit")}</span>
+          </Button>
+          <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8">
+            <Trash2 className="w-4 h-4" />
+            <span className="sr-only">{tCommon("delete")}</span>
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("category")}:</span>
+          <span>{expense.category}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("itemName")}:</span>
+          <span>{expense.itemName}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("qty")}:</span>
+          <span>{formatNumber(expense.qty)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("rate")}:</span>
+          <span>{formatNumber(expense.rate)}</span>
+        </div>
+        <div className="flex justify-between pt-1 border-t">
+          <span className="font-medium">{t("amount")}:</span>
+          <span className="font-bold">{formatNumber(expense.amount)}</span>
+        </div>
+      </div>
     </div>
   );
 }
