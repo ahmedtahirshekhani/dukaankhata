@@ -235,11 +235,11 @@ export default function ExpensesPage() {
         const qty = parseNumericInput(line.qty);
         const rate = parseNumericInput(line.rate);
         return (
-        !line.category.trim() ||
-        !line.itemName.trim() ||
-        qty <= 0 ||
-        rate < 0 ||
-        qty * rate <= 0
+          !line.category.trim() ||
+          !line.itemName.trim() ||
+          qty <= 0 ||
+          rate < 0 ||
+          qty * rate <= 0
         );
       },
     );
@@ -684,13 +684,13 @@ export default function ExpensesPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("editExpense")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("expenseNumber")}</Label>
                 <Input
@@ -708,7 +708,7 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("category")}</Label>
                 <CreatableSelect
@@ -737,7 +737,7 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>{t("qty")}</Label>
                 <Input
