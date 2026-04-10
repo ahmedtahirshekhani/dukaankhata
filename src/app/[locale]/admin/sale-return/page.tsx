@@ -46,6 +46,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 
 type Customer = {
   id: string;
@@ -677,18 +678,15 @@ export default function SaleReturnPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t("customer")}</Label>
-          <Select value={formCustomerId} onValueChange={setFormCustomerId}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("selectCustomer")} />
-            </SelectTrigger>
-            <SelectContent>
-              {customers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PartyDropdown
+            value={formCustomerId}
+            onValueChange={(val) => setFormCustomerId(val)}
+            placeholder={t("selectCustomer")}
+            className="w-full"
+            filterActiveOnly={true}
+            enableSearch={true}
+            searchPlaceholder={t("searchCustomer") || "Search customer..."}
+          />
         </div>
         <div className="space-y-2">
           <Label>{t("paymentMethod")}</Label>
