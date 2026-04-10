@@ -38,6 +38,7 @@ import {
   type InvoiceCharge,
 } from "@/components/invoice/invoice-preview";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
+import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 
 type Product = {
@@ -218,8 +219,8 @@ export default function InvoicePage() {
     }
   };
 
-  const handleSelectCustomer = (customerId: number | string) => {
-    const customer = customers.find((c) => c.id === customerId);
+  const handleSelectCustomer = (customerId: string) => {
+    const customer = customers.find((c) => String(c.id) === customerId);
     if (customer) {
       setSelectedCustomer(customer);
     }
@@ -643,10 +644,14 @@ export default function InvoicePage() {
               <Label htmlFor="customer" className="text-xs font-medium">
                 {t("customer")}
               </Label>
-              <Combobox
-                items={customers}
+              <PartyDropdown
+                value={selectedCustomer?.id ? String(selectedCustomer.id) : ""}
+                onValueChange={(val) => handleSelectCustomer(val)}
                 placeholder={t("selectCustomer")}
-                onSelect={handleSelectCustomer}
+                className="w-full"
+                filterActiveOnly={true}
+                enableSearch={true}
+                searchPlaceholder={t("searchCustomer") || "Search customer..."}
               />
             </div>
 
@@ -1491,3 +1496,10 @@ export default function InvoicePage() {
     </div>
   );
 }
+
+
+
+
+
+
+

@@ -86,6 +86,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/sale-return",
   ];
   const purchaseSubRoutes = [
+    "/admin/purchase-bill",
     "/admin/payment-out",
   ];
   const isSalesSectionActive =
@@ -111,6 +112,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/sales": tNav("sales"),
     "/admin/sale-return": tNav("saleReturn"),
     "/admin/purchase": tNav("purchase"),
+    "/admin/purchase-bill": tNav("purchaseBill"),
     "/admin/payment-out": tNav("paymentOut"),
     "/admin/expenses": tNav("expenses"),
     "/admin/customers": tNav("customers"),
@@ -352,7 +354,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
             <div>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-stretch gap-1">
                 <Link
                   href={`/${locale}/admin/purchase`}
                   onClick={() => setSidebarOpen(false)}
@@ -397,7 +399,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </div>
 
               {!sidebarMinimized && purchaseExpanded && (
-                <div className="ml-5 mt-1 border-l border-border/70 pl-3">
+                <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
+                  <Link
+                    href={`/${locale}/admin/purchase-bill`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/purchase-bill" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
+                      pathWithoutLocale === "/admin/purchase-bill"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("purchaseBill")}
+                  </Link>
                   <Link
                     href={`/${locale}/admin/payment-out`}
                     onClick={() => setSidebarOpen(false)}
