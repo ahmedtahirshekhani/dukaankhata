@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
+import { Trash2, Plus, Loader2, Edit2 } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 
 interface PurchaseBillItem {
@@ -218,7 +218,7 @@ export default function PurchaseBillPage() {
                             variant="outline"
                             onClick={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -251,8 +251,7 @@ export default function PurchaseBillPage() {
             handleDeleteBill(deleteConfirmDialog.billId);
           }
         }}
-        isDestructive
-        isLoading={isSaving}
+        variant="destructive"
       />
 
       <ErrorDialog

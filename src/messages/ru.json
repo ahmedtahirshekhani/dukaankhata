@@ -595,6 +595,7 @@
     "addCustomItemTitle": "Apni cheez shamil karain"
   },
   "invoice": {
+    "searchCustomer": "Поиск клиента...",
     "title": "Invoicing",
     "pageDescription": "Frookhat ke transactions ka intezaam karain",
     "addItem": "Item Shamil Karain",
