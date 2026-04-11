@@ -149,7 +149,6 @@ export default function AddPurchaseBillPage() {
 
                 if (productsRes.ok) {
                     const data = await productsRes.json();
-                    console.log('Products Data:', data);
                     setProducts(Array.isArray(data) ? data : []);
                 }
 
