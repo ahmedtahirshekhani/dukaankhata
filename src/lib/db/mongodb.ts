@@ -61,6 +61,7 @@ export const COLLECTIONS = {
   CUSTOMER_TRANSACTIONS: "party_transaction", // Alias for backward compatibility
   VENDOR_TRANSACTIONS: "vendor_transaction",
   SALE_RETURN_TRANSACTIONS: "sale_return_transaction",
+  PURCHASE_BILLS: "purchase_bills",
   PARTY_LEDGER_ENTRIES: "party_ledger_entries",
   CUSTOMER_LEDGER_ENTRIES: "party_ledger_entries", // Alias for backward compatibility
   PARTY_BALANCE_STATE: "party_balance_state",
@@ -176,6 +177,18 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.PARTY_BALANCE_STATE)
       .createIndex({ user_id: 1, party_id: 1 }, { unique: true });
+
+    // Purchase bills collection indexes
+    await db.collection(COLLECTIONS.PURCHASE_BILLS).createIndex({ user_id: 1 });
+    await db
+      .collection(COLLECTIONS.PURCHASE_BILLS)
+      .createIndex({ user_id: 1, party_id: 1 });
+    await db
+      .collection(COLLECTIONS.PURCHASE_BILLS)
+      .createIndex({ created_at: -1 });
+    await db
+      .collection(COLLECTIONS.PURCHASE_BILLS)
+      .createIndex({ user_id: 1, created_at: -1 });
 
     // Expenses collection indexes
     await db.collection(COLLECTIONS.EXPENSES).createIndex({ user_id: 1 });

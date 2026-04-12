@@ -10,7 +10,13 @@ export type PartyLedgerEventType =
   | "order_debit"
   | "order_payment_credit"
   | "payment_in_credit"
-  | "payment_out_debit"      
+  | "payment_out_debit"
+  | "purchase_bill_debit"
+  | "purchase_bill_credit"
+  | "purchase_return_debit"
+  | "purchase_return_credit      
+  | "sale_return_debit"
+  | "sale_return_credit"
   | "manual_adjustment";
 
 // Backward compatibility aliases
