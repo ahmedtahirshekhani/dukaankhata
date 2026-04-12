@@ -186,6 +186,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       }
 
       setSuccess(t("signUpSuccess"));
+
+      if (typeof window !== "undefined" && formData.companyName.trim()) {
+        localStorage.setItem("companyName", formData.companyName.trim());
+      }
+
       setFormData({
         email: "",
         password: "",
