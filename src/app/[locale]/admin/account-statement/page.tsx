@@ -36,7 +36,7 @@ interface Customer {
 
 interface Transaction {
   id: string;
-  type: "order" | "payment_in" | "payment_out" | "opening_balance" | "adjustment";
+  type: "order" | "payment_in" | "payment_out" | "opening_balance" | "adjustment" | "purchase_bill";
   orderValue: number | null;
   paidAmount: number | null;
   orderId?: string | null;
@@ -54,6 +54,7 @@ interface Transaction {
 interface StatementSummary {
   openingBalance: number;
   totalOrders: number;
+  totalPurchaseBills?: number;
   totalPayments: number;
   totalPaymentsIn?: number;
   totalPaymentsOut?: number;
@@ -305,7 +306,7 @@ export default function AccountStatementPage() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -315,6 +316,18 @@ export default function AccountStatementPage() {
             <CardContent>
               <p className="text-2xl font-bold">
                 {formatCurrencyString(summary.totalOrders + summary.openingBalance)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Purchase Bills
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-orange-600">
+                {formatCurrencyString(summary.totalPurchaseBills || 0)}
               </p>
             </CardContent>
           </Card>
@@ -337,7 +350,7 @@ export default function AccountStatementPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-2xl font-bold text-red-600">
                 {formatCurrencyString(summary.totalPaymentsOut || 0)}
               </p>
             </CardContent>

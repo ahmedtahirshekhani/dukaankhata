@@ -14,7 +14,7 @@ export type PartyLedgerEventType =
   | "purchase_bill_debit"
   | "purchase_bill_credit"
   | "purchase_return_debit"
-  | "purchase_return_credit      
+  | "purchase_return_credit"
   | "sale_return_debit"
   | "sale_return_credit"
   | "manual_adjustment";

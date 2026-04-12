@@ -1,6 +1,9 @@
+
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +26,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2, Plus, Loader2, X, ArrowLeft } from "lucide-react";
+import { Edit2, Trash2, Plus, Loader2, X, ArrowLeft } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { formatCurrencyString } from "@/lib/utils";
@@ -87,7 +90,7 @@ interface PurchaseBill {
     created_at?: string;
 }
 
-export default function AddPurchaseBillPage() {
+function AddPurchaseBillPageInner() {
     const t = useTranslations("purchaseBill");
     const tCommon = useTranslations("common");
     const locale = useLocale();
@@ -149,7 +152,6 @@ export default function AddPurchaseBillPage() {
 
                 if (productsRes.ok) {
                     const data = await productsRes.json();
-                    console.log('Products Data:', data);
                     setProducts(Array.isArray(data) ? data : []);
                 }
 
@@ -484,7 +486,7 @@ export default function AddPurchaseBillPage() {
                                                     variant="ghost"
                                                     onClick={() => handleEditItem(item)}
                                                 >
-                                                    <Pencil className="h-4 w-4" />
+                                                    <Edit2 className="h-4 w-4" />
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -755,5 +757,13 @@ export default function AddPurchaseBillPage() {
                 isSuccess={errorDialog.isSuccess}
             />
         </div>
+    );
+}
+
+export default function AddPurchaseBillPage() {
+    return (
+        <Suspense fallback={<div className="h-[80vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin" /></div>}>
+            <AddPurchaseBillPageInner />
+        </Suspense>
     );
 }

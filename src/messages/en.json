@@ -668,6 +668,7 @@
     "addCustomItemTitle": "Add a custom item"
   },
   "invoice": {
+    "searchCustomer": "Search customer...",
     "title": "Invoicing",
     "pageDescription": "Manage invoice transactions",
     "addItem": "Add Item",

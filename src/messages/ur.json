@@ -595,6 +595,7 @@
     "addCustomItemTitle": "ایک کسٹم آئٹم شامل کریں"
   },
   "invoice": {
+    "searchCustomer": "گاہک تلاش کریں...",
     "title": "انوائس",
     "pageDescription": "انوائس کی لین دین کا انتظام کریں",
     "addItem": "چیز شامل کریں",
