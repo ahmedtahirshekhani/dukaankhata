@@ -136,6 +136,25 @@ export default function InvoicePage() {
   const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
   const getSalePrice = (product: POSProduct) => product.sell_price;
+  const sanitizeOverallDiscount = (
+    value: number,
+    type: "value" | "percentage" = overallDiscountType,
+  ) => {
+    if (Number.isNaN(value)) return 0;
+    const positive = Math.max(0, value);
+    return type === "percentage" ? Math.min(positive, 100) : positive;
+  };
+
+  const handleOverallDiscountInputChange = (rawValue: string) => {
+    const value = parseFloat(rawValue);
+    setOverallDiscount(sanitizeOverallDiscount(value));
+  };
+
+  const handleOverallDiscountTypeChange = (type: "value" | "percentage") => {
+    setOverallDiscountType(type);
+    setOverallDiscount((prev) => sanitizeOverallDiscount(prev, type));
+  };
+
   const formatUom = (uom?: string) =>
     uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-";
   const truncateDescription = (desc?: string, limit = 100) => {
@@ -233,7 +252,10 @@ export default function InvoicePage() {
     }
   };
 
-  const handleQuantityChange = (productId: number | string, newQuantity: number) => {
+  const handleQuantityChange = (
+    productId: number | string,
+    newQuantity: number,
+  ) => {
     const safeQty =
       Number.isNaN(newQuantity) || newQuantity < 0
         ? (selectedProducts.find((p) => p.id === productId)?.quantity ?? 1)
@@ -245,7 +267,10 @@ export default function InvoicePage() {
     );
   };
 
-  const handleDiscountChange = (productId: number | string, newDiscount: number) => {
+  const handleDiscountChange = (
+    productId: number | string,
+    newDiscount: number,
+  ) => {
     const safeDiscount = Number.isNaN(newDiscount)
       ? 0
       : Math.max(0, newDiscount);
@@ -278,7 +303,10 @@ export default function InvoicePage() {
     );
   };
 
-  const handleSellPriceChange = (productId: number | string, newSellPrice: number) => {
+  const handleSellPriceChange = (
+    productId: number | string,
+    newSellPrice: number,
+  ) => {
     const safePrice = Number.isNaN(newSellPrice)
       ? 0
       : Math.max(0, newSellPrice);
@@ -349,10 +377,10 @@ export default function InvoicePage() {
     (sum, charge) => sum + charge.value,
     0,
   );
-  const overallDiscountNum = overallDiscount || 0;
+  const overallDiscountNum = sanitizeOverallDiscount(overallDiscount || 0);
   const overallDiscountAmount =
     overallDiscountType === "percentage"
-      ? Math.round((total * overallDiscountNum) / 100)
+      ? (total * overallDiscountNum) / 100
       : overallDiscountNum;
   const shippingChargesNum = shippingCharges || 0;
   const finalTotal = Math.max(
@@ -372,8 +400,7 @@ export default function InvoicePage() {
     const items: { name: string; requested: number; inStock: number }[] = [];
     for (const selected of selectedProducts) {
       const product = products.find(
-        (p) =>
-          String(p.id) === String(selected.id) || p.id === selected.id,
+        (p) => String(p.id) === String(selected.id) || p.id === selected.id,
       );
       const isGoods =
         !product?.type || product.type === "goods" || product.type === "good";
@@ -476,9 +503,13 @@ export default function InvoicePage() {
         total: Math.floor(createdOrderShareData.total),
       });
 
-      const pdfFile = new File([pdfBlob], `${createdOrderShareData.invoiceNo}.pdf`, {
-        type: "application/pdf",
-      });
+      const pdfFile = new File(
+        [pdfBlob],
+        `${createdOrderShareData.invoiceNo}.pdf`,
+        {
+          type: "application/pdf",
+        },
+      );
 
       if (
         typeof navigator !== "undefined" &&
@@ -807,7 +838,7 @@ export default function InvoicePage() {
                               parseFloat(e.target.value),
                             )
                           }
-                          className="w-24 p-1 border rounded"
+                          className="w-28 p-1 border rounded"
                         />
                         <Select
                           value={product.discountType || "value"}
@@ -943,7 +974,7 @@ export default function InvoicePage() {
                     </Select>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-end gap-2">
                     <div className="flex-1">
                       <p className="text-xs text-muted-foreground">Discount</p>
                       <Input
@@ -959,25 +990,27 @@ export default function InvoicePage() {
                         className="h-7 text-xs p-1"
                       />
                     </div>
-                    <Select
-                      value={product.discountType || "value"}
-                      onValueChange={(val) =>
-                        handleDiscountTypeChange(
-                          product.id,
-                          val as "value" | "percentage",
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-16 h-7 text-xs">
-                        <SelectValue placeholder={t("pkr")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="value">{t("pkr")}</SelectItem>
-                        <SelectItem value="percentage">
-                          {t("percentage")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="w-20">
+                      <Select
+                        value={product.discountType || "value"}
+                        onValueChange={(val) =>
+                          handleDiscountTypeChange(
+                            product.id,
+                            val as "value" | "percentage",
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-full h-7 text-xs">
+                          <SelectValue placeholder={t("pkr")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="value">{t("pkr")}</SelectItem>
+                          <SelectItem value="percentage">
+                            {t("percentage")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="pt-1 border-t">
@@ -1035,7 +1068,7 @@ export default function InvoicePage() {
             {/* Summary Grid - Desktop */}
             <div className="hidden md:flex justify-end mb-4">
               <div className="space-y-3 max-w-md w-full">
-                <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-2 items-center">
+                <div className="grid grid-cols-[auto_190px] gap-x-3 gap-y-2 items-center">
                   <span className="text-sm text-right">{t("subTotal")}</span>
                   <span className="text-left font-semibold">
                     {t("currencySymbol")} {Math.round(total)}
@@ -1044,22 +1077,26 @@ export default function InvoicePage() {
                   <span className="text-sm text-right">
                     {t("overallDiscount")}
                   </span>
-                  <div className="flex gap-1 items-center justify-end">
+                  <div className="flex gap-1 items-center">
                     <Input
                       type="number"
                       placeholder="0"
                       min="0"
-                      className="w-14 h-8 text-sm"
+                      max={
+                        overallDiscountType === "percentage" ? 100 : undefined
+                      }
+                      className="w-28 h-8 text-sm"
                       value={overallDiscount || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        setOverallDiscount(isNaN(value) ? 0 : Math.abs(value));
-                      }}
+                      onChange={(e) =>
+                        handleOverallDiscountInputChange(e.target.value)
+                      }
                     />
                     <Select
                       value={overallDiscountType}
                       onValueChange={(val) =>
-                        setOverallDiscountType(val as "value" | "percentage")
+                        handleOverallDiscountTypeChange(
+                          val as "value" | "percentage",
+                        )
                       }
                     >
                       <SelectTrigger className="w-20 h-8 text-xs">
@@ -1202,19 +1239,21 @@ export default function InvoicePage() {
                         type="number"
                         placeholder="0"
                         min="0"
-                        className="flex-1 h-7 text-xs"
+                        max={
+                          overallDiscountType === "percentage" ? 100 : undefined
+                        }
+                        className="w-24 h-7 text-xs"
                         value={overallDiscount || ""}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          setOverallDiscount(
-                            isNaN(value) ? 0 : Math.abs(value),
-                          );
-                        }}
+                        onChange={(e) =>
+                          handleOverallDiscountInputChange(e.target.value)
+                        }
                       />
                       <Select
                         value={overallDiscountType}
                         onValueChange={(val) =>
-                          setOverallDiscountType(val as "value" | "percentage")
+                          handleOverallDiscountTypeChange(
+                            val as "value" | "percentage",
+                          )
                         }
                       >
                         <SelectTrigger className="w-16 h-7 text-xs">
@@ -1400,11 +1439,16 @@ export default function InvoicePage() {
         variant="warning"
       />
 
-      <Dialog open={showOrderCreatedDialog} onOpenChange={setShowOrderCreatedDialog}>
+      <Dialog
+        open={showOrderCreatedDialog}
+        onOpenChange={setShowOrderCreatedDialog}
+      >
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>{t("orderCreatedTitle")}</DialogTitle>
-            <DialogDescription>{t("orderCreatedDescription")}</DialogDescription>
+            <DialogDescription>
+              {t("orderCreatedDescription")}
+            </DialogDescription>
           </DialogHeader>
           {createdOrderShareData?.phone ? (
             <p className="text-sm text-muted-foreground">
@@ -1423,9 +1467,13 @@ export default function InvoicePage() {
               onClick={handleSendInvoicePdfOnWhatsApp}
               disabled={!getWhatsAppLink() || isSendingWhatsApp}
             >
-              {isSendingWhatsApp ? t("sendingOnWhatsApp") : t("sendInvoicePdfOnWhatsApp")}
+              {isSendingWhatsApp
+                ? t("sendingOnWhatsApp")
+                : t("sendInvoicePdfOnWhatsApp")}
             </Button>
-            <Button onClick={() => setShowOrderCreatedDialog(false)}>{t("ok")}</Button>
+            <Button onClick={() => setShowOrderCreatedDialog(false)}>
+              {t("ok")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1496,10 +1544,3 @@ export default function InvoicePage() {
     </div>
   );
 }
-
-
-
-
-
-
-

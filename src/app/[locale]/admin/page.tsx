@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,11 +26,11 @@ export default function DashboardPage() {
     typeof params?.locale === "string"
       ? params.locale
       : Array.isArray(params?.locale)
-      ? params?.locale?.[0]
-      : "en";
+        ? params?.locale?.[0]
+        : "en";
 
   const [loading, setLoading] = useState(true);
-  const [isPrivacyMode, setIsPrivacyMode] = useState(true);
+  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
   const [totalBalance, setTotalBalance] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -83,20 +82,21 @@ export default function DashboardPage() {
     if (savedPrivacyMode) {
       setIsPrivacyMode(JSON.parse(savedPrivacyMode));
     } else {
-      setIsPrivacyMode(true);
-      localStorage.setItem("dashboardPrivacyMode", JSON.stringify(true));
+      setIsPrivacyMode(false);
+      localStorage.setItem("dashboardPrivacyMode", JSON.stringify(false));
     }
   }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dashboardRes, ordersRes, customersRes, productsRes] = await Promise.all([
-          fetch("/api/admin/dashboard/summary"),
-          fetch("/api/orders"),
-          fetch("/api/customers"),
-          fetch("/api/products"),
-        ]);
+        const [dashboardRes, ordersRes, customersRes, productsRes] =
+          await Promise.all([
+            fetch("/api/admin/dashboard/summary"),
+            fetch("/api/orders"),
+            fetch("/api/customers"),
+            fetch("/api/products"),
+          ]);
 
         if (dashboardRes.status === 401) {
           router.replace(`/${locale}/login`);
@@ -258,7 +258,9 @@ export default function DashboardPage() {
             <Button
               type="button"
               size="sm"
-              variant={activeDashboardTab === "customers" ? "default" : "outline"}
+              variant={
+                activeDashboardTab === "customers" ? "default" : "outline"
+              }
               onClick={() => setActiveDashboardTab("customers")}
             >
               {tDash("customers") || "Customers"}
@@ -292,7 +294,9 @@ export default function DashboardPage() {
                 <TableRow>
                   {activeDashboardTab === "sales" && (
                     <>
-                      <TableHead>{tDash("invoiceNo") || "Invoice No"}</TableHead>
+                      <TableHead>
+                        {tDash("invoiceNo") || "Invoice No"}
+                      </TableHead>
                       <TableHead>{tDash("customer") || "Customer"}</TableHead>
                       <TableHead>{tDash("total") || "Total"}</TableHead>
                       <TableHead>{tDash("paid") || "Paid"}</TableHead>
@@ -324,7 +328,10 @@ export default function DashboardPage() {
                 {activeDashboardTab === "sales" &&
                   (salesRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={6}
+                        className="text-muted-foreground text-center"
+                      >
                         {tDash("noData") || "No data"}
                       </TableCell>
                     </TableRow>
@@ -356,7 +363,10 @@ export default function DashboardPage() {
                 {activeDashboardTab === "customers" &&
                   (customerRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={6}
+                        className="text-muted-foreground text-center"
+                      >
                         {tDash("noData") || "No data"}
                       </TableCell>
                     </TableRow>
@@ -374,7 +384,9 @@ export default function DashboardPage() {
                         <TableCell>{row.status}</TableCell>
                         <TableCell>
                           <Button asChild size="sm" variant="outline">
-                            <Link href={`/${locale}/admin/customer-transactions/${row.id}`}>
+                            <Link
+                              href={`/${locale}/admin/customer-transactions/${row.id}`}
+                            >
                               {tDash("viewTransactions") || "View Transactions"}
                             </Link>
                           </Button>
@@ -386,7 +398,10 @@ export default function DashboardPage() {
                 {activeDashboardTab === "items" &&
                   (itemRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={4}
+                        className="text-muted-foreground text-center"
+                      >
                         {tDash("noData") || "No data"}
                       </TableCell>
                     </TableRow>
@@ -422,7 +437,11 @@ export default function DashboardPage() {
                       key={row.id}
                       row={row}
                       isPrivacyMode={isPrivacyMode}
-                      onClick={() => router.push(`/${locale}/admin/customer-transactions/${row.id}`)}
+                      onClick={() =>
+                        router.push(
+                          `/${locale}/admin/customer-transactions/${row.id}`,
+                        )
+                      }
                       t={tDash}
                     />
                   ))
@@ -474,7 +493,9 @@ export default function DashboardPage() {
       <Card className="mt-10">
         <CardContent className="p-3 sm:p-4">
           <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 items-start sm:items-center text-xs sm:text-sm text-muted-foreground">
-            <span className="font-medium">{tDash("needHelp") || "Need Help?"}</span>
+            <span className="font-medium">
+              {tDash("needHelp") || "Need Help?"}
+            </span>
             <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
               <a
                 href={`mailto:${supportContact.email}`}
@@ -539,7 +560,9 @@ function StatCard({
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
-        <CardTitle className="text-xs sm:text-sm font-medium">{title}</CardTitle>
+        <CardTitle className="text-xs sm:text-sm font-medium">
+          {title}
+        </CardTitle>
         <div className={`p-2 rounded-lg ${bgColor}`}>{icon}</div>
       </CardHeader>
       <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
@@ -548,7 +571,9 @@ function StatCard({
             <span className="text-muted-foreground">•••••</span>
           ) : (
             <>
-              {currency && <span className="text-sm font-normal">{currency} </span>}
+              {currency && (
+                <span className="text-sm font-normal">{currency} </span>
+              )}
               {Math.floor(value).toLocaleString()}
             </>
           )}
@@ -584,23 +609,35 @@ function CustomerCard({
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-base">{row.name}</h3>
-        <span className={`text-xs px-2 py-0.5 rounded-full ${
-          row.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-        }`}>
+        <span
+          className={`text-xs px-2 py-0.5 rounded-full ${
+            row.status === "active"
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-700"
+          }`}
+        >
           {row.status}
         </span>
       </div>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("email") || "Email"}:</span>
-          <span className="font-mono text-right break-all max-w-[60%]">{row.email}</span>
+          <span className="text-muted-foreground">
+            {t("email") || "Email"}:
+          </span>
+          <span className="font-mono text-right break-all max-w-[60%]">
+            {row.email}
+          </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("phone") || "Phone"}:</span>
+          <span className="text-muted-foreground">
+            {t("phone") || "Phone"}:
+          </span>
           <span>{row.phone}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("balance") || "Balance"}:</span>
+          <span className="text-muted-foreground">
+            {t("balance") || "Balance"}:
+          </span>
           <span className="font-medium">
             {isPrivacyMode
               ? "***"
@@ -640,11 +677,15 @@ function SalesCard({
       </div>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("customer") || "Customer"}:</span>
+          <span className="text-muted-foreground">
+            {t("customer") || "Customer"}:
+          </span>
           <span>{row.customerName}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("total") || "Total"}:</span>
+          <span className="text-muted-foreground">
+            {t("total") || "Total"}:
+          </span>
           <span>
             {isPrivacyMode
               ? "***"
@@ -660,7 +701,9 @@ function SalesCard({
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("balance") || "Balance"}:</span>
+          <span className="text-muted-foreground">
+            {t("balance") || "Balance"}:
+          </span>
           <span className="font-medium">
             {isPrivacyMode
               ? "***"
@@ -692,15 +735,21 @@ function ItemCard({
       <h3 className="font-semibold text-base mb-2">{row.name}</h3>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("category") || "Category"}:</span>
+          <span className="text-muted-foreground">
+            {t("category") || "Category"}:
+          </span>
           <span>{row.category}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("stock") || "Stock"}:</span>
+          <span className="text-muted-foreground">
+            {t("stock") || "Stock"}:
+          </span>
           <span>{row.stock}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("price") || "Price"}:</span>
+          <span className="text-muted-foreground">
+            {t("price") || "Price"}:
+          </span>
           <span>
             {isPrivacyMode
               ? "***"
