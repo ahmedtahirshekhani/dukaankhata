@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -523,18 +524,13 @@ export default function PaymentOutPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t("party")}</Label>
-              <Select value={formPartyId} onValueChange={setFormPartyId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectParty")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {parties.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PartyDropdown
+                value={formPartyId}
+                onValueChange={(val, party) => setFormPartyId(val)}
+                placeholder={t("selectParty")}
+                className="w-full"
+                filterActiveOnly={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("paymentAmount")}</Label>
@@ -611,18 +607,13 @@ export default function PaymentOutPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t("party")}</Label>
-              <Select value={formPartyId} onValueChange={setFormPartyId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectParty")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {parties.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PartyDropdown
+                value={formPartyId}
+                onValueChange={(val, party) => setFormPartyId(val)}
+                placeholder={t("selectParty")}
+                className="w-full"
+                filterActiveOnly={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("paymentAmount")}</Label>

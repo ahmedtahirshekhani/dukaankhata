@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyString, formatStatementDateTime, formatStatementDate } from "@/lib/utils";
 import { FileText, Loader2, Calendar, Search, Download } from "lucide-react";
+import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 
 interface Customer {
   id: string;
@@ -233,15 +239,17 @@ export default function AccountStatementPage() {
                   {t("loadingCustomers")}
                 </div>
               ) : (
-                <Combobox
-                  items={customers.map((c) => ({
-                    id: c.id,
-                    name: c.name,
-                    description: c.phone || c.email || "",
-                  }))}
+                <PartyDropdown
+                  value={selectedCustomerId}
+                  onValueChange={(val, party) => {
+                    setSelectedCustomerId(val);
+                    setSelectedCustomerName(party?.name || "");
+                  }}
                   placeholder={t("selectCustomerPlaceholder")}
-                  onSelect={handleCustomerSelect}
-                  value={selectedCustomerName}
+                  className="w-full"
+                  filterActiveOnly={true}
+                  enableSearch={true}
+                  searchPlaceholder={typeof t("searchCustomer") === "string" && t("searchCustomer") ? t("searchCustomer") : "Search customer..."}
                 />
               )}
             </div>

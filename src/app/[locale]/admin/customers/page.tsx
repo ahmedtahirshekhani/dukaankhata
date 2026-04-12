@@ -74,7 +74,7 @@ type Customer = {
   is_delete?: number;
 };
 
-export default function CustomersPage() {
+export default function PartiesPage() {
   const t = useTranslations("customers");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);

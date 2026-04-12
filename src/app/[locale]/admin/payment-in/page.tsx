@@ -49,6 +49,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 
 type Customer = {
   id: string;
@@ -543,18 +544,13 @@ export default function PaymentInPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t("customer")}</Label>
-              <Select value={formCustomerId} onValueChange={setFormCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectCustomer")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PartyDropdown
+                value={formCustomerId}
+                onValueChange={(val, party) => setFormCustomerId(val)}
+                placeholder={t("selectCustomer")}
+                className="w-full"
+                filterActiveOnly={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("paymentAmount")}</Label>
@@ -631,18 +627,13 @@ export default function PaymentInPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t("customer")}</Label>
-              <Select value={formCustomerId} onValueChange={setFormCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectCustomer")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PartyDropdown
+                value={formCustomerId}
+                onValueChange={(val, party) => setFormCustomerId(val)}
+                placeholder={t("selectCustomer")}
+                className="w-full"
+                filterActiveOnly={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("paymentAmount")}</Label>
