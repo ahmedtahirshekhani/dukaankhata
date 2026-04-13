@@ -72,6 +72,7 @@ export const COLLECTIONS = {
   CATEGORIES: "categories",
   BRANCHES: "branches",
   WAITLIST: "waitlist",
+  QUOTATIONS: "quotations",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -213,6 +214,15 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.PASSWORD_RESETS)
       .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+
+    // Quotations collection indexes
+    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ user_id: 1 });
+    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ party_id: 1 });
+    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ created_at: -1 });
+    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ user_id: 1, party_id: 1 });
+    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ status: 1 });
+    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ validity_date: 1 });
 
     // Waitlist collection indexes
     await db
