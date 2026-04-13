@@ -26,7 +26,8 @@
     "print": "Print",
     "download": "Download",
     "share": "Share",
-    "convertToSale": "Sale Mein Tabdeel Karain"
+    "convertToSale": "Sale Mein Tabdeel Karain",
+      "searchProduct": "پروڈکٹ تلاش کریں..."
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -904,6 +905,9 @@
     "noItems": "Koi cheezon shamil nahin hain",
     "addItems": "Cheezon Shamil Karain",
     "selectProduct": "Product Muntakhab Karain",
+    "billNumber": "Bill Number",
+    "billNumberPlaceholder": "Bill Number Dakhil Karein",
+    "searchProduct": "Product Search Karein",
     "quantity": "Miqdar",
     "discount": "Khiskh",
     "tax": "Tax",

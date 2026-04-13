@@ -26,7 +26,8 @@
     "print": "پرنٹ کریں",
     "download": "ڈاؤن لوڈ کریں",
     "share": "شیئر کریں",
-    "convertToSale": "فروخت میں تبدیل کریں"
+    "convertToSale": "فروخت میں تبدیل کریں",
+      "searchProduct": "پروڈکٹ تلاش کریں..."
   },
   "navigation": {
     "dashboard": "ڈیش بورڈ",
@@ -914,6 +915,9 @@
     "bankDetails": "بینک کی تفصیلات",
     "balanceDue": "واجب الادا رقم",
     "description": "تفصیل",
+  "billNumber": "بل",
+  "billNumberPlaceholder": "بل نمبر درج کریں",
+  "searchProduct": "پروڈکٹ تلاش کریں...",
     "addNote": "نوٹ شامل کریں",
     "saveNew": "محفوظ کریں اور نیا",
     "save": "محفوظ کریں",

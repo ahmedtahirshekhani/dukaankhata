@@ -29,6 +29,7 @@ import {
 import { Edit2, Trash2, Plus, Loader2, X, ArrowLeft } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
+import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { formatCurrencyString } from "@/lib/utils";
 
 interface Party {
@@ -689,37 +690,14 @@ function AddPurchaseBillPageInner() {
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>{t("selectProduct") || "Select Product"}</Label>
-                            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                                <SelectTrigger>
-                                    <SelectValue
-                                        placeholder={t("selectProduct") || "Select Product"}
-                                    />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
-                                    {products.map((product) => {
-                                        // Get description and truncate to one line (max 50-60 chars)
-                                        const description = product.description || product.category || "";
-                                        const truncatedDescription = description.length > 50 
-                                            ? description.substring(0, 47) + "..." 
-                                            : description;
-                                        
-                                        return (
-                                            <SelectItem key={product.id} value={product.id}>
-                                                <div className="flex flex-col items-start">
-                                                    <span className="font-medium">
-                                                        {product.name} ({formatCurrencyString(product.cost_price || 0)})
-                                                    </span>
-                                                    {truncatedDescription && (
-                                                        <span className="text-xs text-muted-foreground truncate max-w-[280px]">
-                                                            {truncatedDescription}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </SelectItem>
-                                        );
-                                    })}
-                                </SelectContent>
-                            </Select>
+                            <ProductDropdown
+                                value={selectedProduct}
+                                onValueChange={(value) => setSelectedProduct(value)}
+                                placeholder={t("selectProduct") || "Select Product"}
+                                enableSearch={true}
+                                addButtonPosition="top"
+                                searchPlaceholder={t("searchProduct") || "Search product..."}
+                            />
                         </div>
 
                         <div className="space-y-2">
