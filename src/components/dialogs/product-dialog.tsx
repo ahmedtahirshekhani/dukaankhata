@@ -29,14 +29,14 @@ interface Product {
   id: number;
   type?: string;
   name: string;
-  description: string;
+  description?: string;
   price?: number;
   sell_price?: number;
   cost_price?: number;
   in_stock?: number;
   quantity?: number;
   damaged_quantity?: number;
-  category: string;
+  category?: string;
   unit_of_measurement?: string;
   branch?: string;
 }
@@ -191,7 +191,7 @@ export function ProductDialog({
     if (selectedProduct) {
       setItemType((selectedProduct.type as "goods" | "services") || "goods");
       setProductName(selectedProduct.name);
-      setProductDescription(selectedProduct.description);
+      setProductDescription(selectedProduct.description || "");
       if (selectedProduct.type === "goods") {
         setSellPrice(selectedProduct.sell_price || "");
         setCostPrice(selectedProduct.cost_price || "");
@@ -202,7 +202,7 @@ export function ProductDialog({
       } else {
         setSellPrice(selectedProduct.sell_price || "");
       }
-      setProductCategory(selectedProduct.category);
+      setProductCategory(selectedProduct.category || "");
     } else {
       resetForm();
     }

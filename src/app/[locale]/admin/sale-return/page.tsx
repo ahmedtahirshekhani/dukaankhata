@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -36,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -661,204 +661,186 @@ export default function SaleReturnPage() {
   const renderForm = () => (
     <div className="space-y-5 py-2">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("creditNote")}</Label>
-          <Input
-            value={formReturnNumber}
-            onChange={(e) => setFormReturnNumber(e.target.value)}
-            placeholder={t("returnNumberPlaceholder")}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t("date")}</Label>
-          <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("customer")}</Label>
-          <PartyDropdown
-            value={formCustomerId}
-            onValueChange={(val) => setFormCustomerId(val)}
-            placeholder={t("selectCustomer")}
-            className="w-full"
-            filterActiveOnly={true}
-            enableSearch={true}
-            searchPlaceholder={t("searchCustomer") || "Search customer..."}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t("paymentMethod")}</Label>
-          <Select value={formPaymentMethodId} onValueChange={setFormPaymentMethodId}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("selectPaymentMethod")} />
-            </SelectTrigger>
-            <SelectContent className="min-w-[20rem] max-w-[90vw]">
-              {paymentMethods.map((pm) => (
-                <SelectItem key={pm.id} value={pm.id} className="text-left group">
-                  <div className="flex flex-col items-start text-left gap-0.5 py-0.5 w-full">
-                    <span className="font-medium w-full">{pm.name}</span>
-                    {pm.bankDetails && (
-                      <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap w-full group-data-[highlighted]:text-white">
-                        {pm.bankDetails}
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("invoiceDate")}</Label>
-          <Input
-            type="date"
-            value={formInvoiceDate}
-            onChange={(e) => setFormInvoiceDate(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t("invoiceNo")}</Label>
-          <Input
-            value={formInvoiceNo}
-            onChange={(e) => setFormInvoiceNo(e.target.value)}
-            placeholder={t("invoiceNoPlaceholder")}
-          />
-        </div>
-      </div>
-
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>{t("items")}</Label>
-          <Button type="button" variant="outline" size="sm" onClick={addItemRow}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            {t("addItems")}
-          </Button>
-        </div>
-
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("selectProduct")}</TableHead>
-                <TableHead>{t("itemName")}</TableHead>
-                <TableHead>{t("qty")}</TableHead>
-                <TableHead>{t("rate")}</TableHead>
-                <TableHead>{t("amount")}</TableHead>
-                <TableHead>{tCommon("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {formItems.map((item, index) => (
-                <TableRow key={item.id}>
-                  <TableCell className="min-w-[180px]">
-                    <Select
-                      value={item.productId || undefined}
-                      onValueChange={(value) => handleSelectProduct(item.id, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("selectItem")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                              {product.name}
-                              {(() => {
-                                const rate =
-                                  product.sellPrice ||
-                                  product.sell_price ||
-                                  product.salePrice ||
-                                  product.retailPrice ||
-                                  product.price ||
-                                  0;
-                                return rate > 0 ? ` (Rs. ${rate})` : "";
-                              })()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="min-w-[180px]">
-                    <Input
-                      value={item.itemName}
-                      onChange={(e) => updateFormItem(item.id, "itemName", e.target.value)}
-                      placeholder={t("itemNamePlaceholder")}
-                    />
-                  </TableCell>
-                  <TableCell className="w-[110px]">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.quantity}
-                      onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell className="w-[130px]">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.rate}
-                      onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeItemRow(item.id)}
-                      disabled={formItems.length === 1}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <Label>{t("creditNote")}</Label>
+        <Input
+          value={formReturnNumber}
+          onChange={(e) => setFormReturnNumber(e.target.value)}
+          placeholder={t("returnNumberPlaceholder")}
+        />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("totalAmount")}</Label>
-          <Input value={totalAmount.toFixed(2)} readOnly />
-        </div>
-        <div className="space-y-2">
-          <Label>{t("paidAmount")}</Label>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={formPaidAmount}
-            onChange={(e) => setFormPaidAmount(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("balanceDue")}</Label>
-          <Input value={balanceDue.toFixed(2)} readOnly />
-        </div>
-        <div className="space-y-2">
-          <Label>{t("paymentRefNo")}</Label>
-          <Input
-            value={formPaymentRefNo}
-            onChange={(e) => setFormPaymentRefNo(e.target.value)}
-            placeholder={t("paymentRefNoPlaceholder")}
-          />
-        </div>
+      <div className="space-y-2">
+        <Label>{t("date")}</Label>
+        <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
       </div>
     </div>
-  );
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>{t("customer")}</Label>
+        <PartyDropdown
+          value={formCustomerId}
+          onValueChange={(val) => setFormCustomerId(val)}
+          placeholder={t("selectCustomer")}
+          className="w-full"
+          filterActiveOnly={true}
+          enableSearch={true}
+          searchPlaceholder={t("searchCustomer") || "Search customer..."}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t("paymentMethod")}</Label>
+        <Select value={formPaymentMethodId} onValueChange={setFormPaymentMethodId}>
+          <SelectTrigger>
+            <SelectValue placeholder={t("selectPaymentMethod")} />
+          </SelectTrigger>
+          <SelectContent className="min-w-[20rem] max-w-[90vw]">
+            {paymentMethods.map((pm) => (
+              <SelectItem key={pm.id} value={pm.id} className="text-left group">
+                <div className="flex flex-col items-start text-left gap-0.5 py-0.5 w-full">
+                  <span className="font-medium w-full">{pm.name}</span>
+                  {pm.bankDetails && (
+                    <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap w-full group-data-[highlighted]:text-white">
+                      {pm.bankDetails}
+                    </span>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>{t("invoiceDate")}</Label>
+        <Input
+          type="date"
+          value={formInvoiceDate}
+          onChange={(e) => setFormInvoiceDate(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t("invoiceNo")}</Label>
+        <Input
+          value={formInvoiceNo}
+          onChange={(e) => setFormInvoiceNo(e.target.value)}
+          placeholder={t("invoiceNoPlaceholder")}
+        />
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{t("items")}</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addItemRow}>
+          <PlusCircle className="w-4 h-4 mr-2" />
+          {t("addItems")}
+        </Button>
+      </div>
+
+      <div className="border rounded-md overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("selectProduct")}</TableHead>
+              <TableHead>{t("itemName")}</TableHead>
+              <TableHead>{t("qty")}</TableHead>
+              <TableHead>{t("rate")}</TableHead>
+              <TableHead>{t("amount")}</TableHead>
+              <TableHead>{tCommon("actions")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {formItems.map((item, index) => (
+              <TableRow key={item.id}>
+                <TableCell className="min-w-[180px]">
+                  <ProductDropdown
+                    value={item.productId}
+                    onValueChange={(value) => handleSelectProduct(item.id, value)}
+                    placeholder={tCommon("searchProduct")}
+                    enableSearch={true}
+                    searchPlaceholder={tCommon("searchProduct") || "Search product..."}
+                  />
+                </TableCell>
+                <TableCell className="min-w-[180px]">
+                  <Input
+                    value={item.itemName}
+                    onChange={(e) => updateFormItem(item.id, "itemName", e.target.value)}
+                    placeholder={t("itemNamePlaceholder")}
+                  />
+                </TableCell>
+                <TableCell className="w-[110px]">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.quantity}
+                    onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
+                  />
+                </TableCell>
+                <TableCell className="w-[130px]">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.rate}
+                    onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
+                  />
+                </TableCell>
+                <TableCell className="font-medium">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
+                <TableCell>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => removeItemRow(item.id)}
+                    disabled={formItems.length === 1}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>{t("totalAmount")}</Label>
+        <Input value={totalAmount.toFixed(2)} readOnly />
+      </div>
+      <div className="space-y-2">
+        <Label>{t("paidAmount")}</Label>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={formPaidAmount}
+          onChange={(e) => setFormPaidAmount(e.target.value)}
+        />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>{t("balanceDue")}</Label>
+        <Input value={balanceDue.toFixed(2)} readOnly />
+      </div>
+      <div className="space-y-2">
+        <Label>{t("paymentRefNo")}</Label>
+        <Input
+          value={formPaymentRefNo}
+          onChange={(e) => setFormPaymentRefNo(e.target.value)}
+          placeholder={t("paymentRefNoPlaceholder")}
+        />
+      </div>
+    </div>
+  </div>
+);
 
   if (loading) {
     return (

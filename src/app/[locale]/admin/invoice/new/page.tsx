@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
+import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,8 +74,10 @@ interface POSProduct extends Product {
   discountInput?: string;
 }
 
-export default function InvoicePage() {
+export default function NewInvoicePage() {
   const t = useTranslations("invoice");
+    const tCommon = useTranslations("common");
+
   const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1033,14 +1036,15 @@ export default function InvoicePage() {
               <TableBody>
                 <TableRow>
                   <TableCell>
-                    <Combobox
-                      items={products.map((p) => ({
-                        ...p,
-                        description: truncateDescription(p.description, 50),
-                      }))}
+                    <ProductDropdown
+                      value={""}
+                      onValueChange={(value, product) => {
+                        if (!product) return;
+                        handleSelectProduct(product.id);
+                      }}
                       placeholder={t("addItem")}
-                      noSelect
-                      onSelect={handleSelectProduct}
+                      enableSearch={true}
+                      searchPlaceholder={tCommon("searchProduct") || "Search product..."}
                     />
                   </TableCell>
                   <TableCell colSpan={6}></TableCell>
@@ -1052,14 +1056,15 @@ export default function InvoicePage() {
           {/* Add Item - Mobile */}
           <div className="md:hidden mt-3">
             <Label className="text-xs font-medium">{t("addItem")}</Label>
-            <Combobox
-              items={products.map((p) => ({
-                ...p,
-                description: truncateDescription(p.description, 50),
-              }))}
+            <ProductDropdown
+              value={""}
+              onValueChange={(value, product) => {
+                if (!product) return;
+                handleSelectProduct(product.id);
+              }}
               placeholder={t("selectProductToAdd")}
-              noSelect
-              onSelect={handleSelectProduct}
+              enableSearch={true}
+              searchPlaceholder={t("searchProduct") || "Search product..."}
             />
           </div>
 

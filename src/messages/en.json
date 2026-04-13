@@ -26,7 +26,8 @@
     "print": "Print",
     "download": "Download",
     "share": "Share",
-    "convertToSale": "Convert to Sale"
+    "convertToSale": "Convert to Sale",
+      "searchProduct": "Search Product..."
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -972,6 +973,9 @@
     "selectParty": "Select a party",
     "searchParty": "Search party...",
     "searchCustomer": "Search customer...",
+    "billNumber": "Bill Number",
+    "billNumberPlaceholder": "Enter bill number",
+    "searchProduct": "Search product...",
     "billedItems": "Billed Items",
     "noItems": "No items added",
     "addItems": "Add Items",
