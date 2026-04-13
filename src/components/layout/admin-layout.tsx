@@ -119,9 +119,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
     "/admin/invoice": tNav("invoice"),
+    "/admin/quotations": tNav("quotations"),
     "/admin/account-statement": tNav("accountStatement"),
     "/admin/ai-chat": tNav("aiChat"),
   };
+
 
   const handleLogout = async () => {
     await signOut({
@@ -426,6 +428,28 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 </div>
               )}
+            </div>
+                        <div>
+              <Link
+                href={`/${locale}/admin/quotations`}
+                onClick={() => setSidebarOpen(false)}
+                className={`${navItemBase} ${
+                  pathWithoutLocale === "/admin/quotations" ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("quotations") : ""}
+              >
+                <FileText className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium leading-none">
+                    {tNav("quotations")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                    {tNav("quotationsDescription")}
+                  </span>
+                </div>
+              </Link>
             </div>
             <div>
               <Link
