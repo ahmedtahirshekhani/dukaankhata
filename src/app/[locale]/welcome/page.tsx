@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -50,17 +50,20 @@ const confetti = () => {
       {
         duration: duration,
         easing: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-      }
+      },
     );
 
     setTimeout(() => particle.remove(), duration);
   }
 };
 
-export default function WelcomePage({ params }: { params: { locale: string } }) {
+export default function WelcomePage({
+  params,
+}: {
+  params: { locale: string };
+}) {
   const t = useTranslations("auth");
   const router = useRouter();
-  const [isAnimating, setIsAnimating] = useState(true);
 
   useEffect(() => {
     confetti();
@@ -68,6 +71,10 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
 
   const handleLogin = () => {
     router.push(`/${params.locale}/login`);
+  };
+
+  const handleGoToDashboard = () => {
+    router.push(`/${params.locale}/admin`);
   };
 
   return (
@@ -80,7 +87,7 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
       </div>
 
       {/* Mobile Navbar */}
-      <div className="md:hidden sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+      <div className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border pointer-events-auto">
         <div className="flex items-center justify-between px-4 py-3">
           <h1 className="font-bold text-sm">Dukaan Khata</h1>
           <LanguageSwitcher />
@@ -88,7 +95,7 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
       </div>
 
       {/* Desktop Buttons */}
-      <div className="hidden md:block absolute top-4 left-4 z-10">
+      <div className="hidden md:block absolute top-4 left-4 z-30 pointer-events-auto">
         <Link href={`/${params.locale}`}>
           <Button variant="outline" size="sm" className="gap-2">
             <Home className="h-4 w-4" />
@@ -96,84 +103,57 @@ export default function WelcomePage({ params }: { params: { locale: string } }) 
           </Button>
         </Link>
       </div>
-      <div className="hidden md:block absolute top-4 right-4 z-10">
+      <div className="hidden md:block absolute top-4 right-4 z-30 pointer-events-auto">
         <LanguageSwitcher />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-        <div className="max-w-2xl w-full space-y-8">
-          {/* Icon and Title */}
+        <div className="w-full max-w-xl rounded-2xl border border-white/60 bg-white/80 backdrop-blur p-6 md:p-8 shadow-xl">
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full shadow-lg">
-              <Zap className="w-10 h-10 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-blue-600 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full shadow-lg ring-2 ring-white/70">
+              <Zap className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
 
-            <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+            <h1 className="text-3xl md:text-5xl font-bold text-blue-700">
               {t("welcomeTitle")}
             </h1>
 
-            {/* Funny Messages */}
-            <div className="space-y-3 mt-6">
-              <p className="text-xl text-gray-700 font-semibold">
-                {t("welcomeHeading")}
-              </p>
-              <p className="text-lg text-gray-600">
-                {t("welcomeMessage1")}
-              </p>
-              <p className="text-lg text-gray-600">
-                {t("welcomeMessage2")}
-              </p>
-              <p className="text-lg text-purple-600 font-medium">
-                {t("welcomeMessage3")}
-              </p>
-            </div>
-          </div>
-
-          {/* Call-to-Action Cards */}
-          <div className="grid md:grid-cols-2 gap-4 mt-8">
-            <div className="p-6 bg-white/80 backdrop-blur rounded-xl border border-blue-200 shadow-lg hover:shadow-xl transition">
-              <h3 className="font-bold text-lg text-blue-600 mb-2">
-                {t("welcomeCardDashboard")}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {t("welcomeCardDashboardDesc")}
-              </p>
-            </div>
-
-            <div className="p-6 bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-lg hover:shadow-xl transition">
-              <h3 className="font-bold text-lg text-purple-600 mb-2">
-                {t("welcomeCardSales")}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {t("welcomeCardSalesDesc")}
-              </p>
-            </div>
-          </div>
-
-          {/* Funny Footer Message */}
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6 text-center">
-            <p className="text-sm text-gray-600 mb-2">
-              {t("welcomeProTip")}
+            <p className="text-base md:text-lg text-gray-700 font-medium">
+              {t("welcomeHeading")}
+            </p>
+            <p className="text-sm md:text-base text-gray-600 max-w-lg mx-auto">
+              {t("welcomeMessage1")}
             </p>
           </div>
 
-          {/* Get Started Button */}
-          <div className="flex justify-center pt-4">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              onClick={handleGoToDashboard}
+              size="lg"
+              className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 px-8"
+            >
+              Go to Dashboard
+              <ArrowRight className="w-5 h-5" />
+            </Button>
             <Button
               onClick={handleLogin}
               size="lg"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 px-8 shadow-lg hover:shadow-xl transition"
+              variant="outline"
+              className="w-full sm:w-auto gap-2 px-8"
             >
               {t("welcomeButtonText")}
-              <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
 
-          {/* Small disclaimer */}
-          <p className="text-center text-sm text-gray-500">
-            {t("welcomeFooter")}
-          </p>
+          <div className="mt-6 text-center">
+            <Link
+              href={`/${params.locale}/admin`}
+              className="text-sm text-blue-700 hover:underline"
+            >
+              {t("welcomeCardDashboard")}
+            </Link>
+          </div>
         </div>
       </div>
 

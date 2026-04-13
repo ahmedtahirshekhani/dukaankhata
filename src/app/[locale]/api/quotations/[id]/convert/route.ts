@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   try {
     // Create invoice from quotation
-    const invoicesCollection = await getCollection<InvoiceDoc>(COLLECTIONS.INVOICES);
+    const ordersCollection = await getCollection<InvoiceDoc>(COLLECTIONS.ORDERS);
     
     const invoiceData: InvoiceDoc = {
       user_id: quotation.user_id,
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       created_at: new Date().toISOString(),
     };
 
-    const invoiceResult = await invoicesCollection.insertOne(invoiceData);
+    const invoiceResult = await ordersCollection.insertOne(invoiceData);
 
     // Update quotation to mark as converted
     await quotationsCollection.updateOne(

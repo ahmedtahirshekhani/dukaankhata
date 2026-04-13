@@ -269,7 +269,7 @@ function QuotationFormPageInner({ mode = "create", quotationId }: { mode?: "crea
         <div className="lg:col-span-4">
           <Card className="sticky top-6">
             <CardHeader className="border-b bg-muted/20">
-              <CardTitle className="text-base flex items-center gap-2"><Calculator className="h-4 w-4" /> {t("summary")}</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">{t("summary")}</CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-2">

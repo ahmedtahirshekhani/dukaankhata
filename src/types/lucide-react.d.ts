@@ -53,6 +53,9 @@ declare module 'lucide-react' {
   export const PlusIcon: Icon;
   export const PlusCircle: Icon;
   export const Minus: Icon;
+  export const Printer: Icon;
+  export const Replace: Icon;
+  export const Calculator: Icon;
   export const MinusIcon: Icon;
   export const Edit: Icon;
   export const EditIcon: Icon;
@@ -140,6 +143,7 @@ declare module 'lucide-react' {
   export const Heart: Icon;
   export const HeartIcon: Icon;
   export const Share: Icon;
+  export const Share2: Icon;
   export const ShareIcon: Icon;
   export const Link: Icon;
   export const LinkIcon: Icon;

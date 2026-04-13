@@ -63,7 +63,13 @@ export default function QuotationListPage() {
       setQuotations(quotationsArray);
     } catch (error) {
       console.error("Fetch error:", error);
-      setError(error.message);
+      let message = "Unknown error";
+      if (error && typeof error === "object" && "message" in error && typeof (error as any).message === "string") {
+        message = (error as any).message;
+      } else if (typeof error === "string") {
+        message = error;
+      }
+      setError(message);
       setQuotations([]);
     } finally {
       setLoading(false);

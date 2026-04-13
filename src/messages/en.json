@@ -25,7 +25,8 @@
     "confirm": "Confirm",
     "print": "Print",
     "download": "Download",
-    "share": "Share"
+    "share": "Share",
+    "convertToSale": "Convert to Sale"
   },
   "navigation": {
     "dashboard": "Dashboard",

@@ -38,10 +38,16 @@ export default function SettingsPage({
         ? localStorage.getItem("companyName")
         : null;
 
+    const defaultCompanyName = user.company || cachedCompanyName || "";
+
+    if (typeof window !== "undefined" && user.company) {
+      localStorage.setItem("companyName", user.company);
+    }
+
     setFormData({
       name: user.name || "",
       email: user.email || "",
-      company: cachedCompanyName || user.company || "",
+      company: defaultCompanyName,
     });
   }, [user?.id, user?.name, user?.email, user?.company]);
 

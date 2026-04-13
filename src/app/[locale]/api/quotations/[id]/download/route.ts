@@ -1,29 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getCurrentUser } from "@/lib/auth/utils";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getCurrentUser();
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = await connectToDatabase();
     const { id } = params;
     const { design_id = 1 } = await request.json();
 
     // Fetch quotation
-    const quotation = await db
-      .collection("quotations")
-      .findOne({
-        _id: id,
-        user_id: session.user.id,
-      });
+    const quotationsCollection = await getCollection(COLLECTIONS.QUOTATIONS);
+    const quotation = await quotationsCollection.findOne({
+      _id: toObjectId(id),
+      user_id: toObjectId(user.id),
+    });
 
     if (!quotation) {
       return NextResponse.json(
@@ -37,8 +34,9 @@ export async function POST(
     // In production, use libraries like puppeteer or html2pdf
 
     const pdfContent = generatePDFContent(quotation, design_id);
+    const pdfBlob = new Blob([new Uint8Array(pdfContent)], { type: 'application/pdf' });
 
-    return new NextResponse(pdfContent, {
+    return new NextResponse(pdfBlob, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

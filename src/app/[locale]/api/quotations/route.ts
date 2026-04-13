@@ -24,11 +24,14 @@ export interface QuotationDoc {
   party_name: string;
   items: QuotationItem[];
   discount?: number;
+  discount_type?: string;
   tax?: number;
+  tax_type?: string;
   total_amount: number;
   validity_date: string;
   notes?: string;
   status: QuotationStatus;
+  converted_to_invoice_id?: string;
   created_at: string;
   updated_at?: string;
 }
@@ -91,8 +94,12 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error("❌ Error in GET quotations:", error);
+    let errorMessage = "Failed to fetch quotations";
+    if (error && typeof error === "object" && "message" in error && typeof (error as any).message === "string") {
+      errorMessage = (error as any).message;
+    }
     return NextResponse.json(
-      { error: "Failed to fetch quotations", details: error.message },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -161,8 +168,12 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error("❌ Error in POST quotation:", error);
+    let errorMessage = "Failed to create quotation";
+    if (error && typeof error === "object" && "message" in error && typeof (error as any).message === "string") {
+      errorMessage = (error as any).message;
+    }
     return NextResponse.json(
-      { error: "Failed to create quotation", details: error.message },
+      { error: errorMessage },
       { status: 500 }
     );
   }
