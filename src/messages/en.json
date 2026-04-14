@@ -29,6 +29,11 @@
     "convertToSale": "Convert to Sale",
       "searchProduct": "Search Product..."
   },
+  "welcome": {
+    "title": "Welcome to Dukaan Khata",
+    "subtitle": "You have successfully logged in.",
+    "instruction": "Use the sidebar to explore your dashboard features."
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "View overview and analytics",

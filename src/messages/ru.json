@@ -29,6 +29,11 @@
     "convertToSale": "Sale Mein Tabdeel Karain",
       "searchProduct": "پروڈکٹ تلاش کریں..."
   },
+  "welcome": {
+    "title": "Dukaan Khata mein khush amdeed",
+    "subtitle": "Aap kamyabi se login ho gaye hain.",
+    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein."
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "Overview aur analytics dekhen",
