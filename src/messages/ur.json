@@ -29,6 +29,11 @@
     "convertToSale": "فروخت میں تبدیل کریں",
       "searchProduct": "پروڈکٹ تلاش کریں..."
   },
+  "welcome": {
+    "title": "دکان خاتہ میں خوش آمدید",
+    "subtitle": "آپ کامیابی سے لاگ ان ہو گئے ہیں۔",
+    "instruction": "ڈیش بورڈ فیچرز دیکھنے کے لیے سائیڈبار استعمال کریں۔"
+  },
   "navigation": {
     "dashboard": "ڈیش بورڈ",
     "dashboardDescription": "جائزہ اور تجزیات دیکھیں",
@@ -735,7 +740,10 @@
     "status": "حالت",
     "validity_details": "میعاد کی تفصیلات",
     "valid_until": "تک معتبر",
-    "quotation_preview": "کوٹیشن پیش منظر"
+    "quotation_preview": "کوٹیشن پیش منظر",
+    "edit_quotation_item": "کوٹیشن آئٹم میں ترمیم کریں",
+    "delete_quotation_item": "کوٹیشن آئٹم حذف کریں",
+    "add_quotation_item": "کوٹیشن آئٹم شامل کریں"
   },
   "accountStatement": {
     "title": "اکاؤنٹ سٹیٹمنٹ",

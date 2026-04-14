@@ -29,6 +29,11 @@
     "convertToSale": "Sale Mein Tabdeel Karain",
       "searchProduct": "پروڈکٹ تلاش کریں..."
   },
+  "welcome": {
+    "title": "Dukaan Khata mein khush amdeed",
+    "subtitle": "Aap kamyabi se login ho gaye hain.",
+    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein."
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "Overview aur analytics dekhen",
@@ -736,7 +741,10 @@
     "status": "Status",
     "validity_details": "Validity Details",
     "valid_until": "Valid Until",
-    "quotation_preview": "Quotation Dekhain"
+    "quotation_preview": "Quotation Dekhain",
+    "edit_quotation_item": "Cheez mein Tarmeem Karain",
+    "delete_quotation_item": "Cheez Delete Karain"
+    
   },
   "accountStatement": {
     "title": "Account Statement",

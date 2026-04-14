@@ -29,6 +29,11 @@
     "convertToSale": "Convert to Sale",
       "searchProduct": "Search Product..."
   },
+  "welcome": {
+    "title": "Welcome to Dukaan Khata",
+    "subtitle": "You have successfully logged in.",
+    "instruction": "Use the sidebar to explore your dashboard features."
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "dashboardDescription": "View overview and analytics",
@@ -808,7 +813,9 @@
     "status": "Status",
     "validity_details": "Validity Details",
     "valid_until": "Valid Until",
-    "quotation_preview": "Quotation Preview"
+    "quotation_preview": "Quotation Preview",
+    "edit_quotation_item": "Edit Item",
+    "delete_quotation_item": "Delete Item"
   },
   "accountStatement": {
     "title": "Account Statement",

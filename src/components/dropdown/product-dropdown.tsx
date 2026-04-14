@@ -231,12 +231,12 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                       <div className="flex flex-col items-start gap-0.5 py-0.5">
                         <div className="flex items-center justify-between w-full">
                           <span className="font-medium">{product.name}</span>
-                          <span className="text-xs text-muted-foreground ml-2">
+                          {/* <span className="text-xs text-muted-foreground ml-2">
                             {formatCurrencyString(price)}
-                          </span>
+                          </span> */}
                         </div>
                         {shortDesc && (
-                          <span className="text-xs text-muted-foreground truncate max-w-[280px]">
+                          <span className="text-xs text-black hover:text-white truncate max-w-[280px]">
                             {shortDesc}
                           </span>
                         )}

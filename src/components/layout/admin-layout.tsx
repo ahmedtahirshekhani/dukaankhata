@@ -27,6 +27,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  Home,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -248,26 +249,44 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <div>
-              <Link
-                href={`/${locale}/admin`}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${
-                  pathWithoutLocale === "/admin" ? navItemActive : navItemInactive
-                } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("dashboard") : ""}
-              >
-                <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                {/* Welcome Page Link */}
+                <Link
+                  href={`/${locale}/admin/welcome`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${
+                    pathWithoutLocale === "/admin/welcome" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                  title={sidebarMinimized ? t("common.welcome") : ""}
                 >
-                  <span className="font-medium leading-none">
-                    {tNav("dashboard")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("dashboardDescription")}
-                  </span>
-                </div>
-              </Link>
+                  <Home className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">{t("common.welcome")}</span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">{t("common.appName")}</span>
+                  </div>
+                </Link>
+                {/* Dashboard Link */}
+                <Link
+                  href={`/${locale}/admin`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${
+                    pathWithoutLocale === "/admin" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                  title={sidebarMinimized ? tNav("dashboard") : ""}
+                >
+                  <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("dashboard")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("dashboardDescription")}
+                    </span>
+                  </div>
+                </Link>
             </div>
             <div>
               <div className="flex items-stretch gap-1">
@@ -352,6 +371,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   >
                     {tNav("saleReturn")}
                   </Link>
+                  <Link
+                    href={`/${locale}/admin/quotations`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/quotations" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
+                      pathWithoutLocale === "/admin/quotations"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("quotations")}
+                  </Link>
                 </div>
               )}
             </div>
@@ -429,28 +460,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
             </div>
-                        <div>
-              <Link
-                href={`/${locale}/admin/quotations`}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${
-                  pathWithoutLocale === "/admin/quotations" ? navItemActive : navItemInactive
-                } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("quotations") : ""}
-              >
-                <FileText className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">
-                    {tNav("quotations")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("quotationsDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
+                        {/* Quotations link moved under Sales section */}
             <div>
               <Link
                 href={`/${locale}/admin/products`}
