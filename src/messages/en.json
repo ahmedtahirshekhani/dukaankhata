@@ -808,7 +808,9 @@
     "status": "Status",
     "validity_details": "Validity Details",
     "valid_until": "Valid Until",
-    "quotation_preview": "Quotation Preview"
+    "quotation_preview": "Quotation Preview",
+    "edit_quotation_item": "Edit Item",
+    "delete_quotation_item": "Delete Item"
   },
   "accountStatement": {
     "title": "Account Statement",

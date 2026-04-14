@@ -104,8 +104,8 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
       if (result?.error) {
         setError(mapAuthError(result.error));
       } else if (result?.ok) {
-        // Successful login - redirect to admin
-        router.push(`/${params.locale}/admin`);
+        // Successful login - redirect to welcome page
+        router.push(`/${params.locale}/admin/welcome`);
       } else {
         // Unexpected result state
         setError(t("loginError"));

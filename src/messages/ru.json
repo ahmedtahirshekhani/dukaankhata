@@ -736,7 +736,10 @@
     "status": "Status",
     "validity_details": "Validity Details",
     "valid_until": "Valid Until",
-    "quotation_preview": "Quotation Dekhain"
+    "quotation_preview": "Quotation Dekhain",
+    "edit_quotation_item": "Cheez mein Tarmeem Karain",
+    "delete_quotation_item": "Cheez Delete Karain"
+    
   },
   "accountStatement": {
     "title": "Account Statement",

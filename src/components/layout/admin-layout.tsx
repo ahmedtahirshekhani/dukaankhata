@@ -27,6 +27,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  Home,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -248,26 +249,44 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <div>
-              <Link
-                href={`/${locale}/admin`}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${
-                  pathWithoutLocale === "/admin" ? navItemActive : navItemInactive
-                } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("dashboard") : ""}
-              >
-                <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                {/* Welcome Page Link */}
+                <Link
+                  href={`/${locale}/admin/welcome`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${
+                    pathWithoutLocale === "/admin/welcome" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                  title={sidebarMinimized ? "Welcome" : ""}
                 >
-                  <span className="font-medium leading-none">
-                    {tNav("dashboard")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("dashboardDescription")}
-                  </span>
-                </div>
-              </Link>
+                  <Home className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">Welcome</span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">Welcome to Dukaan Khata</span>
+                  </div>
+                </Link>
+                {/* Dashboard Link */}
+                <Link
+                  href={`/${locale}/admin`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${
+                    pathWithoutLocale === "/admin" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                  title={sidebarMinimized ? tNav("dashboard") : ""}
+                >
+                  <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("dashboard")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("dashboardDescription")}
+                    </span>
+                  </div>
+                </Link>
             </div>
             <div>
               <div className="flex items-stretch gap-1">
