@@ -1,3 +1,4 @@
+// app/[locale]/api/account-statement/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
@@ -33,10 +34,6 @@ function asISO(value: unknown): string {
   }
   const d = new Date(value as string | number);
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
-}
-
-function dateOnly(value: Date): string {
-  return value.toISOString().split("T")[0];
 }
 
 function parseDateRange(fromDate: string, toDate: string) {
@@ -107,7 +104,7 @@ export async function GET(request: NextRequest) {
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
 
-    const [customer, userDoc, rangeEntries, balanceState, lastEntryBefore] = await Promise.all([
+    const [customer, userDoc, rangeEntries, balanceState, lastEntryBefore, firstEntryEver] = await Promise.all([
       customersCollection.findOne(
         { _id: customerObjId, user_id: userId },
         {
@@ -151,6 +148,7 @@ export async function GET(request: NextRequest) {
         },
         { projection: { current_balance: 1 } }
       ),
+      // Last entry before 'from' date (for opening balance value)
       ledgerCollection.findOne(
         {
           user_id: userId,
@@ -162,7 +160,21 @@ export async function GET(request: NextRequest) {
         },
         {
           sort: { effective_at: -1, created_at: -1 },
-          projection: { running_balance: 1 },
+          projection: { running_balance: 1, effective_at: 1 },
+        }
+      ),
+      // First entry ever for this customer (for opening balance date)
+      ledgerCollection.findOne(
+        {
+          user_id: userId,
+          $or: [
+            { party_id: customerObjId },
+            { customer_id: customerObjId }
+          ],
+        },
+        {
+          sort: { effective_at: 1, created_at: 1 },
+          projection: { effective_at: 1 },
         }
       ),
     ]);
@@ -171,7 +183,19 @@ export async function GET(request: NextRequest) {
       lastEntryBefore?.running_balance ?? customer?.opening_balance ?? 0
     );
 
-const allEntries = rangeEntries;
+    // 🔥 FIX: Opening balance ki date calculate karo
+    let openingBalanceDate = from; // default to 'from' date
+    
+    if (firstEntryEver?.effective_at) {
+      // Agar koi bhi entry hai customer ki, to pehli entry ki date use karo
+      openingBalanceDate = new Date(firstEntryEver.effective_at);
+    } else if (customer?.created_at) {
+      // Agar koi entry nahi hai to customer creation date use karo
+      openingBalanceDate = new Date(customer.created_at);
+    }
+    // Otherwise 'from' date hi rahegi
+
+    const allEntries = rangeEntries;
     const entries = allEntries.filter(
       (entry) => entry.event_type !== "opening_balance"
     );
@@ -327,6 +351,7 @@ const allEntries = rangeEntries;
       };
     });
 
+    // 🔥 FIXED: Opening balance record with correct date
     const openingBalanceRecord = {
       id: "opening_balance" as const,
       type: "opening_balance" as const,
@@ -340,7 +365,7 @@ const allEntries = rangeEntries;
       debit: openingBalance > 0 ? Math.abs(openingBalance) : 0,
       credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
       invoiceNo: null,
-      dateTime: from.toISOString(),
+      dateTime: openingBalanceDate.toISOString(), // ✅ Fixed: Proper date now
       paidDate: null,
       balance: openingBalance,
     };
