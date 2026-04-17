@@ -17,7 +17,7 @@ export default function SalesModulePage() {
         <p className="text-sm text-muted-foreground">{tNav("salesDescription")}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle>{tNav("invoice")}</CardTitle>
@@ -50,6 +50,18 @@ export default function SalesModulePage() {
           <CardContent>
             <Button asChild>
               <Link href={`/${locale}/admin/sale-return`}>{tSales("openModule")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{tNav("counterSale")}</CardTitle>
+            <CardDescription>{tNav("counterSaleDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href={`/${locale}/admin/counter-sale`}>{tSales("openModule")}</Link>
             </Button>
           </CardContent>
         </Card>

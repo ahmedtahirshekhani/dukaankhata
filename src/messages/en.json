@@ -683,6 +683,7 @@
   },
   "invoice": {
     "searchCustomer": "Search Party...",
+    "searchProduct": "Search product...",
     "title": "Invoicing",
     "pageDescription": "Manage invoice transactions",
     "addItem": "Add Item",

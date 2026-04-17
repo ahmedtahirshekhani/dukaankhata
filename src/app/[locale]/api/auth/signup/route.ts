@@ -122,6 +122,30 @@ export async function POST(request: NextRequest) {
 
     const newUser = await usersCollection.findOne({ _id: result.insertedId });
 
+    // Create default party: Cash In Hand
+    try {
+      const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
+      await partiesCollection.insertOne({
+        name: "Cash In Hand",
+        type: "cash",
+        user_id: newUser?._id,
+        company_name: companyName,
+        created_at: new Date(),
+        updated_at: new Date(),
+        is_default: true,
+        description: "Auto-created cash account for this user.",
+        phone: null,
+        email: null,
+        address: null,
+        opening_balance: 0,
+        balance: 0,
+        status: "active",
+      });
+    } catch (err) {
+      // Log but don't block signup
+      console.error("Failed to create default party for user", err);
+    }
+
     return NextResponse.json(
       {
         message: "User created successfully",

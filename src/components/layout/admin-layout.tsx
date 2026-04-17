@@ -85,6 +85,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/invoice",
     "/admin/payment-in",
     "/admin/sale-return",
+    "/admin/counter-sale",
+    "/admin/quotations",
   ];
   const purchaseSubRoutes = [
     "/admin/purchase-bill",
@@ -120,6 +122,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/products": tNav("products"),
     "/admin/orders": tNav("orders"),
     "/admin/invoice": tNav("invoice"),
+    "/admin/counter-sale": tNav("counterSale"),
     "/admin/quotations": tNav("quotations"),
     "/admin/account-statement": tNav("accountStatement"),
     "/admin/ai-chat": tNav("aiChat"),
@@ -370,6 +373,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     }`}
                   >
                     {tNav("saleReturn")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/counter-sale`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/counter-sale" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${
+                      pathWithoutLocale === "/admin/counter-sale"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    {tNav("counterSale")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/quotations`}

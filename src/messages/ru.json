@@ -610,6 +610,7 @@
   },
   "invoice": {
     "searchCustomer": "Gahak talash karain...",
+    "searchProduct": "Product talash karain...",
     "title": "Invoicing",
     "pageDescription": "Frookhat ke transactions ka intezaam karain",
     "addItem": "Item Shamil Karain",
