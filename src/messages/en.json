@@ -27,7 +27,7 @@
     "download": "Download",
     "share": "Share",
     "convertToSale": "Convert to Sale",
-      "searchProduct": "Search Product..."
+    "searchProduct": "Search Product..."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -719,6 +719,7 @@
     "customerNotes": "Party Notes",
     "willBeDisplayedOnInvoice": "Will be displayed on invoice",
     "save": "Save",
+    "selectPartyAndItemsError": "Please select a party and add at least one item.",
     "failedToFetchProducts": "Failed to fetch products",
     "failedToFetchCustomers": "Failed to fetch parties",
     "failedToFetchPaymentMethods": "Failed to fetch payment methods",
@@ -815,7 +816,8 @@
     "valid_until": "Valid Until",
     "quotation_preview": "Quotation Preview",
     "edit_quotation_item": "Edit Item",
-    "delete_quotation_item": "Delete Item"
+    "delete_quotation_item": "Delete Item",
+    "error": "Please select a party and add at least one item."
   },
   "accountStatement": {
     "title": "Account Statement",

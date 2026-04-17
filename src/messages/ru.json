@@ -647,6 +647,7 @@
     "customerNotes": "Gahak ke Notes",
     "willBeDisplayedOnInvoice": "Invoice par dikhaya jaye ga",
     "save": "Mehfooz Karain",
+    "selectPartyAndItemsError": "Baraye Mehrbani party chunain aur kam az kam aik item shamil karain.",
     "failedToFetchProducts": "Mausoolaat hasil karne mein nakam",
     "failedToFetchCustomers": "Gahak hasil karne mein nakam",
     "failedToFetchPaymentMethods": "Adaigi ke tareeqe hasil karne mein nakam",
@@ -743,7 +744,8 @@
     "valid_until": "Valid Until",
     "quotation_preview": "Quotation Dekhain",
     "edit_quotation_item": "Cheez mein Tarmeem Karain",
-    "delete_quotation_item": "Cheez Delete Karain"
+    "delete_quotation_item": "Cheez Delete Karain",
+        "error": "Kharabi"
     
   },
   "accountStatement": {

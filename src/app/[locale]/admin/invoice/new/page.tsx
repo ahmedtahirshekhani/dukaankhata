@@ -39,6 +39,7 @@ import {
   type InvoiceCharge,
 } from "@/components/invoice/invoice-preview";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 
@@ -116,6 +117,8 @@ export default function NewInvoicePage() {
   >([]);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [showOrderCreatedDialog, setShowOrderCreatedDialog] = useState(false);
+  const [saveError, setSaveError] = useState<string>("");
+  const [showSaveErrorDialog, setShowSaveErrorDialog] = useState(false);
   const [createdOrderShareData, setCreatedOrderShareData] = useState<{
     customerName: string;
     phone: string;
@@ -220,6 +223,7 @@ export default function NewInvoicePage() {
   const handleSelectProduct = (productId: number | string) => {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
+    setSaveError("");
     if (selectedProducts.some((p) => p.id === productId)) {
       setSelectedProducts(
         selectedProducts.map((p) =>
@@ -245,6 +249,7 @@ export default function NewInvoicePage() {
     const customer = customers.find((c) => String(c.id) === customerId);
     if (customer) {
       setSelectedCustomer(customer);
+      setSaveError("");
     }
   };
 
@@ -322,6 +327,7 @@ export default function NewInvoicePage() {
 
   const handleRemoveProduct = (productId: number | string) => {
     setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
+    setSaveError("");
   };
 
   const total = selectedProducts.reduce(
@@ -395,7 +401,14 @@ export default function NewInvoicePage() {
   );
 
   const handleSaveOrder = () => {
-    if (!selectedCustomer || selectedProducts.length === 0 || !invoiceNo) {
+    if (!selectedCustomer || selectedProducts.length === 0) {
+      setSaveError(t("selectPartyAndItemsError"));
+      setShowSaveErrorDialog(true);
+      return;
+    }
+
+    setSaveError("");
+    if (!invoiceNo) {
       return;
     }
 
@@ -1402,14 +1415,16 @@ export default function NewInvoicePage() {
               </div>
             </div>
 
+            {/* Show error in modal dialog instead of inline */}
+            <ErrorDialog
+              open={showSaveErrorDialog}
+              onOpenChange={setShowSaveErrorDialog}
+              title={t("error")}
+              message={saveError}
+            />
             <div className="flex justify-end mt-4 md:mt-6">
               <Button
                 onClick={handleSaveOrder}
-                disabled={
-                  selectedProducts.length === 0 ||
-                  !selectedCustomer ||
-                  !invoiceNo
-                }
                 className="w-full md:w-auto"
               >
                 {t("save")}
