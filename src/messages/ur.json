@@ -610,6 +610,7 @@
   },
   "invoice": {
     "searchCustomer": "گاہک تلاش کریں...",
+    "searchProduct": "پروڈکٹ تلاش کریں...",
     "title": "انوائس",
     "pageDescription": "انوائس کی لین دین کا انتظام کریں",
     "addItem": "چیز شامل کریں",
