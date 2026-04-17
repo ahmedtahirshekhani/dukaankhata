@@ -41,9 +41,6 @@ export async function GET() {
       .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
       .sort((a, b) => a.localeCompare(b));
 
-
-
-      
     const expenses = expenseRows.map((row) => ({
       id: row._id.toString(),
       expenseNumber: row.expense_number ?? "",
