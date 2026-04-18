@@ -49,7 +49,9 @@ export default function VyaparImportButton() {
           </div>
         </div>
 
-        <input ref={inputRef} type='file' className='hidden' accept='.xlsx,.xls,.csv,.zip,.json' onChange={onFileChange} />
+        <input ref={inputRef} type='file' className='hidden' 
+        // accept='.xlsx,.xls,.csv,.zip,.json' 
+        onChange={onFileChange} />
 
         <Button onClick={pickFile} disabled={loading} className='w-full rounded-2xl'>
           {loading ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Upload className='mr-2 h-4 w-4' />}
