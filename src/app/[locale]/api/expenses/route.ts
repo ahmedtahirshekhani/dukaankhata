@@ -1,3 +1,4 @@
+// src/app/[locale]/api/expenses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { COLLECTIONS, getCollection, toObjectId } from "@/lib/db/mongodb";

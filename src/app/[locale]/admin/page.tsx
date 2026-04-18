@@ -13,10 +13,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supportContact } from "@/lib/constants";
-import { Loader2Icon, TrendingDown, TrendingUp, Activity } from "lucide-react";
+import { Loader2Icon, TrendingDown, TrendingUp, Activity, File } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import VyaparImportButton from '@/components/VyaparImportButton';
 
 export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
@@ -35,6 +43,7 @@ export default function DashboardPage() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
 
   const [salesRows, setSalesRows] = useState<
     Array<{
@@ -112,23 +121,23 @@ export default function DashboardPage() {
           const ordersData = await ordersRes.json();
           const orderRows = Array.isArray(ordersData)
             ? ordersData.map((order: any, index: number) => {
-                const total = Number(order?.total_amount || 0);
-                const paid = Number(order?.payment?.paid_amount || 0);
-                return {
-                  id: order?.id || String(index),
-                  invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
-                  customerName: order?.customer?.name || "-",
-                  total,
-                  paid,
-                  balance: Math.max(0, total - paid),
-                  date:
-                    order?.sale_date || order?.created_at
-                      ? new Date(
-                          order?.sale_date || order?.created_at,
-                        ).toLocaleDateString()
-                      : "-",
-                };
-              })
+              const total = Number(order?.total_amount || 0);
+              const paid = Number(order?.payment?.paid_amount || 0);
+              return {
+                id: order?.id || String(index),
+                invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
+                customerName: order?.customer?.name || "-",
+                total,
+                paid,
+                balance: Math.max(0, total - paid),
+                date:
+                  order?.sale_date || order?.created_at
+                    ? new Date(
+                      order?.sale_date || order?.created_at,
+                    ).toLocaleDateString()
+                    : "-",
+              };
+            })
             : [];
           setSalesRows(orderRows);
         }
@@ -137,13 +146,13 @@ export default function DashboardPage() {
           const customersData = await customersRes.json();
           const rows = Array.isArray(customersData)
             ? customersData.map((item: any, index: number) => ({
-                id: item?.id || String(index),
-                name: item?.name || "-",
-                email: item?.email || "-",
-                phone: item?.phone || "-",
-                balance: Number(item?.balance || 0),
-                status: item?.status || "active",
-              }))
+              id: item?.id || String(index),
+              name: item?.name || "-",
+              email: item?.email || "-",
+              phone: item?.phone || "-",
+              balance: Number(item?.balance || 0),
+              status: item?.status || "active",
+            }))
             : [];
           setCustomerRows(rows);
         }
@@ -152,12 +161,12 @@ export default function DashboardPage() {
           const productsData = await productsRes.json();
           const pRows = Array.isArray(productsData)
             ? productsData.map((item: any, index: number) => ({
-                id: item?.id || String(index),
-                name: item?.name || item?.title || "-",
-                category: item?.category || "-",
-                stock: Number(item?.stock || item?.quantity || 0),
-                price: Number(item?.sell_price || item?.price || 0),
-              }))
+              id: item?.id || String(index),
+              name: item?.name || item?.title || "-",
+              category: item?.category || "-",
+              stock: Number(item?.stock || item?.quantity || 0),
+              price: Number(item?.sell_price || item?.price || 0),
+            }))
             : [];
           setItemRows(pRows);
         }
@@ -191,6 +200,7 @@ export default function DashboardPage() {
               "Real-time insights and analytics of your business"}
           </p>
         </div>
+
         <div className="flex items-center justify-end gap-1.5 sm:gap-3 w-full sm:w-auto">
           <label
             htmlFor="privacy-toggle"
@@ -198,6 +208,7 @@ export default function DashboardPage() {
           >
             {isPrivacyMode ? tDash("privacyOn") : tDash("privacyOff")}
           </label>
+
           <Switch
             id="privacy-toggle"
             checked={isPrivacyMode}
@@ -212,6 +223,24 @@ export default function DashboardPage() {
             className="h-5 w-9 sm:h-6 sm:w-11"
             title={isPrivacyMode ? tDash("showNumbers") : tDash("hideNumbers")}
           />
+
+          <Dialog open={importOpen} onOpenChange={setImportOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2 justify-center" size="sm" variant="outline">
+               <File className="w-4 h-4 sm:w-5 sm:h-5" /> Import Your Data
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Import Your Data</DialogTitle>
+              </DialogHeader>
+
+              <div className="mt-4">
+                <VyaparImportButton />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -610,11 +639,10 @@ function CustomerCard({
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-base">{row.name}</h3>
         <span
-          className={`text-xs px-2 py-0.5 rounded-full ${
-            row.status === "active"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-700"
-          }`}
+          className={`text-xs px-2 py-0.5 rounded-full ${row.status === "active"
+            ? "bg-green-100 text-green-700"
+            : "bg-gray-100 text-gray-700"
+            }`}
         >
           {row.status}
         </span>
