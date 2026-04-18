@@ -27,7 +27,7 @@
     "download": "ڈاؤن لوڈ کریں",
     "share": "شیئر کریں",
     "convertToSale": "فروخت میں تبدیل کریں",
-      "searchProduct": "پروڈکٹ تلاش کریں..."
+    "searchProduct": "پروڈکٹ تلاش کریں..."
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -647,6 +647,7 @@
     "customerNotes": "گاہک کے نوٹس",
     "willBeDisplayedOnInvoice": "انوائس پر دکھایا جائے گا",
     "save": "محفوظ کریں",
+    "selectPartyAndItemsError": "براہ کرم پارٹی منتخب کریں اور کم از کم ایک آئٹم شامل کریں۔",
     "failedToFetchProducts": "مصنوعات حاصل کرنے میں ناکام",
     "failedToFetchCustomers": "گاہک حاصل کرنے میں ناکام",
     "failedToFetchPaymentMethods": "ادائیگی کے طریقے حاصل کرنے میں ناکام",
@@ -744,7 +745,8 @@
     "quotation_preview": "کوٹیشن پیش منظر",
     "edit_quotation_item": "کوٹیشن آئٹم میں ترمیم کریں",
     "delete_quotation_item": "کوٹیشن آئٹم حذف کریں",
-    "add_quotation_item": "کوٹیشن آئٹم شامل کریں"
+    "add_quotation_item": "کوٹیشن آئٹم شامل کریں",
+    "error": "براہ کرم ایک پارٹی منتخب کریں اور کم از کم ایک آئٹم شامل کریں۔"
   },
   "accountStatement": {
     "title": "اکاؤنٹ سٹیٹمنٹ",
@@ -924,9 +926,9 @@
     "bankDetails": "بینک کی تفصیلات",
     "balanceDue": "واجب الادا رقم",
     "description": "تفصیل",
-  "billNumber": "بل",
-  "billNumberPlaceholder": "بل نمبر درج کریں",
-  "searchProduct": "پروڈکٹ تلاش کریں...",
+    "billNumber": "بل",
+    "billNumberPlaceholder": "بل نمبر درج کریں",
+    "searchProduct": "پروڈکٹ تلاش کریں...",
     "addNote": "نوٹ شامل کریں",
     "saveNew": "محفوظ کریں اور نیا",
     "save": "محفوظ کریں",
