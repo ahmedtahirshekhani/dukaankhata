@@ -83,7 +83,7 @@ export function BranchSelector({
     if (!value) {
       onChange("Main");
     }
-  }, [branches]);
+  }, [branches, onChange, value]);
 
   const handleCreateOption = async (inputValue: string) => {
     try {

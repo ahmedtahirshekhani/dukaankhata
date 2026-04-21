@@ -1356,9 +1356,9 @@ async function importTransactions(
     
     // Find party by reference
     if (partyRef) {
-      partyDoc = parties.find(p => p.external_id === `vyapar_party_${partyRef}` || 
-                                   p.name === `Party_${partyRef}` ||
-                                   p.source_row_id === String(partyRef));
+      partyDoc = parties.find((p: any) => p.external_id === `vyapar_party_${partyRef}` || 
+                   p.name === `Party_${partyRef}` ||
+                   p.source_row_id === String(partyRef));
       if (partyDoc) partyId = partyDoc._id.toString();
     }
     
