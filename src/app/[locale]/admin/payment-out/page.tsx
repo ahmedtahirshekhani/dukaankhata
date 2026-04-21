@@ -50,6 +50,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 
 type Party = {
   id: string;
@@ -141,10 +142,10 @@ export default function PaymentOutPage() {
       const data = await res.json();
       const list = Array.isArray(data)
         ? data.map((item: { id?: string; bankName?: string; bankDetails?: string }) => ({
-            id: item.id ?? "",
-            name: item.bankName ?? "",
-            bankDetails: item.bankDetails ?? "",
-          })).filter((item) => item.id && item.name)
+          id: item.id ?? "",
+          name: item.bankName ?? "",
+          bankDetails: item.bankDetails ?? "",
+        })).filter((item) => item.id && item.name)
         : [];
       setPaymentMethods([
         { id: "cash", name: "Cash" },
@@ -220,7 +221,7 @@ export default function PaymentOutPage() {
 
       // Refresh transactions after add
       await fetchTransactions();
-      
+
       setShowAddDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("createdSuccess"), isSuccess: true });
@@ -261,7 +262,7 @@ export default function PaymentOutPage() {
 
       // Refresh transactions after edit
       await fetchTransactions();
-      
+
       setShowEditDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("updatedSuccess"), isSuccess: true });
@@ -281,10 +282,10 @@ export default function PaymentOutPage() {
         const data = await res.json();
         throw new Error(data?.error || t("failedToDelete"));
       }
-      
+
       // Refresh transactions after delete
       await fetchTransactions();
-      
+
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
       setErrorDialog({ open: true, title: tCommon("success"), message: t("deletedSuccess"), isSuccess: true });
@@ -544,7 +545,7 @@ export default function PaymentOutPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>{t("paymentMethod")}</Label>
+              {/* <Label>{t("paymentMethod")}</Label>
               <Select
                 value={formPaymentMethodId}
                 onValueChange={setFormPaymentMethodId}
@@ -572,7 +573,18 @@ export default function PaymentOutPage() {
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+              </Select> */}
+              <Label>{t("paymentMethod")}</Label>
+              <PaymentMethodDropdown
+                value={formPaymentMethodId}
+                onValueChange={(id) => setFormPaymentMethodId(id)}
+                placeholder={t("selectPaymentMethod")}
+                enableSearch={true}
+                searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
+                noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
+                addButtonPosition="bottom"
+                includeDefaultMethods={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
@@ -627,7 +639,7 @@ export default function PaymentOutPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>{t("paymentMethod")}</Label>
+              {/* <Label>{t("paymentMethod")}</Label>
               <Select
                 value={formPaymentMethodId}
                 onValueChange={setFormPaymentMethodId}
@@ -649,7 +661,18 @@ export default function PaymentOutPage() {
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+              </Select> */}
+              <Label>{t("paymentMethod")}</Label>
+              <PaymentMethodDropdown
+                value={formPaymentMethodId}
+                onValueChange={(id) => setFormPaymentMethodId(id)}
+                placeholder={t("selectPaymentMethod")}
+                enableSearch={true}
+                searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
+                noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
+                addButtonPosition="bottom"
+                includeDefaultMethods={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>

@@ -27,7 +27,10 @@
     "download": "ڈاؤن لوڈ کریں",
     "share": "شیئر کریں",
     "convertToSale": "فروخت میں تبدیل کریں",
-    "searchProduct": "پروڈکٹ تلاش کریں..."
+    "searchProduct": "پروڈکٹ تلاش کریں...",
+    "searchCustomer": "پارٹی تلاش کریں...",
+    "searchPaymentMethods": "ادائیگی کے طریقوں کا تلاش کریں...",
+    "noPaymentMethodsFound": "کوئی ادائیگی کے طریقوں نہیں ملے"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",

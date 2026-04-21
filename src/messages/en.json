@@ -27,7 +27,10 @@
     "download": "Download",
     "share": "Share",
     "convertToSale": "Convert to Sale",
-    "searchProduct": "Search Product..."
+    "searchProduct": "Search Product...",
+    "searchCustomer": "Search Party...",
+    "searchPaymentMethods": "Search payment methods...",
+    "noPaymentMethodsFound": "No payment methods found"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
