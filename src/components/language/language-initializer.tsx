@@ -19,13 +19,13 @@ export function LanguageInitializer() {
   useEffect(() => {
     // On first visit, check if user has a saved preference
     const savedLocale = getLanguagePreference();
-    
+
     // Only redirect if user has a saved preference and it's different from current locale
     if (savedLocale && savedLocale !== locale) {
       const pathWithoutLocale = pathname.slice(locale.length + 1);
       router.push(`/${savedLocale}${pathWithoutLocale || '/'}`);
     }
-  }, []); // Run only once on mount
+  }, [locale, pathname, router]); // Add dependencies
 
   return null;
 }

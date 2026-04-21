@@ -99,7 +99,7 @@ export function useProductsData({ filters, priceRanges }: UseProductsDataProps):
 
   useEffect(() => {
     fetchData();
-  }, [filters.type, filters.category, filters.branch, priceRanges]);
+  }, [filters.type, filters.category, filters.branch, priceRanges, fetchData]);
 
   return {
     products,
