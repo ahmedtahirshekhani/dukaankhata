@@ -1,3 +1,4 @@
+// src/app/[locale]/api/parties/route.ts
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";

@@ -1,3 +1,4 @@
+// src/app/[locale]/api/orders/route.ts
 import {
   getCollection,
   COLLECTIONS,

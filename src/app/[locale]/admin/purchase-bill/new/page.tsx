@@ -31,6 +31,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { formatCurrencyString } from "@/lib/utils";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 
 interface Party {
     id: string;
@@ -619,7 +620,7 @@ function AddPurchaseBillPageInner() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>{t("paymentMethod") || "Payment Method"}</Label>
+                                    {/* <Label>{t("paymentMethod") || "Payment Method"}</Label>
                                     <Select
                                         value={selectedPaymentMethod}
                                         onValueChange={setSelectedPaymentMethod}
@@ -640,7 +641,18 @@ function AddPurchaseBillPageInner() {
                                                 );
                                             })}
                                         </SelectContent>
-                                    </Select>
+                                    </Select> */}
+                                    <Label>{t("paymentMethod") || "Payment Method"}</Label>
+<PaymentMethodDropdown
+    value={selectedPaymentMethod}
+    onValueChange={(id) => setSelectedPaymentMethod(id)}
+    placeholder={t("select") || "Select"}
+    enableSearch={true}
+    searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
+    noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
+    addButtonPosition="bottom"
+    includeDefaultMethods={true}
+/>
                                 </div>
                             </>
                         )}

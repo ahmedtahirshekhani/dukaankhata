@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 
 type Customer = {
   id: string;
@@ -139,10 +140,10 @@ export default function PaymentInPage() {
       const data = await res.json();
       const list = Array.isArray(data)
         ? data.map((item: { id?: string; bankName?: string; bankDetails?: string }) => ({
-            id: item.id ?? "",
-            name: item.bankName ?? "",
-            bankDetails: item.bankDetails ?? "",
-          })).filter((item) => item.id && item.name)
+          id: item.id ?? "",
+          name: item.bankName ?? "",
+          bankDetails: item.bankDetails ?? "",
+        })).filter((item) => item.id && item.name)
         : [];
       setPaymentMethods([
         { id: "cash", name: "Cash" },
@@ -274,14 +275,14 @@ export default function PaymentInPage() {
         prev.map((item) =>
           item.id === selectedId
             ? {
-                ...item,
-                customerId: formCustomerId,
-                customerName: customer?.name ?? "",
-                paymentAmount: amount,
-                paymentMethodId: formPaymentMethodId,
-                paymentMethodName: pm?.name ?? "",
-                date: formDate,
-              }
+              ...item,
+              customerId: formCustomerId,
+              customerName: customer?.name ?? "",
+              paymentAmount: amount,
+              paymentMethodId: formPaymentMethodId,
+              paymentMethodName: pm?.name ?? "",
+              date: formDate,
+            }
             : item
         )
       );
@@ -565,34 +566,18 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("paymentMethod")}</Label>
-              <Select
+              <PaymentMethodDropdown
                 value={formPaymentMethodId}
-                onValueChange={setFormPaymentMethodId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectPaymentMethod")} />
-                </SelectTrigger>
-
-                <SelectContent className="min-w-[20rem] max-w-[90vw]">
-                  {paymentMethods.map((pm) => (
-                    <SelectItem
-                      key={pm.id}
-                      value={pm.id}
-                      className="text-left group"
-                    >
-                      <div className="flex flex-col items-start text-left gap-0.5 py-0.5 w-full">
-                        <span className="font-medium w-full">{pm.name}</span>
-
-                        {pm.bankDetails && (
-                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap w-full group-data-[highlighted]:text-white">
-                            {pm.bankDetails}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(id, method) => {
+                  setFormPaymentMethodId(id);
+                }}
+                placeholder={t("paymentMethod")}
+                enableSearch={true}
+                searchPlaceholder={t("searchPaymentMethods")}
+                noResultsText={t("noPaymentMethodsFound")}
+                addButtonPosition="bottom"
+                includeDefaultMethods={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
@@ -647,7 +632,7 @@ export default function PaymentInPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>{t("paymentMethod")}</Label>
+              {/* <Label>{t("paymentMethod")}</Label>
               <Select
                 value={formPaymentMethodId}
                 onValueChange={setFormPaymentMethodId}
@@ -669,7 +654,20 @@ export default function PaymentInPage() {
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+              </Select> */}
+                            <Label>{t("paymentMethod")}</Label>
+              <PaymentMethodDropdown
+                value={formPaymentMethodId}
+                onValueChange={(id, method) => {
+                  setFormPaymentMethodId(id);
+                }}
+                placeholder={t("paymentMethod")}
+                enableSearch={true}
+                searchPlaceholder={t("searchPaymentMethods")}
+                noResultsText={t("noPaymentMethodsFound")}
+                addButtonPosition="bottom"
+                includeDefaultMethods={true}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>

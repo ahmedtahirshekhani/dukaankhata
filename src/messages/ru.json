@@ -27,7 +27,10 @@
     "download": "Download",
     "share": "Share",
     "convertToSale": "Sale Mein Tabdeel Karain",
-      "searchProduct": "پروڈکٹ تلاش کریں..."
+    "searchProduct": "Search Product...",
+    "searchCustomer": "Search Party...",
+    "searchPaymentMethods": "Search payment methods...",
+    "noPaymentMethodsFound": "No payment methods found"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -746,8 +749,7 @@
     "quotation_preview": "Quotation Dekhain",
     "edit_quotation_item": "Cheez mein Tarmeem Karain",
     "delete_quotation_item": "Cheez Delete Karain",
-        "error": "Kharabi"
-    
+    "error": "Kharabi"
   },
   "accountStatement": {
     "title": "Account Statement",

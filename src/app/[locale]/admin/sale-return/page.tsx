@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 
 type Customer = {
   id: string;
@@ -225,29 +226,29 @@ export default function SaleReturnPage() {
       const data = await res.json();
       const list = Array.isArray(data)
         ? data.map((item: Record<string, unknown>) => ({
-            id: String(item.id ?? ""),
-            name: String(
-              item.name ?? item.productName ?? item.itemName ?? item.title ?? "",
-            ),
-            sellPrice:
-              typeof item.sell_price === "number"
-                ? item.sell_price
-                : Number(item.sell_price ?? 0),
-            sell_price:
-              typeof item.sell_price === "number"
-                ? item.sell_price
-                : Number(item.sell_price ?? 0),
-            salePrice:
-              typeof item.salePrice === "number"
-                ? item.salePrice
-                : Number(item.salePrice ?? 0),
-            price:
-              typeof item.price === "number" ? item.price : Number(item.price ?? 0),
-            retailPrice:
-              typeof item.retailPrice === "number"
-                ? item.retailPrice
-                : Number(item.retailPrice ?? 0),
-          }))
+          id: String(item.id ?? ""),
+          name: String(
+            item.name ?? item.productName ?? item.itemName ?? item.title ?? "",
+          ),
+          sellPrice:
+            typeof item.sell_price === "number"
+              ? item.sell_price
+              : Number(item.sell_price ?? 0),
+          sell_price:
+            typeof item.sell_price === "number"
+              ? item.sell_price
+              : Number(item.sell_price ?? 0),
+          salePrice:
+            typeof item.salePrice === "number"
+              ? item.salePrice
+              : Number(item.salePrice ?? 0),
+          price:
+            typeof item.price === "number" ? item.price : Number(item.price ?? 0),
+          retailPrice:
+            typeof item.retailPrice === "number"
+              ? item.retailPrice
+              : Number(item.retailPrice ?? 0),
+        }))
         : [];
       setProducts(list.filter((product: Product) => product.id && product.name));
     } catch {
@@ -262,18 +263,18 @@ export default function SaleReturnPage() {
       const data = await res.json();
       const list = Array.isArray(data)
         ? data
-            .map(
-              (item: {
-                id?: string;
-                bankName?: string;
-                bankDetails?: string;
-              }) => ({
-                id: item.id ?? "",
-                name: item.bankName ?? "",
-                bankDetails: item.bankDetails ?? "",
-              }),
-            )
-            .filter((item) => item.id && item.name)
+          .map(
+            (item: {
+              id?: string;
+              bankName?: string;
+              bankDetails?: string;
+            }) => ({
+              id: item.id ?? "",
+              name: item.bankName ?? "",
+              bankDetails: item.bankDetails ?? "",
+            }),
+          )
+          .filter((item) => item.id && item.name)
         : [];
       setPaymentMethods([
         { id: "cash", name: "Cash" },
@@ -354,11 +355,11 @@ export default function SaleReturnPage() {
       prev.map((line) =>
         line.id === lineId
           ? {
-              ...line,
-              productId,
-              itemName: product.name,
-              rate: resolvedRate > 0 ? resolvedRate.toString() : line.rate,
-            }
+            ...line,
+            productId,
+            itemName: product.name,
+            rate: resolvedRate > 0 ? resolvedRate.toString() : line.rate,
+          }
           : line,
       ),
     );
@@ -531,21 +532,21 @@ export default function SaleReturnPage() {
         prev.map((item) =>
           item.id === selectedId
             ? {
-                ...item,
-                returnNumber: payload.returnNumber,
-                customerId: payload.customerId,
-                customerName: customer?.name ?? "",
-                items: payload.items,
-                totalAmount: payload.totalAmount,
-                paidAmount: payload.paidAmount,
-                balanceDue,
-                paymentMethodId: payload.paymentMethodId,
-                paymentMethodName: pm?.name ?? "",
-                paymentRefNo: payload.paymentRefNo,
-                invoiceNo: payload.invoiceNo,
-                invoiceDate: payload.invoiceDate ?? "",
-                date: payload.date,
-              }
+              ...item,
+              returnNumber: payload.returnNumber,
+              customerId: payload.customerId,
+              customerName: customer?.name ?? "",
+              items: payload.items,
+              totalAmount: payload.totalAmount,
+              paidAmount: payload.paidAmount,
+              balanceDue,
+              paymentMethodId: payload.paymentMethodId,
+              paymentMethodName: pm?.name ?? "",
+              paymentRefNo: payload.paymentRefNo,
+              invoiceNo: payload.invoiceNo,
+              invoiceDate: payload.invoiceDate ?? "",
+              date: payload.date,
+            }
             : item,
         ),
       );
@@ -644,12 +645,12 @@ export default function SaleReturnPage() {
     setFormItems(
       item.items?.length
         ? item.items.map((line, index) => ({
-            id: line.id || `${item.id}-${index}`,
-            productId: line.productId || "",
-            itemName: line.itemName || "",
-            quantity: String(line.quantity ?? 1),
-            rate: String(line.rate ?? 0),
-          }))
+          id: line.id || `${item.id}-${index}`,
+          productId: line.productId || "",
+          itemName: line.itemName || "",
+          quantity: String(line.quantity ?? 1),
+          rate: String(line.rate ?? 0),
+        }))
         : [createItem()],
     );
     setFormPaidAmount(String(item.paidAmount ?? 0));
@@ -661,34 +662,34 @@ export default function SaleReturnPage() {
   const renderForm = () => (
     <div className="space-y-5 py-2">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label>{t("creditNote")}</Label>
-        <Input
-          value={formReturnNumber}
-          onChange={(e) => setFormReturnNumber(e.target.value)}
-          placeholder={t("returnNumberPlaceholder")}
-        />
+        <div className="space-y-2">
+          <Label>{t("creditNote")}</Label>
+          <Input
+            value={formReturnNumber}
+            onChange={(e) => setFormReturnNumber(e.target.value)}
+            placeholder={t("returnNumberPlaceholder")}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("date")}</Label>
+          <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+        </div>
       </div>
-      <div className="space-y-2">
-        <Label>{t("date")}</Label>
-        <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
-      </div>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label>{t("customer")}</Label>
-        <PartyDropdown
-          value={formCustomerId}
-          onValueChange={(val) => setFormCustomerId(val)}
-          placeholder={t("selectCustomer")}
-          className="w-full"
-          filterActiveOnly={true}
-          enableSearch={true}
-          searchPlaceholder={t("searchCustomer") || "Search customer..."}
-        />
-      </div>
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>{t("customer")}</Label>
+          <PartyDropdown
+            value={formCustomerId}
+            onValueChange={(val) => setFormCustomerId(val)}
+            placeholder={t("selectCustomer")}
+            className="w-full"
+            filterActiveOnly={true}
+            enableSearch={true}
+            searchPlaceholder={t("searchCustomer") || "Search customer..."}
+          />
+        </div>
+        {/* <div className="space-y-2">
         <Label>{t("paymentMethod")}</Label>
         <Select value={formPaymentMethodId} onValueChange={setFormPaymentMethodId}>
           <SelectTrigger>
@@ -709,138 +710,151 @@ export default function SaleReturnPage() {
             ))}
           </SelectContent>
         </Select>
+      </div> */}
+        <div className="space-y-2">
+          <Label>{t("paymentMethod")}</Label>
+          <PaymentMethodDropdown
+            value={formPaymentMethodId}
+            onValueChange={(id) => setFormPaymentMethodId(id)}
+            placeholder={t("selectPaymentMethod")}
+            enableSearch={true}
+            searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
+            noResultsText={t("noPaymentMethodsFound") || "No payment methods found"}
+            addButtonPosition="bottom"
+            includeDefaultMethods={true}
+          />
+        </div>
       </div>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>{t("invoiceDate")}</Label>
+          <Input
+            type="date"
+            value={formInvoiceDate}
+            onChange={(e) => setFormInvoiceDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("invoiceNo")}</Label>
+          <Input
+            value={formInvoiceNo}
+            onChange={(e) => setFormInvoiceNo(e.target.value)}
+            placeholder={t("invoiceNoPlaceholder")}
+          />
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <Label>{t("invoiceDate")}</Label>
-        <Input
-          type="date"
-          value={formInvoiceDate}
-          onChange={(e) => setFormInvoiceDate(e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>{t("invoiceNo")}</Label>
-        <Input
-          value={formInvoiceNo}
-          onChange={(e) => setFormInvoiceNo(e.target.value)}
-          placeholder={t("invoiceNoPlaceholder")}
-        />
-      </div>
-    </div>
+        <div className="flex items-center justify-between">
+          <Label>{t("items")}</Label>
+          <Button type="button" variant="outline" size="sm" onClick={addItemRow}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            {t("addItems")}
+          </Button>
+        </div>
 
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>{t("items")}</Label>
-        <Button type="button" variant="outline" size="sm" onClick={addItemRow}>
-          <PlusCircle className="w-4 h-4 mr-2" />
-          {t("addItems")}
-        </Button>
-      </div>
-
-      <div className="border rounded-md overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("selectProduct")}</TableHead>
-              <TableHead>{t("itemName")}</TableHead>
-              <TableHead>{t("qty")}</TableHead>
-              <TableHead>{t("rate")}</TableHead>
-              <TableHead>{t("amount")}</TableHead>
-              <TableHead>{tCommon("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {formItems.map((item, index) => (
-              <TableRow key={item.id}>
-                <TableCell className="min-w-[180px]">
-                  <ProductDropdown
-                    value={item.productId}
-                    onValueChange={(value) => handleSelectProduct(item.id, value)}
-                    placeholder={tCommon("searchProduct")}
-                    enableSearch={true}
-                    searchPlaceholder={tCommon("searchProduct") || "Search product..."}
-                  />
-                </TableCell>
-                <TableCell className="min-w-[180px]">
-                  <Input
-                    value={item.itemName}
-                    onChange={(e) => updateFormItem(item.id, "itemName", e.target.value)}
-                    placeholder={t("itemNamePlaceholder")}
-                  />
-                </TableCell>
-                <TableCell className="w-[110px]">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.quantity}
-                    onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
-                  />
-                </TableCell>
-                <TableCell className="w-[130px]">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.rate}
-                    onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
-                  />
-                </TableCell>
-                <TableCell className="font-medium">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
-                <TableCell>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => removeItemRow(item.id)}
-                    disabled={formItems.length === 1}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TableCell>
+        <div className="border rounded-md overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("selectProduct")}</TableHead>
+                <TableHead>{t("itemName")}</TableHead>
+                <TableHead>{t("qty")}</TableHead>
+                <TableHead>{t("rate")}</TableHead>
+                <TableHead>{t("amount")}</TableHead>
+                <TableHead>{tCommon("actions")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {formItems.map((item, index) => (
+                <TableRow key={item.id}>
+                  <TableCell className="min-w-[180px]">
+                    <ProductDropdown
+                      value={item.productId}
+                      onValueChange={(value) => handleSelectProduct(item.id, value)}
+                      placeholder={tCommon("searchProduct")}
+                      enableSearch={true}
+                      searchPlaceholder={tCommon("searchProduct") || "Search product..."}
+                    />
+                  </TableCell>
+                  <TableCell className="min-w-[180px]">
+                    <Input
+                      value={item.itemName}
+                      onChange={(e) => updateFormItem(item.id, "itemName", e.target.value)}
+                      placeholder={t("itemNamePlaceholder")}
+                    />
+                  </TableCell>
+                  <TableCell className="w-[110px]">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.quantity}
+                      onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
+                    />
+                  </TableCell>
+                  <TableCell className="w-[130px]">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.rate}
+                      onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => removeItemRow(item.id)}
+                      disabled={formItems.length === 1}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label>{t("totalAmount")}</Label>
-        <Input value={totalAmount.toFixed(2)} readOnly />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>{t("totalAmount")}</Label>
+          <Input value={totalAmount.toFixed(2)} readOnly />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("paidAmount")}</Label>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={formPaidAmount}
+            onChange={(e) => setFormPaidAmount(e.target.value)}
+          />
+        </div>
       </div>
-      <div className="space-y-2">
-        <Label>{t("paidAmount")}</Label>
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={formPaidAmount}
-          onChange={(e) => setFormPaidAmount(e.target.value)}
-        />
-      </div>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label>{t("balanceDue")}</Label>
-        <Input value={balanceDue.toFixed(2)} readOnly />
-      </div>
-      <div className="space-y-2">
-        <Label>{t("paymentRefNo")}</Label>
-        <Input
-          value={formPaymentRefNo}
-          onChange={(e) => setFormPaymentRefNo(e.target.value)}
-          placeholder={t("paymentRefNoPlaceholder")}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>{t("balanceDue")}</Label>
+          <Input value={balanceDue.toFixed(2)} readOnly />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("paymentRefNo")}</Label>
+          <Input
+            value={formPaymentRefNo}
+            onChange={(e) => setFormPaymentRefNo(e.target.value)}
+            placeholder={t("paymentRefNoPlaceholder")}
+          />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 
   if (loading) {
     return (
