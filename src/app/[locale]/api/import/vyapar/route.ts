@@ -1295,7 +1295,9 @@ function first(row: any, keys: string[]) {
 
 // ================= TXN TYPE MAPPER =================
 
-function mapTxnType(code: number) {
+function mapTxnType(
+  code: number
+): "sale" | "purchase" | "payment_in" | "payment_out" | "expense" | "purchase_return" | "sale_return" | "journal" | "unknown" {
   switch (code) {
     case 1:
       return "sale";
@@ -1311,6 +1313,8 @@ function mapTxnType(code: number) {
       return "sale_return";
     case 7:
       return "journal";
+    case 8:
+      return "purchase";
     default:
       return "unknown";
   }
@@ -1476,7 +1480,7 @@ export async function POST(req: NextRequest) {
 
       const party = partyList.find((p) => p.source_name_id === partyRef);
       const items = lines.filter(
-        (l) => String(l.lineitem_txn_id) === String(txnId)
+        (l: { lineitem_txn_id: any; }) => String(l.lineitem_txn_id) === String(txnId)
       );
 
       const amount = num(t.txn_balance_amount) || num(t.txn_cash_amount);
@@ -1502,7 +1506,7 @@ export async function POST(req: NextRequest) {
           user_id: toObjectId(user.id),
           customer_id: party._id,
           total_amount: amount,
-          items: items.map((i) => ({
+          items: items.map((i: { item_name: any; quantity: any; priceperunit: any; }) => ({
             name: i.item_name,
             quantity: num(i.quantity),
             price: num(i.priceperunit),
@@ -1515,12 +1519,12 @@ export async function POST(req: NextRequest) {
       }
 
       // ================= PURCHASE (fallback logic) =================
-      if (type === "purchase" || type === "purchase_return") {
+      if (  type === "purchase" || type === "purchase_return") {
         await purchaseCol.insertOne({
           user_id: toObjectId(user.id),
           party_id: party._id,
           total_amount: amount,
-          items: items.map((i) => ({
+          items: items.map((i: { item_name: any; quantity: any; priceperunit: any; }) => ({
             product_name: i.item_name,
             quantity: num(i.quantity),
             cost_price: num(i.priceperunit),
