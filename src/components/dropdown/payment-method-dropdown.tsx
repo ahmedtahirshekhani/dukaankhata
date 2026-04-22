@@ -236,7 +236,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
           onClick={openAddDialog}
         >
           <PlusCircle className="h-4 w-4" />
-          {t("paymentMethodSave") || "Add Payment Method"}
+          {tCommon("addPaymentMethod") || "Add Payment Method"}
         </Button>
       </div>
     );
@@ -369,7 +369,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
                 {tCommon("cancel")}
               </Button>
               <Button onClick={handleAddMethod} disabled={isSaving || !bankName.trim()}>
-                {isSaving ? tCommon("loading") : tCommon("save")}
+                {isSaving ? tCommon("loading") : tCommon("addPaymentMethod")}
               </Button>
             </DialogFooter>
           </DialogContent>

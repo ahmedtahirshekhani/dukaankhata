@@ -632,30 +632,7 @@ export default function PaymentInPage() {
               />
             </div>
             <div className="space-y-2">
-              {/* <Label>{t("paymentMethod")}</Label>
-              <Select
-                value={formPaymentMethodId}
-                onValueChange={setFormPaymentMethodId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectPaymentMethod")} />
-                </SelectTrigger>
-                <SelectContent className="min-w-[20rem] max-w-[90vw]">
-                  {paymentMethods.map((pm) => (
-                    <SelectItem key={pm.id} value={pm.id}>
-                      <div className="flex flex-col gap-0.5 py-0.5">
-                        <span className="font-medium">{pm.name}</span>
-                        {pm.bankDetails && (
-                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
-                            {pm.bankDetails}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select> */}
-                            <Label>{t("paymentMethod")}</Label>
+              <Label>{t("paymentMethod")}</Label>
               <PaymentMethodDropdown
                 value={formPaymentMethodId}
                 onValueChange={(id, method) => {
@@ -663,8 +640,8 @@ export default function PaymentInPage() {
                 }}
                 placeholder={t("paymentMethod")}
                 enableSearch={true}
-                searchPlaceholder={t("searchPaymentMethods")}
-                noResultsText={t("noPaymentMethodsFound")}
+                searchPlaceholder={tCommon("searchPaymentMethods")}
+                noResultsText={tCommon("noPaymentMethodsFound")}
                 addButtonPosition="bottom"
                 includeDefaultMethods={true}
               />

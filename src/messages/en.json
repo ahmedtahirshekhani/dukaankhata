@@ -30,7 +30,8 @@
     "searchProduct": "Search Product...",
     "searchCustomer": "Search Party...",
     "searchPaymentMethods": "Search payment methods...",
-    "noPaymentMethodsFound": "No payment methods found"
+    "noPaymentMethodsFound": "No payment methods found",
+    "addPaymentMethod": "Add Payment Method"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",

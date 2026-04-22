@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrencyString } from "@/lib/utils";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 
 export type PaymentKind = "full" | "partial";
 
@@ -49,7 +50,8 @@ export function PaymentDialog({
   onConfirm,
 }: PaymentDialogProps) {
   const t = useTranslations("invoice");
-  const locale = useLocale();
+  const tCommon = useTranslations("common");
+
   const normalizePaymentMethodValue = (value: string) => {
     const normalized = value.trim().toLowerCase();
     if (normalized === "cash") return "cash";
@@ -62,10 +64,6 @@ export function PaymentDialog({
     normalizePaymentMethodValue(defaultMethod),
   );
   const [paymentDate, setPaymentDate] = useState(defaultDate);
-  const [dynamicMethods, setDynamicMethods] = useState<
-    { id: string; name: string; details: string }[]
-  >([]);
-  const [methodsError, setMethodsError] = useState<string | null>(null);
   const [paymentErrors, setPaymentErrors] = useState<{
     method?: string;
     amount?: string;
@@ -82,89 +80,6 @@ export function PaymentDialog({
     setPaymentDate(defaultDate);
     setPaymentErrors({});
   }, [open, defaultAmount, defaultDate, defaultMethod, total]);
-
-  useEffect(() => {
-    if (!open) return;
-    let isActive = true;
-    const controller = new AbortController();
-    const loadMethods = async () => {
-      setMethodsError(null);
-      try {
-        const res = await fetch(`/${locale}/api/configuration/payment-method`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          throw new Error("Failed to fetch payment methods");
-        }
-        const data = await res.json();
-        const list = Array.isArray(data)
-          ? data
-              .map((item) => ({
-                id: typeof item?.id === "string" ? item.id.trim() : "",
-                name:
-                  typeof item?.bankName === "string"
-                    ? item.bankName.trim()
-                    : "",
-                details:
-                  typeof item?.bankDetails === "string"
-                    ? item.bankDetails.trim()
-                    : "",
-              }))
-              .filter((item) => Boolean(item.id) && Boolean(item.name))
-          : [];
-        const filtered = list.filter(
-          (item) =>
-            item.id !== "cash" &&
-            item.id !== "cheque" &&
-            item.name.toLowerCase() !== "cash" &&
-            item.name.toLowerCase() !== "cheque",
-        );
-        const unique = Array.from(
-          new Map(filtered.map((item) => [item.id, item])).values(),
-        );
-        if (isActive) {
-          setDynamicMethods(unique);
-        }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return;
-        }
-        if (isActive) {
-          setDynamicMethods([]);
-          setMethodsError(t("failedToFetchPaymentMethods"));
-        }
-      }
-    };
-
-    loadMethods();
-
-    return () => {
-      isActive = false;
-      controller.abort();
-    };
-  }, [open, locale, t]);
-
-  useEffect(() => {
-    if (!open || !paymentMethod) return;
-
-    const normalizedMethod = normalizePaymentMethodValue(paymentMethod);
-    if (normalizedMethod !== paymentMethod) {
-      setPaymentMethod(normalizedMethod);
-      return;
-    }
-
-    if (paymentMethod === "cash" || paymentMethod === "cheque") return;
-
-    const hasMatchingId = dynamicMethods.some((item) => item.id === paymentMethod);
-    if (hasMatchingId) return;
-
-    const matchedByName = dynamicMethods.find(
-      (item) => item.name.toLowerCase() === paymentMethod.toLowerCase(),
-    );
-    if (matchedByName) {
-      setPaymentMethod(matchedByName.id);
-    }
-  }, [open, paymentMethod, dynamicMethods]);
 
   const remainingBalance = useMemo(
     () => Math.max(0, total - paymentAmount),
@@ -254,7 +169,7 @@ export function PaymentDialog({
 
           <div className="space-y-1">
             <Label htmlFor="payment-method">{t("paymentMethod")}</Label>
-            <Select
+            <PaymentMethodDropdown
               value={paymentMethod}
               onValueChange={(value) => {
                 setPaymentMethod(value);
@@ -262,37 +177,9 @@ export function PaymentDialog({
                   setPaymentErrors((prev) => ({ ...prev, method: undefined }));
                 }
               }}
-            >
-              <SelectTrigger id="payment-method">
-                <SelectValue placeholder={t("selectPaymentMethod")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cash">{t("cash")}</SelectItem>
-                <SelectItem value="cheque">{t("cheque")}</SelectItem>
-                {dynamicMethods.map((method) => (
-                  <SelectItem
-                    key={method.id}
-                    value={method.id}
-                    className="group"
-                  >
-                    <div className="flex flex-col items-start">
-                      <span className="font-medium group-data-[highlighted]:text-accent-foreground">
-                        {method.name}
-                      </span>
-
-                      {method.details && (
-                        <p className="text-xs text-muted-foreground group-data-[highlighted]:text-accent-foreground">
-                          {method.details}
-                        </p>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {methodsError && (
-              <p className="text-xs text-red-600">{methodsError}</p>
-            )}
+              placeholder={t("selectPaymentMethod")}
+              className="w-full"
+            />
             {paymentErrors.method && (
               <p className="text-xs text-red-600">{paymentErrors.method}</p>
             )}
