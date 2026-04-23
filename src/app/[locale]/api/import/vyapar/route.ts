@@ -1,996 +1,316 @@
-// // // import { NextRequest, NextResponse } from "next/server";
-// // // import fs from "fs";
-// // // import path from "path";
-// // // import os from "os";
-// // // import AdmZip from "adm-zip";
-// // // import sqlite3 from "sqlite3";
-// // // import { open, Database } from "sqlite";
-
-// // // import { getCurrentUser } from "@/lib/auth/utils";
-// // // import {
-// // //   getCollection,
-// // //   COLLECTIONS,
-// // //   toObjectId,
-// // //   isValidObjectId,
-// // // } from "@/lib/db/mongodb";
-// // // import {
-// // //   appendCustomerLedgerEntry,
-// // //   appendPartyLedgerEntry,
-// // //   seedCustomerOpeningBalance,
-// // // } from "@/lib/ledger/customer-ledger";
-// // // import { setDateToCurrentTime } from "@/lib/utils";
-
-// // // export const runtime = "nodejs";
-// // // export const dynamic = "force-dynamic";
-
-// // // type AnyRow = Record<string, any>;
-
-// // // // ======================== UTILITY FUNCTIONS ========================
-
-// // // function qIdent(name: string) {
-// // //   return `"${String(name).replace(/"/g, '""')}"`;
-// // // }
-
-// // // function lower(v: unknown): string {
-// // //   return String(v ?? "").trim().toLowerCase();
-// // // }
-
-// // // function str(v: unknown, fallback = ""): string {
-// // //   const s = v === null || v === undefined ? "" : String(v);
-// // //   return s.trim() || fallback;
-// // // }
-
-// // // function num(v: unknown, fallback = 0): number {
-// // //   const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
-// // //   return Number.isFinite(n) ? n : fallback;
-// // // }
-
-// // // function firstValue(row: AnyRow, keys: string[], fallback = ""): string {
-// // //   for (const key of keys) {
-// // //     const val = row[key];
-// // //     if (val !== undefined && val !== null && String(val).trim() !== "") {
-// // //       return String(val).trim();
-// // //     }
-// // //   }
-// // //   return fallback;
-// // // }
-
-// // // function firstNumber(row: AnyRow, keys: string[], fallback = 0): number {
-// // //   for (const key of keys) {
-// // //     const val = row[key];
-// // //     if (val !== undefined && val !== null && String(val).trim() !== "") {
-// // //       const n = num(val, NaN);
-// // //       if (Number.isFinite(n)) return n;
-// // //     }
-// // //   }
-// // //   return fallback;
-// // // }
-
-// // // function parseDateValue(value: unknown): Date {
-// // //   if (value instanceof Date) return value;
-// // //   if (typeof value === "number" && Number.isFinite(value)) {
-// // //     const ms = value > 10_000_000_000 ? value : value * 1000;
-// // //     const d = new Date(ms);
-// // //     if (!isNaN(d.getTime())) return d;
-// // //   }
-// // //   const s = String(value ?? "").trim();
-// // //   if (!s) return new Date();
-// // //   const numeric = Number(s);
-// // //   if (Number.isFinite(numeric)) {
-// // //     const ms = numeric > 10_000_000_000 ? numeric : numeric * 1000;
-// // //     const d = new Date(ms);
-// // //     if (!isNaN(d.getTime())) return d;
-// // //   }
-// // //   const d = new Date(s);
-// // //   if (!isNaN(d.getTime())) return d;
-// // //   return new Date();
-// // // }
-
-// // // function makeExternalId(table: string, row: AnyRow, fallbackIndex: number) {
-// // //   const possible = row.id ?? row._id ?? row.pk ?? row.uuid ?? row.key ?? row.name ?? row.full_name ?? row.item_name;
-// // //   return `${table}:${possible ?? fallbackIndex}`;
-// // // }
-
-// // // async function listTables(db: Database) {
-// // //   const rows = await db.all<AnyRow[]>(
-// // //     `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
-// // //   );
-// // //   return rows.map((r) => String(r.name));
-// // // }
-
-// // // async function readAll(db: Database, table: string): Promise<AnyRow[]> {
-// // //   try {
-// // //     return await db.all<AnyRow[]>(`SELECT * FROM ${qIdent(table)}`);
-// // //   } catch (error) {
-// // //     console.error(`Error reading table ${table}:`, error);
-// // //     return [];
-// // //   }
-// // // }
-
-// // // async function tableColumns(db: Database, table: string): Promise<string[]> {
-// // //   try {
-// // //     const cols = await db.all<AnyRow[]>(`PRAGMA table_info(${qIdent(table)})`);
-// // //     return cols.map((c) => String(c.name));
-// // //   } catch {
-// // //     return [];
-// // //   }
-// // // }
-
-// // // // ======================== TABLE DETECTION (UPDATED FOR VYAPAR SCHEMA) ========================
-
-// // // async function detectTables(db: Database) {
-// // //   const tables = await listTables(db);
-// // //   console.log(`📋 Total tables found: ${tables.length}`);
-// // //   console.log("Table names:", tables);
-
-// // //   const result = {
-// // //     partyTable: null as string | null,
-// // //     productTable: null as string | null,
-// // //     paymentMethodTable: null as string | null,
-// // //     transactionTables: [] as string[],
-// // //     lineItemTables: [] as string[],
-// // //     expenseTable: null as string | null,
-// // //   };
-
-// // //   for (const table of tables) {
-// // //     const cols = await tableColumns(db, table);
-// // //     const colSet = new Set(cols.map(c => c.toLowerCase()));
-// // //     console.log(`\n🔍 Checking table: ${table}`);
-// // //     console.log(`   Columns: ${cols.join(", ")}`);
-
-// // //     if (!result.partyTable && (
-// // //       (colSet.has('full_name') && (colSet.has('phone_number') || colSet.has('email'))) ||
-// // //       (colSet.has('name') && (colSet.has('phone') || colSet.has('email') || colSet.has('opening_balance'))) ||
-// // //       (colSet.has('name') && colSet.has('phone') && colSet.has('address'))
-// // //     )) {
-// // //       result.partyTable = table;
-// // //       console.log(`   ✅ Detected as PARTY table`);
-// // //       continue;
-// // //     }
-
-// // //     if (!result.productTable && (
-// // //       (colSet.has('item_name') && (colSet.has('item_sale_unit_price') || colSet.has('item_purchase_unit_price'))) ||
-// // //       (colSet.has('name') && (colSet.has('sale_price') || colSet.has('purchase_price') || colSet.has('quantity')))
-// // //     )) {
-// // //       result.productTable = table;
-// // //       console.log(`   ✅ Detected as PRODUCT table`);
-// // //       continue;
-// // //     }
-
-// // //     if (!result.paymentMethodTable && (
-// // //       (colSet.has('paymenttype_name') && colSet.has('paymenttype_type')) ||
-// // //       colSet.has('bank_name') ||
-// // //       (colSet.has('account_number') && colSet.has('ifsc_code'))
-// // //     )) {
-// // //       result.paymentMethodTable = table;
-// // //       console.log(`   ✅ Detected as PAYMENT METHOD table`);
-// // //       continue;
-// // //     }
-
-// // //     if (!result.expenseTable && (
-// // //       colSet.has('expense_number') ||
-// // //       (colSet.has('category') && colSet.has('amount') && !colSet.has('product_id'))
-// // //     )) {
-// // //       result.expenseTable = table;
-// // //       console.log(`   ✅ Detected as EXPENSE table`);
-// // //       continue;
-// // //     }
-
-// // //     if (colSet.has('quantity') && (colSet.has('item_id') || colSet.has('product_id') || colSet.has('lineitem_txn_id'))) {
-// // //       result.lineItemTables.push(table);
-// // //       console.log(`   ✅ Detected as LINE ITEM table`);
-// // //       continue;
-// // //     }
-
-// // //     if ((colSet.has('txn_date') || colSet.has('date')) && 
-// // //         (colSet.has('txn_cash_amount') || colSet.has('txn_balance_amount') || colSet.has('total_amount')) &&
-// // //         (colSet.has('txn_name_id') || colSet.has('party_id') || colSet.has('customer_id'))) {
-// // //       result.transactionTables.push(table);
-// // //       console.log(`   ✅ Detected as TRANSACTION table`);
-// // //       continue;
-// // //     }
-// // //   }
-
-// // //   console.log("\n📊 DETECTION SUMMARY:");
-// // //   console.log(`   Party table: ${result.partyTable}`);
-// // //   console.log(`   Product table: ${result.productTable}`);
-// // //   console.log(`   Payment method table: ${result.paymentMethodTable}`);
-// // //   console.log(`   Expense table: ${result.expenseTable}`);
-// // //   console.log(`   Transaction tables: ${result.transactionTables.join(", ") || "(none)"}`);
-// // //   console.log(`   Line item tables: ${result.lineItemTables.join(", ") || "(none)"}`);
-
-// // //   return result;
-// // // }
-
-// // // // ======================== DATA MAPPING & UPSERT (FIXED) ========================
-
-// // // async function upsertPartyFromRow(
-// // //   partiesCollection: Awaited<ReturnType<typeof getCollection>>,
-// // //   userId: string,
-// // //   table: string,
-// // //   row: AnyRow,
-// // //   index: number,
-// // // ) {
-// // //   const externalId = makeExternalId(table, row, index);
-// // //   const name = firstValue(row, ["full_name", "name", "party_name", "customer_name", "account_name", "title", "ledger_name"]);
-// // //   if (!name) return null;
-
-// // //   const phone = firstValue(row, ["phone_number", "phone", "mobile", "contact"]);
-// // //   const email = firstValue(row, ["email", "mail"]);
-// // //   const openingBalance = firstNumber(row, ["amount", "opening_balance", "openingBalance", "balance", "current_balance"], 0);
-
-// // //   const userObjId = toObjectId(userId);
-
-// // //   const result = await partiesCollection.updateOne(
-// // //     { user_id: userObjId, external_source: "vyapar", external_id: externalId },
-// // //     {
-// // //       $set: {
-// // //         name: name,
-// // //         email: email,
-// // //         phone: phone,
-// // //         company_name: firstValue(row, ["company_name", "firm_name", "business_name"], ""),
-// // //         company_address: firstValue(row, ["company_address", "address", "billing_address"], ""),
-// // //         status: firstValue(row, ["status"], "active") || "active",
-// // //         is_delete: 0,
-// // //         updated_at: new Date(),
-// // //       },
-// // //       $setOnInsert: {
-// // //         user_id: userObjId,
-// // //         opening_balance: openingBalance,
-// // //         external_source: "vyapar",
-// // //         external_id: externalId,
-// // //         source_table: table,
-// // //         source_row_id: str(row.id ?? row._id ?? row.name_id ?? index),
-// // //         created_at: new Date(),
-// // //       },
-// // //     },
-// // //     { upsert: true }
-// // //   );
-
-// // //   const saved = await partiesCollection.findOne({ user_id: userObjId, external_source: "vyapar", external_id: externalId });
-// // //   if (result.upsertedId && saved?._id && openingBalance !== 0) {
-// // //     await seedCustomerOpeningBalance(userId, saved._id.toString(), openingBalance, parseDateValue(row.date ?? row.created_at ?? new Date()));
-// // //   }
-// // //   return saved;
-// // // }
-
-// // // async function upsertProductFromRow(
-// // //   productsCollection: Awaited<ReturnType<typeof getCollection>>,
-// // //   userId: string,
-// // //   table: string,
-// // //   row: AnyRow,
-// // //   index: number,
-// // // ) {
-// // //   const externalId = makeExternalId(table, row, index);
-// // //   const name = firstValue(row, ["item_name", "name", "product_name", "title", "item"]);
-// // //   if (!name) return null;
-
-// // //   const salePrice = firstNumber(row, ["item_sale_unit_price", "sale_price", "sell_price", "mrp", "rate"], 0);
-// // //   const purchasePrice = firstNumber(row, ["item_purchase_unit_price", "purchase_price", "cost_price", "buy_price"], 0);
-// // //   const quantity = firstNumber(row, ["item_stock_quantity", "quantity", "qty", "stock", "in_stock"], 0);
-
-// // //   const userObjId = toObjectId(userId);
-
-// // //   await productsCollection.updateOne(
-// // //     { user_id: userObjId, external_source: "vyapar", external_id: externalId },
-// // //     {
-// // //       $set: {
-// // //         name: name,
-// // //         type: firstValue(row, ["item_type", "type"], "goods") || "goods",
-// // //         category: firstValue(row, ["category_id", "category", "group"], ""),
-// // //         description: firstValue(row, ["item_description", "description", "remarks"], ""),
-// // //         unit_of_measurement: firstValue(row, ["unit_name", "unit", "uom"], ""),
-// // //         sale_price: salePrice,
-// // //         purchase_price: purchasePrice,
-// // //         quantity: quantity,
-// // //         in_stock: quantity,
-// // //         stock: quantity,
-// // //         damaged_quantity: 0,
-// // //         barcode: firstValue(row, ["item_code", "barcode", "sku", "hsn"], ""),
-// // //         updated_at: new Date(),
-// // //       },
-// // //       $setOnInsert: {
-// // //         user_id: userObjId,
-// // //         external_source: "vyapar",
-// // //         external_id: externalId,
-// // //         source_table: table,
-// // //         source_row_id: str(row.id ?? row._id ?? row.item_id ?? index),
-// // //         created_at: new Date(),
-// // //       },
-// // //     },
-// // //     { upsert: true }
-// // //   );
-
-// // //   return productsCollection.findOne({ user_id: userObjId, external_source: "vyapar", external_id: externalId });
-// // // }
-
-// // // async function upsertPaymentMethodFromRow(
-// // //   paymentMethodCollection: Awaited<ReturnType<typeof getCollection>>,
-// // //   userId: string,
-// // //   table: string,
-// // //   row: AnyRow,
-// // //   index: number,
-// // // ) {
-// // //   const externalId = makeExternalId(table, row, index);
-// // //   const bankName = firstValue(row, ["paymenttype_name", "bank_name", "name", "title", "account_name"], "");
-// // //   if (!bankName) {
-// // //     console.log(`   ⚠️ Payment method row ${index}: no bank name, skipping`);
-// // //     return null;
-// // //   }
-
-// // //   const userObjId = toObjectId(userId);
-
-// // //   const result = await paymentMethodCollection.updateOne(
-// // //     { user_id: userObjId, external_source: "vyapar", external_id: externalId },
-// // //     {
-// // //       $set: {
-// // //         bank_name: bankName,
-// // //         account_number: firstValue(row, ["paymenttype_accountnumber", "account_number", "acc_no"], ""),
-// // //         ifsc_code: firstValue(row, ["pt_bank_ifsc_code", "ifsc_code", "ifsc"], ""),
-// // //         branch_name: firstValue(row, ["branch_name", "branch"], ""),
-// // //         type: firstValue(row, ["paymenttype_type", "type", "method_type"], ""),
-// // //         updated_at: new Date(),
-// // //       },
-// // //       $setOnInsert: {
-// // //         user_id: userObjId,
-// // //         external_source: "vyapar",
-// // //         external_id: externalId,
-// // //         source_table: table,
-// // //         source_row_id: str(row.id ?? row._id ?? row.paymentType_id ?? index),
-// // //         created_at: new Date(),
-// // //       },
-// // //     },
-// // //     { upsert: true }
-// // //   );
-
-// // //   if (result.upsertedId) {
-// // //     console.log(`   ✅ Payment method inserted: ${bankName}`);
-// // //   } else {
-// // //     console.log(`   ✅ Payment method updated: ${bankName}`);
-// // //   }
-
-// // //   return paymentMethodCollection.findOne({ user_id: userObjId, external_source: "vyapar", external_id: externalId });
-// // // }
-
-// // // function mapPaymentMethodId(row: AnyRow, paymentMethodDocs: AnyRow[]) {
-// // //   const raw = row.payment_method_id ?? row.payment_method ?? row.method ?? row.bank_name ?? row.account_name ?? row.paymentMode ?? row.payment_mode ?? row.paymenttype_name ?? "";
-// // //   const v = str(raw);
-// // //   if (!v) return null;
-// // //   const lowerV = v.toLowerCase();
-// // //   if (lowerV === "cash" || lowerV === "cheque") return lowerV;
-// // //   const found = paymentMethodDocs.find((pm) => lower(pm.bank_name) === lowerV || lower(pm.external_id) === lowerV);
-// // //   return found?._id ? found._id.toString() : null;
-// // // }
-
-// // // function buildOrderItemsFromLineRows(lineRows: AnyRow[], productDocs: AnyRow[]) {
-// // //   return lineRows.map((line) => {
-// // //     const productName = firstValue(line, ["item_name", "product_name", "name", "title"], "");
-// // //     const productIdRaw = firstValue(line, ["item_id", "product_id", "goods_id"], "");
-// // //     const qty = firstNumber(line, ["quantity", "qty", "count"], 0);
-// // //     const price = firstNumber(line, ["priceperunit", "price", "rate", "sale_price", "unit_price"], 0);
-// // //     const discount = firstNumber(line, ["lineitem_discount_amount", "discount"], 0);
-// // //     const discountType = firstValue(line, ["discount_type"], "value") || "value";
-// // //     const uom = firstValue(line, ["unit_name", "unit_of_measurement", "uom", "unit"], "");
-
-// // //     const matchedProduct = productDocs.find((p) => {
-// // //       const idStr = p._id?.toString?.() ?? "";
-// // //       const ext = lower(p.external_id);
-// // //       return (productIdRaw && idStr === productIdRaw) || (productName && lower(p.name) === lower(productName)) || (productIdRaw && ext === lower(productIdRaw));
-// // //     }) ?? null;
-
-// // //     return {
-// // //       product_id: matchedProduct?._id ? matchedProduct._id : (isValidObjectId(productIdRaw) ? toObjectId(productIdRaw) : null),
-// // //       name: productName || matchedProduct?.name || "",
-// // //       description: firstValue(line, ["lineitem_description", "description", "remarks"], matchedProduct?.description || ""),
-// // //       quantity: qty,
-// // //       quantityType: firstValue(line, ["quantityType"], "prime") || "prime",
-// // //       price,
-// // //       discount,
-// // //       discountType,
-// // //       unit_of_measurement: uom || matchedProduct?.unit_of_measurement || "",
-// // //     };
-// // //   });
-// // // }
-
-// // // async function getLineRowsForMaster(db: Database, lineTables: string[], masterRow: AnyRow) {
-// // //   const masterId = masterRow.id ?? masterRow._id ?? masterRow.txn_id ?? masterRow.transaction_id ?? masterRow.bill_id ?? masterRow.sale_id ?? masterRow.purchase_id ?? masterRow.voucher_id;
-// // //   if (masterId === undefined || masterId === null) return [];
-
-// // //   const idStr = String(masterId);
-// // //   for (const table of lineTables) {
-// // //     const rows = await readAll(db, table);
-// // //     const columns = rows[0] ? Object.keys(rows[0]) : await tableColumns(db, table);
-// // //     const fkCandidates = ["lineitem_txn_id", "txn_id", "transaction_id", "order_id", "bill_id", "purchase_id", "sale_id", "master_id", "parent_id", "voucher_id"];
-// // //     const fk = fkCandidates.find((c) => columns.map((x) => x.toLowerCase()).includes(c.toLowerCase()));
-// // //     if (!fk) continue;
-// // //     const filtered = rows.filter((r) => String(r[fk]) === idStr);
-// // //     if (filtered.length > 0) return filtered;
-// // //   }
-// // //   return [];
-// // // }
-
-// // // function classifyTransaction(row: AnyRow): "sale" | "purchase" | "payment_in" | "payment_out" | "expense" | "unknown" {
-// // //   const t = lower(row.txn_type ?? row.type ?? row.transaction_type ?? row.voucher_type ?? row.kind ?? row.entry_type ?? row.category);
-// // //   if (t.includes("sale") || t.includes("invoice") || t.includes("sell") || t.includes("outward")) return "sale";
-// // //   if (t.includes("purchase") || t.includes("buy") || t.includes("inward")) return "purchase";
-// // //   if (t.includes("receipt") || t.includes("payment in") || t.includes("payment-in") || t.includes("collection") || t.includes("received")) return "payment_in";
-// // //   if (t.includes("payment out") || t.includes("payment-out") || t.includes("paid") || t.includes("expense paid") || t.includes("payable")) return "payment_out";
-// // //   if (t.includes("expense")) return "expense";
-// // //   return "unknown";
-// // // }
-
-// // // async function importExpensesFromRows(userId: string, expenseRows: AnyRow[]) {
-// // //   const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
-// // //   let inserted = 0;
-// // //   for (let i = 0; i < expenseRows.length; i++) {
-// // //     const row = expenseRows[i];
-// // //     const externalId = makeExternalId("expenses", row, i);
-// // //     const expenseNumber = firstValue(row, ["expense_number", "expenseNo", "voucher_no", "bill_no", "number"], externalId);
-// // //     const expenseDate = setDateToCurrentTime(firstValue(row, ["date", "expense_date", "created_at", "createdAt"], new Date().toISOString().slice(0, 10)));
-
-// // //     const category = firstValue(row, ["category", "group", "type"], "Misc");
-// // //     const itemName = firstValue(row, ["item_name", "description", "name", "title"], "Expense");
-// // //     const qty = firstNumber(row, ["qty", "quantity"], 1);
-// // //     const rate = firstNumber(row, ["rate", "price"], 0);
-// // //     const amount = firstNumber(row, ["amount", "total"], qty * rate);
-
-// // //     await expensesCollection.updateOne(
-// // //       { user_id: toObjectId(userId), external_source: "vyapar", external_id: externalId },
-// // //       {
-// // //         $set: {
-// // //           expense_number: expenseNumber,
-// // //           date: expenseDate,
-// // //           category,
-// // //           item_name: itemName,
-// // //           description: itemName,
-// // //           qty,
-// // //           rate,
-// // //           amount,
-// // //           updated_at: new Date(),
-// // //         },
-// // //         $setOnInsert: {
-// // //           user_id: toObjectId(userId),
-// // //           created_at: new Date(),
-// // //           external_source: "vyapar",
-// // //           external_id: externalId,
-// // //           source_table: "expenses",
-// // //           source_row_id: str(row.id ?? row._id ?? i),
-// // //         },
-// // //       },
-// // //       { upsert: true }
-// // //     );
-// // //     inserted++;
-// // //   }
-// // //   return inserted;
-// // // }
-
-// // // // ======================== MAIN POST HANDLER ========================
-
-// // // export async function POST(req: NextRequest) {
-// // //   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vyapar-import-"));
-// // //   console.log("📁 Temp directory created:", tempDir);
-
-// // //   let db: Database | null = null;
-
-// // //   try {
-// // //     const user = (await getCurrentUser()) as { id: string } | null;
-// // //     if (!user) {
-// // //       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-// // //     }
-// // //     console.log("👤 User ID:", user.id);
-
-// // //     const formData = await req.formData();
-// // //     const file = formData.get("file");
-// // //     if (!(file instanceof File)) {
-// // //       return NextResponse.json({ error: "File is required" }, { status: 400 });
-// // //     }
-
-// // //     const fileName = file.name || "backup.vyb";
-// // //     console.log("📂 Received file:", fileName);
-// // //     const fileBuffer = Buffer.from(await file.arrayBuffer());
-// // //     const uploadedPath = path.join(tempDir, fileName);
-// // //     fs.writeFileSync(uploadedPath, fileBuffer);
-
-// // //     let sqlitePath = uploadedPath;
-// // //     if (fileName.toLowerCase().endsWith(".vyb")) {
-// // //       console.log("🔓 Extracting .vyb using adm-zip...");
-// // //       const zip = new AdmZip(uploadedPath);
-// // //       const zipEntries = zip.getEntries();
-// // //       const vypEntry = zipEntries.find(entry => entry.entryName.toLowerCase().endsWith(".vyp"));
-// // //       if (!vypEntry) {
-// // //         return NextResponse.json({ error: "Invalid Vyapar backup: .vyp not found inside .vyb" }, { status: 400 });
-// // //       }
-// // //       sqlitePath = path.join(tempDir, path.basename(vypEntry.entryName));
-// // //       const vypData = vypEntry.getData();
-// // //       fs.writeFileSync(sqlitePath, vypData);
-// // //       console.log("✅ Extracted .vyp to:", sqlitePath);
-// // //     }
-
-// // //     console.log("🗄️ Opening SQLite database...");
-// // //     db = await open({ filename: sqlitePath, driver: sqlite3.Database });
-
-// // //     const detected = await detectTables(db);
-
-// // //     const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
-// // //     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
-// // //     const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
-// // //     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
-// // //     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
-// // //     const partyTransactionCollection = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
-// // //     const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
-
-// // //     const summary = {
-// // //       tables: (await listTables(db)).length,
-// // //       partiesImported: 0,
-// // //       productsImported: 0,
-// // //       paymentMethodsImported: 0,
-// // //       salesImported: 0,
-// // //       purchaseBillsImported: 0,
-// // //       partyTransactionsImported: 0,
-// // //       expensesImported: 0,
-// // //       warnings: [] as string[],
-// // //     };
-
-// // //     // 1) Parties
-// // //     if (detected.partyTable) {
-// // //       const rows = await readAll(db, detected.partyTable);
-// // //       console.log(`👥 Importing ${rows.length} parties from ${detected.partyTable}...`);
-// // //       for (let i = 0; i < rows.length; i++) {
-// // //         const saved = await upsertPartyFromRow(partiesCollection, user.id, detected.partyTable, rows[i], i);
-// // //         if (saved?._id) summary.partiesImported++;
-// // //       }
-// // //       console.log(`✅ Parties imported: ${summary.partiesImported}`);
-// // //     }
-
-// // //     // 2) Products
-// // //     if (detected.productTable) {
-// // //       const rows = await readAll(db, detected.productTable);
-// // //       console.log(`📦 Importing ${rows.length} products from ${detected.productTable}...`);
-// // //       for (let i = 0; i < rows.length; i++) {
-// // //         const saved = await upsertProductFromRow(productsCollection, user.id, detected.productTable, rows[i], i);
-// // //         if (saved?._id) summary.productsImported++;
-// // //       }
-// // //       console.log(`✅ Products imported: ${summary.productsImported}`);
-// // //     }
-
-// // //     // 3) Payment methods
-// // //     let paymentMethodDocs: AnyRow[] = [];
-// // //     if (detected.paymentMethodTable) {
-// // //       const rows = await readAll(db, detected.paymentMethodTable);
-// // //       console.log(`💳 Importing ${rows.length} payment methods from ${detected.paymentMethodTable}...`);
-// // //       for (let i = 0; i < rows.length; i++) {
-// // //         const saved = await upsertPaymentMethodFromRow(paymentMethodCollection, user.id, detected.paymentMethodTable, rows[i], i);
-// // //         if (saved?._id) summary.paymentMethodsImported++;
-// // //       }
-// // //       paymentMethodDocs = await paymentMethodCollection.find({ user_id: toObjectId(user.id), external_source: "vyapar" }).toArray();
-// // //       console.log(`✅ Payment methods imported: ${summary.paymentMethodsImported}`);
-// // //     }
-
-// // //     const importedProducts = await productsCollection.find({ user_id: toObjectId(user.id), external_source: "vyapar" }).toArray();
-// // //     // Also fetch parties for quick lookup
-// // //     const importedParties = await partiesCollection.find({ user_id: toObjectId(user.id), external_source: "vyapar" }).toArray();
-// // //     const partyByExternalId = new Map<string, any>();
-// // //     const partyByName = new Map<string, any>();
-// // //     for (const p of importedParties) {
-// // //       if (p.external_id) partyByExternalId.set(p.external_id, p);
-// // //       if (p.name) partyByName.set(p.name.toLowerCase(), p);
-// // //     }
-
-// // //     // 4) Transactions
-// // //     for (const txnTable of detected.transactionTables) {
-// // //       const rows = await readAll(db, txnTable);
-// // //       console.log(`\n📄 Processing ${rows.length} transactions from ${txnTable}...`);
-      
-// // //       for (let i = 0; i < rows.length; i++) {
-// // //         const row = rows[i];
-// // //         const kind = classifyTransaction(row);
-// // //         const externalId = makeExternalId(txnTable, row, i);
-// // //         const date = parseDateValue(row.txn_date ?? row.date ?? row.transaction_date ?? row.created_at);
-
-// // //         // --- Improved party resolution ---
-// // //         let partyId: string | null = null;
-// // //         const partyName = firstValue(row, ["full_name", "party_name", "customer_name", "vendor_name", "name"], "");
-// // //         const partyRef = row.txn_name_id; // integer ID from kb_names
-
-// // //         if (partyRef) {
-// // //           // Try to find by external_id = "kb_names:${partyRef}"
-// // //           const externalIdPattern = `kb_names:${partyRef}`;
-// // //           let party = partyByExternalId.get(externalIdPattern);
-// // //           if (!party) {
-// // //             // Try by source_row_id
-// // //             party = importedParties.find(p => String(p.source_row_id) === String(partyRef));
-// // //           }
-// // //           if (party) partyId = party._id.toString();
-// // //         }
-
-// // //         if (!partyId && partyName) {
-// // //           const lowerName = partyName.toLowerCase();
-// // //           let party = partyByName.get(lowerName);
-// // //           if (party) partyId = party._id.toString();
-// // //         }
-
-// // //         if (!partyId && (partyRef || partyName)) {
-// // //           // Fallback: create a new party using ensurePartyByName
-// // //           const newParty = await ensurePartyByName(partiesCollection, user.id, partyName || `Party_${partyRef}`, {
-// // //             phone: firstValue(row, ["phone_number", "phone"], ""),
-// // //             email: firstValue(row, ["email"], ""),
-// // //             external_id: partyRef ? `kb_names:${partyRef}` : undefined,
-// // //             source_table: txnTable,
-// // //             source_row_id: str(row.id ?? row._id ?? i),
-// // //           });
-// // //           if (newParty) {
-// // //             partyId = newParty._id.toString();
-// // //             // Update local maps
-// // //             partyByExternalId.set(newParty.external_id, newParty);
-// // //             partyByName.set(newParty.name.toLowerCase(), newParty);
-// // //           }
-// // //         }
-
-// // //         const totalAmount = firstNumber(row, ["txn_balance_amount", "total_amount", "grand_total", "amount"], 0);
-// // //         const paidAmount = firstNumber(row, ["txn_cash_amount", "paid_amount", "received_amount"], 0);
-// // //         const amount = totalAmount > 0 ? totalAmount : paidAmount;
-// // //         const subtotal = firstNumber(row, ["subtotal", "gross_amount"], amount);
-// // //         const invoiceNo = firstValue(row, ["txn_ref_number_char", "invoice_no", "bill_no", "voucher_no"], "");
-// // //         const dueDateRaw = firstValue(row, ["txn_due_date", "due_date"], "");
-
-// // //         const lineRows = await getLineRowsForMaster(db, detected.lineItemTables, row);
-// // //         const orderItems = buildOrderItemsFromLineRows(lineRows, importedProducts);
-// // //         const paymentMethodId = mapPaymentMethodId(row, paymentMethodDocs);
-
-// // //         // ---- SALE ----
-// // //         if (kind === "sale" || (kind === "unknown" && orderItems.length > 0 && amount > 0)) {
-// // //           if (!partyId) {
-// // //             summary.warnings.push(`Sale skipped at row ${i+1} in ${txnTable}: party not found`);
-// // //             continue;
-// // //           }
-
-// // //           await ordersCollection.updateOne(
-// // //             { user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId },
-// // //             {
-// // //               $set: {
-// // //                 customer_id: toObjectId(partyId),
-// // //                 total_amount: amount,
-// // //                 subtotal,
-// // //                 invoice_no: invoiceNo || null,
-// // //                 sale_date: date,
-// // //                 due_date: dueDateRaw ? parseDateValue(dueDateRaw) : null,
-// // //                 charges: [],
-// // //                 overallDiscount: firstNumber(row, ["txn_discount_amount", "overall_discount", "discount"], 0),
-// // //                 shippingCharges: firstNumber(row, ["shipping_charges", "delivery_charges"], 0),
-// // //                 items: orderItems,
-// // //                 payment: paidAmount > 0 ? {
-// // //                   method: paymentMethodId || firstValue(row, ["txn_payment_type_id", "payment_method"], "cash") || "cash",
-// // //                   paid_amount: paidAmount,
-// // //                   paid_date: date,
-// // //                   no_payment_at_all: false,
-// // //                 } : null,
-// // //                 status: row.txn_status === "paid" ? "completed" : "pending",
-// // //                 updated_at: new Date(),
-// // //               },
-// // //               $setOnInsert: {
-// // //                 user_id: toObjectId(user.id),
-// // //                 created_at: new Date(),
-// // //                 external_source: "vyapar",
-// // //                 external_id: externalId,
-// // //                 source_table: txnTable,
-// // //                 source_row_id: str(row.id ?? row._id ?? row.txn_id ?? i),
-// // //               },
-// // //             },
-// // //             { upsert: true }
-// // //           );
-// // //           const orderDoc = await ordersCollection.findOne({ user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId });
-// // //           if (orderDoc?._id) {
-// // //             await appendCustomerLedgerEntry({
-// // //               userId: user.id,
-// // //               customerId: partyId,
-// // //               eventKey: `vyapar:sale:${orderDoc._id.toString()}`,
-// // //               eventType: "order_debit",
-// // //               eventSource: "order",
-// // //               eventSourceId: orderDoc._id.toString(),
-// // //               amountDelta: amount,
-// // //               effectiveAt: date,
-// // //               metadata: { source: "vyapar_import", invoice_no: invoiceNo },
-// // //             });
-// // //             if (paidAmount > 0) {
-// // //               await appendCustomerLedgerEntry({
-// // //                 userId: user.id,
-// // //                 customerId: partyId,
-// // //                 eventKey: `vyapar:sale_payment:${orderDoc._id.toString()}`,
-// // //                 eventType: "order_payment_credit",
-// // //                 eventSource: "order",
-// // //                 eventSourceId: orderDoc._id.toString(),
-// // //                 amountDelta: -paidAmount,
-// // //                 effectiveAt: date,
-// // //                 metadata: { source: "vyapar_import", invoice_no: invoiceNo, payment_method_id: paymentMethodId },
-// // //               });
-// // //             }
-// // //           }
-// // //           summary.salesImported++;
-// // //           continue;
-// // //         }
-
-// // //         // ---- PURCHASE ----
-// // //         if (kind === "purchase" || (kind === "unknown" && txnTable.toLowerCase().includes("purchase"))) {
-// // //           if (!partyId) {
-// // //             summary.warnings.push(`Purchase skipped at row ${i+1} in ${txnTable}: party not found`);
-// // //             continue;
-// // //           }
-// // //           const items = lineRows.length ? lineRows.map(line => ({
-// // //             product_id: null,
-// // //             product_name: firstValue(line, ["item_name", "product_name", "name"], ""),
-// // //             product_description: firstValue(line, ["description"], ""),
-// // //             quantity: firstNumber(line, ["quantity", "qty"], 0),
-// // //             cost_price: firstNumber(line, ["priceperunit", "cost_price", "price"], 0),
-// // //             amount: firstNumber(line, ["total_amount", "amount"], 0),
-// // //           })) : [];
-// // //           const partyNameResolved = (await partiesCollection.findOne({ _id: toObjectId(partyId) }))?.name || partyName || "";
-
-// // //           await purchaseBillsCollection.updateOne(
-// // //             { user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId },
-// // //             {
-// // //               $set: {
-// // //                 party_id: toObjectId(partyId),
-// // //                 party_name: partyNameResolved,
-// // //                 items,
-// // //                 discount: firstNumber(row, ["txn_discount_amount", "discount"], 0),
-// // //                 discount_type: firstValue(row, ["discount_type"], "fixed"),
-// // //                 tax: firstNumber(row, ["txn_tax_amount", "tax"], 0),
-// // //                 tax_type: firstValue(row, ["tax_type"], "fixed"),
-// // //                 total_amount: amount,
-// // //                 paid_amount: paidAmount,
-// // //                 balance_due: amount - paidAmount,
-// // //                 is_paid: paidAmount >= amount && amount > 0,
-// // //                 payment_method_id: paymentMethodId,
-// // //                 payment_method_name: firstValue(row, ["txn_payment_type_id", "payment_method"], ""),
-// // //                 description: firstValue(row, ["txn_description", "description"], ""),
-// // //                 updated_at: new Date(),
-// // //               },
-// // //               $setOnInsert: {
-// // //                 user_id: toObjectId(user.id),
-// // //                 created_at: new Date(),
-// // //                 external_source: "vyapar",
-// // //                 external_id: externalId,
-// // //                 source_table: txnTable,
-// // //                 source_row_id: str(row.id ?? row._id ?? row.txn_id ?? i),
-// // //               },
-// // //             },
-// // //             { upsert: true }
-// // //           );
-// // //           const billDoc = await purchaseBillsCollection.findOne({ user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId });
-// // //           if (billDoc?._id) {
-// // //             await appendPartyLedgerEntry({
-// // //               userId: user.id,
-// // //               partyId,
-// // //               eventKey: `vyapar:purchase:${billDoc._id.toString()}`,
-// // //               eventType: "purchase_bill_debit",
-// // //               eventSource: "party_transaction",
-// // //               eventSourceId: billDoc._id.toString(),
-// // //               amountDelta: amount,
-// // //               effectiveAt: date,
-// // //               metadata: { source: "vyapar_import", party_name: partyNameResolved, payment_method_id: paymentMethodId },
-// // //             });
-// // //           }
-// // //           summary.purchaseBillsImported++;
-// // //           continue;
-// // //         }
-
-// // //         // ---- PAYMENT IN / OUT ----
-// // //         if (kind === "payment_in" || kind === "payment_out") {
-// // //           if (!partyId) {
-// // //             summary.warnings.push(`Payment skipped at row ${i+1} in ${txnTable}: party not found`);
-// // //             continue;
-// // //           }
-// // //           const paymentAmount = paidAmount > 0 ? paidAmount : amount;
-// // //           if (paymentAmount <= 0) continue;
-// // //           const transactionType = kind === "payment_in" ? "payment-in" : "payment-out";
-
-// // //           await partyTransactionCollection.updateOne(
-// // //             { user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId },
-// // //             {
-// // //               $set: {
-// // //                 customer_id: toObjectId(partyId),
-// // //                 payment_amount: paymentAmount,
-// // //                 payment_method_id: paymentMethodId || "cash",
-// // //                 date,
-// // //                 type: transactionType,
-// // //                 updated_at: new Date(),
-// // //               },
-// // //               $setOnInsert: {
-// // //                 user_id: toObjectId(user.id),
-// // //                 created_at: new Date(),
-// // //                 external_source: "vyapar",
-// // //                 external_id: externalId,
-// // //                 source_table: txnTable,
-// // //                 source_row_id: str(row.id ?? row._id ?? row.txn_id ?? i),
-// // //               },
-// // //             },
-// // //             { upsert: true }
-// // //           );
-// // //           await appendCustomerLedgerEntry({
-// // //             userId: user.id,
-// // //             customerId: partyId,
-// // //             eventKey: `vyapar:${kind}:${externalId}`,
-// // //             eventType: kind === "payment_in" ? "payment_in_credit" : "payment_out_debit",
-// // //             eventSource: "party_transaction",
-// // //             eventSourceId: externalId,
-// // //             amountDelta: kind === "payment_in" ? -paymentAmount : paymentAmount,
-// // //             effectiveAt: date,
-// // //             metadata: { source: "vyapar_import", payment_method_id: paymentMethodId },
-// // //           });
-// // //           summary.partyTransactionsImported++;
-// // //           continue;
-// // //         }
-
-// // //         // ---- EXPENSE ----
-// // //         if (kind === "expense") {
-// // //           const expenseNumber = firstValue(row, ["txn_ref_number_char", "expense_number", "voucher_no"], externalId);
-// // //           const category = firstValue(row, ["txn_category_id", "category", "group"], "Misc");
-// // //           const itemName = firstValue(row, ["txn_description", "description", "item_name"], "Expense");
-// // //           await expensesCollection.updateOne(
-// // //             { user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId },
-// // //             {
-// // //               $set: {
-// // //                 expense_number: expenseNumber,
-// // //                 date,
-// // //                 category,
-// // //                 item_name: itemName,
-// // //                 description: itemName,
-// // //                 qty: 1,
-// // //                 rate: amount,
-// // //                 amount,
-// // //                 updated_at: new Date(),
-// // //               },
-// // //               $setOnInsert: {
-// // //                 user_id: toObjectId(user.id),
-// // //                 created_at: new Date(),
-// // //                 external_source: "vyapar",
-// // //                 external_id: externalId,
-// // //                 source_table: txnTable,
-// // //                 source_row_id: str(row.id ?? row._id ?? row.txn_id ?? i),
-// // //               },
-// // //             },
-// // //             { upsert: true }
-// // //           );
-// // //           summary.expensesImported++;
-// // //           continue;
-// // //         }
-
-// // //         // Fallback
-// // //         if (amount > 0 && (partyId || partyName)) {
-// // //           summary.warnings.push(`Row ${i+1} in ${txnTable} treated as expense fallback`);
-// // //           await expensesCollection.updateOne(
-// // //             { user_id: toObjectId(user.id), external_source: "vyapar", external_id: externalId },
-// // //             {
-// // //               $set: {
-// // //                 expense_number: invoiceNo || externalId,
-// // //                 date,
-// // //                 category: "Unclassified",
-// // //                 item_name: partyName || "Unknown",
-// // //                 description: row.txn_description || "",
-// // //                 qty: 1,
-// // //                 rate: amount,
-// // //                 amount,
-// // //                 updated_at: new Date(),
-// // //               },
-// // //               $setOnInsert: {
-// // //                 user_id: toObjectId(user.id),
-// // //                 created_at: new Date(),
-// // //                 external_source: "vyapar",
-// // //                 external_id: externalId,
-// // //                 source_table: txnTable,
-// // //                 source_row_id: str(row.id ?? row._id ?? i),
-// // //               },
-// // //             },
-// // //             { upsert: true }
-// // //           );
-// // //           summary.expensesImported++;
-// // //         } else {
-// // //           summary.warnings.push(`Row ${i+1} in ${txnTable} could not be classified`);
-// // //         }
-// // //       }
-// // //     }
-
-// // //     // 5) Direct expense table
-// // //     if (detected.expenseTable && !detected.transactionTables.includes(detected.expenseTable)) {
-// // //       const expenseRows = await readAll(db, detected.expenseTable);
-// // //       console.log(`💸 Importing ${expenseRows.length} expenses from dedicated table ${detected.expenseTable}...`);
-// // //       const inserted = await importExpensesFromRows(user.id, expenseRows);
-// // //       summary.expensesImported += inserted;
-// // //     }
-
-// // //     console.log("\n🎉 IMPORT COMPLETED!");
-// // //     console.log("Summary:", summary);
-
-// // //     return NextResponse.json({
-// // //       success: true,
-// // //       message: "Vyapar backup imported successfully",
-// // //       summary,
-// // //     });
-// // //   } catch (error) {
-// // //     console.error("❌ Vyapar import error:", error);
-// // //     return NextResponse.json(
-// // //       { error: error instanceof Error ? error.message : "Import failed" },
-// // //       { status: 500 }
-// // //     );
-// // //   } finally {
-// // //     // Close database if open
-// // //     if (db) {
-// // //       try {
-// // //         await db.close();
-// // //         console.log("🗄️ Database connection closed.");
-// // //       } catch (e) {
-// // //         console.warn("Error closing db:", e);
-// // //       }
-// // //     }
-// // //     // Cleanup temp directory
-// // //     if (tempDir && fs.existsSync(tempDir)) {
-// // //       try {
-// // //         await new Promise(resolve => setTimeout(resolve, 500));
-// // //         fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
-// // //         console.log("🧹 Temp directory cleaned up successfully.");
-// // //       } catch (e) {
-// // //         console.warn("Failed to delete temp dir:", e);
-// // //         try {
-// // //           const { execSync } = require("child_process");
-// // //           execSync(`rmdir /s /q "${tempDir}"`, { stdio: "ignore" });
-// // //           console.log("🧹 Temp directory cleaned using rmdir.");
-// // //         } catch (e2) {
-// // //           console.warn("Could not delete temp directory, will be cleaned on reboot:", tempDir);
-// // //         }
-// // //       }
-// // //     }
-// // //   }
-// // // }
-
-// // // // Helper ensurePartyByName (kept as before)
-// // // async function ensurePartyByName(
-// // //   partiesCollection: Awaited<ReturnType<typeof getCollection>>,
-// // //   userId: string,
-// // //   name: string,
-// // //   extra: Partial<Record<string, any>> = {},
-// // // ) {
-// // //   const userObjId = toObjectId(userId);
-// // //   const cleanName = str(name);
-// // //   if (!cleanName) return null;
-
-// // //   const existing = await partiesCollection.findOne({
-// // //     user_id: userObjId,
-// // //     name: cleanName,
-// // //     is_delete: { $ne: 1 },
-// // //   });
-// // //   if (existing?._id) return existing;
-
-// // //   const now = new Date();
-// // //   const result = await partiesCollection.insertOne({
-// // //     user_id: userObjId,
-// // //     name: cleanName,
-// // //     email: extra.email ?? "",
-// // //     phone: extra.phone ?? "",
-// // //     company_name: extra.company_name ?? "",
-// // //     company_address: extra.company_address ?? "",
-// // //     opening_balance: num(extra.opening_balance, 0),
-// // //     status: extra.status ?? "active",
-// // //     is_delete: 0,
-// // //     created_at: now,
-// // //     updated_at: now,
-// // //     external_source: "vyapar",
-// // //     external_id: extra.external_id ?? null,
-// // //     source_table: extra.source_table ?? null,
-// // //     source_row_id: extra.source_row_id ?? null,
-// // //   });
-
-// // //   const inserted = await partiesCollection.findOne({ _id: result.insertedId });
-// // //   const openingBalance = num(extra.opening_balance, 0);
-// // //   if (inserted?._id && openingBalance !== 0) {
-// // //     await seedCustomerOpeningBalance(userId, inserted._id.toString(), openingBalance, now);
-// // //   }
-// // //   return inserted;
-// // // }
 
-
-
-
-
+// // import { NextRequest, NextResponse } from "next/server";
+// // import fs from "fs";
+// // import path from "path";
+// // import os from "os";
+// // import AdmZip from "adm-zip";
+// // import sqlite3 from "sqlite3";
+// // import { open } from "sqlite";
+
+// // import { getCurrentUser } from "@/lib/auth/utils";
+// // import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+
+// // // ================= HELPERS =================
+
+// // const str = (v: any) => (v ? String(v).trim() : "");
+// // const num = (v: any) => Number(v) || 0;
+
+// // function first(row: any, keys: string[]) {
+// //   for (const k of keys) {
+// //     if (row?.[k] !== undefined && row?.[k] !== null && row?.[k] !== "") {
+// //       return row[k];
+// //     }
+// //   }
+// //   return "";
+// // }
+
+// // // ================= TXN TYPE MAPPER =================
+
+// // function mapTxnType(code: number) {
+// //   switch (code) {
+// //     case 1:
+// //       return "sale";
+// //     case 2:
+// //       return "payment_in";
+// //     case 3:
+// //       return "payment_out";
+// //     case 4:
+// //       return "expense";
+// //     case 5:
+// //       return "purchase_return";
+// //     case 6:
+// //       return "sale_return";
+// //     case 7:
+// //       return "journal";
+// //     default:
+// //       return "unknown";
+// //   }
+// // }
+
+// // // ================= MAIN =================
+
+// // export async function POST(req: NextRequest) {
+// //   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vyapar-"));
+// //   let db: any = null;
+
+// //   try {
+// //     const user = (await getCurrentUser()) as { id: string } | null;
+// //     if (!user) throw new Error("Unauthorized");
+
+// //     console.log("👤 USER:", user.id);
+
+// //     const formData = await req.formData();
+// //     const file = formData.get("file") as File;
+
+// //     if (!file) throw new Error("File missing");
+
+// //     console.log("📂 FILE:", file.name);
+
+// //     const buffer = Buffer.from(await file.arrayBuffer());
+// //     const filePath = path.join(tempDir, file.name);
+// //     fs.writeFileSync(filePath, buffer);
+
+// //     // ================= EXTRACT =================
+// //     let dbPath = filePath;
+
+// //     if (file.name.endsWith(".vyb")) {
+// //       const zip = new AdmZip(filePath);
+// //       const entry = zip.getEntries().find((e) => e.entryName.endsWith(".vyp"));
+
+// //       if (!entry) throw new Error("Invalid Vyapar backup file");
+
+// //       dbPath = path.join(tempDir, "data.vyp");
+// //       fs.writeFileSync(dbPath, entry.getData());
+// //     }
+
+// //     console.log("📦 Extracted DB:", dbPath);
+
+// //     db = await open({ filename: dbPath, driver: sqlite3.Database });
+
+// //     // ================= COLLECTIONS =================
+// //     const partiesCol = await getCollection(COLLECTIONS.PARTIES);
+// //     const productsCol = await getCollection(COLLECTIONS.PRODUCTS);
+// //     const paymentsCol = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+// //     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
+// //     const purchaseCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
+// //     const txnCol = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
+// //     const expenseCol = await getCollection(COLLECTIONS.EXPENSES);
+
+// //     // ================= SUMMARY =================
+// //     const summary = {
+// //       parties: 0,
+// //       products: 0,
+// //       payments: 0,
+// //       sales: 0,
+// //       purchases: 0,
+// //       transactions: 0,
+// //       expenses: 0,
+// //       skipped: 0,
+// //     };
+
+// //     // ================= PARTIES =================
+// //     const parties = await db.all(`SELECT * FROM kb_names`);
+// //     console.log("👥 TOTAL PARTIES:", parties.length);
+
+// //     for (const p of parties) {
+// //       const name = str(first(p, ["full_name", "name"]));
+// //       const nameId = str(p.name_id);
+
+// //       if (!name) continue;
+
+// //       await partiesCol.updateOne(
+// //         { user_id: toObjectId(user.id), source_name_id: nameId },
+// //         {
+// //           $set: {
+// //             name,
+// //             phone: str(p.phone_number),
+// //             source_name_id: nameId,
+// //             source: "vyapar",
+// //             updated_at: new Date(),
+// //           },
+// //         },
+// //         { upsert: true }
+// //       );
+
+// //       console.log("✅ PARTY:", name, "| ID:", nameId);
+// //       summary.parties++;
+// //     }
+
+// //     const partyList = await partiesCol
+// //       .find({ user_id: toObjectId(user.id) })
+// //       .toArray();
+
+// //     // ================= PRODUCTS =================
+// //     const products = await db.all(`SELECT * FROM kb_items`);
+// //     console.log("📦 TOTAL PRODUCTS:", products.length);
+
+// //     for (const pr of products) {
+// //       const name = str(pr.item_name);
+// //       if (!name) continue;
+
+// //       await productsCol.updateOne(
+// //         { user_id: toObjectId(user.id), name },
+// //         {
+// //           $set: {
+// //             name,
+// //             sale_price: num(first(pr, ["item_sale_unit_price"])),
+// //             purchase_price: num(first(pr, ["item_purchase_unit_price"])),
+// //             stock: num(pr.item_stock_quantity),
+// //             updated_at: new Date(),
+// //           },
+// //         },
+// //         { upsert: true }
+// //       );
+
+// //       console.log("✅ PRODUCT:", name);
+// //       summary.products++;
+// //     }
+
+// //     // ================= PAYMENT METHODS =================
+// //     const payments = await db.all(`SELECT * FROM kb_paymentTypes`);
+// //     console.log("💳 TOTAL PAYMENT METHODS:", payments.length);
+
+// //     for (const pm of payments) {
+// //       const name = str(pm.paymenttype_name);
+// //       if (!name) continue;
+
+// //       await paymentsCol.updateOne(
+// //         { user_id: toObjectId(user.id), bank_name: name },
+// //         {
+// //           $set: {
+// //             bank_name: name,
+// //             type: str(pm.paymenttype_type),
+// //             source: "vyapar",
+// //           },
+// //         },
+// //         { upsert: true }
+// //       );
+
+// //       console.log("✅ PAYMENT METHOD:", name);
+// //       summary.payments++;
+// //     }
+
+// //     // ================= LINE ITEMS =================
+// //     const lines = await db.all(`SELECT * FROM kb_lineitems`);
+// //     console.log("🧾 TOTAL LINE ITEMS:", lines.length);
+
+// //     // ================= TRANSACTIONS =================
+// //     const txns = await db.all(`SELECT * FROM kb_transactions`);
+// //     console.log("📄 TOTAL TXNS:", txns.length);
+
+// //     for (const t of txns) {
+// //       const rawType = Number(t.txn_type);
+// //       const type = mapTxnType(rawType);
+
+// //       const txnId = t.txn_id;
+// //       const partyRef = str(t.txn_name_id);
+
+// //       const party = partyList.find((p) => p.source_name_id === partyRef);
+// //       const items = lines.filter(
+// //         (l) => String(l.lineitem_txn_id) === String(txnId)
+// //       );
+
+// //       const amount = num(t.txn_balance_amount) || num(t.txn_cash_amount);
+
+// //       console.log("🔍 TXN DEBUG:", {
+// //         id: txnId,
+// //         rawType,
+// //         mappedType: type,
+// //         partyRef,
+// //         partyFound: !!party,
+// //         items: items.length,
+// //         amount,
+// //       });
+
+// //       if (!party) {
+// //         summary.skipped++;
+// //         continue;
+// //       }
+
+// //       // ================= SALE =================
+// //       if (type === "sale") {
+// //         await ordersCol.insertOne({
+// //           user_id: toObjectId(user.id),
+// //           customer_id: party._id,
+// //           total_amount: amount,
+// //           items: items.map((i) => ({
+// //             name: i.item_name,
+// //             quantity: num(i.quantity),
+// //             price: num(i.priceperunit),
+// //           })),
+// //           created_at: new Date(),
+// //         });
+
+// //         summary.sales++;
+// //         continue;
+// //       }
+
+// //       // ================= PURCHASE (fallback logic) =================
+// //       if (type === "purchase" || type === "purchase_return") {
+// //         await purchaseCol.insertOne({
+// //           user_id: toObjectId(user.id),
+// //           party_id: party._id,
+// //           total_amount: amount,
+// //           items: items.map((i) => ({
+// //             product_name: i.item_name,
+// //             quantity: num(i.quantity),
+// //             cost_price: num(i.priceperunit),
+// //           })),
+// //           created_at: new Date(),
+// //         });
+
+// //         summary.purchases++;
+// //         continue;
+// //       }
+
+// //       // ================= PAYMENT =================
+// //       if (type === "payment_in" || type === "payment_out") {
+// //         await txnCol.insertOne({
+// //           user_id: toObjectId(user.id),
+// //           customer_id: party._id,
+// //           payment_amount: amount,
+// //           type,
+// //           created_at: new Date(),
+// //         });
+
+// //         summary.transactions++;
+// //         continue;
+// //       }
+
+// //       // ================= EXPENSE =================
+// //       if (type === "expense") {
+// //         await expenseCol.insertOne({
+// //           user_id: toObjectId(user.id),
+// //           amount,
+// //           item_name: party.name,
+// //           created_at: new Date(),
+// //         });
+
+// //         summary.expenses++;
+// //         continue;
+// //       }
+
+// //       console.log("⚠️ UNKNOWN TXN SKIPPED:", txnId);
+// //       summary.skipped++;
+// //     }
+
+// //     console.log("🎉 FINAL SUMMARY:", summary);
+
+// //     return NextResponse.json({
+// //       success: true,
+// //       summary,
+// //     });
+// //   } catch (err: any) {
+// //     console.error("❌ IMPORT ERROR:", err);
+// //     return NextResponse.json(
+// //       { success: false, error: err.message },
+// //       { status: 500 }
+// //     );
+// //   } finally {
+// //     if (db) await db.close();
+// //     fs.rmSync(tempDir, { recursive: true, force: true });
+// //   }
+// // }
 
 
 
@@ -1016,11 +336,24 @@
 
 // function first(row: any, keys: string[]) {
 //   for (const k of keys) {
-//     if (row[k] !== undefined && row[k] !== null && row[k] !== "") {
+//     if (row?.[k] !== undefined && row?.[k] !== null && row?.[k] !== "") {
 //       return row[k];
 //     }
 //   }
 //   return "";
+// }
+
+// // ================= TYPE MAP =================
+
+// function mapTxnType(code: number) {
+//   switch (code) {
+//     case 1: return "sale";
+//     case 2: return "payment_in";
+//     case 3: return "payment_out";
+//     case 4: return "expense";
+//     case 7: return "journal";
+//     default: return "unknown";
+//   }
 // }
 
 // // ================= MAIN =================
@@ -1033,20 +366,18 @@
 //     const user = await getCurrentUser() as { id: string } | null;
 //     if (!user) throw new Error("Unauthorized");
 
-//     console.log("👤 USER:", user.id);
-
 //     const formData = await req.formData();
 //     const file = formData.get("file") as File;
-
 //     if (!file) throw new Error("File missing");
 
+//     console.log("👤 USER:", user.id);
 //     console.log("📂 FILE:", file.name);
 
 //     const buffer = Buffer.from(await file.arrayBuffer());
 //     const filePath = path.join(tempDir, file.name);
 //     fs.writeFileSync(filePath, buffer);
 
-//     // unzip
+//     // ===== unzip =====
 //     let dbPath = filePath;
 //     if (file.name.endsWith(".vyb")) {
 //       const zip = new AdmZip(filePath);
@@ -1056,47 +387,40 @@
 //       fs.writeFileSync(dbPath, entry.getData());
 //     }
 
-//     console.log("📦 Extracted DB:", dbPath);
+//     console.log("📦 DB:", dbPath);
 
 //     db = await open({ filename: dbPath, driver: sqlite3.Database });
 
-//     // ================= COLLECTIONS =================
+//     // ===== collections =====
 //     const partiesCol = await getCollection(COLLECTIONS.PARTIES);
 //     const productsCol = await getCollection(COLLECTIONS.PRODUCTS);
-//     const paymentsCol = await getCollection(COLLECTIONS.PAYMENT_METHOD);
-//     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
-//     const purchaseCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
 //     const txnCol = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
+//     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
 //     const expenseCol = await getCollection(COLLECTIONS.EXPENSES);
 
 //     const summary = {
 //       parties: 0,
 //       products: 0,
-//       payments: 0,
+//       payments_in: 0,
+//       payments_out: 0,
 //       sales: 0,
-//       purchases: 0,
-//       transactions: 0,
 //       expenses: 0,
 //       skipped: 0,
 //     };
 
-//     // ================= PARTIES =================
+//     // ===== PARTIES =====
 //     const parties = await db.all(`SELECT * FROM kb_names`);
-//     console.log("👥 TOTAL PARTIES:", parties.length);
-
 //     for (const p of parties) {
 //       const name = str(first(p, ["full_name", "name"]));
-//       const nameId = str(p.name_id);
-
+//       const id = str(p.name_id);
 //       if (!name) continue;
 
 //       await partiesCol.updateOne(
-//         { user_id: toObjectId(user.id), source_name_id: nameId },
+//         { user_id: toObjectId(user.id), source_name_id: id },
 //         {
 //           $set: {
 //             name,
-//             phone: str(p.phone_number),
-//             source_name_id: nameId,
+//             source_name_id: id,
 //             source: "vyapar",
 //             updated_at: new Date(),
 //           },
@@ -1104,86 +428,56 @@
 //         { upsert: true }
 //       );
 
-//       console.log("✅ PARTY:", name, "| ID:", nameId);
 //       summary.parties++;
 //     }
 
 //     const partyList = await partiesCol.find({ user_id: toObjectId(user.id) }).toArray();
 
-//     // ================= PRODUCTS =================
+//     // ===== PRODUCTS =====
 //     const products = await db.all(`SELECT * FROM kb_items`);
-//     console.log("📦 TOTAL PRODUCTS:", products.length);
-
 //     for (const pr of products) {
 //       const name = str(pr.item_name);
 //       if (!name) continue;
-
-//       const sale = num(first(pr, ["item_sale_unit_price", "sale_price"]));
-//       const purchase = num(first(pr, ["item_purchase_unit_price", "purchase_price"]));
 
 //       await productsCol.updateOne(
 //         { user_id: toObjectId(user.id), name },
 //         {
 //           $set: {
 //             name,
-//             sale_price: sale,
-//             purchase_price: purchase,
-//             stock: num(pr.item_stock_quantity),
+//             sale_price: num(pr.item_sale_unit_price),
+//             purchase_price: num(pr.item_purchase_unit_price),
 //             updated_at: new Date(),
 //           },
 //         },
 //         { upsert: true }
 //       );
 
-//       console.log("✅ PRODUCT:", name, "| Sale:", sale);
 //       summary.products++;
 //     }
 
-//     // ================= PAYMENT METHODS =================
-//     const payments = await db.all(`SELECT * FROM kb_paymentTypes`);
-//     console.log("💳 TOTAL PAYMENTS:", payments.length);
-
-//     for (const pm of payments) {
-//       const name = str(pm.paymenttype_name);
-//       if (!name) continue;
-
-//       await paymentsCol.updateOne(
-//         { user_id: toObjectId(user.id), bank_name: name },
-//         {
-//           $set: {
-//             bank_name: name,
-//             type: str(pm.paymenttype_type),
-//             source: "vyapar",
-//           },
-//         },
-//         { upsert: true }
-//       );
-
-//       console.log("✅ PAYMENT:", name);
-//       summary.payments++;
-//     }
-
-//     // ================= LINE ITEMS =================
+//     // ===== LINE ITEMS =====
 //     const lines = await db.all(`SELECT * FROM kb_lineitems`);
-//     console.log("🧾 TOTAL LINE ITEMS:", lines.length);
 
-//     // ================= TXNS =================
+//     // ===== TXNS =====
 //     const txns = await db.all(`SELECT * FROM kb_transactions`);
-//     console.log("📄 TOTAL TXNS:", txns.length);
 
 //     for (const t of txns) {
 //       const txnId = t.txn_id;
-//       const type = str(t.txn_type).toLowerCase();
+//       const type = mapTxnType(Number(t.txn_type));
 //       const partyRef = str(t.txn_name_id);
 
 //       const party = partyList.find(p => p.source_name_id === partyRef);
-
 //       const items = lines.filter(l => String(l.lineitem_txn_id) === String(txnId));
 
 //       const amount = num(t.txn_balance_amount) || num(t.txn_cash_amount);
 
+//       const txnDate =
+//         t.txn_date ||
+//         t.created_at ||
+//         new Date();
+
 //       console.log("🔍 TXN:", {
-//         id: txnId,
+//         txnId,
 //         type,
 //         partyRef,
 //         partyFound: !!party,
@@ -1192,67 +486,86 @@
 //       });
 
 //       if (!party) {
-//         console.log("❌ SKIPPED (NO PARTY)");
 //         summary.skipped++;
 //         continue;
 //       }
 
 //       // ===== SALE =====
-//       if (type.includes("sale")) {
+//       if (type === "sale") {
 //         await ordersCol.insertOne({
 //           user_id: toObjectId(user.id),
 //           customer_id: party._id,
 //           total_amount: amount,
 //           items: items.map(i => ({
 //             name: i.item_name,
-//             quantity: num(i.quantity),
+//             qty: num(i.quantity),
 //             price: num(i.priceperunit),
 //           })),
 //           created_at: new Date(),
 //         });
+
 //         summary.sales++;
 //         continue;
 //       }
 
-//       // ===== PURCHASE =====
-//       if (type.includes("purchase")) {
-//         await purchaseCol.insertOne({
-//           user_id: toObjectId(user.id),
-//           party_id: party._id,
-//           total_amount: amount,
-//           items: items.map(i => ({
-//             product_name: i.item_name,
-//             quantity: num(i.quantity),
-//             cost_price: num(i.priceperunit),
-//           })),
-//           created_at: new Date(),
-//         });
-//         summary.purchases++;
-//         continue;
-//       }
-
-//       // ===== PAYMENT =====
-//       if (type.includes("payment")) {
+//       // ===== PAYMENT-IN =====
+//       if (type === "payment_in") {
 //         await txnCol.insertOne({
 //           user_id: toObjectId(user.id),
 //           customer_id: party._id,
 //           payment_amount: amount,
-//           type: type.includes("in") ? "payment-in" : "payment-out",
+
+//           type: "payment-in", // ✅ FIXED FORMAT
+
+//           payment_method_id: str(t.payment_type) || "cash",
+
+//           date: new Date(txnDate),
+
 //           created_at: new Date(),
+//           updated_at: new Date(),
 //         });
-//         summary.transactions++;
+
+//         summary.payments_in++;
+//         continue;
+//       }
+
+//       // ===== PAYMENT-OUT =====
+//       if (type === "payment_out") {
+//         await txnCol.insertOne({
+//           user_id: toObjectId(user.id),
+//           customer_id: party._id,
+//           payment_amount: amount,
+
+//           type: "payment-out", // ✅ FIXED FORMAT
+
+//           payment_method_id: str(t.payment_type) || "cash",
+
+//           date: new Date(txnDate),
+
+//           created_at: new Date(),
+//           updated_at: new Date(),
+//         });
+
+//         summary.payments_out++;
 //         continue;
 //       }
 
 //       // ===== EXPENSE =====
-//       await expenseCol.insertOne({
-//         user_id: toObjectId(user.id),
-//         amount,
-//         item_name: party.name,
-//         created_at: new Date(),
-//       });
+//       if (type === "expense") {
+//         await expenseCol.insertOne({
+//           user_id: toObjectId(user.id),
+//           amount,
+//           item_name: party.name,
+//           date: new Date(txnDate),
+//           created_at: new Date(),
+//           updated_at: new Date(),
+//         });
 
-//       summary.expenses++;
+//         summary.expenses++;
+//         continue;
+//       }
+
+//       summary.skipped++;
 //     }
 
 //     console.log("🎉 FINAL SUMMARY:", summary);
@@ -1268,6 +581,13 @@
 //   }
 // }
 
+
+
+
+
+
+
+
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -1275,306 +595,522 @@ import os from "os";
 import AdmZip from "adm-zip";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
+import { ObjectId } from "mongodb";
 
 import { getCurrentUser } from "@/lib/auth/utils";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 
-// ================= HELPERS =================
-
-const str = (v: any) => (v ? String(v).trim() : "");
-const num = (v: any) => Number(v) || 0;
+// ------------------- helpers -------------------
+const str = (v: any) => (v == null ? "" : String(v).trim());
+const num = (v: any) => {
+  const n = Number(v);
+  return isFinite(n) ? n : 0;
+};
 
 function first(row: any, keys: string[]) {
   for (const k of keys) {
-    if (row?.[k] !== undefined && row?.[k] !== null && row?.[k] !== "") {
-      return row[k];
-    }
+    const val = row?.[k];
+    if (val !== undefined && val !== null && val !== "") return val;
   }
   return "";
 }
 
-// ================= TXN TYPE MAPPER =================
-
-function mapTxnType(code: number) {
-  switch (code) {
-    case 1:
-      return "sale";
-    case 2:
-      return "payment_in";
-    case 3:
-      return "payment_out";
-    case 4:
-      return "expense";
-    case 5:
-      return "purchase_return";
-    case 6:
-      return "sale_return";
-    case 7:
-      return "journal";
-    default:
-      return "unknown";
-  }
+function normalize(str: string) {
+  return str.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-// ================= MAIN =================
+function isLedgerName(name: string) {
+  const n = normalize(name);
+  const keywords = [
+    "petrol", "transport", "salary", "rent", "tea", "expense",
+    "cash sale", "labour", "maintenance", "utility", "electricity",
+    "water", "internet", "bill", "commission"
+  ];
+  return keywords.some(kw => n.includes(kw));
+}
 
+function getPaymentMethodId(row: any) {
+  const raw = first(row, [
+    "payment_method_id", "paymenttype_name", "payment_type",
+    "txn_payment_type", "payment_mode", "mode"
+  ]);
+  const n = normalize(raw);
+  if (n.includes("cash")) return "cash";
+  if (n.includes("cheque")) return "cheque";
+  if (n.includes("bank")) return "bank";
+  if (n.includes("upi")) return "upi";
+  if (n.includes("card")) return "card";
+  return raw || "cash";
+}
+
+function getTxnDate(row: any) {
+  const raw = first(row, ["txn_date", "date", "created_at", "txn_datetime"]);
+  if (!raw) return new Date();
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
+function generateExpenseNumber(txnId: string | number, date: Date) {
+  return `EXP-${date.getTime()}-${txnId}`;
+}
+
+// ------------------- main -------------------
 export async function POST(req: NextRequest) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vyapar-"));
   let db: any = null;
 
   try {
-    const user = (await getCurrentUser()) as { id: string } | null;
+    const user = await getCurrentUser() as { id: string };
     if (!user) throw new Error("Unauthorized");
-
-    console.log("👤 USER:", user.id);
 
     const formData = await req.formData();
     const file = formData.get("file") as File;
-
-    if (!file) throw new Error("File missing");
-
-    console.log("📂 FILE:", file.name);
+    if (!file) throw new Error("No file uploaded");
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const filePath = path.join(tempDir, file.name);
     fs.writeFileSync(filePath, buffer);
 
-    // ================= EXTRACT =================
     let dbPath = filePath;
-
     if (file.name.endsWith(".vyb")) {
       const zip = new AdmZip(filePath);
-      const entry = zip.getEntries().find((e) => e.entryName.endsWith(".vyp"));
-
-      if (!entry) throw new Error("Invalid Vyapar backup file");
-
+      const entry = zip.getEntries().find(e => e.entryName.endsWith(".vyp"));
+      if (!entry) throw new Error("Invalid .vyb backup");
       dbPath = path.join(tempDir, "data.vyp");
       fs.writeFileSync(dbPath, entry.getData());
     }
 
-    console.log("📦 Extracted DB:", dbPath);
-
     db = await open({ filename: dbPath, driver: sqlite3.Database });
 
-    // ================= COLLECTIONS =================
+    const allTables = await db.all(`SELECT name FROM sqlite_master WHERE type='table'`);
+    const tableNames = allTables.map((r: any) => r.name);
+    const namesTable = tableNames.find(t => /kb_names|names|parties/i.test(t))!;
+    const itemsTable = tableNames.find(t => /kb_items|items|products/i.test(t))!;
+    const txnsTable = tableNames.find(t => /kb_transactions|transactions/i.test(t))!;
+    const lineItemsTable = tableNames.find(t => /kb_lineitems|lineitems/i.test(t));
+    const paymentTypesTable = tableNames.find(t => /kb_paymentTypes|payment_types/i.test(t));
+
+    if (!namesTable || !itemsTable || !txnsTable)
+      throw new Error("Required tables missing");
+
     const partiesCol = await getCollection(COLLECTIONS.PARTIES);
     const productsCol = await getCollection(COLLECTIONS.PRODUCTS);
-    const paymentsCol = await getCollection(COLLECTIONS.PAYMENT_METHOD);
     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
     const purchaseCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
-    const txnCol = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
+    const txnCol = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
     const expenseCol = await getCollection(COLLECTIONS.EXPENSES);
+    const paymentMethodCol = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const ledgerEntriesCol = await getCollection(COLLECTIONS.PARTY_LEDGER_ENTRIES);
+    const balanceStateCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
 
-    // ================= SUMMARY =================
     const summary = {
-      parties: 0,
-      products: 0,
-      payments: 0,
-      sales: 0,
-      purchases: 0,
-      transactions: 0,
-      expenses: 0,
-      skipped: 0,
+      parties: 0, ledgers: 0, products: 0,
+      sales: 0, purchases: 0, payments_in: 0, payments_out: 0, expenses: 0,
+      skipped: 0, skipped_details: [] as any[]
     };
 
-    // ================= PARTIES =================
-    const parties = await db.all(`SELECT * FROM kb_names`);
-    console.log("👥 TOTAL PARTIES:", parties.length);
+    // ------------- 1. parties & ledgers -------------
+    const names = await db.all(`SELECT * FROM ${namesTable}`);
+    const partyMap = new Map();
 
-    for (const p of parties) {
-      const name = str(first(p, ["full_name", "name"]));
-      const nameId = str(p.name_id);
+    for (const row of names) {
+      const name = str(first(row, ["full_name", "name", "party_name"]));
+      const nameId = str(first(row, ["name_id", "id", "party_id"]));
+      if (!name || !nameId) continue;
 
-      if (!name) continue;
+      const isLedger = isLedgerName(name);
+      const openingBalance = num(first(row, ["opening_balance", "balance"]));
+      const openingType = str(first(row, ["opening_balance_type", "opening_balance_drcr"]));
+      let balance = openingBalance;
+      if (balance > 0 && normalize(openingType).includes("cr")) balance = -balance;
 
-      await partiesCol.updateOne(
-        { user_id: toObjectId(user.id), source_name_id: nameId },
-        {
-          $set: {
-            name,
-            phone: str(p.phone_number),
-            source_name_id: nameId,
-            source: "vyapar",
-            updated_at: new Date(),
-          },
+      const filter = { user_id: toObjectId(user.id), source_name_id: nameId, source: "vyapar" };
+      const update = {
+        $set: {
+          name,
+          source_name_id: nameId,
+          source: "vyapar",
+          is_ledger: isLedger,
+          opening_balance: balance,
+          balance: balance, // initial balance
+          phone: str(first(row, ["phone", "mobile"])) || null,
+          email: null,
+          company_name: null,
+          status: "active",
+          updated_at: new Date()
         },
-        { upsert: true }
-      );
+        $setOnInsert: { user_id: toObjectId(user.id), created_at: new Date() }
+      };
+      await partiesCol.updateOne(filter, update, { upsert: true });
 
-      console.log("✅ PARTY:", name, "| ID:", nameId);
-      summary.parties++;
+      const saved = await partiesCol.findOne(filter);
+      if (saved) {
+        partyMap.set(nameId, saved);
+        partyMap.set(normalize(name), saved);
+      }
+
+      if (isLedger) summary.ledgers++;
+      else summary.parties++;
     }
 
-    const partyList = await partiesCol
-      .find({ user_id: toObjectId(user.id) })
-      .toArray();
+    // ------------- 2. products -------------
+    const items = await db.all(`SELECT * FROM ${itemsTable}`);
+    const productMap = new Map();
 
-    // ================= PRODUCTS =================
-    const products = await db.all(`SELECT * FROM kb_items`);
-    console.log("📦 TOTAL PRODUCTS:", products.length);
-
-    for (const pr of products) {
-      const name = str(pr.item_name);
+    for (const row of items) {
+      const name = str(first(row, ["item_name", "name", "product_name"]));
       if (!name) continue;
 
-      await productsCol.updateOne(
-        { user_id: toObjectId(user.id), name },
-        {
-          $set: {
-            name,
-            sale_price: num(first(pr, ["item_sale_unit_price"])),
-            purchase_price: num(first(pr, ["item_purchase_unit_price"])),
-            stock: num(pr.item_stock_quantity),
-            updated_at: new Date(),
-          },
-        },
-        { upsert: true }
-      );
+      const purchasePrice = num(first(row, ["item_purchase_unit_price", "purchase_price", "cost_price"]));
+      const salePrice = num(first(row, ["item_sale_unit_price", "sale_price", "selling_price"]));
+      const stock = num(first(row, ["item_stock_quantity", "stock", "quantity"]));
 
-      console.log("✅ PRODUCT:", name);
+      const filter = { user_id: toObjectId(user.id), name };
+      const update = {
+        $set: {
+          name,
+          purchase_price: purchasePrice,
+          sale_price: salePrice,
+          stock,
+          source: "vyapar",
+          updated_at: new Date()
+        },
+        $setOnInsert: { user_id: toObjectId(user.id), created_at: new Date() }
+      };
+      await productsCol.updateOne(filter, update, { upsert: true });
+
+      const saved = await productsCol.findOne(filter);
+      if (saved) productMap.set(normalize(name), saved);
+
       summary.products++;
     }
 
-    // ================= PAYMENT METHODS =================
-    const payments = await db.all(`SELECT * FROM kb_paymentTypes`);
-    console.log("💳 TOTAL PAYMENT METHODS:", payments.length);
+    // ------------- 3. line items -------------
+    let lineItemsRaw: any[] = [];
+    let useJoin = false;
+    let itemIdCol = "";
 
-    for (const pm of payments) {
-      const name = str(pm.paymenttype_name);
-      if (!name) continue;
+    if (lineItemsTable) {
+      lineItemsRaw = await db.all(`SELECT * FROM ${lineItemsTable}`);
+      const sample = lineItemsRaw[0];
+      if (sample && (sample.lineitem_item_id || sample.item_id)) {
+        useJoin = true;
+        itemIdCol = sample.lineitem_item_id ? "lineitem_item_id" : "item_id";
+      }
+    }
 
-      await paymentsCol.updateOne(
-        { user_id: toObjectId(user.id), bank_name: name },
-        {
-          $set: {
-            bank_name: name,
-            type: str(pm.paymenttype_type),
-            source: "vyapar",
-          },
-        },
+    async function getEnrichedItems(txnId: string | number) {
+      const txnIdStr = String(txnId);
+      const rawLines = lineItemsRaw.filter(l =>
+        String(first(l, ["lineitem_txn_id", "txn_id", "transaction_id"])) === txnIdStr
+      );
+
+      const enriched = [];
+      for (const line of rawLines) {
+        let productId: ObjectId | null = null;
+        let productName = "";
+
+        if (useJoin && line[itemIdCol]) {
+          const masterItem = await db.get(
+            `SELECT * FROM ${itemsTable} WHERE ${/item_id/i.test(itemIdCol) ? "item_id" : "id"} = ?`,
+            line[itemIdCol]
+          );
+          if (masterItem) {
+            productName = str(first(masterItem, ["item_name", "name"]));
+            const prod = productMap.get(normalize(productName));
+            if (prod) productId = prod._id;
+          } else {
+            productName = str(first(line, ["item_name", "name", "product_name"]));
+            const prod = productMap.get(normalize(productName));
+            if (prod) productId = prod._id;
+          }
+        } else {
+          productName = str(first(line, ["item_name", "name", "product_name"]));
+          const prod = productMap.get(normalize(productName));
+          if (prod) productId = prod._id;
+        }
+
+        const qty = num(first(line, ["quantity", "qty", "item_quantity"])) || 1;
+        const price = num(first(line, ["priceperunit", "rate", "price"]));
+        enriched.push({
+          product_id: productId ? productId.toString() : null,
+          product_name: productName || "Unknown",
+          quantity: qty,
+          cost_price: price,
+          amount: qty * price,
+          discount: 0,
+          tax: 0,
+          total_amount: qty * price
+        });
+      }
+      return enriched;
+    }
+
+    // ------------- ledger helper with party balance update -------------
+    async function createLedgerEntry(
+      partyId: ObjectId,
+      amountDelta: number,
+      eventType: string,
+      eventSource: string,
+      eventSourceId: string,
+      effectiveAt: Date,
+      metadata: any = {}
+    ) {
+      // update balance state
+      const balanceState = await balanceStateCol.findOne({ user_id: toObjectId(user.id), party_id: partyId });
+      const currentBalance = balanceState?.balance || 0;
+      const newBalance = currentBalance + amountDelta;
+
+      await ledgerEntriesCol.insertOne({
+        user_id: toObjectId(user.id),
+        party_id: partyId,
+        event_key: `${eventSource}_${eventSourceId}_${Date.now()}`,
+        event_type: eventType,
+        event_source: eventSource,
+        event_source_id: eventSourceId,
+        amount_delta: amountDelta,
+        effective_at: effectiveAt,
+        running_balance: newBalance,
+        created_at: new Date(),
+        metadata
+      });
+
+      await balanceStateCol.updateOne(
+        { user_id: toObjectId(user.id), party_id: partyId },
+        { $set: { balance: newBalance, updated_at: new Date() } },
         { upsert: true }
       );
 
-      console.log("✅ PAYMENT METHOD:", name);
-      summary.payments++;
+      // ALSO update the party document's balance field
+      await partiesCol.updateOne(
+        { _id: partyId },
+        { $set: { balance: newBalance, updated_at: new Date() } }
+      );
     }
 
-    // ================= LINE ITEMS =================
-    const lines = await db.all(`SELECT * FROM kb_lineitems`);
-    console.log("🧾 TOTAL LINE ITEMS:", lines.length);
-
-    // ================= TRANSACTIONS =================
-    const txns = await db.all(`SELECT * FROM kb_transactions`);
-    console.log("📄 TOTAL TXNS:", txns.length);
-
+    // ------------- 4. transactions -------------
+    const txns = await db.all(`SELECT * FROM ${txnsTable}`);
     for (const t of txns) {
-      const rawType = Number(t.txn_type);
-      const type = mapTxnType(rawType);
+      const txnId = first(t, ["txn_id", "id", "transaction_id"]);
+      const rawType = Number(first(t, ["txn_type", "type"]));
+      const partyRef = str(first(t, ["txn_name_id", "party_id", "name_id"]));
+      const party = partyMap.get(partyRef) || partyMap.get(normalize(partyRef));
+      const amount = num(first(t, ["txn_balance_amount", "txn_cash_amount", "amount"]));
+      const txnDate = getTxnDate(t);
+      const paymentMethodId = getPaymentMethodId(t);
+      const items = await getEnrichedItems(txnId);
+      const hasItems = items.length > 0;
 
-      const txnId = t.txn_id;
-      const partyRef = str(t.txn_name_id);
+      console.log(`🔍 TXN ${txnId} | type=${rawType} | party=${party?.name || "none"} | items=${items.length} | amount=${amount}`);
 
-      const party = partyList.find((p) => p.source_name_id === partyRef);
-      const items = lines.filter(
-        (l) => String(l.lineitem_txn_id) === String(txnId)
-      );
-
-      const amount = num(t.txn_balance_amount) || num(t.txn_cash_amount);
-
-      console.log("🔍 TXN DEBUG:", {
-        id: txnId,
-        rawType,
-        mappedType: type,
-        partyRef,
-        partyFound: !!party,
-        items: items.length,
-        amount,
-      });
-
-      if (!party) {
+      if (!party && rawType !== 7) {
         summary.skipped++;
+        summary.skipped_details.push({ txnId, reason: "NO_PARTY" });
         continue;
       }
 
-      // ================= SALE =================
-      if (type === "sale") {
-        await ordersCol.insertOne({
+      // SALE
+      if (rawType === 1) {
+        const orderResult = await ordersCol.insertOne({
           user_id: toObjectId(user.id),
-          customer_id: party._id,
+          customer_id: party?._id || null,
+          customer_name: party?.name || null,
           total_amount: amount,
-          items: items.map((i) => ({
-            name: i.item_name,
-            quantity: num(i.quantity),
-            price: num(i.priceperunit),
+          items: items.map(i => ({
+            product_id: i.product_id,
+            name: i.product_name,
+            quantity: i.quantity,
+            price: i.cost_price,
+            discount: i.discount,
+            tax: i.tax
           })),
-          created_at: new Date(),
+          date: txnDate,
+          created_at: txnDate,
+          source: "vyapar",
+          status: "completed"
         });
 
+        if (party && !party.is_ledger) {
+          await createLedgerEntry(party._id, amount, "sale", "order", orderResult.insertedId.toString(), txnDate, { txn_id: txnId });
+        }
         summary.sales++;
         continue;
       }
 
-      // ================= PURCHASE (fallback logic) =================
-      if (type === "purchase" || type === "purchase_return") {
-        await purchaseCol.insertOne({
-          user_id: toObjectId(user.id),
-          party_id: party._id,
-          total_amount: amount,
-          items: items.map((i) => ({
-            product_name: i.item_name,
-            quantity: num(i.quantity),
-            cost_price: num(i.priceperunit),
-          })),
-          created_at: new Date(),
-        });
+      // TYPE 2: purchase (if items) else payment-in
+      if (rawType === 2) {
+        if (hasItems) {
+          const purchaseResult = await purchaseCol.insertOne({
+            user_id: toObjectId(user.id),
+            party_id: party?._id || null,
+            party_name: party?.name || null,
+            items: items.map(i => ({
+              product_id: i.product_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              cost_price: i.cost_price,
+              amount: i.amount,
+              discount: i.discount,
+              tax: i.tax,
+              total_amount: i.amount
+            })),
+            total_amount: amount,
+            paid_amount: 0,
+            balance_due: amount,
+            is_paid: false,
+            payment_method_id: paymentMethodId,
+            date: txnDate,
+            source: "vyapar",
+            bill_type: "purchase",
+            created_at: txnDate,
+            updated_at: txnDate
+          });
 
-        summary.purchases++;
+          if (party && !party.is_ledger) {
+            // Purchase increases liability -> party balance decreases (more negative)
+            await createLedgerEntry(party._id, -amount, "purchase", "purchase_bill", purchaseResult.insertedId.toString(), txnDate, { txn_id: txnId });
+          }
+          summary.purchases++;
+        } else {
+          const txnResult = await txnCol.insertOne({
+            user_id: toObjectId(user.id),
+            customer_id: party?._id || null,
+            customer_name: party?.name || null,
+            payment_amount: amount,
+            payment_method_id: paymentMethodId,
+            type: "payment-in",
+            date: txnDate,
+            created_at: txnDate,
+            source: "vyapar"
+          });
+
+          if (party && !party.is_ledger) {
+            // Payment-in reduces customer's due -> party balance decreases
+            await createLedgerEntry(party._id, -amount, "payment_in", "party_transaction", txnResult.insertedId.toString(), txnDate, { txn_id: txnId });
+          }
+          summary.payments_in++;
+        }
         continue;
       }
 
-      // ================= PAYMENT =================
-      if (type === "payment_in" || type === "payment_out") {
-        await txnCol.insertOne({
-          user_id: toObjectId(user.id),
-          customer_id: party._id,
-          payment_amount: amount,
-          type,
-          created_at: new Date(),
-        });
+      // TYPE 3: purchase return (if items) else payment-out
+      if (rawType === 3) {
+        if (hasItems) {
+          const returnResult = await purchaseCol.insertOne({
+            user_id: toObjectId(user.id),
+            party_id: party?._id || null,
+            party_name: party?.name || null,
+            items: items.map(i => ({
+              product_id: i.product_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              cost_price: i.cost_price,
+              amount: i.amount,
+              discount: i.discount,
+              tax: i.tax,
+              total_amount: i.amount
+            })),
+            total_amount: amount,
+            paid_amount: 0,
+            balance_due: amount,
+            is_paid: false,
+            payment_method_id: paymentMethodId,
+            date: txnDate,
+            source: "vyapar",
+            bill_type: "purchase-return",
+            created_at: txnDate
+          });
 
-        summary.transactions++;
+          if (party && !party.is_ledger) {
+            // Purchase return reduces liability -> party balance increases
+            await createLedgerEntry(party._id, amount, "purchase_return", "purchase_bill", returnResult.insertedId.toString(), txnDate, { txn_id: txnId });
+          }
+          summary.purchases++;
+        } else {
+          // Payment-out: business pays party (vendor or customer refund)
+          const txnResult = await txnCol.insertOne({
+            user_id: toObjectId(user.id),
+            customer_id: party?._id || null,
+            customer_name: party?.name || null,
+            payment_amount: amount,
+            payment_method_id: paymentMethodId,
+            type: "payment-out",
+            date: txnDate,
+            created_at: txnDate,
+            source: "vyapar"
+          });
+
+          if (party && !party.is_ledger) {
+            // Payment-out reduces what business owes (if vendor) or increases refund due? Standard: payment-out decreases liability, so party balance increases.
+            await createLedgerEntry(party._id, amount, "payment_out", "party_transaction", txnResult.insertedId.toString(), txnDate, { txn_id: txnId });
+          }
+          summary.payments_out++;
+        }
         continue;
       }
 
-      // ================= EXPENSE =================
-      if (type === "expense") {
+      // EXPENSE (skip if amount = 0)
+      if (rawType === 4) {
+        if (amount === 0) {
+          console.log(`⚠️ Skipping expense with zero amount for txn ${txnId}`);
+          summary.skipped++;
+          summary.skipped_details.push({ txnId, reason: "EXPENSE_AMOUNT_ZERO" });
+          continue;
+        }
+        const note = str(first(t, ["txn_note", "note", "description"]));
+        const category = (party?.is_ledger ? party.name : "General") || "General";
+        const itemName = note || (party?.is_ledger ? party.name : "Expense") || "Expense";
+        const qty = items.reduce((s, i) => s + i.quantity, 0) || 1;
+        const rate = qty > 0 ? amount / qty : amount;
+        const expenseNumber = generateExpenseNumber(txnId, txnDate);
+
         await expenseCol.insertOne({
           user_id: toObjectId(user.id),
+          expense_number: expenseNumber,
+          date: txnDate,
+          created_at: txnDate,
+          updated_at: txnDate,
+          category,
+          item_name: itemName,
+          description: itemName,
+          qty,
+          rate,
           amount,
-          item_name: party.name,
-          created_at: new Date(),
+          source: "vyapar"
         });
-
         summary.expenses++;
         continue;
       }
 
-      console.log("⚠️ UNKNOWN TXN SKIPPED:", txnId);
+      // UNSUPPORTED
       summary.skipped++;
+      summary.skipped_details.push({ txnId, rawType, reason: "UNSUPPORTED" });
     }
 
-    console.log("🎉 FINAL SUMMARY:", summary);
+    // payment methods
+    if (paymentTypesTable) {
+      const pms = await db.all(`SELECT * FROM ${paymentTypesTable}`);
+      for (const pm of pms) {
+        const name = str(first(pm, ["paymenttype_name", "name"]));
+        if (!name) continue;
+        const details = str(first(pm, ["paymenttype_details", "details"])) || null;
+        await paymentMethodCol.updateOne(
+          { user_id: toObjectId(user.id), bank_name: name },
+          {
+            $set: { bank_name: name, bank_details: details, source: "vyapar", updated_at: new Date() },
+            $setOnInsert: { user_id: toObjectId(user.id), created_at: new Date() }
+          },
+          { upsert: true }
+        );
+      }
+    }
 
-    return NextResponse.json({
-      success: true,
-      summary,
-    });
+    console.log("🎉 FINAL SUMMARY:", JSON.stringify(summary, null, 2));
+    return NextResponse.json({ success: true, summary });
+
   } catch (err: any) {
     console.error("❌ IMPORT ERROR:", err);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   } finally {
     if (db) await db.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
