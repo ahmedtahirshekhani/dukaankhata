@@ -24,7 +24,7 @@ import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 type Party = {
-  id: string;
+  id: string | number;
   name: string;
   email?: string;
   phone?: string;
@@ -225,7 +225,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     };
 
     const handleValueChange = (newValue: string) => {
-      const selectedParty = parties.find((p) => p.id === newValue);
+      const selectedParty = parties.find((p) => String(p.id) === newValue);
       onValueChange(newValue, selectedParty);
       setIsOpen(false);
       resetSearch();
@@ -296,14 +296,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 )}
                 
                 {filteredParties.map((party) => (
-                  <SelectItem key={party.id} value={party.id}>
+                  <SelectItem key={String(party.id)} value={String(party.id)}>
                     <div className="flex flex-col items-start gap-0.5 py-0.5">
                       <span className="font-medium">{party.name}</span>
-                      {/* {(party.phone || party.email) && (
-                        <span className="text-xs text-muted-foreground">
-                          {party.phone || party.email}
-                        </span>
-                      )} */}
                       {party.company_name && searchTerm && (
                         <span className="text-xs text-muted-foreground">
                           {party.company_name}
@@ -491,3 +486,5 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 );
 
 PartyDropdown.displayName = "PartyDropdown";
+
+

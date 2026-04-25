@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Product } from "./products-table";
 
 interface UseProductsDataResult {
@@ -32,7 +32,7 @@ export function useProductsData({ filters, priceRanges }: UseProductsDataProps):
   const [branches, setBranches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       // Fetch products with all filters
@@ -95,11 +95,19 @@ export function useProductsData({ filters, priceRanges }: UseProductsDataProps):
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    filters.type,
+    filters.category,
+    filters.branch,
+    priceRanges.sellPriceMin,
+    priceRanges.sellPriceMax,
+    priceRanges.costPriceMin,
+    priceRanges.costPriceMax,
+  ]);
 
   useEffect(() => {
     fetchData();
-  }, [filters.type, filters.category, filters.branch, priceRanges, fetchData]);
+  }, [fetchData]);
 
   return {
     products,

@@ -1,6 +1,6 @@
 # POS and Inventory Management System
 
-This is a Point of Sale (POS) and Inventory Management System built with Next.js, React, and MongoDB. It provides a comprehensive solution for managing products, customers, orders, and transactions in a retail or small business setting.
+This is an Account and Inventory Management System built with Next.js, React, and MongoDB. It provides a comprehensive solution for managing products, customers, orders, and transactions in a retail or small business setting.
 
 As a developer with extensive experience in creating similar applications, this project represents the culmination of years of expertise in building POS systems. Of course, in the beginning the project seem a little raw, but with time and hopefully with the help of the community, it will become a robust and feature-rich solution for businesses of all sizes.
 

@@ -684,11 +684,11 @@ export async function POST(req: NextRequest) {
 
     const allTables = await db.all(`SELECT name FROM sqlite_master WHERE type='table'`);
     const tableNames = allTables.map((r: any) => r.name);
-    const namesTable = tableNames.find(t => /kb_names|names|parties/i.test(t))!;
-    const itemsTable = tableNames.find(t => /kb_items|items|products/i.test(t))!;
-    const txnsTable = tableNames.find(t => /kb_transactions|transactions/i.test(t))!;
-    const lineItemsTable = tableNames.find(t => /kb_lineitems|lineitems/i.test(t));
-    const paymentTypesTable = tableNames.find(t => /kb_paymentTypes|payment_types/i.test(t));
+    const namesTable = tableNames.find((t: string) => /kb_names|names|parties/i.test(t))!;
+    const itemsTable = tableNames.find((t: string) => /kb_items|items|products/i.test(t))!;
+    const txnsTable = tableNames.find((t: string) => /kb_transactions|transactions/i.test(t))!;
+    const lineItemsTable = tableNames.find((t: string) => /kb_lineitems|lineitems/i.test(t));
+    const paymentTypesTable = tableNames.find((t: string) => /kb_paymentTypes|payment_types/i.test(t));
 
     if (!namesTable || !itemsTable || !txnsTable)
       throw new Error("Required tables missing");
@@ -799,7 +799,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    async function getEnrichedItems(txnId: string | number) {
+    const getEnrichedItems = async (txnId: string | number) => {
       const txnIdStr = String(txnId);
       const rawLines = lineItemsRaw.filter(l =>
         String(first(l, ["lineitem_txn_id", "txn_id", "transaction_id"])) === txnIdStr
@@ -847,7 +847,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ------------- ledger helper with party balance update -------------
-    async function createLedgerEntry(
+    const createLedgerEntry = async (
       partyId: ObjectId,
       amountDelta: number,
       eventType: string,
@@ -855,7 +855,7 @@ export async function POST(req: NextRequest) {
       eventSourceId: string,
       effectiveAt: Date,
       metadata: any = {}
-    ) {
+    ) => {
       // update balance state
       const balanceState = await balanceStateCol.findOne({ user_id: toObjectId(user.id), party_id: partyId });
       const currentBalance = balanceState?.balance || 0;

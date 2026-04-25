@@ -643,16 +643,16 @@ function AddPurchaseBillPageInner() {
                                         </SelectContent>
                                     </Select> */}
                                     <Label>{t("paymentMethod") || "Payment Method"}</Label>
-<PaymentMethodDropdown
-    value={selectedPaymentMethod}
-    onValueChange={(id) => setSelectedPaymentMethod(id)}
-    placeholder={t("select") || "Select"}
-    enableSearch={true}
-    searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
-    noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
-    addButtonPosition="bottom"
-    includeDefaultMethods={true}
-/>
+                                    <PaymentMethodDropdown
+                                        value={selectedPaymentMethod}
+                                        onValueChange={(id) => setSelectedPaymentMethod(id)}
+                                        placeholder={t("select") || "Select"}
+                                        enableSearch={true}
+                                        searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
+                                        noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
+                                        addButtonPosition="bottom"
+                                        includeDefaultMethods={true}
+                                    />
                                 </div>
                             </>
                         )}

@@ -1,3 +1,933 @@
+// // "use client";
+
+// // import React, { useState, useEffect, useCallback, useMemo } from "react";
+// // import { useLocale, useTranslations } from "next-intl";
+// // import {
+// //   Card,
+// //   CardContent,
+// //   CardHeader,
+// //   CardFooter,
+// // } from "@/components/ui/card";
+// // import {
+// //   Loader2Icon,
+// //   PlusCircle,
+// //   Trash2,
+// //   SearchIcon,
+// //   FilterIcon,
+// //   FilePenIcon,
+// //   EyeIcon,
+// // } from "lucide-react";
+// // import {
+// //   Table,
+// //   TableBody,
+// //   TableCell,
+// //   TableHead,
+// //   TableHeader,
+// //   TableRow,
+// // } from "@/components/ui/table";
+// // import { Button } from "@/components/ui/button";
+// // import {
+// //   Dialog,
+// //   DialogContent,
+// //   DialogFooter,
+// //   DialogHeader,
+// //   DialogTitle,
+// // } from "@/components/ui/dialog";
+// // import { Input } from "@/components/ui/input";
+// // import {
+// //   Select,
+// //   SelectContent,
+// //   SelectItem,
+// //   SelectTrigger,
+// //   SelectValue,
+// // } from "@/components/ui/select";
+// // import { Label } from "@/components/ui/label";
+// // import {
+// //   DropdownMenu,
+// //   DropdownMenuTrigger,
+// //   DropdownMenuContent,
+// //   DropdownMenuLabel,
+// //   DropdownMenuSeparator,
+// //   DropdownMenuCheckboxItem,
+// // } from "@/components/ui/dropdown-menu";
+// // import Link from "next/link";
+// // import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
+
+// // type Order = {
+// //   id: number;
+// //   customer_id: number;
+// //   total_amount: number;
+// //   subtotal?: number;
+// //   status: "completed" | "pending" | "cancelled";
+// //   created_at: string;
+// //   invoice_no?: string;
+// //   sale_date?: string;
+// //   due_date?: string | null;
+// //   customer: {
+// //     name: string;
+// //     email?: string;
+// //     phone?: string;
+// //   };
+// //   items?: Array<{
+// //     name: string;
+// //     description?: string;
+// //     quantity: number;
+// //     price: number;
+// //     discount?: number;
+// //     unit_of_measurement?: string;
+// //     discountType?: "value" | "percentage";
+// //     discountInput?: string;
+// //   }>;
+// //   charges?: Array<{
+// //     item: string;
+// //     value: number;
+// //   }>;
+// //   overallDiscount?: number;
+// //   shippingCharges?: number;
+// //   payment?: {
+// //     method: string;
+// //     paid_amount: number;
+// //     paid_date: string;
+// //     no_payment_at_all: boolean;
+// //   } | null;
+// // };
+
+// // export default function OrdersPage() {
+// //   const t = useTranslations("orders");
+// //   const locale = useLocale();
+// //   const [orders, setOrders] = useState<Order[]>([]);
+// //   const [loading, setLoading] = useState(true);
+// //   const [error, setError] = useState<string | null>(null);
+// //   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
+// //   const [newOrderCustomerName, setNewOrderCustomerName] = useState("");
+// //   const [newOrderTotal, setNewOrderTotal] = useState("");
+// //   const [newOrderStatus, setNewOrderStatus] = useState<
+// //     "completed" | "pending" | "cancelled"
+// //   >("pending");
+// //   const [isEditOrderDialogOpen, setIsEditOrderDialogOpen] = useState(false);
+// //   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+// //     useState(false);
+// //   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+// //   const [searchTerm, setSearchTerm] = useState("");
+// //   const [filters, setFilters] = useState({
+// //     status: "all",
+// //   });
+// //   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+// //   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+// //   const [selectedInvoiceOrder, setSelectedInvoiceOrder] =
+// //     useState<Order | null>(null);
+// //   // console.log("Selected Invoice Order:", selectedInvoiceOrder);
+
+// //   useEffect(() => {
+// //     const fetchOrders = async () => {
+// //       try {
+// //         const response = await fetch("/api/orders");
+// //         console.log("Fetch Orders Response:", response);
+// //         if (!response.ok) {
+// //           throw new Error(t("failedToFetchOrders"));
+// //         }
+// //         const data = await response.json();
+// //         setOrders(data);
+// //       } catch (error) {
+// //         setError((error as Error).message);
+// //       } finally {
+// //         setLoading(false);
+// //       }
+// //     };
+
+// //     fetchOrders();
+// //   }, []);
+
+// //   const filteredOrders = useMemo(() => {
+// //     return orders.filter((order) => {
+// //       console.log("orders", order);
+// //       if (!order.customer) {
+// //         return false;
+// //       }
+// //       if (filters.status !== "all" && order.status !== filters.status) {
+// //         return false;
+// //       }
+// //       return (
+// //         order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+// //         order.id.toString().includes(searchTerm)
+// //       );
+// //     });
+// //   }, [orders, filters.status, searchTerm]);
+
+// //   const resetSelectedOrder = () => {
+// //     setSelectedOrderId(null);
+// //     setNewOrderCustomerName("");
+// //     setNewOrderTotal("");
+// //     setNewOrderStatus("pending");
+// //   };
+
+// //   const handleAddOrder = useCallback(async () => {
+// //     try {
+// //       const newOrder = {
+// //         total_amount: parseFloat(newOrderTotal),
+// //         status: newOrderStatus,
+// //         created_at: new Date().toISOString().split("T")[0], // Current created_at in YYYY-MM-DD format
+// //       };
+// //       const response = await fetch("/api/orders", {
+// //         method: "POST",
+// //         headers: {
+// //           "Content-Type": "application/json",
+// //         },
+// //         body: JSON.stringify(newOrder),
+// //       });
+
+// //       if (!response.ok) {
+// //         throw new Error(t("errorCreatingOrder"));
+// //       }
+
+// //       const createdOrder = await response.json();
+// //       setOrders([...orders, createdOrder]);
+// //       setShowNewOrderDialog(false);
+// //       resetSelectedOrder();
+// //     } catch (error) {
+// //       console.error(error);
+// //     }
+// //   }, [newOrderTotal, newOrderStatus, orders, t]);
+
+// //   const handleEditOrder = useCallback(async () => {
+// //     if (!selectedOrderId) return;
+// //     try {
+// //       const updatedOrder = {
+// //         id: selectedOrderId,
+// //         total_amount: parseFloat(newOrderTotal),
+// //         status: newOrderStatus,
+// //         created_at: orders.find((o) => o.id === selectedOrderId)?.created_at, // Preserve the original created_at
+// //       };
+// //       const response = await fetch(`/api/orders/${selectedOrderId}`, {
+// //         method: "PUT",
+// //         headers: {
+// //           "Content-Type": "application/json",
+// //         },
+// //         body: JSON.stringify(updatedOrder),
+// //       });
+
+// //       if (!response.ok) {
+// //         throw new Error(t("errorUpdatingOrder"));
+// //       }
+
+// //       const updatedOrderData = await response.json();
+// //       setOrders(
+// //         orders.map((o) =>
+// //           o.id === updatedOrderData.id ? updatedOrderData : o,
+// //         ),
+// //       );
+// //       setIsEditOrderDialogOpen(false);
+// //       resetSelectedOrder();
+// //     } catch (error) {
+// //       console.error(error);
+// //     }
+// //   }, [selectedOrderId, newOrderTotal, newOrderStatus, orders, t]);
+
+// //   const handleDeleteOrder = useCallback(async () => {
+// //     if (!orderToDelete) return;
+// //     try {
+// //       const response = await fetch(`/api/orders/${orderToDelete.id}`, {
+// //         method: "DELETE",
+// //       });
+
+// //       if (!response.ok) {
+// //         throw new Error("Error deleting order");
+// //       }
+
+// //       setOrders(orders.filter((o) => o.id !== orderToDelete.id));
+// //       setIsDeleteConfirmationOpen(false);
+// //       setOrderToDelete(null);
+// //     } catch (error) {
+// //       console.error(error);
+// //     }
+// //   }, [orderToDelete, orders, t]);
+
+// //   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+// //     setSearchTerm(e.target.value);
+// //   };
+
+// //   const handleFilterChange = (value: string) => {
+// //     setFilters((prevFilters) => ({
+// //       ...prevFilters,
+// //       status: value,
+// //     }));
+// //   };
+
+// //   if (loading) {
+// //     return (
+// //       <div className="h-[80vh] flex items-center justify-center">
+// //         <Loader2Icon className="mx-auto h-12 w-12 animate-spin" />
+// //       </div>
+// //     );
+// //   }
+
+// //   if (error) {
+// //     return (
+// //       <div className="container mx-auto p-4">
+// //         <h1 className="text-2xl font-bold mb-4">{t("title")}</h1>
+// //         <Card>
+// //           <CardContent>
+// //             <p className="text-red-500">{error}</p>
+// //           </CardContent>
+// //         </Card>
+// //       </div>
+// //     );
+// //   }
+
+// //   return (
+// //     <div className="flex flex-col gap-4">
+// //       <div>
+// //         <h1 className="text-2xl font-bold">{t("title")}</h1>
+// //         <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+// //       </div>
+// //       <Card className="flex flex-col gap-6 p-6">
+// //         <CardHeader className="p-0">
+// //           <div className="flex items-start justify-between gap-4">
+// //             <div className="flex items-center gap-4">
+// //               <div className="relative">
+// //                 <Input
+// //                   type="text"
+// //                   placeholder={t("searchPlaceholder")}
+// //                   value={searchTerm}
+// //                   onChange={handleSearch}
+// //                   className="pr-8"
+// //                 />
+// //                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+// //               </div>
+// //               <DropdownMenu>
+// //                 <DropdownMenuTrigger asChild>
+// //                   <Button variant="outline" size="sm" className="gap-1">
+// //                     <FilterIcon className="w-4 h-4" />
+// //                     <span>{t("filters")}</span>
+// //                   </Button>
+// //                 </DropdownMenuTrigger>
+// //                 <DropdownMenuContent align="end" className="w-48">
+// //                   <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
+// //                   <DropdownMenuSeparator />
+// //                   <DropdownMenuCheckboxItem
+// //                     checked={filters.status === "all"}
+// //                     onCheckedChange={() => handleFilterChange("all")}
+// //                   >
+// //                     {t("allStatuses")}
+// //                   </DropdownMenuCheckboxItem>
+// //                   <DropdownMenuCheckboxItem
+// //                     checked={filters.status === "completed"}
+// //                     onCheckedChange={() => handleFilterChange("completed")}
+// //                   >
+// //                     {t("completed")}
+// //                   </DropdownMenuCheckboxItem>
+// //                   <DropdownMenuCheckboxItem
+// //                     checked={filters.status === "pending"}
+// //                     onCheckedChange={() => handleFilterChange("pending")}
+// //                   >
+// //                     {t("pending")}
+// //                   </DropdownMenuCheckboxItem>
+// //                   <DropdownMenuCheckboxItem
+// //                     checked={filters.status === "cancelled"}
+// //                     onCheckedChange={() => handleFilterChange("cancelled")}
+// //                   >
+// //                     {t("cancelled")}
+// //                   </DropdownMenuCheckboxItem>
+// //                 </DropdownMenuContent>
+// //               </DropdownMenu>
+// //             </div>
+// //             <Button asChild className="gap-2 self-start">
+// //               <Link href={`/${locale}/admin/invoice/new`}>
+// //                 <PlusCircle className="w-4 h-4" />
+// //                 {t("createOrder")}
+// //               </Link>
+// //             </Button>
+// //           </div>
+// //         </CardHeader>
+// //         <CardContent className="p-0">
+// //           {/* Desktop Table View */}
+// //           <div className="hidden md:block overflow-x-auto">
+// //             <Table>
+// //               <TableHeader>
+// //                 <TableRow>
+// //                   <TableHead>{t("invoiceNo")}</TableHead>
+// //                   <TableHead>{t("customer")}</TableHead>
+// //                   <TableHead>{t("total")}</TableHead>
+// //                   <TableHead>{t("paid")}</TableHead>
+// //                   <TableHead>{t("balance")}</TableHead>
+// //                   <TableHead>{t("date")}</TableHead>
+// //                   <TableHead>{t("actions")}</TableHead>
+// //                 </TableRow>
+// //               </TableHeader>
+// //               <TableBody>
+// //                 {filteredOrders.map((order) => (
+// //                   <TableRow key={order.id}>
+// //                     <TableCell>
+// //                       {order.invoice_no || `ORD-${order.id}`}
+// //                     </TableCell>
+// //                     <TableCell>{order.customer.name}</TableCell>
+// //                     <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
+// //                     <TableCell>
+// //                       {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
+// //                     </TableCell>
+// //                     <TableCell>
+// //                       {t("currencySymbol")}{" "}
+// //                       {Math.floor(
+// //                         order.total_amount - (order.payment?.paid_amount || 0),
+// //                       )}
+// //                     </TableCell>
+// //                     <TableCell>
+// //                       {new Date(
+// //                         order.sale_date || order.created_at,
+// //                       ).toLocaleDateString("en-US", {
+// //                         weekday: "short",
+// //                         year: "numeric",
+// //                         month: "short",
+// //                         day: "numeric",
+// //                       })}
+// //                     </TableCell>
+// //                     <TableCell>
+// //                       <div className="flex items-center gap-2">
+// //                         <Button
+// //                           size="icon"
+// //                           variant="ghost"
+// //                           onClick={() => {
+// //                             setOrderToDelete(order);
+// //                             setIsDeleteConfirmationOpen(true);
+// //                           }}
+// //                           style={{ display: "none" }}
+// //                         >
+// //                           <Trash2 className="w-4 h-4" />
+// //                           <span className="sr-only">{t("delete")}</span>
+// //                         </Button>
+// //                         <Button
+// //                           size="icon"
+// //                           variant="ghost"
+// //                           onClick={() => {
+// //                             setSelectedInvoiceOrder(order);
+// //                             setInvoiceDialogOpen(true);
+// //                           }}
+// //                         >
+// //                           <EyeIcon className="w-4 h-4" />
+// //                           <span className="sr-only">{t("showInvoice")}</span>
+// //                         </Button>
+// //                       </div>
+// //                     </TableCell>
+// //                   </TableRow>
+// //                 ))}
+// //               </TableBody>
+// //             </Table>
+// //           </div>
+
+// //           {/* Mobile Card View */}
+// //           <div className="md:hidden space-y-3">
+// //             {filteredOrders.map((order) => (
+// //               <Card key={order.id} className="p-4">
+// //                 <div className="space-y-3">
+// //                   <div className="flex justify-between items-start">
+// //                     <div>
+// //                       <p className="text-xs text-muted-foreground">
+// //                         {t("invoiceNo")}
+// //                       </p>
+// //                       <p className="font-semibold text-sm">
+// //                         {order.invoice_no || `ORD-${order.id}`}
+// //                       </p>
+// //                     </div>
+// //                     <Button
+// //                       size="icon"
+// //                       variant="ghost"
+// //                       onClick={() => {
+// //                         setSelectedInvoiceOrder(order);
+// //                         setInvoiceDialogOpen(true);
+// //                       }}
+// //                       className="h-8 w-8"
+// //                     >
+// //                       <EyeIcon className="w-4 h-4" />
+// //                       <span className="sr-only">{t("showInvoice")}</span>
+// //                     </Button>
+// //                   </div>
+
+// //                   <div className="w-full">
+// //                     <p className="text-xs text-muted-foreground">{t("customer")}</p>
+// //                     <p className="font-medium text-sm">{order.customer.name}</p>
+// //                   </div>
+
+// //                   <div className="grid grid-cols-2 gap-3 w-full">
+// //                     <div>
+// //                       <p className="text-xs text-muted-foreground">{t("total")}</p>
+// //                       <p className="font-semibold text-sm">
+// //                         {t("currencySymbol")} {Math.floor(order.total_amount)}
+// //                       </p>
+// //                     </div>
+// //                     <div>
+// //                       <p className="text-xs text-muted-foreground">{t("paid")}</p>
+// //                       <p className="font-semibold text-sm">
+// //                         {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
+// //                       </p>
+// //                     </div>
+// //                   </div>
+
+// //                   <div className="grid grid-cols-2 gap-3 w-full">
+// //                     <div>
+// //                       <p className="text-xs text-muted-foreground">{t("balance")}</p>
+// //                       <p className="font-semibold text-sm">
+// //                         {t("currencySymbol")}{" "}
+// //                         {Math.floor(
+// //                           order.total_amount -
+// //                             (order.payment?.paid_amount || 0),
+// //                         )}
+// //                       </p>
+// //                     </div>
+// //                     <div>
+// //                       <p className="text-xs text-muted-foreground">{t("date")}</p>
+// //                       <p className="font-semibold text-sm">
+// //                         {new Date(
+// //                           order.sale_date || order.created_at,
+// //                         ).toLocaleDateString("en-US", {
+// //                           weekday: "short",
+// //                           year: "numeric",
+// //                           month: "short",
+// //                           day: "numeric",
+// //                         })}
+// //                       </p>
+// //                     </div>
+// //                   </div>
+// //                 </div>
+// //               </Card>
+// //             ))}
+// //           </div>
+// //         </CardContent>
+// //         <CardFooter className="flex justify-between items-center">
+// //           {/* Pagination can be added here if needed */}
+// //         </CardFooter>
+
+// //         <Dialog
+// //           open={showNewOrderDialog || isEditOrderDialogOpen}
+// //           onOpenChange={(open) => {
+// //             if (!open) {
+// //               setShowNewOrderDialog(false);
+// //               setIsEditOrderDialogOpen(false);
+// //               resetSelectedOrder();
+// //             }
+// //           }}
+// //         >
+// //           <DialogContent>
+// //             <DialogHeader>
+// //               <DialogTitle>
+// //                 {showNewOrderDialog ? t("createNewOrder") : t("editOrder")}
+// //               </DialogTitle>
+// //             </DialogHeader>
+// //             <div className="grid gap-4 py-4">
+// //               <div className="grid grid-cols-4 items-center gap-4">
+// //                 <Label htmlFor="customerName">{t("customerName")}</Label>
+// //                 <Input
+// //                   id="customerName"
+// //                   value={newOrderCustomerName}
+// //                   onChange={(e) => setNewOrderCustomerName(e.target.value)}
+// //                   className="col-span-3"
+// //                 />
+// //               </div>
+// //               <div className="grid grid-cols-4 items-center gap-4">
+// //                 <Label htmlFor="total">{t("total")}</Label>
+// //                 <Input
+// //                   id="total"
+// //                   type="number"
+// //                   value={newOrderTotal}
+// //                   onChange={(e) => setNewOrderTotal(e.target.value)}
+// //                   className="col-span-3"
+// //                 />
+// //               </div>
+// //               <div className="grid grid-cols-4 items-center gap-4">
+// //                 <Label htmlFor="status">{t("status")}</Label>
+// //                 <Select
+// //                   value={newOrderStatus}
+// //                   onValueChange={(
+// //                     value: "completed" | "pending" | "cancelled",
+// //                   ) => setNewOrderStatus(value)}
+// //                 >
+// //                   <SelectTrigger id="status" className="col-span-3">
+// //                     <SelectValue placeholder={t("selectStatus")} />
+// //                   </SelectTrigger>
+// //                   <SelectContent>
+// //                     <SelectItem value="completed">{t("completed")}</SelectItem>
+// //                     <SelectItem value="pending">{t("pending")}</SelectItem>
+// //                     <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
+// //                   </SelectContent>
+// //                 </Select>
+// //               </div>
+// //             </div>
+// //             <DialogFooter>
+// //               <Button
+// //                 variant="secondary"
+// //                 onClick={() => {
+// //                   setShowNewOrderDialog(false);
+// //                   setIsEditOrderDialogOpen(false);
+// //                   resetSelectedOrder();
+// //                 }}
+// //               >
+// //                 {t("cancel")}
+// //               </Button>
+// //               <Button
+// //                 onClick={showNewOrderDialog ? handleAddOrder : handleEditOrder}
+// //               >
+// //                 {showNewOrderDialog ? t("createOrder") : t("updateOrder")}
+// //               </Button>
+// //             </DialogFooter>
+// //           </DialogContent>
+// //         </Dialog>
+
+// //         <Dialog
+// //           open={isDeleteConfirmationOpen}
+// //           onOpenChange={setIsDeleteConfirmationOpen}
+// //         >
+// //           <DialogContent>
+// //             <DialogHeader>
+// //               <DialogTitle>{t("confirmDeletion")}</DialogTitle>
+// //             </DialogHeader>
+// //             {t("confirmDeleteMessage")}
+// //             <DialogFooter>
+// //               <Button
+// //                 variant="secondary"
+// //                 onClick={() => setIsDeleteConfirmationOpen(false)}
+// //               >
+// //                 {t("cancel")}
+// //               </Button>
+// //               <Button variant="destructive" onClick={handleDeleteOrder}>
+// //                 {t("delete")}
+// //               </Button>
+// //             </DialogFooter>
+// //           </DialogContent>
+// //         </Dialog>
+
+// //         {selectedInvoiceOrder && (
+// //           <InvoicePreviewDialog
+// //             open={invoiceDialogOpen}
+// //             onOpenChange={setInvoiceDialogOpen}
+// //             invoiceNo={
+// //               selectedInvoiceOrder.invoice_no ||
+// //               `ORD-${selectedInvoiceOrder.id}`
+// //             }
+// //             customer={selectedInvoiceOrder.customer}
+// //             saleDate={
+// //               selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at
+// //             }
+// //             dueDate={selectedInvoiceOrder.due_date || null}
+// //             products={(selectedInvoiceOrder.items || []).map((item, index) => ({
+// //               id: index,
+// //               name: item.name,
+// //               description: item.description,
+// //               quantity: item.quantity,
+// //               sell_price: item.price,
+// //               unit_of_measurement: item.unit_of_measurement,
+// //               discount: item.discount,
+// //               discountType: item.discountType,
+// //             }))}
+// //             subtotal={
+// //               selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount
+// //             }
+// //             charges={selectedInvoiceOrder.charges || []}
+// //             overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
+// //             shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
+// //             total={selectedInvoiceOrder.total_amount}
+// //             onMakePayment={() => {}}
+// //             onCreateOrder={() => {}}
+// //             hidePaymentActions={true}
+// //             initialPayment={selectedInvoiceOrder.payment}
+// //           />
+// //         )}
+// //       </Card>
+// //     </div>
+// //   );
+// // }
+
+
+
+
+// "use client";
+
+// import React, { useState, useEffect, useCallback, useMemo } from "react";
+// import { useLocale, useTranslations } from "next-intl";
+// import {
+//   Card,
+//   CardContent,
+//   CardHeader,
+//   CardFooter,
+// } from "@/components/ui/card";
+// import {
+//   Loader2Icon,
+//   PlusCircle,
+//   SearchIcon,
+//   FilterIcon,
+//   EyeIcon,
+//   PencilIcon,
+// } from "lucide-react";
+// import {
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableHead,
+//   TableHeader,
+//   TableRow,
+// } from "@/components/ui/table";
+// import { Button } from "@/components/ui/button";
+// import { Input } from "@/components/ui/input";
+// import {
+//   DropdownMenu,
+//   DropdownMenuTrigger,
+//   DropdownMenuContent,
+//   DropdownMenuLabel,
+//   DropdownMenuSeparator,
+//   DropdownMenuCheckboxItem,
+// } from "@/components/ui/dropdown-menu";
+// import Link from "next/link";
+// import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
+// import { EditInvoiceDialog } from "@/components/invoice/edit-invoice-dialog"; // we'll create this
+
+// type Order = {
+//   id: number;
+//   customer_id: number;
+//   total_amount: number;
+//   subtotal?: number;
+//   status: "completed" | "pending" | "cancelled";
+//   created_at: string;
+//   invoice_no?: string;
+//   sale_date?: string;
+//   due_date?: string | null;
+//   customer: {
+//     id: number;
+//     name: string;
+//     email?: string;
+//     phone?: string;
+//   };
+//   items?: Array<{
+//     id?: number | string;
+//     name: string;
+//     description?: string;
+//     quantity: number;
+//     price: number;
+//     discount?: number;
+//     unit_of_measurement?: string;
+//     discountType?: "value" | "percentage";
+//     quantityType?: "prime" | "damaged";
+//   }>;
+//   charges?: Array<{
+//     item: string;
+//     value: number;
+//   }>;
+//   overallDiscount?: number;
+//   overallDiscountType?: "value" | "percentage";
+//   shippingCharges?: number;
+//   payment?: {
+//     method: string;
+//     paid_amount: number;
+//     paid_date: string;
+//     no_payment_at_all: boolean;
+//   } | null;
+// };
+
+// export default function OrdersPage() {
+//   const t = useTranslations("orders");
+//   const locale = useLocale();
+//   const [orders, setOrders] = useState<Order[]>([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState<string | null>(null);
+//   const [searchTerm, setSearchTerm] = useState("");
+//   const [filters, setFilters] = useState({ status: "all" });
+//   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+//   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
+//   const [editDialogOpen, setEditDialogOpen] = useState(false);
+//   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+
+//   useEffect(() => {
+//     fetchOrders();
+//   }, []);
+
+//   const fetchOrders = async () => {
+//     try {
+//       const response = await fetch("/api/orders");
+//       if (!response.ok) throw new Error(t("failedToFetchOrders"));
+//       const data = await response.json();
+//       setOrders(data);
+//     } catch (error) {
+//       setError((error as Error).message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const filteredOrders = useMemo(() => {
+//     return orders.filter((order) => {
+//       if (!order.customer) return false;
+//       if (filters.status !== "all" && order.status !== filters.status) return false;
+//       return (
+//         order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//         order.id.toString().includes(searchTerm)
+//       );
+//     });
+//   }, [orders, filters.status, searchTerm]);
+
+//   const handleOrderUpdated = (updatedOrder: Order) => {
+//     setOrders((prev) =>
+//       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+//     );
+//   };
+
+//   if (loading) return <div className="h-[80vh] flex items-center justify-center"><Loader2Icon className="animate-spin h-12 w-12" /></div>;
+//   if (error) return <div className="container mx-auto p-4"><Card><CardContent><p className="text-red-500">{error}</p></CardContent></Card></div>;
+
+//   return (
+//     <div className="flex flex-col gap-4">
+//       <div>
+//         <h1 className="text-2xl font-bold">{t("title")}</h1>
+//         <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+//       </div>
+//       <Card className="flex flex-col gap-6 p-6">
+//         <CardHeader className="p-0">
+//           <div className="flex items-start justify-between gap-4">
+//             <div className="flex items-center gap-4">
+//               <div className="relative">
+//                 <Input
+//                   type="text"
+//                   placeholder={t("searchPlaceholder")}
+//                   value={searchTerm}
+//                   onChange={(e) => setSearchTerm(e.target.value)}
+//                   className="pr-8"
+//                 />
+//                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+//               </div>
+//               <DropdownMenu>
+//                 <DropdownMenuTrigger asChild>
+//                   <Button variant="outline" size="sm" className="gap-1">
+//                     <FilterIcon className="w-4 h-4" />
+//                     <span>{t("filters")}</span>
+//                   </Button>
+//                 </DropdownMenuTrigger>
+//                 <DropdownMenuContent align="end" className="w-48">
+//                   <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
+//                   <DropdownMenuSeparator />
+//                   <DropdownMenuCheckboxItem checked={filters.status === "all"} onCheckedChange={() => setFilters({ status: "all" })}>
+//                     {t("allStatuses")}
+//                   </DropdownMenuCheckboxItem>
+//                   <DropdownMenuCheckboxItem checked={filters.status === "completed"} onCheckedChange={() => setFilters({ status: "completed" })}>
+//                     {t("completed")}
+//                   </DropdownMenuCheckboxItem>
+//                   <DropdownMenuCheckboxItem checked={filters.status === "pending"} onCheckedChange={() => setFilters({ status: "pending" })}>
+//                     {t("pending")}
+//                   </DropdownMenuCheckboxItem>
+//                   <DropdownMenuCheckboxItem checked={filters.status === "cancelled"} onCheckedChange={() => setFilters({ status: "cancelled" })}>
+//                     {t("cancelled")}
+//                   </DropdownMenuCheckboxItem>
+//                 </DropdownMenuContent>
+//               </DropdownMenu>
+//             </div>
+//             <Button asChild className="gap-2 self-start">
+//               <Link href={`/${locale}/admin/invoice/new`}>
+//                 <PlusCircle className="w-4 h-4" />
+//                 {t("createOrder")}
+//               </Link>
+//             </Button>
+//           </div>
+//         </CardHeader>
+//         <CardContent className="p-0">
+//           {/* Desktop Table */}
+//           <div className="hidden md:block overflow-x-auto">
+//             <Table>
+//               <TableHeader>
+//                 <TableRow>
+//                   <TableHead>{t("invoiceNo")}</TableHead>
+//                   <TableHead>{t("customer")}</TableHead>
+//                   <TableHead>{t("total")}</TableHead>
+//                   <TableHead>{t("paid")}</TableHead>
+//                   <TableHead>{t("balance")}</TableHead>
+//                   <TableHead>{t("date")}</TableHead>
+//                   <TableHead>{t("actions")}</TableHead>
+//                 </TableRow>
+//               </TableHeader>
+//               <TableBody>
+//                 {filteredOrders.map((order) => (
+//                   <TableRow key={order.id}>
+//                     <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
+//                     <TableCell>{order.customer.name}</TableCell>
+//                     <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
+//                     <TableCell>{t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
+//                     <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}</TableCell>
+//                     <TableCell>{new Date(order.sale_date || order.created_at).toLocaleDateString()}</TableCell>
+//                     <TableCell>
+//                       <div className="flex items-center gap-2">
+//                         <Button size="icon" variant="ghost" onClick={() => { setOrderToEdit(order); setEditDialogOpen(true); }}>
+//                           <PencilIcon className="w-4 h-4" />
+//                           <span className="sr-only">{t("edit")}</span>
+//                         </Button>
+//                         <Button size="icon" variant="ghost" onClick={() => { setSelectedInvoiceOrder(order); setInvoiceDialogOpen(true); }}>
+//                           <EyeIcon className="w-4 h-4" />
+//                           <span className="sr-only">{t("showInvoice")}</span>
+//                         </Button>
+//                       </div>
+//                     </TableCell>
+//                   </TableRow>
+//                 ))}
+//               </TableBody>
+//             </Table>
+//           </div>
+//           {/* Mobile Cards */}
+//           <div className="md:hidden space-y-3">
+//             {filteredOrders.map((order) => (
+//               <Card key={order.id} className="p-4">
+//                 <div className="space-y-3">
+//                   <div className="flex justify-between items-start">
+//                     <div><p className="text-xs text-muted-foreground">{t("invoiceNo")}</p><p className="font-semibold text-sm">{order.invoice_no || `ORD-${order.id}`}</p></div>
+//                     <div className="flex gap-1">
+//                       <Button size="icon" variant="ghost" onClick={() => { setOrderToEdit(order); setEditDialogOpen(true); }} className="h-8 w-8"><PencilIcon className="w-4 h-4" /></Button>
+//                       <Button size="icon" variant="ghost" onClick={() => { setSelectedInvoiceOrder(order); setInvoiceDialogOpen(true); }} className="h-8 w-8"><EyeIcon className="w-4 h-4" /></Button>
+//                     </div>
+//                   </div>
+//                   <div><p className="text-xs text-muted-foreground">{t("customer")}</p><p className="font-medium text-sm">{order.customer.name}</p></div>
+//                   <div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-muted-foreground">{t("total")}</p><p className="font-semibold text-sm">{t("currencySymbol")} {Math.floor(order.total_amount)}</p></div><div><p className="text-xs text-muted-foreground">{t("paid")}</p><p className="font-semibold text-sm">{t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}</p></div></div>
+//                   <div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-muted-foreground">{t("balance")}</p><p className="font-semibold text-sm">{t("currencySymbol")} {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}</p></div><div><p className="text-xs text-muted-foreground">{t("date")}</p><p className="font-semibold text-sm">{new Date(order.sale_date || order.created_at).toLocaleDateString()}</p></div></div>
+//                 </div>
+//               </Card>
+//             ))}
+//           </div>
+//         </CardContent>
+//         <CardFooter className="flex justify-between items-center" />
+//       </Card>
+
+//       {/* Invoice Preview Dialog */}
+//       {selectedInvoiceOrder && (
+//         <InvoicePreviewDialog
+//           open={invoiceDialogOpen}
+//           onOpenChange={setInvoiceDialogOpen}
+//           invoiceNo={selectedInvoiceOrder.invoice_no || `ORD-${selectedInvoiceOrder.id}`}
+//           customer={selectedInvoiceOrder.customer}
+//           saleDate={selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at}
+//           dueDate={selectedInvoiceOrder.due_date || null}
+//           products={(selectedInvoiceOrder.items || []).map((item, idx) => ({ id: idx, name: item.name, description: item.description, quantity: item.quantity, sell_price: item.price, unit_of_measurement: item.unit_of_measurement, discount: item.discount, discountType: item.discountType }))}
+//           subtotal={selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount}
+//           charges={selectedInvoiceOrder.charges || []}
+//           overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
+//           shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
+//           total={selectedInvoiceOrder.total_amount}
+//           onMakePayment={() => {}}
+//           onCreateOrder={() => {}}
+//           hidePaymentActions={true}
+//           initialPayment={selectedInvoiceOrder.payment}
+//         />
+//       )}
+
+//       {/* Edit Invoice Dialog */}
+//       {orderToEdit && (
+//         <EditInvoiceDialog
+//           open={editDialogOpen}
+//           onOpenChange={setEditDialogOpen}
+//           order={orderToEdit}
+//           onOrderUpdated={handleOrderUpdated}
+//         />
+//       )}
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -16,6 +946,7 @@ import {
   FilterIcon,
   FilePenIcon,
   EyeIcon,
+  XIcon,
 } from "lucide-react";
 import {
   Table,
@@ -52,7 +983,369 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
+import { ProductDropdown } from "@/components/dropdown/product-dropdown";
+import { PartyDropdown } from "@/components/dropdown/party-dropdown";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { calculateLineTotal } from "@/lib/invoice/calculations";
+import { Plus } from "lucide-react";
 
+// ------------------------------------------------------------
+// Edit Order Dialog Component (embedded for clarity)
+// ------------------------------------------------------------
+type OrderProduct = {
+  id: number | string;
+  name: string;
+  description?: string;
+  quantity: number;
+  quantityType: "prime" | "damaged";
+  sell_price: number;
+  discount: number;
+  discountType: "value" | "percentage";
+  unit_of_measurement?: string;
+};
+
+type OrderCharge = {
+  id: string;
+  item: string;
+  value: number;
+};
+
+interface EditOrderDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  order: any;
+  onOrderUpdated: () => void;
+}
+
+function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrderDialogProps) {
+  const t = useTranslations("orders");
+  const [loading, setLoading] = useState(false);
+  const [customerId, setCustomerId] = useState<string>("");
+  const [saleDate, setSaleDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [products, setProducts] = useState<OrderProduct[]>([]);
+  const [charges, setCharges] = useState<OrderCharge[]>([]);
+  const [overallDiscount, setOverallDiscount] = useState(0);
+  const [overallDiscountType, setOverallDiscountType] = useState<"value" | "percentage">("value");
+  const [shippingCharges, setShippingCharges] = useState(0);
+  const [customerNotes, setCustomerNotes] = useState("");
+  const [payment, setPayment] = useState({
+    method: "",
+    paidAmount: 0,
+    paidDate: "",
+    noPaymentAtAll: false,
+  });
+
+  useEffect(() => {
+    if (order && open) {
+      setCustomerId(order.customer_id?.toString() || "");
+      setSaleDate(order.sale_date?.split("T")[0] || new Date().toISOString().split("T")[0]);
+      setDueDate(order.due_date?.split("T")[0] || "");
+      setInvoiceNo(order.invoice_no || "");
+      setProducts((order.items || []).map((item: any) => ({
+        id: item.product_id || item.id,
+        name: item.name,
+        description: item.description,
+        quantity: item.quantity,
+        quantityType: item.quantityType || "prime",
+        sell_price: item.price,
+        discount: item.discount || 0,
+        discountType: item.discountType || "value",
+        unit_of_measurement: item.unit_of_measurement,
+      })));
+      setCharges((order.charges || []).map((c: any, idx: number) => ({ id: idx.toString(), item: c.item, value: c.value })));
+      setOverallDiscount(order.overallDiscount || 0);
+      setOverallDiscountType(order.overallDiscountType || "value");
+      setShippingCharges(order.shippingCharges || 0);
+      setCustomerNotes(order.customer_notes || "");
+      setPayment({
+        method: order.payment?.method || "",
+        paidAmount: order.payment?.paid_amount || 0,
+        paidDate: order.payment?.paid_date?.split("T")[0] || "",
+        noPaymentAtAll: order.payment?.no_payment_at_all || false,
+      });
+    }
+  }, [order, open]);
+
+  const subtotal = products.reduce((sum, p) => sum + calculateLineTotal(p), 0);
+  const discountAmount = overallDiscountType === "percentage" ? (subtotal * overallDiscount) / 100 : overallDiscount;
+  const chargesTotal = charges.reduce((s, c) => s + c.value, 0);
+  const total = Math.max(0, subtotal - discountAmount + shippingCharges + chargesTotal);
+
+  const handleAddProduct = (productId: string, product: any) => {
+    if (products.some(p => p.id === productId)) {
+      setProducts(products.map(p => p.id === productId ? { ...p, quantity: p.quantity + 1 } : p));
+    } else {
+      setProducts([...products, {
+        id: productId,
+        name: product.name,
+        description: product.description,
+        quantity: 1,
+        quantityType: "prime",
+        sell_price: product.sell_price,
+        discount: 0,
+        discountType: "value",
+        unit_of_measurement: product.unit_of_measurement,
+      }]);
+    }
+  };
+
+  const handleUpdateProduct = (idx: number, field: string, value: any) => {
+    const updated = [...products];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setProducts(updated);
+  };
+
+  const handleRemoveProduct = (idx: number) => {
+    setProducts(products.filter((_, i) => i !== idx));
+  };
+
+  const handleAddCharge = () => {
+    setCharges([...charges, { id: Date.now().toString(), item: "", value: 0 }]);
+  };
+
+  const handleUpdateCharge = (idx: number, field: "item" | "value", val: string | number) => {
+    const updated = [...charges];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setCharges(updated);
+  };
+
+  const handleRemoveCharge = (idx: number) => {
+    setCharges(charges.filter((_, i) => i !== idx));
+  };
+
+  const handleSubmit = async () => {
+    if (!customerId || products.length === 0) {
+      alert(t("selectPartyAndItems"));
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId,
+          saleDate,
+          dueDate: dueDate || null,
+          invoiceNo,
+          products: products.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            quantity: p.quantity,
+            quantityType: p.quantityType,
+            price: p.sell_price,
+            discount: p.discount,
+            discountType: p.discountType,
+            unit_of_measurement: p.unit_of_measurement,
+          })),
+          subtotal,
+          charges: charges.map(c => ({ item: c.item, value: c.value })),
+          overallDiscount,
+          shippingCharges,
+          total,
+          payment: {
+            method: payment.method,
+            paidAmount: payment.paidAmount,
+            paidDate: payment.paidDate || null,
+            noPaymentAtAll: payment.noPaymentAtAll,
+          },
+          customerNotes,
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      onOrderUpdated();
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+      alert(t("updateError"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("editOrder")} - {order?.invoice_no || `ORD-${order?.id}`}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>{t("customer")}</Label>
+              <PartyDropdown value={customerId} onValueChange={setCustomerId} placeholder={t("selectCustomer")} />
+            </div>
+            <div>
+              <Label>{t("saleDate")}</Label>
+              <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t("dueDate")}</Label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t("invoiceNo")}</Label>
+              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Products Table */}
+          <div>
+            <Label className="mb-2 block">{t("products")}</Label>
+            <div className="border rounded-md overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("product")}</TableHead>
+                    <TableHead>{t("price")}</TableHead>
+                    <TableHead>{t("quantity")}</TableHead>
+                    <TableHead>{t("type")}</TableHead>
+                    <TableHead>{t("discount")}</TableHead>
+                    <TableHead>{t("total")}</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((p, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="min-w-[150px]">
+                        <div className="font-medium">{p.name}</div>
+                        {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24" />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" value={p.quantity} onChange={(e) => handleUpdateProduct(idx, "quantity", parseFloat(e.target.value) || 0)} className="w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
+                          <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="prime">{t("prime")}</SelectItem>
+                            <SelectItem value="damaged">{t("damaged")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="flex gap-1">
+                        <Input type="number" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20" />
+                        <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
+                          <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="value">PKR</SelectItem>
+                            <SelectItem value="percentage">%</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>{Math.floor(calculateLineTotal(p))}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveProduct(idx)}><XIcon className="w-4 h-4" /></Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={7}>
+                      <ProductDropdown value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Charges */}
+          <div>
+            <Label className="mb-2 block">{t("charges")}</Label>
+            {charges.map((ch, idx) => (
+              <div key={ch.id} className="flex gap-2 mb-2">
+                <Input placeholder={t("chargeName")} value={ch.item} onChange={(e) => handleUpdateCharge(idx, "item", e.target.value)} />
+                <Input type="number" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} />
+                <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(idx)}><XIcon className="w-4 h-4" /></Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={handleAddCharge}><Plus className="w-4 h-4 mr-1" />{t("addCharge")}</Button>
+          </div>
+
+          {/* Discount & Shipping */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>{t("overallDiscount")}</Label>
+              <div className="flex gap-2">
+                <Input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} />
+                <Select value={overallDiscountType} onValueChange={(val: any) => setOverallDiscountType(val)}>
+                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="value">PKR</SelectItem>
+                    <SelectItem value="percentage">%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>{t("shippingCharges")}</Label>
+              <Input type="number" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} />
+            </div>
+          </div>
+
+          {/* Payment */}
+          <div>
+            <Label className="mb-2 block">{t("payment")}</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t("paymentMethod")}</Label>
+                <PaymentMethodDropdown
+                  value={payment.method}
+                  onValueChange={(val) => setPayment({ ...payment, method: val })}
+                  placeholder={t("selectMethod") || "Select Method"}
+                  enableSearch={true}
+                  searchPlaceholder="Search payment method..."
+                  noResultsText="No payment methods found"
+                  addButtonPosition="bottom"
+                  includeDefaultMethods={true}
+                />
+              </div>
+              <div>
+                <Label>{t("paidAmount")}</Label>
+                <Input type="number" value={payment.paidAmount} onChange={(e) => setPayment({ ...payment, paidAmount: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <Label>{t("paidDate")}</Label>
+                <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="noPayment" checked={payment.noPaymentAtAll} onChange={(e) => setPayment({ ...payment, noPaymentAtAll: e.target.checked })} />
+                <Label htmlFor="noPayment">{t("noPaymentAtAll")}</Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Notes */}
+          <div>
+            <Label>{t("customerNotes")}</Label>
+            <textarea className="w-full border rounded-md p-2" rows={3} value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} />
+          </div>
+
+          {/* Total */}
+          <div className="text-right text-xl font-bold">
+            {t("total")}: {Math.floor(total)} PKR
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("cancel")}</Button>
+          <Button onClick={handleSubmit} disabled={loading}>{loading ? t("updating") : t("updateOrder")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ------------------------------------------------------------
+// Main Orders Page Component
+// ------------------------------------------------------------
 type Order = {
   id: number;
   customer_id: number;
@@ -76,7 +1369,6 @@ type Order = {
     discount?: number;
     unit_of_measurement?: string;
     discountType?: "value" | "percentage";
-    discountInput?: string;
   }>;
   charges?: Array<{
     item: string;
@@ -98,55 +1390,34 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
-  const [newOrderCustomerName, setNewOrderCustomerName] = useState("");
-  const [newOrderTotal, setNewOrderTotal] = useState("");
-  const [newOrderStatus, setNewOrderStatus] = useState<
-    "completed" | "pending" | "cancelled"
-  >("pending");
-  const [isEditOrderDialogOpen, setIsEditOrderDialogOpen] = useState(false);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
-    useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState({
-    status: "all",
-  });
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [filters, setFilters] = useState({ status: "all" });
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [selectedInvoiceOrder, setSelectedInvoiceOrder] =
-    useState<Order | null>(null);
-  // console.log("Selected Invoice Order:", selectedInvoiceOrder);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
+  const [editOrderOpen, setEditOrderOpen] = useState(false);
+  const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const response = await fetch("/api/orders");
+      if (!response.ok) throw new Error(t("failedToFetchOrders"));
+      const data = await response.json();
+      setOrders(data);
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch("/api/orders");
-        console.log("Fetch Orders Response:", response);
-        if (!response.ok) {
-          throw new Error(t("failedToFetchOrders"));
-        }
-        const data = await response.json();
-        setOrders(data);
-      } catch (error) {
-        setError((error as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      console.log("orders", order);
-      if (!order.customer) {
-        return false;
-      }
-      if (filters.status !== "all" && order.status !== filters.status) {
-        return false;
-      }
+      if (!order.customer) return false;
+      if (filters.status !== "all" && order.status !== filters.status) return false;
       return (
         order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.id.toString().includes(searchTerm)
@@ -154,103 +1425,21 @@ export default function OrdersPage() {
     });
   }, [orders, filters.status, searchTerm]);
 
-  const resetSelectedOrder = () => {
-    setSelectedOrderId(null);
-    setNewOrderCustomerName("");
-    setNewOrderTotal("");
-    setNewOrderStatus("pending");
-  };
-
-  const handleAddOrder = useCallback(async () => {
-    try {
-      const newOrder = {
-        total_amount: parseFloat(newOrderTotal),
-        status: newOrderStatus,
-        created_at: new Date().toISOString().split("T")[0], // Current created_at in YYYY-MM-DD format
-      };
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newOrder),
-      });
-
-      if (!response.ok) {
-        throw new Error(t("errorCreatingOrder"));
-      }
-
-      const createdOrder = await response.json();
-      setOrders([...orders, createdOrder]);
-      setShowNewOrderDialog(false);
-      resetSelectedOrder();
-    } catch (error) {
-      console.error(error);
-    }
-  }, [newOrderTotal, newOrderStatus, orders, t]);
-
-  const handleEditOrder = useCallback(async () => {
-    if (!selectedOrderId) return;
-    try {
-      const updatedOrder = {
-        id: selectedOrderId,
-        total_amount: parseFloat(newOrderTotal),
-        status: newOrderStatus,
-        created_at: orders.find((o) => o.id === selectedOrderId)?.created_at, // Preserve the original created_at
-      };
-      const response = await fetch(`/api/orders/${selectedOrderId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedOrder),
-      });
-
-      if (!response.ok) {
-        throw new Error(t("errorUpdatingOrder"));
-      }
-
-      const updatedOrderData = await response.json();
-      setOrders(
-        orders.map((o) =>
-          o.id === updatedOrderData.id ? updatedOrderData : o,
-        ),
-      );
-      setIsEditOrderDialogOpen(false);
-      resetSelectedOrder();
-    } catch (error) {
-      console.error(error);
-    }
-  }, [selectedOrderId, newOrderTotal, newOrderStatus, orders, t]);
-
-  const handleDeleteOrder = useCallback(async () => {
-    if (!orderToDelete) return;
-    try {
-      const response = await fetch(`/api/orders/${orderToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Error deleting order");
-      }
-
-      setOrders(orders.filter((o) => o.id !== orderToDelete.id));
-      setIsDeleteConfirmationOpen(false);
-      setOrderToDelete(null);
-    } catch (error) {
-      console.error(error);
-    }
-  }, [orderToDelete, orders, t]);
-
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
   const handleFilterChange = (value: string) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      status: value,
-    }));
+    setFilters({ status: value });
+  };
+
+  const handleEditOrder = (order: Order) => {
+    setOrderToEdit(order);
+    setEditOrderOpen(true);
+  };
+
+  const handleOrderUpdated = () => {
+    fetchOrders();
   };
 
   if (loading) {
@@ -282,7 +1471,7 @@ export default function OrdersPage() {
       </div>
       <Card className="flex flex-col gap-6 p-6">
         <CardHeader className="p-0">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Input
@@ -339,6 +1528,7 @@ export default function OrdersPage() {
             </Button>
           </div>
         </CardHeader>
+
         <CardContent className="p-0">
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
@@ -357,24 +1547,16 @@ export default function OrdersPage() {
               <TableBody>
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell>
-                      {order.invoice_no || `ORD-${order.id}`}
-                    </TableCell>
+                    <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
                     <TableCell>{order.customer.name}</TableCell>
                     <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
-                    <TableCell>
-                      {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
-                    </TableCell>
+                    <TableCell>{t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
                     <TableCell>
                       {t("currencySymbol")}{" "}
-                      {Math.floor(
-                        order.total_amount - (order.payment?.paid_amount || 0),
-                      )}
+                      {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
                     </TableCell>
                     <TableCell>
-                      {new Date(
-                        order.sale_date || order.created_at,
-                      ).toLocaleDateString("en-US", {
+                      {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
                         weekday: "short",
                         year: "numeric",
                         month: "short",
@@ -383,17 +1565,9 @@ export default function OrdersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setOrderToDelete(order);
-                            setIsDeleteConfirmationOpen(true);
-                          }}
-                          style={{ display: "none" }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="sr-only">{t("delete")}</span>
+                        <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)}>
+                          <FilePenIcon className="w-4 h-4" />
+                          <span className="sr-only">{t("edit")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -421,33 +1595,31 @@ export default function OrdersPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-xs text-muted-foreground">
-                        {t("invoiceNo")}
-                      </p>
-                      <p className="font-semibold text-sm">
-                        {order.invoice_no || `ORD-${order.id}`}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{t("invoiceNo")}</p>
+                      <p className="font-semibold text-sm">{order.invoice_no || `ORD-${order.id}`}</p>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => {
-                        setSelectedInvoiceOrder(order);
-                        setInvoiceDialogOpen(true);
-                      }}
-                      className="h-8 w-8"
-                    >
-                      <EyeIcon className="w-4 h-4" />
-                      <span className="sr-only">{t("showInvoice")}</span>
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
+                        <FilePenIcon className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedInvoiceOrder(order);
+                          setInvoiceDialogOpen(true);
+                        }}
+                        className="h-8 w-8"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="w-full">
+                  <div>
                     <p className="text-xs text-muted-foreground">{t("customer")}</p>
                     <p className="font-medium text-sm">{order.customer.name}</p>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 w-full">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-xs text-muted-foreground">{t("total")}</p>
                       <p className="font-semibold text-sm">
@@ -461,24 +1633,18 @@ export default function OrdersPage() {
                       </p>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 w-full">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-xs text-muted-foreground">{t("balance")}</p>
                       <p className="font-semibold text-sm">
                         {t("currencySymbol")}{" "}
-                        {Math.floor(
-                          order.total_amount -
-                            (order.payment?.paid_amount || 0),
-                        )}
+                        {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">{t("date")}</p>
                       <p className="font-semibold text-sm">
-                        {new Date(
-                          order.sale_date || order.created_at,
-                        ).toLocaleDateString("en-US", {
+                        {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
                           weekday: "short",
                           year: "numeric",
                           month: "short",
@@ -492,145 +1658,52 @@ export default function OrdersPage() {
             ))}
           </div>
         </CardContent>
+
         <CardFooter className="flex justify-between items-center">
           {/* Pagination can be added here if needed */}
         </CardFooter>
-
-        <Dialog
-          open={showNewOrderDialog || isEditOrderDialogOpen}
-          onOpenChange={(open) => {
-            if (!open) {
-              setShowNewOrderDialog(false);
-              setIsEditOrderDialogOpen(false);
-              resetSelectedOrder();
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {showNewOrderDialog ? t("createNewOrder") : t("editOrder")}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customerName">{t("customerName")}</Label>
-                <Input
-                  id="customerName"
-                  value={newOrderCustomerName}
-                  onChange={(e) => setNewOrderCustomerName(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="total">{t("total")}</Label>
-                <Input
-                  id="total"
-                  type="number"
-                  value={newOrderTotal}
-                  onChange={(e) => setNewOrderTotal(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status">{t("status")}</Label>
-                <Select
-                  value={newOrderStatus}
-                  onValueChange={(
-                    value: "completed" | "pending" | "cancelled",
-                  ) => setNewOrderStatus(value)}
-                >
-                  <SelectTrigger id="status" className="col-span-3">
-                    <SelectValue placeholder={t("selectStatus")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="completed">{t("completed")}</SelectItem>
-                    <SelectItem value="pending">{t("pending")}</SelectItem>
-                    <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowNewOrderDialog(false);
-                  setIsEditOrderDialogOpen(false);
-                  resetSelectedOrder();
-                }}
-              >
-                {t("cancel")}
-              </Button>
-              <Button
-                onClick={showNewOrderDialog ? handleAddOrder : handleEditOrder}
-              >
-                {showNewOrderDialog ? t("createOrder") : t("updateOrder")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={isDeleteConfirmationOpen}
-          onOpenChange={setIsDeleteConfirmationOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("confirmDeletion")}</DialogTitle>
-            </DialogHeader>
-            {t("confirmDeleteMessage")}
-            <DialogFooter>
-              <Button
-                variant="secondary"
-                onClick={() => setIsDeleteConfirmationOpen(false)}
-              >
-                {t("cancel")}
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteOrder}>
-                {t("delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {selectedInvoiceOrder && (
-          <InvoicePreviewDialog
-            open={invoiceDialogOpen}
-            onOpenChange={setInvoiceDialogOpen}
-            invoiceNo={
-              selectedInvoiceOrder.invoice_no ||
-              `ORD-${selectedInvoiceOrder.id}`
-            }
-            customer={selectedInvoiceOrder.customer}
-            saleDate={
-              selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at
-            }
-            dueDate={selectedInvoiceOrder.due_date || null}
-            products={(selectedInvoiceOrder.items || []).map((item, index) => ({
-              id: index,
-              name: item.name,
-              description: item.description,
-              quantity: item.quantity,
-              sell_price: item.price,
-              unit_of_measurement: item.unit_of_measurement,
-              discount: item.discount,
-              discountType: item.discountType,
-            }))}
-            subtotal={
-              selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount
-            }
-            charges={selectedInvoiceOrder.charges || []}
-            overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
-            shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
-            total={selectedInvoiceOrder.total_amount}
-            onMakePayment={() => {}}
-            onCreateOrder={() => {}}
-            hidePaymentActions={true}
-            initialPayment={selectedInvoiceOrder.payment}
-          />
-        )}
       </Card>
+
+      {/* Invoice Preview Dialog */}
+      {selectedInvoiceOrder && (
+        <InvoicePreviewDialog
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          invoiceNo={selectedInvoiceOrder.invoice_no || `ORD-${selectedInvoiceOrder.id}`}
+          customer={selectedInvoiceOrder.customer}
+          saleDate={selectedInvoiceOrder.sale_date || selectedInvoiceOrder.created_at}
+          dueDate={selectedInvoiceOrder.due_date || null}
+          products={(selectedInvoiceOrder.items || []).map((item, index) => ({
+            id: index,
+            name: item.name,
+            description: item.description,
+            quantity: item.quantity,
+            sell_price: item.price,
+            unit_of_measurement: item.unit_of_measurement,
+            discount: item.discount,
+            discountType: item.discountType,
+          }))}
+          subtotal={selectedInvoiceOrder.subtotal || selectedInvoiceOrder.total_amount}
+          charges={selectedInvoiceOrder.charges || []}
+          overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
+          shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
+          total={selectedInvoiceOrder.total_amount}
+          onMakePayment={() => {}}
+          onCreateOrder={() => {}}
+          hidePaymentActions={true}
+          initialPayment={selectedInvoiceOrder.payment}
+        />
+      )}
+
+      {/* Edit Order Dialog */}
+      {orderToEdit && (
+        <EditOrderDialog
+          open={editOrderOpen}
+          onOpenChange={setEditOrderOpen}
+          order={orderToEdit}
+          onOrderUpdated={handleOrderUpdated}
+        />
+      )}
     </div>
   );
 }
