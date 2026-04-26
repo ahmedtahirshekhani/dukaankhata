@@ -37,11 +37,11 @@ export async function GET(req: NextRequest) {
       : [];
     const paymentMethodDocs = dbPaymentMethodIds.length > 0
       ? await paymentMethodCollection
-          .find({
-            _id: { $in: dbPaymentMethodIds.map((id) => toObjectId(id)) },
-            user_id: toObjectId(user.id),
-          })
-          .toArray()
+        .find({
+          _id: { $in: dbPaymentMethodIds.map((id) => toObjectId(id)) },
+          user_id: toObjectId(user.id),
+        })
+        .toArray()
       : [];
 
     const customerMap = Object.fromEntries(
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create record' }, { status: 500 });
     }
 
-const isPaymentIn = type === 'payment-in';
+    const isPaymentIn = type === 'payment-in';
     await appendCustomerLedgerEntry({
       userId: user.id,
       customerId,
