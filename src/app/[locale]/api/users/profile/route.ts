@@ -1,6 +1,7 @@
+//src/app/[locale]/api/users/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
 import { auth } from "@/auth";
 
 export async function POST(req: NextRequest) {
@@ -41,12 +42,18 @@ export async function POST(req: NextRequest) {
       update.company_name = company;
     }
 
-    const result = await users.updateOne(
+    // const result = await users.updateOne(
+    //   { _id: toObjectId(userId) },
+    //   {
+    //     $set: update,
+    //   },
+    // );
+    const result = await setLastUpdated(
+      users,
       { _id: toObjectId(userId) },
-      {
-        $set: update,
-      },
+      update // update mein pehle se name, company_name etc hain
     );
+
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

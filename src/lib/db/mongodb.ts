@@ -1,4 +1,4 @@
-import { MongoClient, Db, Collection, ObjectId, Document } from "mongodb";
+import { MongoClient, Db, Collection, ObjectId, Document, UpdateFilter, Filter } from "mongodb";
 
 if (!process.env.MONGODB_URL) {
   throw new Error("Please add your Mongo URI to .env.local");
@@ -99,6 +99,26 @@ export function toObjectId(id: string | ObjectId | undefined | null): ObjectId {
 // Helper to check if a string is a valid ObjectId
 export function isValidObjectId(id: string): boolean {
   return ObjectId.isValid(id);
+}
+
+/**
+ * Generic function to set updated_at field for a document
+ * @param collection - MongoDB collection
+ * @param filter - Filter to find the document
+ * @param additionalUpdate - Optional extra $set fields
+ */
+export async function setLastUpdated<T extends Document>(
+  collection: Collection<T>,
+  filter: Filter<T>,
+  additionalUpdate?: Record<string, any>
+) {
+  const update: UpdateFilter<T> = {
+    $set: {
+      updated_at: new Date(),
+      ...additionalUpdate,
+    } as any,
+  };
+  return collection.updateOne(filter, update);
 }
 
 // Helper function to create indexes for collections

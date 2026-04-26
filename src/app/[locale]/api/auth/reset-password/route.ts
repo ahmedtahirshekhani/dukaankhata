@@ -1,7 +1,8 @@
+//src/app/[locale]/api/auth/reset-password/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, setLastUpdated } from "@/lib/db/mongodb";
 
 function parseAndVerifyToken(token: string) {
   const secret = process.env.RESET_TOKEN_SECRET || "dev-secret-change-me";
@@ -81,14 +82,19 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, salt);
 
     const usersCollection = await getCollection(COLLECTIONS.USERS);
-    const result = await usersCollection.updateOne(
+    // const result = await usersCollection.updateOne(
+    //   { email },
+    //   { 
+    //     $set: { 
+    //       password_hash: passwordHash, 
+    //       updated_at: new Date() 
+    //     } 
+    //   }
+    // );
+    const result = await setLastUpdated(
+      usersCollection,
       { email },
-      { 
-        $set: { 
-          password_hash: passwordHash, 
-          updated_at: new Date() 
-        } 
-      }
+      { password_hash: passwordHash }
     );
 
     if (result.matchedCount === 0) {

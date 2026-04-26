@@ -1,6 +1,7 @@
+//src/app/[locale]/api/auth/change-password/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
 import { auth } from "@/auth";
 
 export async function POST(req: NextRequest) {
@@ -38,9 +39,14 @@ export async function POST(req: NextRequest) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
-    const result = await users.updateOne(
+    // const result = await users.updateOne(
+    //   { _id: toObjectId(userId) },
+    //   { $set: { password_hash: passwordHash, updated_at: new Date() } }
+    // );
+   const result = await setLastUpdated(
+      users,
       { _id: toObjectId(userId) },
-      { $set: { password_hash: passwordHash, updated_at: new Date() } }
+      { password_hash: passwordHash }
     );
 
     if (result.matchedCount === 0) {
