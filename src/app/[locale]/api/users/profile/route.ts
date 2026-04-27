@@ -42,12 +42,6 @@ export async function POST(req: NextRequest) {
       update.company_name = company;
     }
 
-    // const result = await users.updateOne(
-    //   { _id: toObjectId(userId) },
-    //   {
-    //     $set: update,
-    //   },
-    // );
     const result = await setLastUpdated(
       users,
       { _id: toObjectId(userId) },

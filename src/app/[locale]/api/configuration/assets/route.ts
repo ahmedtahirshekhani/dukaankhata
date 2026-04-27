@@ -38,13 +38,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { companyName, companyLogo, signatureImage } = body || {};
 
-    // const update: Record<string, any> = { updated_at: new Date() };
-    // if (typeof companyName === "string")
-    //   update.company_name = companyName.trim();
-    // if (typeof companyLogo === "string") update.company_logo = companyLogo;
-    // if (typeof signatureImage === "string")
-    //   update.signature_image = signatureImage;
-
     const additionalUpdate: Record<string, any> = {};
     if (typeof companyName === "string") additionalUpdate.company_name = companyName.trim();
     if (typeof companyLogo === "string") additionalUpdate.company_logo = companyLogo;
@@ -54,10 +47,6 @@ export async function POST(req: NextRequest) {
     const users = await getCollection(COLLECTIONS.USERS);
     const userId = (session.user as any).id as string;
 
-    // const result = await users.updateOne(
-    //   { _id: toObjectId(userId) },
-    //   { $set: update },
-    // );
     const result = await setLastUpdated(
       users,
       { _id: toObjectId(userId) },
