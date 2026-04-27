@@ -1,4 +1,5 @@
 import { MongoClient, Db, Collection, ObjectId, Document, UpdateFilter, Filter } from "mongodb";
+import { getCurrentUser } from "@/lib/auth/utils";  // Add this import at top
 
 if (!process.env.MONGODB_URL) {
   throw new Error("Please add your Mongo URI to .env.local");
@@ -102,7 +103,7 @@ export function isValidObjectId(id: string): boolean {
 }
 
 /**
- * Generic function to set updated_at field for a document
+ * Generic function to set updated_at field for a document AND update user's last activity
  * @param collection - MongoDB collection
  * @param filter - Filter to find the document
  * @param additionalUpdate - Optional extra $set fields
@@ -112,13 +113,43 @@ export async function setLastUpdated<T extends Document>(
   filter: Filter<T>,
   additionalUpdate?: Record<string, any>
 ) {
+  // 1. Update target document's updated_at field
   const update: UpdateFilter<T> = {
     $set: {
       updated_at: new Date(),
       ...additionalUpdate,
     } as any,
   };
-  return collection.updateOne(filter, update);
+  const result = await collection.updateOne(filter, update);
+
+  // 2. Call the user activity update function (instead of duplicating logic)
+  await updateUserLastActivity();
+
+  return result;
+}
+
+/**
+ * Update user's last activity timestamp without touching any other collection
+ * Use this for INSERT and DELETE operations where you want to track user activity
+ * Also used internally by setLastUpdated
+ */
+export async function updateUserLastActivity() {
+  try {
+    const user = await getCurrentUser();
+    console.log("Current user in updateUserLastActivity:", user);
+    if (user?.id) {
+      const usersCollection = await getCollection(COLLECTIONS.USERS);
+      await usersCollection.updateOne(
+        { _id: toObjectId(user.id) },
+        { $set: { user_last_updated_at: new Date() } }
+      );
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("Failed to update user last activity:", err);
+    return false;
+  }
 }
 
 // Helper function to create indexes for collections
