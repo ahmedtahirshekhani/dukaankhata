@@ -30,40 +30,9 @@ export default function GlobalError({
 
             <div className="space-y-2 mb-6">
               <div>
-                <span className="font-medium">WhatsApp (Germany): </span>
-                <a
-                  href="https://wa.me/491785141157"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  +49 178 5141157 (Ahmed Tahir Shekhani)
-                </a>
-              </div>
-              <div>
-                <span className="font-medium">LinkedIn: </span>
-                <a
-                  href="https://www.linkedin.com/in/ahmedtahirshekhani/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  linkedin.com/in/ahmedtahirshekhani/
-                </a>
-              </div>
-              <div>
-                <span className="font-medium">Email: </span>
-                <a
-                  href="mailto:ahmedtahir.developer@gmail.com"
-                  className="text-blue-600 hover:underline"
-                >
-                  ahmedtahir.developer@gmail.com
-                </a>
-              </div>
-              <div>
                 <span className="font-medium">Phone (Pakistan): </span>
                 <a href="tel:+923352575725" className="text-blue-600 hover:underline">
-                  +92 335 2575725 (M. Kashan Shekhani)
+                  +92 335 2575725
                 </a>
               </div>
             </div>

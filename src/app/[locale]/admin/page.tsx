@@ -527,39 +527,11 @@ export default function DashboardPage() {
             </span>
             <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
               <a
-                href={`mailto:${supportContact.email}`}
-                className="text-blue-600 hover:underline"
-                aria-label={`Email ${supportContact.email}`}
-              >
-                Email
-              </a>
-              <span className="hidden sm:inline text-muted-foreground">|</span>
-              <a
                 href={`tel:${supportContact.phone.replace(/\s/g, "")}`}
                 className="text-blue-600 hover:underline"
                 aria-label={`Call ${supportContact.phone}`}
               >
                 Call
-              </a>
-              <span className="hidden sm:inline text-muted-foreground">|</span>
-              <a
-                href={`https://wa.me/${supportContact.whatsapp.replace(/[^\d]/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-                aria-label={`WhatsApp ${supportContact.whatsapp}`}
-              >
-                WhatsApp
-              </a>
-              <span className="hidden sm:inline text-muted-foreground">|</span>
-              <a
-                href={supportContact.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline truncate"
-                aria-label={`LinkedIn ${supportContact.linkedin}`}
-              >
-                LinkedIn
               </a>
             </div>
           </div>

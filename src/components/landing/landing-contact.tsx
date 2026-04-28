@@ -1,26 +1,14 @@
 "use client";
 
-import { Link, Mail, MessageCircle, Phone } from "lucide-react";
+import { Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 
 // Same contact details as error page (src/app/error.tsx) for consistency
 const CONTACT_LINKS = {
-  whatsapp: {
-    href: "https://wa.me/491785141157",
-    label: "+49 178 5141157 (Ahmed Tahir Shekhani)",
-  },
-  linkedin: {
-    href: "https://www.linkedin.com/in/ahmedtahirshekhani/",
-    label: "linkedin.com/in/ahmedtahirshekhani/",
-  },
-  email: {
-    href: "mailto:ahmedtahir.developer@gmail.com",
-    label: "ahmedtahir.developer@gmail.com",
-  },
   phone: {
     href: "https://wa.me/923352575725",
-    label: "+92 335 2575725 (M. Kashan Shekhani)",
+    label: "+92 335 2575725",
   },
 } as const;
 
@@ -28,21 +16,6 @@ export function LandingContact() {
   const t = useTranslations("landing.contact");
 
   const items = [
-    {
-      key: "whatsapp" as const,
-      icon: MessageCircle,
-      labelKey: "whatsAppLabel" as const,
-    },
-    {
-      key: "linkedin" as const,
-      icon: Link,
-      labelKey: "linkedInLabel" as const,
-    },
-    {
-      key: "email" as const,
-      icon: Mail,
-      labelKey: "emailLabel" as const,
-    },
     {
       key: "phone" as const,
       icon: Phone,
@@ -79,8 +52,8 @@ export function LandingContact() {
                       </span>
                       <a
                         href={href}
-                        target={key === "email" || key === "phone" ? undefined : "_blank"}
-                        rel={key === "email" || key === "phone" ? undefined : "noopener noreferrer"}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-primary hover:underline text-sm sm:text-base break-all"
                       >
                         {label}

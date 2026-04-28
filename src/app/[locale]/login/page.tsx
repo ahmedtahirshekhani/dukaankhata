@@ -235,46 +235,12 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
             <p className="font-medium">{t("needHelpContactSupport")}</p>
             <div className="flex flex-col gap-1 items-center">
               <p>
-                Email:{" "}
-                <a
-                  href={`mailto:${supportContact.email}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {supportContact.email}
-                </a>
-              </p>
-              <p>
                 Call or Whatsapp:{" "}
                 <a
                   href={`tel:${supportContact.phone.replace(/\s/g, "")}`}
                   className="text-blue-600 hover:underline"
                 >
                   {supportContact.phone}
-                </a>
-              </p>
-              <p>
-                WhatsApp Only:{" "}
-                <a
-                  href={`https://wa.me/${supportContact.whatsapp.replace(
-                    /[^\d]/g,
-                    "",
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {supportContact.whatsapp}
-                </a>
-              </p>
-              <p>
-                LinkedIn:{" "}
-                <a
-                  href={supportContact.linkedin}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {supportContact.linkedin}
                 </a>
               </p>
             </div>
