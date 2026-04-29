@@ -202,6 +202,7 @@
     "stock": "اسٹاک",
     "downloadExcel": "ایکسل شیٹ ڈاؤن لوڈ کریں",
     "downloadTemplate": "ٹیمپلیٹ ایکسل فائل ڈاؤن لوڈ کریں",
+    "downloadSampleFile": "نمونہ ڈیٹا ڈاؤن لوڈ کریں",
     "import": "درآمد کریں",
     "importing": "درآمد ہو رہا ہے...",
     "importSuccess": "اشیاء کامیابی سے درآمد ہو گئیں",
@@ -298,7 +299,10 @@
     "createCategory": "\"{value}\" بنائیں",
     "branchTooltip": "برانچ یا گودام جہاں آئٹم محفوظ ہے",
     "selectOrCreateBranch": "برانچ منتخب یا بنائیں",
-    "createBranch": "\"{value}\" بنائیں"
+    "createBranch": "برانچ بنائیں",
+    "importPreview": "درآمد کا پیش نظارہ",
+    "editImportData": "درآمد کی تصدیق سے پہلے نیچے دیے گئے ڈیٹا میں ترمیم کریں",
+    "totalRows": "کل قطاریں"
   },
   "paymentIn": {
     "title": "پیمنٹ ان",

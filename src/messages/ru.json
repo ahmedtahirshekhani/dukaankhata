@@ -201,6 +201,7 @@
     "stock": "Stock",
     "downloadExcel": "Excel Sheet Download Karain",
     "downloadTemplate": "Template Excel File Download Karain",
+    "downloadSampleFile": "Sample Data Download Karain",
     "import": "Import Karain",
     "importing": "Import ho raha hai...",
     "importSuccess": "Items kamyabi se import ho gaye",
@@ -298,7 +299,10 @@
     "createCategory": "\"{value}\" banayen",
     "branchTooltip": "Branch ya warehouse jahan item store hai",
     "selectOrCreateBranch": "Branch chunain ya banayen",
-    "createBranch": "\"{value}\" banayen"
+    "createBranch": "Branch banayen",
+    "importPreview": "Import ka Preview",
+    "editImportData": "Import ki tasdeeq se pehle neeche diye gaye data mein tarmeem karain",
+    "totalRows": "Kul rows"
   },
   "paymentIn": {
     "title": "Payment In",
