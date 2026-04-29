@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, Printer } from "lucide-react";
 import {
   InvoicePreview,
   type InvoiceCharge,
@@ -81,7 +81,8 @@ export function InvoicePreviewDialog({
   companyName,
   customerNotes = "",
 }: InvoicePreviewDialogProps) {
-    const t = useTranslations("invoice")
+  const t = useTranslations("invoice");
+  const tCommon = useTranslations("common");
 
   const [noPaymentAtAll, setNoPaymentAtAll] = useState(
     initialPayment?.no_payment_at_all || false,
@@ -223,6 +224,90 @@ export function InvoicePreviewDialog({
     html2pdf().set(opt).from(invoiceRef.current).save();
   };
 
+  const handlePrintInvoice = async () => {
+    if (!invoiceRef.current || typeof window === "undefined") return;
+
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+
+      // Determine dimensions based on selected print format
+      let windowWidth: number;
+      let scale: number;
+
+      switch (printFormat) {
+        case "thermal":
+          // 80mm width (approximately 226 pixels at 72 dpi)
+          windowWidth = 226;
+          scale = 1.5;
+          break;
+        case "letter":
+          // 8.5 inches (612 pixels)
+          windowWidth = 612;
+          scale = 2;
+          break;
+        case "a4":
+        default:
+          // 210mm (approximately 595 pixels)
+          windowWidth = 595;
+          scale = 2;
+          break;
+      }
+
+      // Capture invoice with format-specific dimensions
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: scale,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: windowWidth,
+      });
+
+      const imageData = canvas.toDataURL("image/png");
+
+      // Create hidden iframe for printing
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+
+      const iframeDoc =
+        iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        return;
+      }
+
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${invoiceNo || "Invoice"}</title>
+            <style>
+              body { margin: 0; padding: 0; background: white; }
+              img { max-width: 100%; height: auto; display: block; }
+            </style>
+          </head>
+          <body>
+            <img src="${imageData}" />
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+
+      // Wait for content to render, then trigger print
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        // Remove iframe after a delay
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1000);
+      }, 300);
+    } catch (error) {
+      console.error("Print error:", error);
+    }
+  };
+
   const remainingBalance = Math.max(0, total - paidAmount);
 
   const isPaymentMade = paidAmount > 0;
@@ -338,13 +423,23 @@ export function InvoicePreviewDialog({
                     </label>
                   </div>
                 </div>
-                <Button
-                  onClick={handleDownloadPdf}
-                  variant="default"
-                  className="w-full text-sm"
-                >
-                  {t("downloadInvoice")}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={handlePrintInvoice}
+                    variant="outline"
+                    className="w-full text-sm"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    {tCommon("print")}
+                  </Button>
+                  <Button
+                    onClick={handleDownloadPdf}
+                    variant="default"
+                    className="w-full text-sm"
+                  >
+                    {t("downloadInvoice")}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="lg:col-span-1">
@@ -451,7 +546,9 @@ export function InvoicePreviewDialog({
                       }}
                       variant="outline"
                       className="w-full"
-                      disabled={!(isPaymentMade || noPaymentAtAll) || isCreatingOrder}
+                      disabled={
+                        !(isPaymentMade || noPaymentAtAll) || isCreatingOrder
+                      }
                     >
                       {isCreatingOrder ? (
                         <>
@@ -505,13 +602,23 @@ export function InvoicePreviewDialog({
                         </label>
                       </div>
                     </div>
-                    <Button
-                      onClick={handleDownloadPdf}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      {t("downloadInvoice")}
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        onClick={handlePrintInvoice}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        {tCommon("print")}
+                      </Button>
+                      <Button
+                        onClick={handleDownloadPdf}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {t("downloadInvoice")}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

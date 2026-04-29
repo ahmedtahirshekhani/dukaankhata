@@ -298,29 +298,28 @@ export default function Products() {
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      // Fetch all products (without filters for export)
-      const response = await fetch("/api/products?type=all");
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
+      
+      // Use products already loaded in state (not from API)
+      if (!products || products.length === 0) {
+        throw new Error("No products to export");
       }
-      const allProducts = await response.json();
 
       // Generate filename
-      const filename = `products.xlsx`;
+      const filename = `products-${new Date().toISOString().split('T')[0]}.xlsx`;
 
       // Export to Excel
-      exportProductsToExcel(allProducts, filename);
+      exportProductsToExcel(products, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
       setErrorDialog({
         open: true,
         title: t("downloadError"),
-        message: t("downloadError"),
+        message: error instanceof Error ? error.message : t("downloadError"),
       });
     } finally {
       setIsDownloading(false);
     }
-  }, [t]);
+  }, [products, t]);
 
   const handleDownloadTemplate = useCallback(() => {
     exportProductsTemplate("products-template.xlsx");
@@ -583,13 +582,13 @@ export default function Products() {
                       <FileDown className="mr-2 h-4 w-4" />
                       {t("downloadTemplate")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem
+                    {/* <DropdownMenuItem
                       onClick={handleDownloadSampleFile}
                       disabled={isDownloading || isImporting}
                     >
                       <FileDown className="mr-2 h-4 w-4" />
                       {t("downloadSampleFile") || "Download Sample Data"}
-                    </DropdownMenuItem>
+                    </DropdownMenuItem> */}
                     <DropdownMenuItem
                       onClick={handleImportClick}
                       disabled={isDownloading || isImporting}
