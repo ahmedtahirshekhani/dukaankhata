@@ -173,8 +173,5 @@ export const paymentMethods = [
 // Support contact details for quick access across the app
 export const supportContact = {
   // Update these to your real support contacts
-  email: "ahmedtahir.developer@gmail.com",
   phone: "+92 3352575725",
-  whatsapp: "+491786141157", // WhatsApp phone; format with country code
-  linkedin: "https://www.linkedin.com/in/ahmedtahirshekhani/",
 };
