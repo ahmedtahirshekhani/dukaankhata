@@ -72,7 +72,7 @@ export function LandingHeader() {
             >
               Login
             </Link> */}
-            <Link href={`/${locale}/admin`}>
+            <Link href={`/${locale}/admin/welcome`}>
               <Button className="hidden sm:inline-flex" size="sm">
                 {t("dashboard")}
               </Button>
