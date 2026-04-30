@@ -1,6 +1,6 @@
 //api/quotations/:id - Get, update, delete single quotation
 import { NextRequest, NextResponse } from "next/server";
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import type { QuotationDoc } from "../route";
 
@@ -63,6 +63,7 @@ export async function GET(
       },
     };
 
+    await updateUserLastActivity();
     return NextResponse.json(formatted);
   } catch (error: any) {
     console.error("GET /api/quotations/[id] error:", error);
@@ -143,6 +144,7 @@ export async function PUT(
       updated_at: updated.updated_at,
     };
 
+    await updateUserLastActivity();
     return NextResponse.json(formatted);
   } catch (error: any) {
     console.error("PUT /api/quotations/[id] error:", error);
@@ -185,6 +187,7 @@ export async function DELETE(
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       success: true,
       message: "Quotation cancelled successfully",

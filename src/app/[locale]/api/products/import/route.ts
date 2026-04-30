@@ -1,5 +1,5 @@
 // src/app/[locale]/api/products/import/route.ts
-import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import * as XLSX from "xlsx";
@@ -12,27 +12,47 @@ export async function POST(request: Request) {
   }
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+    let data: any[] = [];
+    const contentType = request.headers.get("content-type") || "";
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (contentType.includes("application/json")) {
+      // Handle JSON data from preview
+      const body = await request.json();
+      if (!body.data || !Array.isArray(body.data)) {
+        return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
+      }
+      // Convert JSON objects to array format expected by the rest of the code
+      const jsonData = body.data as Record<string, any>[];
+      if (jsonData.length === 0) {
+        return NextResponse.json({ error: "No data provided" }, { status: 400 });
+      }
+      // Get headers from first object
+      const headers = Object.keys(jsonData[0]);
+      data = [headers, ...jsonData.map((item) => headers.map((h) => item[h]))];
+    } else {
+      // Handle file upload
+      const formData = await request.formData();
+      const file = formData.get("file") as File;
+
+      if (!file) {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      data = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        defval: "",
+        raw: false,
+      });
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      defval: "",
-      raw: false,
-    });
 
     if (data.length < 2) {
       return NextResponse.json(
-        { error: "Excel file must contain at least a header row and one data row" },
+        { error: "No data rows found. Please ensure your file has at least one data row." },
         { status: 400 }
       );
     }
@@ -173,6 +193,7 @@ export async function POST(request: Request) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       successCount,
       errorCount,

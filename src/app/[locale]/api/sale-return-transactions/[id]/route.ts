@@ -7,6 +7,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
@@ -112,6 +113,7 @@ export async function GET(
     }
 
     const pmId = item.payment_method_id;
+    await updateUserLastActivity();
     return NextResponse.json({
       id: item._id.toString(),
       returnNumber: item.return_number ?? "",
@@ -315,6 +317,7 @@ export async function PUT(
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
     const pmId = updated.payment_method_id;
+    await updateUserLastActivity();
     return NextResponse.json({
       id: updated._id.toString(),
       returnNumber: updated.return_number ?? "",
@@ -406,6 +409,7 @@ export async function DELETE(
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (err: unknown) {
     console.error("sale-return-transactions DELETE [id] error", err);

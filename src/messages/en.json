@@ -202,6 +202,7 @@
     "stock": "Stock",
     "downloadExcel": "Download Excel Sheet",
     "downloadTemplate": "Download Template Excel File",
+    "downloadSampleFile": "Download Sample Data",
     "import": "Import",
     "importing": "Importing...",
     "importSuccess": "Products imported successfully",
@@ -298,7 +299,10 @@
     "createCategory": "Create \"{value}\"",
     "branchTooltip": "Branch or warehouse where item is stored",
     "selectOrCreateBranch": "Select or create a branch",
-    "createBranch": "Create \"{value}\""
+    "createBranch": "Create Branch",
+    "importPreview": "Import Preview",
+    "editImportData": "Edit the data below before confirming the import",
+    "totalRows": "Total rows"
   },
   "paymentIn": {
     "title": "Payment In",
@@ -715,7 +719,12 @@
     "nameOptional": "Name (Optional)",
     "numberOptional": "Number (Optional)",
     "others": "Others",
-    "addCustomItemTitle": "Add a custom item"
+    "addCustomItemTitle": "Add a custom item",
+    "importPreview": "Import Preview",
+    "editImportData": "Edit the data below before confirming the import",
+    "priceRequired": "Price is required",
+    "uomRequired": "Unit of measurement is required",
+    "quantityGreaterThanZero": "Quantity must be greater than 0"
   },
   "invoice": {
     "searchCustomer": "Search Party...",

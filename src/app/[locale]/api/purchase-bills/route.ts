@@ -6,6 +6,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
@@ -99,6 +100,7 @@ export async function GET(request: Request) {
       })
     );
 
+    await updateUserLastActivity();
     return NextResponse.json(billId ? billsWithParties[0] : billsWithParties);
   } catch (error: unknown) {
     console.error("Error fetching purchase bills:", error);
@@ -251,6 +253,7 @@ export async function POST(request: Request) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json(
       {
         success: true,
@@ -337,6 +340,7 @@ export async function PUT(request: Request) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       success: true,
       message: "Purchase bill updated successfully",
@@ -390,6 +394,7 @@ export async function DELETE(request: Request) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       success: true,
       message: "Purchase bill deleted successfully",

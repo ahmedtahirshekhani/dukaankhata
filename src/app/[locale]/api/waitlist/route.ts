@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, updateUserLastActivity } from "@/lib/db/mongodb";
 
 interface WaitlistFormData {
   name: string;
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Return success response
+    await updateUserLastActivity();
     return NextResponse.json(
       {
         success: true,
@@ -161,6 +162,7 @@ export async function GET(request: NextRequest) {
       updatedAt: entry.updated_at,
     }));
 
+    await updateUserLastActivity();
     return NextResponse.json({
       success: true,
       count: formattedEntries.length,

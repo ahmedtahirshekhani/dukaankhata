@@ -6,6 +6,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { NextResponse } from "next/server";
@@ -82,6 +83,7 @@ export async function PUT(
     );
   }
 
+  await updateUserLastActivity();
   return NextResponse.json({
     id: resultDoc._id.toString(),
     name: resultDoc.name,
@@ -128,5 +130,6 @@ export async function DELETE(
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+  await updateUserLastActivity();
   return NextResponse.json({ message: "Customer deleted successfully" });
 }

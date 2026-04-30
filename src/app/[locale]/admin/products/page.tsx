@@ -18,6 +18,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
+import { createSampleProductsExcel } from "@/lib/excel/sample-products";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ import {
 import { useProductsData } from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
+import * as XLSX from "xlsx";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -100,6 +103,9 @@ export default function Products() {
     open: false,
     message: "",
   });
+  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
+  const [importPreviewData, setImportPreviewData] = useState<Record<string, any>[]>([]);
+  const [importColumns, setImportColumns] = useState<string[]>([]);
 
   // Use custom hook for data fetching
   const { products, categories, branches, loading, setProducts, refetchData } =
@@ -292,32 +298,35 @@ export default function Products() {
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      // Fetch all products (without filters for export)
-      const response = await fetch("/api/products?type=all");
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
+      
+      // Use products already loaded in state (not from API)
+      if (!products || products.length === 0) {
+        throw new Error("No products to export");
       }
-      const allProducts = await response.json();
 
       // Generate filename
-      const filename = `products.xlsx`;
+      const filename = `products-${new Date().toISOString().split('T')[0]}.xlsx`;
 
       // Export to Excel
-      exportProductsToExcel(allProducts, filename);
+      exportProductsToExcel(products, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
       setErrorDialog({
         open: true,
         title: t("downloadError"),
-        message: t("downloadError"),
+        message: error instanceof Error ? error.message : t("downloadError"),
       });
     } finally {
       setIsDownloading(false);
     }
-  }, [t]);
+  }, [products, t]);
 
   const handleDownloadTemplate = useCallback(() => {
     exportProductsTemplate("products-template.xlsx");
+  }, []);
+
+  const handleDownloadSampleFile = useCallback(() => {
+    createSampleProductsExcel();
   }, []);
 
   const handleFileSelect = useCallback(
@@ -341,12 +350,43 @@ export default function Products() {
 
       try {
         setIsImporting(true);
-        const formData = new FormData();
-        formData.append("file", file);
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet);
 
+        if (data.length === 0) {
+          throw new Error("No data found in Excel file");
+        }
+
+        // Get all columns from first row
+        const columns = Object.keys(data[0] as Record<string, any>);
+        setImportColumns(columns);
+        setImportPreviewData(data as Record<string, any>[]);
+        setIsImportPreviewOpen(true);
+      } catch (error) {
+        console.error("Error reading Excel:", error);
+        setErrorDialog({
+          open: true,
+          title: t("importError"),
+          message: error instanceof Error ? error.message : t("importError"),
+        });
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [t]
+  );
+
+  const handleConfirmImport = useCallback(
+    async (editedData: Record<string, any>[]) => {
+      try {
         const response = await fetch("/api/products/import", {
           method: "POST",
-          body: formData,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data: editedData }),
         });
 
         if (!response.ok) {
@@ -376,6 +416,11 @@ export default function Products() {
           isSuccess: result.errorCount === 0,
         });
 
+        // Close preview modal
+        setIsImportPreviewOpen(false);
+        setImportPreviewData([]);
+        setImportColumns([]);
+
         // Refresh products
         await refetchData();
 
@@ -384,14 +429,13 @@ export default function Products() {
           fileInputRef.current.value = "";
         }
       } catch (error) {
-        console.error("Error importing Excel:", error);
+        console.error("Error importing products:", error);
         setErrorDialog({
           open: true,
           title: t("importError"),
           message: error instanceof Error ? error.message : t("importError"),
         });
-      } finally {
-        setIsImporting(false);
+        throw error;
       }
     },
     [t, refetchData]
@@ -470,6 +514,13 @@ export default function Products() {
                     <FileDown className="mr-2 h-4 w-4" />
                     {t("downloadTemplate")}
                   </DropdownMenuItem>
+                  {/* <DropdownMenuItem
+                    onClick={handleDownloadSampleFile}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadSampleFile") || "Download Sample Data"}
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem
                     onClick={handleImportClick}
                     disabled={isDownloading || isImporting}
@@ -531,6 +582,13 @@ export default function Products() {
                       <FileDown className="mr-2 h-4 w-4" />
                       {t("downloadTemplate")}
                     </DropdownMenuItem>
+                    {/* <DropdownMenuItem
+                      onClick={handleDownloadSampleFile}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {t("downloadSampleFile") || "Download Sample Data"}
+                    </DropdownMenuItem> */}
                     <DropdownMenuItem
                       onClick={handleImportClick}
                       disabled={isDownloading || isImporting}
@@ -906,6 +964,14 @@ export default function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ImportPreviewModal
+        open={isImportPreviewOpen}
+        onOpenChange={setIsImportPreviewOpen}
+        data={importPreviewData}
+        columns={importColumns}
+        isLoading={isImporting}
+        onConfirm={handleConfirmImport}
+      />
       <ErrorDialog
         open={errorDialog.open}
         onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}

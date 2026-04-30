@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getCollection, COLLECTIONS, toObjectId } from '@/lib/db/mongodb';
+import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '@/lib/db/mongodb';
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -43,6 +43,7 @@ export async function GET() {
       updatedAt: item.updated_at,
     }));
 
+    await updateUserLastActivity();
     return NextResponse.json(list);
   } catch (err: unknown) {
     console.error('payment-method GET error', err);
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create payment method' }, { status: 500 });
     }
 
+    await updateUserLastActivity();
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),
       bankName,

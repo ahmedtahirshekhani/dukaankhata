@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
       await partiesCollection.insertOne({
-        name: "Cash In Hand",
+        name: "Walk In Customer",
         type: "cash",
         user_id: newUser?._id,
         company_name: companyName,

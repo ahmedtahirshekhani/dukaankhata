@@ -598,7 +598,7 @@ import { open } from "sqlite";
 import { ObjectId } from "mongodb";
 
 import { getCurrentUser } from "@/lib/auth/utils";
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from "@/lib/db/mongodb";
 
 // ------------------- helpers -------------------
 const str = (v: any) => (v == null ? "" : String(v).trim());
@@ -1106,6 +1106,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("🎉 FINAL SUMMARY:", JSON.stringify(summary, null, 2));
+    await updateUserLastActivity();
     return NextResponse.json({ success: true, summary });
 
   } catch (err: any) {

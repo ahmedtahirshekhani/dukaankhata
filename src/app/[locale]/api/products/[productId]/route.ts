@@ -1,6 +1,6 @@
 
 // src/app/[locale]/api/products/[productId]/route.ts
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated } from '@/lib/db/mongodb'
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
 
@@ -71,6 +71,7 @@ export async function PUT(
       productId,
     })
 
+    await updateUserLastActivity();
     return NextResponse.json({
       ...updatedDoc,
       id: updatedDoc._id.toString(),

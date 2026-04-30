@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 
 interface Transaction {
   id: number;
-  productId?: number;
+  productId?: number | string;
   productName?: string;
   productDescription?: string;
   type: "income" | "expense";
@@ -32,6 +32,9 @@ export function exportTransactionsToExcel(
       day: "2-digit",
     }),
     "Amount (Rs.)": Math.floor(transaction.amount),
+    UOM: (transaction as any).uom || "Piece",
+    Quantity: (transaction as any).quantity || 1,
+    "Unit Price": (transaction as any).unitPrice || Math.floor(transaction.amount),
     "Customer Name": transaction.customerName || "-",
     "Customer Number": transaction.customerNumber || "-",
   }));
@@ -49,6 +52,9 @@ export function exportTransactionsToExcel(
     { wch: 12 }, // Type
     { wch: 15 }, // Date
     { wch: 15 }, // Amount
+    { wch: 12 }, // UOM
+    { wch: 12 }, // Quantity
+    { wch: 15 }, // Unit Price
     { wch: 20 }, // Customer Name
     { wch: 18 }, // Customer Number
   ];
@@ -75,6 +81,9 @@ export function exportTransactionsTemplate(
     "Type",
     "Date",
     "Amount (Rs.)",
+    "UOM",
+    "Quantity",
+    "Unit Price",
     "Customer Name",
     "Customer Number",
   ];
@@ -92,6 +101,9 @@ export function exportTransactionsTemplate(
     { wch: 12 }, // Type
     { wch: 15 }, // Date
     { wch: 15 }, // Amount
+    { wch: 12 }, // UOM
+    { wch: 12 }, // Quantity
+    { wch: 15 }, // Unit Price
     { wch: 20 }, // Customer Name
     { wch: 18 }, // Customer Number
   ];

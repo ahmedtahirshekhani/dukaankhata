@@ -5,6 +5,7 @@ import {
   COLLECTIONS,
   toObjectId,
   isValidObjectId,
+  updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest) {
       type: item.type ?? 'payment-in',
     }));
 
+    await updateUserLastActivity();
     return NextResponse.json(list);
   } catch (err: unknown) {
     console.error('customer-transactions GET error', err);
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),
       customerId,

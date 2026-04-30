@@ -1,6 +1,6 @@
 
 // src/app/[locale]/api/transactions/route.ts
-import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
     user_id: transaction.user_id.toString(),
   }));
 
+  await updateUserLastActivity();
   return NextResponse.json({
     data: transactions,
     total: count,
@@ -80,6 +81,9 @@ export async function POST(request: Request) {
   const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
   const result = await transactionsCollection.insertOne({
     ...newTransaction,
+    productId: newTransaction.productId && typeof newTransaction.productId === 'string' && newTransaction.productId.match(/^[0-9a-fA-F]{24}$/) 
+      ? toObjectId(newTransaction.productId) 
+      : newTransaction.productId,
     user_id: toObjectId(user.id),
     created_at: newTransaction.created_at ? new Date(newTransaction.created_at) : now,
     updated_at: now, // ✅ added updated_at
@@ -100,6 +104,7 @@ export async function POST(request: Request) {
     _id: result.insertedId,
   });
 
+  await updateUserLastActivity();
   return NextResponse.json({
     ...transaction,
     id: transaction?._id.toString(),

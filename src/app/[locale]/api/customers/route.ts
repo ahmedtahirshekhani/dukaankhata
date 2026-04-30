@@ -1,6 +1,6 @@
 
 // src/app/[locale]/api/customers/route.ts
-import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { seedCustomerOpeningBalance } from "@/lib/ledger/customer-ledger";
@@ -46,6 +46,7 @@ export async function GET(request: Request) {
     is_delete: customer.is_delete || 0,
   }));
 
+  await updateUserLastActivity();
   return NextResponse.json(customers);
 }
 
@@ -122,7 +123,8 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
+    await updateUserLastActivity();
+  return NextResponse.json({
       id: customer?._id.toString(),
       name: customer?.name,
       email: customer?.email,

@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 
 export type QuotationStatus = "open" | "converted" | "expired" | "cancelled";
@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
     }));
     
     console.log("📤 Sending response with", formatted.length, "quotations");
+    await updateUserLastActivity();
     return NextResponse.json(formatted);
     
   } catch (error) {
@@ -150,6 +151,7 @@ export async function POST(request: NextRequest) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
     
+    await updateUserLastActivity();
     return NextResponse.json({
       ...quotation,
       _id: result.insertedId.toString(),

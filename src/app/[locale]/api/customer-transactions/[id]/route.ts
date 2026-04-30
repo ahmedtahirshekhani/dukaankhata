@@ -8,6 +8,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
@@ -50,6 +51,7 @@ export async function GET(
     }
 
     const pmId = item.payment_method_id;
+    await updateUserLastActivity();
     return NextResponse.json({
       id: item._id.toString(),
       customerId: item.customer_id.toString(),
@@ -181,6 +183,7 @@ export async function PUT(
     }
 
     const pmId = updatedDoc.payment_method_id;
+    await updateUserLastActivity();
     return NextResponse.json({
       id: updatedDoc._id.toString(),
       customerId: updatedDoc.customer_id.toString(),
@@ -250,16 +253,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Optional: Update user's last activity (e.g., in users collection)
-    // You can uncomment below if you want to track last activity per user
-    /*
-    const usersCollection = await getCollection(COLLECTIONS.USERS);
-    await usersCollection.updateOne(
-      { _id: toObjectId(user.id) },
-      { $set: { last_activity_at: new Date() } }
-    );
-    */
-
+    await updateUserLastActivity();
     return NextResponse.json({ message: 'Deleted successfully' });
   } catch (err: unknown) {
     console.error('customer-transactions DELETE [id] error', err);

@@ -2,7 +2,7 @@
 // src/app/[locale]/api/expenses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
-import { COLLECTIONS, getCollection, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { COLLECTIONS, getCollection, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { setDateToCurrentTime } from "@/lib/utils";
 
 type ExpenseItemInput = {
@@ -58,6 +58,7 @@ export async function GET() {
       amount: Number(row.amount ?? 0),
     }));
 
+    await updateUserLastActivity();
     return NextResponse.json({ categories, items, expenses });
   } catch (err) {
     console.error("expenses GET error", err);
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       expenseNumber,
       insertedCount: insertResult.insertedCount,

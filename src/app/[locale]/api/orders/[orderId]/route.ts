@@ -1,5 +1,5 @@
 // src/app/[locale]/api/orders/[orderId]/route.ts
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated } from '@/lib/db/mongodb';
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
@@ -240,6 +240,7 @@ export async function PUT(
     { projection: { name: 1, email: 1, phone: 1 } }
   );
 
+  await updateUserLastActivity();
   return NextResponse.json({
     id: updatedOrder._id.toString(),
     customer_id: updatedOrder.customer_id.toString(),
@@ -330,5 +331,6 @@ export async function DELETE(
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+  await updateUserLastActivity();
   return NextResponse.json({ message: 'Order deleted successfully' });
 }

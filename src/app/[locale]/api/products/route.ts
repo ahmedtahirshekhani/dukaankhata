@@ -1,6 +1,6 @@
 
 // src/app/[locale]/api/products/route.ts
-import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from '@/lib/db/mongodb'
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
 
@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     _id: undefined,
   }));
 
+  await updateUserLastActivity();
   return NextResponse.json(products)
 }
 
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
 
   const product = await productsCollection.findOne({ _id: result.insertedId });
 
+  await updateUserLastActivity();
   return NextResponse.json({
     ...product,
     id: product?._id.toString(),
