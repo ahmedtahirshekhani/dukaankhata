@@ -719,7 +719,12 @@
     "nameOptional": "Name (Optional)",
     "numberOptional": "Number (Optional)",
     "others": "Others",
-    "addCustomItemTitle": "Add a custom item"
+    "addCustomItemTitle": "Add a custom item",
+    "importPreview": "Import Preview",
+    "editImportData": "Edit the data below before confirming the import",
+    "priceRequired": "Price is required",
+    "uomRequired": "Unit of measurement is required",
+    "quantityGreaterThanZero": "Quantity must be greater than 0"
   },
   "invoice": {
     "searchCustomer": "Search Party...",

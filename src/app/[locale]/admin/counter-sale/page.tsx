@@ -44,6 +44,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Combobox } from "@/components/ui/combobox";
+import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import {
   Loader2Icon,
   ArrowUpDown,
@@ -60,6 +61,7 @@ import {
   XIcon,
   MoreVertical,
   CalendarIcon,
+  PlusCircle,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
@@ -70,6 +72,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
+import * as XLSX from "xlsx";
 
 import {
   Select,
@@ -94,7 +98,7 @@ const ITEMS_PER_PAGE = 25;
 
 interface Transaction {
   id: number;
-  productId?: number;
+  productId?: number | string;
   productName?: string;
   productDescription?: string;
   type: TransactionType;
@@ -139,14 +143,7 @@ export default function CounterSale() {
     created_at: new Date().toISOString(),
   });
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
-  const [isCustomItemDialogOpen, setIsCustomItemDialogOpen] = useState(false);
-  const [customItemData, setCustomItemData] = useState({
-    name: "",
-    description: "",
-  });
-  const [selectedComboboxContext, setSelectedComboboxContext] = useState<
-    "add" | "edit"
-  >("add");
+
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -165,6 +162,9 @@ export default function CounterSale() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
+  const [importData, setImportData] = useState<Record<string, any>[]>([]);
+  const [importColumns, setImportColumns] = useState<string[]>([]);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
     title?: string;
@@ -335,42 +335,7 @@ export default function CounterSale() {
     );
   };
 
-  const handleAddCustomItem = () => {
-    if (!customItemData.name.trim()) {
-      setErrorDialog({
-        open: true,
-        title: t("validationError"),
-        message: t("itemNameRequired"),
-      });
-      return;
-    }
 
-    // Create a temporary product object with a negative ID for custom items
-    const customProduct: Product = {
-      id: -Date.now(), // Use negative timestamp as unique ID
-      name: customItemData.name,
-      description: customItemData.description || undefined,
-    };
-
-    if (selectedComboboxContext === "add") {
-      setNewTransaction((prev) => ({
-        ...prev,
-        productId: customProduct.id as number,
-        productName: customProduct.name,
-        productDescription: customProduct.description,
-      }));
-    } else {
-      setEditFormData((prev) => ({
-        ...prev,
-        productId: customProduct.id as number,
-        productName: customProduct.name,
-        productDescription: customProduct.description,
-      }));
-    }
-
-    setIsCustomItemDialogOpen(false);
-    setCustomItemData({ name: "", description: "" });
-  };
 
   const handleUpdateTransaction = async (id: number) => {
     // Validate required fields
@@ -429,7 +394,31 @@ export default function CounterSale() {
         title: t("validationError"),
         message: t("productRequired"),
       });
-      return;
+      return false;
+    }
+    if (newTransaction.unitPrice === undefined || newTransaction.unitPrice === null) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("priceRequired"),
+      });
+      return false;
+    }
+    if (!newTransaction.uom) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("uomRequired"),
+      });
+      return false;
+    }
+    if (!newTransaction.quantity || newTransaction.quantity <= 0) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("quantityGreaterThanZero"),
+      });
+      return false;
     }
     if (!newTransaction.amount || newTransaction.amount <= 0) {
       setErrorDialog({
@@ -437,7 +426,7 @@ export default function CounterSale() {
         title: t("validationError"),
         message: t("amountGreaterThanZero"),
       });
-      return;
+      return false;
     }
 
     try {
@@ -460,42 +449,47 @@ export default function CounterSale() {
           amount: 0,
           created_at: new Date().toISOString(),
         });
+        return true;
       } else {
         console.error("Failed to add transaction");
+        return false;
       }
     } catch (error) {
       console.error("Error adding transaction:", error);
+      return false;
     }
   };
 
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      // Fetch all transactions for the selected year (without pagination)
-      const response = await fetch(
-        `/api/transactions?year=${selectedYear}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`,
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch transactions");
+      
+      // Filter transactions for selected year from local state
+      const yearTransactions = transactions.filter((t) => {
+        const transactionYear = new Date(t.created_at).getFullYear();
+        return transactionYear === selectedYear;
+      });
+
+      if (!yearTransactions || yearTransactions.length === 0) {
+        throw new Error(`No transactions found for year ${selectedYear}`);
       }
-      const result: PaginatedResponse = await response.json();
 
       // Generate filename with year
       const filename = `counter-sale-transactions-${selectedYear}.xlsx`;
 
       // Export to Excel
-      exportTransactionsToExcel(result.data, filename);
+      exportTransactionsToExcel(yearTransactions, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
       setErrorDialog({
         open: true,
         title: t("downloadError"),
-        message: t("downloadError"),
+        message: error instanceof Error ? error.message : t("downloadError"),
       });
     } finally {
       setIsDownloading(false);
     }
-  }, [selectedYear, sortColumn, sortDirection, t]);
+  }, [transactions, selectedYear, t]);
 
   const handleDownloadDateRange = useCallback(async () => {
     if (!dateRange.fromDate || !dateRange.toDate) {
@@ -518,14 +512,20 @@ export default function CounterSale() {
 
     try {
       setIsDownloading(true);
-      // Fetch all transactions for the date range (without pagination)
-      const response = await fetch(
-        `/api/transactions?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}&all=true&sortColumn=${sortColumn}&sortDirection=${sortDirection}`,
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch transactions");
+      
+      // Filter transactions for date range from local state
+      const fromDate = new Date(dateRange.fromDate);
+      const toDate = new Date(dateRange.toDate);
+      toDate.setHours(23, 59, 59, 999); // Include entire end day
+      
+      const dateRangeTransactions = transactions.filter((t) => {
+        const tDate = new Date(t.created_at);
+        return tDate >= fromDate && tDate <= toDate;
+      });
+
+      if (!dateRangeTransactions || dateRangeTransactions.length === 0) {
+        throw new Error("No transactions found for selected date range");
       }
-      const result: PaginatedResponse = await response.json();
 
       // Generate filename with date range
       const fromDateStr = dateRange.fromDate.replace(/-/g, "");
@@ -533,7 +533,7 @@ export default function CounterSale() {
       const filename = `counter-sale-transactions-${fromDateStr}-${toDateStr}.xlsx`;
 
       // Export to Excel
-      exportTransactionsToExcel(result.data, filename);
+      exportTransactionsToExcel(dateRangeTransactions, filename);
 
       // Close dialog and reset date range
       setIsDateRangeDialogOpen(false);
@@ -543,38 +543,60 @@ export default function CounterSale() {
       setErrorDialog({
         open: true,
         title: t("downloadError"),
-        message: t("downloadError"),
+        message: error instanceof Error ? error.message : t("downloadError"),
       });
     } finally {
       setIsDownloading(false);
     }
-  }, [dateRange, sortColumn, sortDirection, t]);
+  }, [transactions, dateRange, t]);
 
   const handleDownloadTemplate = useCallback(() => {
     exportTransactionsTemplate("counter-sale-template.xlsx");
   }, []);
 
-  const handleFileSelect = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
+  const handleDownloadSampleData = useCallback(() => {
+    // Create sample transactions data
+    const sampleTransactions: Transaction[] = [
+      {
+        id: 1,
+        productId: "69688cfff3fc6042dbafdf1f",
+        productName: "Laptop",
+        productDescription: "Description",
+        type: "income",
+        unitPrice: 234534,
+        quantity: 1,
+        amount: 234534,
+        uom: "kg",
+        customerName: "testing",
+        customerNumber: "03203138038",
+        created_at: "2026-04-29T20:31:26.547+00:00",
+      },
+    ];
 
-      // Validate file type
-      if (
-        !file.name.endsWith(".xlsx") &&
-        !file.name.endsWith(".xls") &&
-        !file.type.includes("spreadsheet")
-      ) {
-        setErrorDialog({
-          open: true,
-          title: t("importValidationError"),
-          message: t("importValidationError"),
-        });
-        return;
-      }
+    // Export sample data
+    exportTransactionsToExcel(sampleTransactions, "counter-sale-sample-data.xlsx");
+  }, []);
 
+  const handleImportConfirm = useCallback(
+    async (editedData: Record<string, any>[]) => {
       try {
         setIsImporting(true);
+
+        const worksheet = XLSX.utils.json_to_sheet(editedData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+
+        const excelBuffer = XLSX.write(workbook, {
+          bookType: "xlsx",
+          type: "array",
+        });
+        const blob = new Blob([excelBuffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const file = new File([blob], "edited_import.xlsx", {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
         const formData = new FormData();
         formData.append("file", file);
 
@@ -607,6 +629,8 @@ export default function CounterSale() {
           message: message,
           isSuccess: result.errorCount === 0,
         });
+
+        setIsImportPreviewOpen(false);
 
         // Refresh transactions by resetting to page 1 and triggering refetch
         const wasOnPage1 = currentPage === 1;
@@ -647,7 +671,7 @@ export default function CounterSale() {
           fileInputRef.current.value = "";
         }
       } catch (error) {
-        console.error("Error importing Excel:", error);
+        console.error("Error uploading imported data:", error);
         setErrorDialog({
           open: true,
           title: t("importError"),
@@ -657,7 +681,66 @@ export default function CounterSale() {
         setIsImporting(false);
       }
     },
-    [t, currentPage, sortColumn, sortDirection, selectedYear],
+    [t, currentPage, sortColumn, sortDirection, selectedYear, setTransactions, setPageInfo],
+  );
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls") &&
+        !file.type.includes("spreadsheet")
+      ) {
+        setErrorDialog({
+          open: true,
+          title: t("importValidationError"),
+          message: t("importValidationError"),
+        });
+        return;
+      }
+
+      try {
+        setIsImporting(true);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
+            
+            if (jsonData.length > 0) {
+              const columns = Object.keys(jsonData[0]);
+              setImportData(jsonData);
+              setImportColumns(columns);
+              setIsImportPreviewOpen(true);
+            } else {
+              throw new Error("No data found in the file");
+            }
+          } catch (err) {
+            console.error("Error parsing Excel:", err);
+            setErrorDialog({
+              open: true,
+              title: t("importError"),
+              message: err instanceof Error ? err.message : t("importError"),
+            });
+          } finally {
+            setIsImporting(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } catch (error) {
+        console.error("Error reading file:", error);
+        setIsImporting(false);
+      }
+    },
+    [t],
   );
 
   const handleImportClick = useCallback(() => {
@@ -1171,6 +1254,13 @@ export default function CounterSale() {
                     <FileDown className="mr-2 h-4 w-4" />
                     {t("downloadTemplate")}
                   </DropdownMenuItem>
+                  {/* <DropdownMenuItem
+                    onClick={handleDownloadSampleData}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadSampleFile") || "Download Sample Data"}
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem
                     onClick={handleImportClick}
                     disabled={isDownloading || isImporting}
@@ -1262,6 +1352,13 @@ export default function CounterSale() {
                       <FileDown className="mr-2 h-4 w-4" />
                       {t("downloadTemplate")}
                     </DropdownMenuItem>
+                    {/* <DropdownMenuItem
+                      onClick={handleDownloadSampleData}
+                      disabled={isDownloading || isImporting}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      {t("downloadSampleFile") || "Download Sample Data"}
+                    </DropdownMenuItem> */}
                     <DropdownMenuItem
                       onClick={handleImportClick}
                       disabled={isDownloading || isImporting}
@@ -1458,46 +1555,24 @@ export default function CounterSale() {
                       </TableRow>
                       <TableRow>
                         <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                          <Combobox
-                            items={products}
-                            placeholder={t("selectItem")}
-                            className="w-40 truncate"
-                            value={newTransaction.productName}
-                            onSelect={(productId) => {
-                              if (productId === 0) {
-                                // "Others" option selected
-                                setSelectedComboboxContext("add");
+                          <ProductDropdown
+                            value={newTransaction.productId ? String(newTransaction.productId) : ""}
+                            onValueChange={(value, product) => {
+                              if (product) {
                                 setNewTransaction((prev) => ({
                                   ...prev,
-                                  unitPrice: 0,
+                                  productId: (product._id ? String(product._id) : String(product.id)) as any,
+                                  productName: product.name,
+                                  productDescription: product.description,
+                                  unitPrice: product.sell_price || 0,
+                                  uom: product.unit_of_measurement || "unit",
                                   quantity: 1,
-                                  amount: 0,
-                                  uom: "unit",
-                                }));
-                                setIsCustomItemDialogOpen(true);
-                              } else {
-                                setNewTransaction((prev) => ({
-                                  ...prev,
-                                  productId: productId as number,
-                                  productName: products.find(
-                                    (p) => p.id === productId,
-                                  )?.name,
-                                  productDescription: products.find(
-                                    (p) => p.id === productId,
-                                  )?.description,
-                                  unitPrice:
-                                    products.find((p) => p.id === productId)
-                                      ?.sell_price || 0,
-                                  uom:
-                                    products.find((p) => p.id === productId)
-                                      ?.unit_of_measurement || "unit",
-                                  quantity: 1, // Default quantity
-                                  amount:
-                                    (products.find((p) => p.id === productId)
-                                      ?.sell_price || 0) * 1,
+                                  amount: (product.sell_price || 0) * 1,
                                 }));
                               }
                             }}
+                            placeholder={t("selectItem")}
+                            className="w-32 truncate text-xs"
                           />
                         </TableCell>
                         <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
@@ -1616,7 +1691,7 @@ export default function CounterSale() {
                         <TableCell className="w-20 px-2 sm:px-4">
                           <Button
                             onClick={handleAddTransaction}
-                            disabled={!isAddFormValid()}
+                            disabled={isImporting}
                             size="sm"
                             className="text-xs sm:text-sm h-8 sm:h-10"
                           >
@@ -1632,50 +1707,25 @@ export default function CounterSale() {
                           {editingId === transaction.id ? (
                             <TableRow className="hidden md:table-row">
                               <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                                <Combobox
-                                  items={products}
-                                  placeholder={t("selectItem")}
-                                  className="w-40 truncate"
-                                  value={editFormData.productName}
-                                  onSelect={(productId) => {
-                                    if (productId === 0) {
-                                      // "Others" option selected
-                                      setSelectedComboboxContext("edit");
-                                      setEditFormData((prev) => ({
-                                        ...prev,
-                                        unitPrice: 0,
-                                        quantity: 1,
-                                        amount: 0,
-                                        uom: "unit",
-                                      }));
-                                      setIsCustomItemDialogOpen(true);
-                                    } else {
-                                      setEditFormData((prev) => ({
-                                        ...prev,
-                                        productId: productId as number,
-                                        productName: products.find(
-                                          (p) => p.id === productId,
-                                        )?.name,
-                                        productDescription: products.find(
-                                          (p) => p.id === productId,
-                                        )?.description,
-                                        unitPrice:
-                                          products.find(
-                                            (p) => p.id === productId,
-                                          )?.sell_price || 0,
-                                        uom:
-                                          products.find(
-                                            (p) => p.id === productId,
-                                          )?.unit_of_measurement || "unit",
-                                        quantity: 1,
-                                        amount:
-                                          (products.find(
-                                            (p) => p.id === productId,
-                                          )?.sell_price || 0) * 1,
-                                      }));
-                                    }
-                                  }}
-                                />
+                                  <ProductDropdown
+                                    value={editFormData.productId ? String(editFormData.productId) : ""}
+                                    onValueChange={(value, product) => {
+                                      if (product) {
+                                        setEditFormData((prev) => ({
+                                          ...prev,
+                                          productId: (product._id ? String(product._id) : String(product.id)) as any,
+                                          productName: product.name,
+                                          productDescription: product.description,
+                                          unitPrice: product.sell_price || 0,
+                                          uom: product.unit_of_measurement || "unit",
+                                          quantity: 1,
+                                          amount: (product.sell_price || 0) * 1,
+                                        }));
+                                      }
+                                    }}
+                                    placeholder={t("selectItem")}
+                                    className="w-32 truncate text-xs"
+                                  />
                               </TableCell>
                               <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
                                 <Input
@@ -2082,45 +2132,25 @@ export default function CounterSale() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium">Item</label>
-                      <Combobox
-                        items={products}
-                        placeholder="Select Item"
-                        value={editFormData.productName}
-                        onSelect={(productId) => {
-                          if (productId === 0) {
-                            setSelectedComboboxContext("edit");
-                            setEditFormData((prev) => ({
-                              ...prev,
-                              unitPrice: 0,
-                              quantity: 1,
-                              amount: 0,
-                              uom: "unit",
-                            }));
-                            setIsCustomItemDialogOpen(true);
-                          } else {
-                            setEditFormData((prev) => ({
-                              ...prev,
-                              productId: productId as number,
-                              productName: products.find(
-                                (p) => p.id === productId,
-                              )?.name,
-                              productDescription: products.find(
-                                (p) => p.id === productId,
-                              )?.description,
-                              unitPrice:
-                                products.find((p) => p.id === productId)
-                                  ?.sell_price || 0,
-                              uom:
-                                products.find((p) => p.id === productId)
-                                  ?.unit_of_measurement || "unit",
-                              quantity: 1,
-                              amount:
-                                (products.find((p) => p.id === productId)
-                                  ?.sell_price || 0) * 1,
-                            }));
-                          }
-                        }}
-                      />
+                        <ProductDropdown
+                          value={editFormData.productId ? String(editFormData.productId) : ""}
+                          onValueChange={(value, product) => {
+                            if (product) {
+                              setEditFormData((prev) => ({
+                                ...prev,
+                                productId: (product._id ? String(product._id) : String(product.id)) as any,
+                                productName: product.name,
+                                productDescription: product.description,
+                                unitPrice: product.sell_price || 0,
+                                uom: product.unit_of_measurement || "unit",
+                                quantity: 1,
+                                amount: (product.sell_price || 0) * 1,
+                              }));
+                            }
+                          }}
+                          placeholder="Select Item"
+                          className="w-full truncate text-sm"
+                        />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium">Type</label>
@@ -2510,44 +2540,25 @@ export default function CounterSale() {
               <label className="text-xs sm:text-sm font-medium">
                 {t("item")}
               </label>
-              <Combobox
-                items={products}
-                placeholder={t("selectItem")}
-                value={newTransaction.productName}
-                onSelect={(productId) => {
-                  if (productId === 0) {
-                    setSelectedComboboxContext("add");
-                    setNewTransaction((prev) => ({
-                      ...prev,
-                      unitPrice: 0,
-                      quantity: 1,
-                      amount: 0,
-                      uom: "unit",
-                    }));
-                    setIsCustomItemDialogOpen(true);
-                  } else {
-                    setNewTransaction((prev) => ({
-                      ...prev,
-                      productId: productId as number,
-                      productName: products.find((p) => p.id === productId)
-                        ?.name,
-                      productDescription: products.find(
-                        (p) => p.id === productId,
-                      )?.description,
-                      unitPrice:
-                        products.find((p) => p.id === productId)?.sell_price ||
-                        0,
-                      uom:
-                        products.find((p) => p.id === productId)
-                          ?.unit_of_measurement || "unit",
-                      quantity: 1,
-                      amount:
-                        (products.find((p) => p.id === productId)?.sell_price ||
-                          0) * 1,
-                    }));
-                  }
-                }}
-              />
+                <ProductDropdown
+                  value={newTransaction.productId ? String(newTransaction.productId) : ""}
+                  onValueChange={(value, product) => {
+                    if (product) {
+                      setNewTransaction((prev) => ({
+                        ...prev,
+                        productId: (product._id ? String(product._id) : String(product.id)) as any,
+                        productName: product.name,
+                        productDescription: product.description,
+                        unitPrice: product.sell_price || 0,
+                        uom: product.unit_of_measurement || "unit",
+                        quantity: 1,
+                        amount: (product.sell_price || 0) * 1,
+                      }));
+                    }
+                  }}
+                  placeholder={t("selectItem")}
+                  className="w-full truncate text-sm"
+                />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
@@ -2697,75 +2708,16 @@ export default function CounterSale() {
               {t("cancel")}
             </Button>
             <Button
-              onClick={() => {
-                handleAddTransaction();
-                setIsAddFormOpen(false);
+              onClick={async () => {
+                const success = await handleAddTransaction();
+                if (success) {
+                  setIsAddFormOpen(false);
+                }
               }}
-              disabled={!isAddFormValid()}
+              disabled={isImporting}
               className="w-full sm:w-auto"
             >
               {t("addTransaction")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={isCustomItemDialogOpen}
-        onOpenChange={setIsCustomItemDialogOpen}
-      >
-        <DialogContent className="sm:max-w-[425px] max-w-[90vw]">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">
-              Add Custom Item
-            </DialogTitle>
-            <DialogDescription className="text-sm">
-              Enter the name and description for your custom item.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Item Name *</label>
-              <Input
-                placeholder="Enter item name"
-                value={customItemData.name}
-                onChange={(e) =>
-                  setCustomItemData((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <Input
-                placeholder="Enter item description (optional)"
-                value={customItemData.description}
-                onChange={(e) =>
-                  setCustomItemData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                className="w-full"
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsCustomItemDialogOpen(false);
-                setCustomItemData({ name: "", description: "" });
-              }}
-              className="w-full sm:w-auto"
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleAddCustomItem} className="w-full sm:w-auto">
-              Add Item
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2845,6 +2797,16 @@ export default function CounterSale() {
         title={errorDialog.title}
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
+      />
+      <ImportPreviewModal
+        open={isImportPreviewOpen}
+        onOpenChange={setIsImportPreviewOpen}
+        data={importData}
+        columns={importColumns}
+        isLoading={isImporting}
+        onConfirm={handleImportConfirm}
+        title={t("importPreview") || "Import Preview"}
+        description={t("editImportData") || "Edit the data below before confirming the import"}
       />
     </>
   );

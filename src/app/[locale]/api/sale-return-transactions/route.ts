@@ -7,6 +7,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
@@ -145,6 +146,7 @@ export async function GET() {
       date: item.date ? new Date(item.date).toISOString().split("T")[0] : "",
     }));
 
+    await updateUserLastActivity();
     return NextResponse.json(list);
   } catch (err: unknown) {
     console.error("sale-return-transactions GET error", err);
@@ -278,6 +280,7 @@ export async function POST(req: NextRequest) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),
       returnNumber,

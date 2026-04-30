@@ -1,6 +1,6 @@
 
 // src/app/[locale]/api/transactions/[transactionId]/route.ts
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated } from '@/lib/db/mongodb'
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
 
@@ -52,6 +52,7 @@ export async function PUT(
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+  await updateUserLastActivity();
   return NextResponse.json({
     ...updatedDoc,
     id: updatedDoc._id.toString(),
@@ -90,5 +91,6 @@ export async function DELETE(
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+  await updateUserLastActivity();
   return NextResponse.json({ message: 'Transaction deleted successfully' });
 }

@@ -5,6 +5,38 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import * as XLSX from "xlsx";
 
+// Helper: Parse date from various formats (Excel string, yyyy-mm-dd, mm/dd/yyyy, etc.)
+function parseDateFromExcel(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const trimmed = dateStr.trim();
+  
+  // Try ISO format (yyyy-mm-dd)
+  let date = new Date(trimmed);
+  if (!isNaN(date.getTime())) return date;
+  
+  // Try mm/dd/yyyy (common in Excel exports)
+  const parts = trimmed.split('/');
+  if (parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
+    const month = parseInt(parts[0], 10) - 1;
+    const day = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    date = new Date(year, month, day);
+    if (!isNaN(date.getTime())) return date;
+  }
+  
+  // Try dd/mm/yyyy
+  const parts2 = trimmed.split('/');
+  if (parts2.length === 3 && parts2[0].length <= 2 && parts2[1].length <= 2 && parts2[2].length === 4) {
+    const day = parseInt(parts2[0], 10);
+    const month = parseInt(parts2[1], 10) - 1;
+    const year = parseInt(parts2[2], 10);
+    date = new Date(year, month, day);
+    if (!isNaN(date.getTime())) return date;
+  }
+  
+  return null;
+}
+
 export async function POST(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
 
@@ -40,6 +72,7 @@ export async function POST(request: Request) {
     }
 
     const headers = data[0] as string[];
+    // Updated expected headers to match manual POST structure
     const expectedHeaders = [
       "Item Name",
       "Description",
@@ -48,35 +81,36 @@ export async function POST(request: Request) {
       "Amount (Rs.)",
       "Customer Name",
       "Customer Number",
+      "UOM",
+      "Quantity",
+      "Unit Price"
     ];
 
     const headerMap: Record<string, number> = {};
-    expectedHeaders.forEach((expectedHeader) => {
+    for (const expectedHeader of expectedHeaders) {
       const foundIndex = headers.findIndex(
         (h) => h.toString().trim() === expectedHeader
       );
       if (foundIndex === -1) {
-        throw new Error(`Missing required column: ${expectedHeader}`);
+        return NextResponse.json(
+          { error: `Missing required column: ${expectedHeader}` },
+          { status: 400 }
+        );
       }
       headerMap[expectedHeader] = foundIndex;
-    });
+    }
 
+    // Get user's products for mapping
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
     const userProducts = await productsCollection
       .find({ user_id: toObjectId(user.id) })
       .toArray();
 
-    const productNameMap = new Map<
-      string,
-      { id: string; description?: string }
-    >();
+    const productNameMap = new Map<string, any>();
     userProducts.forEach((product) => {
       const name = product.name?.toString().toLowerCase().trim();
       if (name) {
-        productNameMap.set(name, {
-          id: product._id.toString(),
-          description: product.description?.toString(),
-        });
+        productNameMap.set(name, product);
       }
     });
 
@@ -86,6 +120,7 @@ export async function POST(request: Request) {
     let successCount = 0;
     let errorCount = 0;
 
+    // Process each row (skip header)
     for (let i = 1; i < data.length; i++) {
       const row = data[i] as any[];
       if (!row || row.length === 0) continue;
@@ -96,9 +131,13 @@ export async function POST(request: Request) {
         const typeStr = String(row[headerMap["Type"]] || "").trim().toLowerCase();
         const dateStr = String(row[headerMap["Date"]] || "").trim();
         const amountStr = String(row[headerMap["Amount (Rs.)"]] || "").trim();
+        const uomStr = String(row[headerMap["UOM"]] || "").trim();
+        const quantityStr = String(row[headerMap["Quantity"]] || "").trim();
+        const unitPriceStr = String(row[headerMap["Unit Price"]] || "").trim();
         const customerName = String(row[headerMap["Customer Name"]] || "").trim();
         const customerNumber = String(row[headerMap["Customer Number"]] || "").trim();
 
+        // Validation
         if (!itemName) {
           errors.push(`Row ${i + 1}: Item Name is required`);
           errorCount++;
@@ -115,65 +154,74 @@ export async function POST(request: Request) {
 
         const amount = parseFloat(amountStr);
         if (isNaN(amount) || amount <= 0) {
-          errors.push(`Row ${i + 1}: Amount must be a positive number`);
+          errors.push(`Row ${i + 1}: Amount must be a positive number (found: ${amountStr})`);
           errorCount++;
           continue;
         }
 
-        let created_at: Date;
+        // Date parsing -> return Date object (same as manual POST)
+        let created_at: Date = new Date(); // default today
         if (dateStr) {
-          const dateStrClean = dateStr.trim();
-          created_at = new Date(dateStrClean);
-          if (isNaN(created_at.getTime())) {
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStrClean)) {
-              created_at = new Date(dateStrClean + "T00:00:00");
-            } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStrClean)) {
-              const parts = dateStrClean.split("/");
-              created_at = new Date(
-                parseInt(parts[2]),
-                parseInt(parts[0]) - 1,
-                parseInt(parts[1])
-              );
-            }
-          }
-          if (isNaN(created_at.getTime())) {
-            errors.push(`Row ${i + 1}: Invalid date format: ${dateStr}`);
+          const parsedDate = parseDateFromExcel(dateStr);
+          if (!parsedDate) {
+            errors.push(`Row ${i + 1}: Invalid date format (use YYYY-MM-DD or MM/DD/YYYY): ${dateStr}`);
             errorCount++;
             continue;
           }
-        } else {
-          created_at = new Date();
+          created_at = parsedDate;
         }
 
+        // Product mapping logic
         const productNameLower = itemName.toLowerCase();
-        let productId: number | undefined;
+        let productId: string | undefined;
         let finalProductName = itemName;
         let finalDescription = description || "";
+        let uom = uomStr || "piece";
+        let quantity = quantityStr ? parseFloat(quantityStr) : 1;
+        let unitPrice = unitPriceStr ? parseFloat(unitPriceStr) : amount;
 
         if (productNameMap.has(productNameLower)) {
           const product = productNameMap.get(productNameLower)!;
-          productId = parseInt(product.id);
-          finalProductName = itemName;
+          productId = product._id.toString();
+          finalProductName = product.name || itemName;
           if (!finalDescription && product.description) {
             finalDescription = product.description;
           }
-        } else {
-          productId = -Date.now() - i;
+          if (!uomStr && product.uom) {
+            uom = product.uom;
+          }
+          // If unit price not provided, use product's price based on type
+          if (!unitPriceStr) {
+            const price = typeStr === "expense" ? product.costPrice : product.sellPrice;
+            if (price && !isNaN(price)) unitPrice = price;
+          }
+          // Auto-calculate quantity if not provided but amount and unit price are valid
+          if (!quantityStr && unitPrice > 0) {
+            quantity = Math.max(1, Math.round(amount / unitPrice));
+          }
         }
 
+        // Validate quantity and unitPrice
+        if (isNaN(quantity) || quantity <= 0) quantity = 1;
+        if (isNaN(unitPrice) || unitPrice <= 0) unitPrice = amount;
+
         const now = new Date();
+        // Create transaction object EXACTLY matching manual POST structure
         const transaction = {
-          productId: productId,
+          productId: (productId && productId.match(/^[0-9a-fA-F]{24}$/)) ? toObjectId(productId) : productId,
           productName: finalProductName,
           productDescription: finalDescription || undefined,
           type: typeStr as "income" | "expense",
-          created_at: created_at.toISOString(),
+          created_at: created_at,        // Date object, not string
           amount: amount,
           customerName: customerName || undefined,
           customerNumber: customerNumber || undefined,
+          uom: uom,
+          quantity: quantity,
+          unitPrice: unitPrice,
           user_id: toObjectId(user.id),
-          created_at_db: now,
-          updated_at: now, // ✅ added updated_at
+          updated_at: now,               // same as manual POST
+          // ❌ No created_at_db field
         };
 
         transactionsToInsert.push(transaction);
@@ -183,19 +231,20 @@ export async function POST(request: Request) {
       }
     }
 
+    // Bulk insert
     if (transactionsToInsert.length > 0) {
       const result = await transactionsCollection.insertMany(transactionsToInsert);
       successCount = result.insertedCount;
     }
 
-    // ✅ Update user's last activity after bulk import
+    // Update user's last activity (same as manual POST)
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
     return NextResponse.json({
       successCount,
       errorCount,
-      errors: errors.slice(0, 10),
+      errors: errors.slice(0, 10), // limit errors to 10 in response
       totalRows: data.length - 1,
     });
   } catch (error) {

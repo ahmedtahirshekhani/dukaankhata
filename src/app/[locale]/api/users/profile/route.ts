@@ -1,7 +1,7 @@
 //src/app/[locale]/api/users/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { auth } from "@/auth";
 
 export async function POST(req: NextRequest) {
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    await updateUserLastActivity();
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error("profile update error", err?.message || err);

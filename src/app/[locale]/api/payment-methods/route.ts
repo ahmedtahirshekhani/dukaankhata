@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCollection, COLLECTIONS } from '@/lib/db/mongodb';
+import { getCollection, COLLECTIONS, updateUserLastActivity } from '@/lib/db/mongodb';
 
 export async function GET() {
   const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
@@ -14,5 +14,6 @@ export async function GET() {
     name: method.name,
   }));
 
+  await updateUserLastActivity();
   return NextResponse.json(paymentMethods);
 }

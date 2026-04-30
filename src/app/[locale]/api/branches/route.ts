@@ -1,4 +1,4 @@
-import { getCollection, COLLECTIONS, toObjectId } from '@/lib/db/mongodb';
+import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 
@@ -14,6 +14,7 @@ export async function GET(request: Request) {
       .find({ user_id: toObjectId(user.id) })
       .toArray();
 
+    await updateUserLastActivity();
     return NextResponse.json(
       branches.map((branch) => ({
         id: branch._id?.toString(),
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     });
 
     if (existing) {
+      await updateUserLastActivity();
       return NextResponse.json(
         {
           id: existing._id.toString(),
@@ -65,6 +67,7 @@ export async function POST(request: Request) {
       createdAt: new Date(),
     });
 
+    await updateUserLastActivity();
     return NextResponse.json(
       {
         id: result.insertedId.toString(),

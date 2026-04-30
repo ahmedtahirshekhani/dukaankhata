@@ -8,6 +8,7 @@ import {
   COLLECTIONS,
   toObjectId,
   isValidObjectId,
+  updateUserLastActivity,
 } from "@/lib/db/mongodb";
 
 type LedgerEntryDoc = {
@@ -400,6 +401,7 @@ export async function GET(request: NextRequest) {
 
     const reportNow = new Date();
 
+    await updateUserLastActivity();
     return NextResponse.json({
       transactions: [openingBalanceRecord, ...transactions],
       summary: {

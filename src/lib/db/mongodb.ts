@@ -136,7 +136,7 @@ export async function setLastUpdated<T extends Document>(
 export async function updateUserLastActivity() {
   try {
     const user = await getCurrentUser();
-    console.log("Current user in updateUserLastActivity:", user);
+    // console.log("Current user in updateUserLastActivity:", user);
     if (user?.id) {
       const usersCollection = await getCollection(COLLECTIONS.USERS);
       await usersCollection.updateOne(

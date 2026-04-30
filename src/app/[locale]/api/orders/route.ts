@@ -5,6 +5,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
     }),
   );
 
+  await updateUserLastActivity();
   return NextResponse.json(ordersWithCustomers);
 }
 
@@ -382,6 +384,7 @@ export async function POST(request: Request) {
 
     const orderData = await ordersCollection.findOne({ _id: orderId });
 
+    await updateUserLastActivity();
     return NextResponse.json({
       id: orderData?._id.toString(),
       customer_id: orderData?.customer_id.toString(),

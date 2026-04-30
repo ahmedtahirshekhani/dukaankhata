@@ -647,7 +647,12 @@
     "nameOptional": "نام (اختیاری)",
     "numberOptional": "نمبر (اختیاری)",
     "others": "دیگر",
-    "addCustomItemTitle": "ایک کسٹم آئٹم شامل کریں"
+    "addCustomItemTitle": "ایک کسٹم آئٹم شامل کریں",
+    "importPreview": "درآمد کا پیش نظارہ",
+    "editImportData": "درآمد کی تصدیق سے پہلے نیچے دیے گئے ڈیٹا میں ترمیم کریں",
+    "priceRequired": "قیمت ضروری ہے",
+    "uomRequired": "پیمائش کی اکائی ضروری ہے",
+    "quantityGreaterThanZero": "مقدار 0 سے زیادہ ہونی چاہیے"
   },
   "invoice": {
     "searchCustomer": "گاہک تلاش کریں...",

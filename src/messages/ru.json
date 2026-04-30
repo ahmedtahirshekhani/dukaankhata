@@ -647,7 +647,12 @@
     "nameOptional": "Naam (Ikhtiyari)",
     "numberOptional": "Number (Ikhtiyari)",
     "others": "Doosre",
-    "addCustomItemTitle": "Apni cheez shamil karain"
+    "addCustomItemTitle": "Apni cheez shamil karain",
+    "importPreview": "Import ka Preview",
+    "editImportData": "Import ki tasdeeq se pehle neeche diye gaye data mein tarmeem karain",
+    "priceRequired": "Qeemat zaroori hai",
+    "uomRequired": "Naap zaroori hai",
+    "quantityGreaterThanZero": "Miqdar 0 se zyada honi chahiye"
   },
   "invoice": {
     "searchCustomer": "Gahak talash karain...",

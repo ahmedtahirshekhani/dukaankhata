@@ -2,7 +2,7 @@
 // src/app/[locale]/api/expenses/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
-import { COLLECTIONS, getCollection, isValidObjectId, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { COLLECTIONS, getCollection, isValidObjectId, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { setDateToCurrentTime } from "@/lib/utils";
 
 type Params = {
@@ -67,6 +67,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("expense PUT error", err);
@@ -100,6 +101,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
+    await updateUserLastActivity();
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("expense DELETE error", err);

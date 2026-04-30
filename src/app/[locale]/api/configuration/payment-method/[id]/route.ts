@@ -8,6 +8,7 @@ import {
   toObjectId,
   isValidObjectId,
   setLastUpdated,
+  updateUserLastActivity,
 } from '@/lib/db/mongodb';
 
 function escapeRegex(s: string): string {
@@ -53,6 +54,7 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    await updateUserLastActivity();
     return NextResponse.json({
       id: item._id.toString(),
       bankName: item.bank_name ?? '',
@@ -130,6 +132,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    await updateUserLastActivity();
     return NextResponse.json({
       id: updatedDoc._id.toString(),
       bankName: updatedDoc.bank_name ?? '',
@@ -173,6 +176,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    await updateUserLastActivity();
     return NextResponse.json({ message: 'Deleted successfully' });
   } catch (err: unknown) {
     console.error('payment-method DELETE [id] error', err);
