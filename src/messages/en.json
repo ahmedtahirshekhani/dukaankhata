@@ -1078,7 +1078,9 @@
     "deleteSuccess": "Bill deleted successfully",
     "updateSuccess": "Bill updated successfully",
     "failedToUpdateBill": "Failed to update bill",
-    "failedToDeleteBill": "Failed to delete bill"
+    "failedToDeleteBill": "Failed to delete bill",
+    "overpaymentError": "Paid amount cannot exceed the total amount",
+    "negativeAmountError": "Paid amount cannot be less than 0"
   },
   "language": {
     "english": "English",

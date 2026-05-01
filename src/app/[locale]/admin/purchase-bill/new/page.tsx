@@ -138,6 +138,7 @@ function AddPurchaseBillPageInner() {
 
     const [isSaving, setIsSaving] = useState(false);
 
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -177,7 +178,7 @@ function AddPurchaseBillPageInner() {
                             setDiscountType(bill.discount_type || "fixed");
                             setTax(bill.tax?.toString() || "0");
                             setTaxType(bill.tax_type || "fixed");
-                            setIsPaid(bill.is_paid || false);
+                            setIsPaid((bill.paid_amount && bill.paid_amount > 0) || bill.is_paid || false);
                             setPaidAmount(bill.paid_amount?.toString() || "0");
                             setSelectedPaymentMethod(bill.payment_method_id || "");
                             setDescription(bill.description || "");
@@ -209,20 +210,23 @@ function AddPurchaseBillPageInner() {
     const calculations = useMemo(() => {
         const subtotal = billItems.reduce((sum, item) => sum + item.amount, 0);
 
+        const discountNum = parseFloat(discount || "0") || 0;
+        const taxNum = parseFloat(tax || "0") || 0;
+
         const discountValue =
             discountType === "percentage"
-                ? (subtotal * Number(discount || 0)) / 100
-                : Number(discount || 0);
+                ? (subtotal * discountNum) / 100
+                : discountNum;
 
         const subtotalAfterDiscount = subtotal - discountValue;
 
         const taxValue =
             taxType === "percentage"
-                ? (subtotalAfterDiscount * Number(tax || 0)) / 100
-                : Number(tax || 0);
+                ? (subtotalAfterDiscount * taxNum) / 100
+                : taxNum;
 
         const totalAmount = subtotalAfterDiscount + taxValue;
-        const balanceDue = totalAmount - Number(paidAmount || 0);
+        const balanceDue = totalAmount - (parseFloat(paidAmount || "0") || 0);
 
         return {
             subtotal,
@@ -233,6 +237,24 @@ function AddPurchaseBillPageInner() {
             balanceDue,
         };
     }, [billItems, discount, discountType, tax, taxType, paidAmount]);
+
+    useEffect(() => {
+        const pAmount = parseFloat(paidAmount || "0");
+        if (isPaid && (calculations.balanceDue < 0 || pAmount < 0)) {
+            setErrorDialog({
+                open: true,
+                title: t("validationError"),
+                message: pAmount < 0 
+                    ? (t("negativeAmountError") || "Paid amount cannot be less than 0")
+                    : (t("overpaymentError") || "Paid amount cannot exceed the total amount"),
+            });
+            if (pAmount < 0) {
+                setPaidAmount("0");
+            } else {
+                setPaidAmount(calculations.totalAmount.toString());
+            }
+        }
+    }, [calculations.balanceDue, calculations.totalAmount, isPaid, paidAmount, t]);
 
     const handleAddItem = useCallback(() => {
         if (!selectedProduct) {
@@ -318,6 +340,27 @@ function AddPurchaseBillPageInner() {
             return;
         }
 
+        const currentPaidAmount = isPaid ? Number(paidAmount || 0) : 0;
+        const currentTotalAmount = calculations.totalAmount;
+
+        if (isPaid && currentPaidAmount < 0) {
+            setErrorDialog({
+                open: true,
+                title: t("validationError"),
+                message: t("negativeAmountError") || "Paid amount cannot be less than 0",
+            });
+            return;
+        }
+
+        if (isPaid && currentPaidAmount > currentTotalAmount) {
+            setErrorDialog({
+                open: true,
+                title: t("validationError"),
+                message: t("overpaymentError") || "Paid amount cannot exceed the total amount",
+            });
+            return;
+        }
+
         setIsSaving(true);
         try {
             const billData: PurchaseBill = {
@@ -331,7 +374,7 @@ function AddPurchaseBillPageInner() {
                 total_amount: calculations.totalAmount,
                 paid_amount: isPaid ? Number(paidAmount || 0) : 0,
                 balance_due: calculations.balanceDue,
-                is_paid: isPaid,
+                is_paid: isPaid && calculations.balanceDue === 0,
                 payment_method_id: selectedPaymentMethod,
                 description,
             };
@@ -350,7 +393,8 @@ function AddPurchaseBillPageInner() {
             });
 
             if (!response.ok) {
-                throw new Error(editingBillId ? t("failedToUpdateBill") : t("failedToSaveBill"));
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || (editingBillId ? t("failedToUpdateBill") : t("failedToSaveBill")));
             }
 
             setErrorDialog({
@@ -600,7 +644,15 @@ function AddPurchaseBillPageInner() {
                             <Checkbox
                                 id="is-paid"
                                 checked={isPaid}
-                                onCheckedChange={(checked) => setIsPaid(checked as boolean)}
+                                onCheckedChange={(checked) => {
+                                    const val = checked as boolean;
+                                    setIsPaid(val);
+                                    if (val) {
+                                        setPaidAmount(calculations.totalAmount.toString());
+                                    } else {
+                                        setPaidAmount("0");
+                                    }
+                                }}
                             />
                             <Label htmlFor="is-paid" className="cursor-pointer">
                                 {t("marked") || "Mark as Paid"}
@@ -616,7 +668,13 @@ function AddPurchaseBillPageInner() {
                                         value={paidAmount}
                                         onChange={(e) => setPaidAmount(e.target.value)}
                                         placeholder="0"
+                                        className={Number(paidAmount || 0) > calculations.totalAmount ? "border-destructive text-destructive" : ""}
                                     />
+                                    {Number(paidAmount || 0) > calculations.totalAmount && (
+                                        <p className="text-xs text-destructive mt-1">
+                                            {t("overpaymentError") || "Paid amount cannot exceed total amount"}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
@@ -659,7 +717,7 @@ function AddPurchaseBillPageInner() {
 
                         <div className="flex justify-between font-bold text-lg pt-2">
                             <span>{t("balanceDue") || "Balance Due"}:</span>
-                            <span className="text-green-600">
+                            <span className={calculations.balanceDue < 0 ? "text-destructive" : "text-green-600"}>
                                 {formatCurrencyString(calculations.balanceDue)}
                             </span>
                         </div>

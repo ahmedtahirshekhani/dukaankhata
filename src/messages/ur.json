@@ -1007,7 +1007,9 @@
     "deleteSuccess": "بل کامیابی سے حذف ہو گیا",
     "updateSuccess": "بل کامیابی سے اپ ڈیٹ ہو گیا",
     "failedToUpdateBill": "بل اپ ڈیٹ کرنے میں ناکام",
-    "failedToDeleteBill": "بل حذف کرنے میں ناکام"
+    "failedToDeleteBill": "بل حذف کرنے میں ناکام",
+    "overpaymentError": "ادا کی گئی رقم کل رقم سے زیادہ نہیں ہو سکتی",
+    "negativeAmountError": "ادا کی گئی رقم 0 سے کم نہیں ہو سکتی"
   },
   "language": {
     "english": "English",

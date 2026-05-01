@@ -205,6 +205,16 @@ export async function POST(request: Request) {
       })
     );
 
+    const finalPaidAmount = Number(paidAmount) || 0;
+    if (finalPaidAmount > totalAmount) {
+      return NextResponse.json(
+        { error: "Paid amount cannot exceed total amount" },
+        { status: 400 }
+      );
+    }
+    const finalBalanceDue = totalAmount - finalPaidAmount;
+    const finalIsPaid = finalBalanceDue === 0;
+
     const now = new Date();
 
     const billResult = await purchaseBillsCollection.insertOne({
@@ -217,9 +227,9 @@ export async function POST(request: Request) {
       tax: Number(tax) || 0,
       tax_type: taxType || "fixed",
       total_amount: totalAmount,
-      paid_amount: isPaid ? Number(paidAmount) || 0 : 0,
-      balance_due: balanceDue || totalAmount,
-      is_paid: isPaid || false,
+      paid_amount: finalPaidAmount,
+      balance_due: finalBalanceDue,
+      is_paid: finalIsPaid,
       payment_method_id: paymentMethodId || null,
       payment_method_name: paymentMethodName || null,
       description: description || null,
@@ -307,6 +317,16 @@ export async function PUT(request: Request) {
     const billObjId = toObjectId(id);
     const filter = { _id: billObjId, user_id: userObjId };
 
+    const finalPaidAmount = Number(paidAmount) || 0;
+    if (finalPaidAmount > totalAmount) {
+      return NextResponse.json(
+        { error: "Paid amount cannot exceed total amount" },
+        { status: 400 }
+      );
+    }
+    const finalBalanceDue = totalAmount - finalPaidAmount;
+    const finalIsPaid = finalBalanceDue === 0;
+
     // Prepare update fields (without updated_at, helper will add it)
     const updateData = {
       discount: Number(discount),
@@ -314,9 +334,9 @@ export async function PUT(request: Request) {
       tax: Number(tax),
       tax_type: taxType || "fixed",
       total_amount: totalAmount,
-      paid_amount: isPaid ? Number(paidAmount) || 0 : 0,
-      balance_due: balanceDue,
-      is_paid: isPaid || false,
+      paid_amount: finalPaidAmount,
+      balance_due: finalBalanceDue,
+      is_paid: finalIsPaid,
       payment_method_id: paymentMethodId || null,
       payment_method_name: paymentMethodName || null,
       description: description || null,
