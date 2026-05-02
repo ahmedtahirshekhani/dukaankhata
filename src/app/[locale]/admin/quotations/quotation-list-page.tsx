@@ -26,16 +26,52 @@ export default function QuotationListPage() {
   const router = useRouter();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isConverting, setIsConverting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quotationToDelete, setQuotationToDelete] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
-    title?: string;
+    title: string;
     message: string;
     isSuccess?: boolean;
-  }>({ open: false, message: "" });
+  }>({
+    open: false,
+    title: "",
+    message: "",
+  });
+
+  const handleConvert = async (quotationId: string) => {
+    setIsConverting(quotationId);
+    try {
+      const res = await fetch(`/${locale}/api/quotations/${quotationId}/convert`, {
+        method: "POST",
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setErrorDialog({
+          open: true,
+          title: tCommon("success"),
+          message: `Quotation converted to Sale successfully! Invoice No: ${data.invoiceNo}`,
+          isSuccess: true,
+        });
+        fetchQuotations(); // Refresh list
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData?.error || "Failed to convert quotation");
+      }
+    } catch (error) {
+      setErrorDialog({
+        open: true,
+        title: tCommon("error"),
+        message: error instanceof Error ? error.message : "Error converting quotation",
+      });
+    } finally {
+      setIsConverting(null);
+    }
+  };
 
   const fetchQuotations = async () => {
     setLoading(true);
@@ -164,6 +200,7 @@ export default function QuotationListPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>#</TableHead>
+                  <TableHead>Quotation No</TableHead>
                   <TableHead>Party</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
@@ -178,7 +215,8 @@ export default function QuotationListPage() {
                   return (
                     <TableRow key={quotId}>
                       <TableCell>{i + 1}</TableCell>
-                      <TableCell className="font-medium">{q.party_name || "-"}</TableCell>
+                      <TableCell className="font-medium">{q.quotation_no || "-"}</TableCell>
+                      <TableCell>{q.party_name || "-"}</TableCell>
                       <TableCell>{formatCurrencyString(q.total_amount || 0)}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -210,6 +248,18 @@ export default function QuotationListPage() {
                           </Button>
                           <Button
                             size="sm"
+                            variant="outline"
+                            className="text-primary hover:text-primary-foreground hover:bg-primary"
+                            onClick={() => handleConvert(quotId)}
+                            disabled={isConverting === quotId || q.status === "converted"}
+                          >
+                            {isConverting === quotId ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                            ) : null}
+                            {tNav("convertToSale")}
+                          </Button>
+                          <Button
+                            size="sm"
                             variant="ghost"
                             onClick={() => handleDeleteClick(q)}
                           >
@@ -234,7 +284,10 @@ export default function QuotationListPage() {
                   quotation={q}
                   index={i}
                   onDelete={() => handleDeleteClick(q)}
+                  onConvert={() => handleConvert(quotId)}
+                  isConverting={isConverting === quotId}
                   t={t}
+                  tNav={tNav}
                 />
               );
             })}
@@ -271,12 +324,18 @@ function QuotationCard({
   quotation,
   index,
   onDelete,
+  onConvert,
+  isConverting,
   t,
+  tNav,
 }: {
   quotation: any;
   index: number;
   onDelete: () => void;
+  onConvert: () => void;
+  isConverting: boolean;
   t: (key: string) => string;
+  tNav: (key: string) => string;
 }) {
   const quotId = quotation._id || quotation.id;
   
@@ -285,7 +344,7 @@ function QuotationCard({
       <div className="flex justify-between items-start mb-2">
         <div>
           <h3 className="font-semibold text-base">
-            #{index + 1} • {quotation.party_name || "-"}
+            {quotation.quotation_no || `#${index + 1}`} • {quotation.party_name || "-"}
           </h3>
           <p className="text-xs text-muted-foreground">
             {quotation.created_at ? new Date(quotation.created_at).toLocaleDateString() : "-"}
@@ -324,6 +383,18 @@ function QuotationCard({
             {t("common.edit")}
           </Link>
         </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="text-primary hover:text-primary-foreground hover:bg-primary"
+          onClick={onConvert}
+          disabled={isConverting || quotation.status === "converted"}
+        >
+           {isConverting ? (
+             <Loader2 className="h-4 w-4 animate-spin mr-1" />
+           ) : null}
+           {tNav("convertToSale")}
+         </Button>
         <Button size="sm" variant="ghost" onClick={onDelete}>
           <Trash2 className="h-4 w-4" />
         </Button>

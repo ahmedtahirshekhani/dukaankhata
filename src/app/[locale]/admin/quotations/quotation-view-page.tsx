@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ArrowLeft, Download, FileText, Loader2, Calendar, User, Printer, Share2, Replace } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 export default function QuotationViewClient({ id }: { id: string }) {
     const tInvoice = useTranslations("invoice");
@@ -19,25 +20,69 @@ export default function QuotationViewClient({ id }: { id: string }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
+    const [isConverting, setIsConverting] = useState(false);
+    const [errorDialog, setErrorDialog] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        isSuccess?: boolean;
+    }>({
+        open: false,
+        title: "",
+        message: "",
+    });
+
     const quotationRef = useRef<HTMLDivElement>(null);
 
+    const fetchQuotation = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/${locale}/api/quotations/${id}`);
+            if (!res.ok) throw new Error("Quotation not found");
+            const data = await res.json();
+            // Check if data is nested or direct
+            setQuotation(data.quotation || data);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchQuotation = async () => {
-            setLoading(true);
-            try {
-                const res = await fetch(`/${locale}/api/quotations/${id}`);
-                if (!res.ok) throw new Error("Quotation not found");
-                const data = await res.json();
-                // Check if data is nested or direct
-                setQuotation(data.quotation || data);
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchQuotation();
     }, [id, locale]);
+
+    const handleConvert = async () => {
+        setIsConverting(true);
+        try {
+            const res = await fetch(`/${locale}/api/quotations/${id}/convert`, {
+                method: "POST",
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setErrorDialog({
+                    open: true,
+                    title: tCommon("success"),
+                    message: `Quotation converted to Sale successfully! Invoice No: ${data.invoiceNo}`,
+                    isSuccess: true,
+                });
+                fetchQuotation(); // Refresh data to update status
+            } else {
+                const errorData = await res.json();
+                throw new Error(errorData?.error || "Failed to convert quotation");
+            }
+        } catch (error) {
+            setErrorDialog({
+                open: true,
+                title: tCommon("error"),
+                message: error instanceof Error ? error.message : "Error converting quotation",
+            });
+        } finally {
+            setIsConverting(false);
+        }
+    };
 
     const handlePrint = () => {
         window.print();
@@ -55,7 +100,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
             const opt = {
                 margin: [10, 10, 10, 10] as [number, number, number, number], // Proper margins for A4
-                filename: `Quotation-${quotation._id?.slice(-6).toUpperCase() || "DOC"}.pdf`,
+                filename: `Quotation-${quotation.quotation_no || "DOC"}.pdf`,
                 image: { type: 'jpeg' as const, quality: 1 }, // Maximum quality
                 html2canvas: {
                     scale: 2, // High resolution
@@ -124,23 +169,30 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
                 {/* Right Side: Actions */}
                 <div className="flex items-center gap-1.5 md:gap-2">
-                    {/* Convert to Sale - Icon on Mobile */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePrint}
-                        className="h-8 md:h-9 px-2 md:px-3 border-slate-300"
-                    >
-                        <Replace className="h-4 w-4 md:mr-2" />
-                        <span className="hidden md:inline">{tCommon("convertToSale")}</span>
-                    </Button>
+                    {/* Convert to Sale - Hidden if already converted */}
+                    {quotation.status !== "converted" && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleConvert}
+                            disabled={isConverting}
+                            className="h-8 md:h-9 px-2 md:px-3 border-slate-300"
+                        >
+                            {isConverting ? (
+                                <Loader2 className="h-4 w-4 md:mr-2 animate-spin" />
+                            ) : (
+                                <Replace className="h-4 w-4 md:mr-2" />
+                            )}
+                            <span className="hidden md:inline">{tCommon("convertToSale")}</span>
+                        </Button>
+                    )}
 
                     {/* Edit - Icon on Mobile */}
                     <Button
                         variant="outline"
                         size="sm"
                         asChild
-                        className="h-8 md:h-9 px-2 md:px-3 border-primary text-primary hover:bg-primary/5"
+                        className="h-8 md:h-9 px-2 md:px-3 border-primary text-primary"
                     >
                         <Link href={`./edit`}>
                             <FileText className="h-4 w-4 md:mr-2" />
@@ -201,7 +253,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     <div className="text-right space-y-2">
                         <div className="flex items-center justify-end gap-2 text-slate-600">
                             <span className="text-[10px] font-bold uppercase tracking-widest">{tInvoice("quotation_number") || "No:"}</span>
-                            <span className="font-mono font-bold text-sm">#{quotation._id?.slice(-6).toUpperCase() || "N/A"}</span>
+                            <span className="font-mono font-bold text-sm">{quotation.quotation_no || `#${quotation._id?.slice(-6).toUpperCase()}`}</span>
                         </div>
                         <div className="flex items-center justify-end gap-2 text-slate-600 text-sm font-medium">
                             <Calendar className="h-3.5 w-3.5" />
@@ -218,8 +270,17 @@ export default function QuotationViewClient({ id }: { id: string }) {
                             <span className="text-[10px] font-black uppercase tracking-widest">{tInvoice("customerDetails") || "Bill To"}</span>
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-slate-800">{quotation.party_name || "Valued Customer"}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Status: <span className="text-primary font-bold uppercase text-[10px] tracking-widest">{quotation.status || "Pending"}</span></p>
+                            <h3 className="text-xl font-bold text-slate-800">{quotation.party_details?.name || quotation.party_name || "Valued Customer"}</h3>
+                            {quotation.party_details?.company_name && (
+                                <p className="text-sm font-medium text-slate-600 italic">{quotation.party_details.company_name}</p>
+                            )}
+                            {quotation.party_details?.phone && (
+                                <p className="text-xs text-muted-foreground mt-1">{quotation.party_details.phone}</p>
+                            )}
+                            {quotation.party_details?.address && (
+                                <p className="text-xs text-muted-foreground whitespace-pre-line max-w-[250px]">{quotation.party_details.address}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground mt-2">Status: <span className={`font-bold uppercase text-[10px] tracking-widest ${quotation.status === "converted" ? "text-green-600" : "text-primary"}`}>{quotation.status || "Pending"}</span></p>
                         </div>
                     </div>
 
@@ -369,6 +430,14 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     @page { size: A4; margin: 10mm; }
                 }
             `}</style>
+
+            <ErrorDialog
+                open={errorDialog.open}
+                onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
+                title={errorDialog.title}
+                message={errorDialog.message}
+                isSuccess={errorDialog.isSuccess}
+            />
         </div>
     );
 }

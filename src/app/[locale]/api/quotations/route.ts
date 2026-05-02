@@ -28,6 +28,7 @@ export interface QuotationDoc {
   total_amount: number;
   validity_date: string;
   notes?: string;
+  quotation_no?: string;
   status: QuotationStatus;
   converted_to_invoice_id?: string;
   created_at: string;
@@ -37,8 +38,7 @@ export interface QuotationDoc {
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    console.log("🔍 Current user:", user);
-    
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -53,16 +53,12 @@ export async function GET(request: NextRequest) {
     if (user.id) query.user_id = toObjectId(user.id);
     if (partyId && isValidObjectId(partyId)) query.party_id = toObjectId(partyId);
     if (status) query.status = status;
-
-    console.log("📝 MongoDB Query:", JSON.stringify(query, null, 2));
     
     const quotations = await quotationsCollection
       .find(query)
       .sort({ created_at: -1 })
       .toArray();
     
-    console.log(`✅ Found ${quotations.length} quotations`);
-
     const formatted = quotations.map((q) => ({
       _id: q._id?.toString(),
       user_id: q.user_id?.toString(),
@@ -77,12 +73,12 @@ export async function GET(request: NextRequest) {
       total_amount: q.total_amount || 0,
       validity_date: q.validity_date || "",
       notes: q.notes || "",
+      quotation_no: q.quotation_no || "",
       status: q.status || "open",
       created_at: q.created_at,
       updated_at: q.updated_at,
     }));
     
-    console.log("📤 Sending response with", formatted.length, "quotations");
     await updateUserLastActivity();
     return NextResponse.json(formatted);
     
@@ -104,7 +100,6 @@ export async function POST(request: NextRequest) {
     }
     
     const data = await request.json();
-    console.log("📦 Received quotation data:", data);
 
     if (!data.party_id) {
       return NextResponse.json({ error: "Party is required" }, { status: 400 });
@@ -135,18 +130,15 @@ export async function POST(request: NextRequest) {
       total_amount: Number(data.total_amount),
       validity_date: data.validity_date,
       notes: data.notes || "",
+      quotation_no: data.quotation_no || "",
       status: data.status || "open",
       created_at: now,
       updated_at: now,
     };
 
-    console.log("💾 Saving quotation:", JSON.stringify(quotation, null, 2));
-
     const quotationsCollection = await getCollection(COLLECTIONS.QUOTATIONS);
     const result = await quotationsCollection.insertOne(quotation);
     
-    console.log("✅ Quotation saved with ID:", result.insertedId);
-
     // ✅ Update user's last activity
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });

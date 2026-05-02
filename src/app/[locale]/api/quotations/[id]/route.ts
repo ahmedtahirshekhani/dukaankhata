@@ -21,6 +21,7 @@ export async function GET(
 
     const quotationsCollection = await getCollection<QuotationDoc>(COLLECTIONS.QUOTATIONS);
     const usersCollection = await getCollection(COLLECTIONS.USERS);
+    const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
 
     const quotation = await quotationsCollection.findOne({
       _id: toObjectId(id),
@@ -34,6 +35,10 @@ export async function GET(
     const userDoc = await usersCollection.findOne(
       { _id: toObjectId(user.id) },
       { projection: { company_name: 1, company_address: 1, company_logo: 1, signature_image: 1 } }
+    );
+
+    const customerDoc = await customersCollection.findOne(
+      { _id: toObjectId(quotation.party_id) }
     );
 
     const formatted = {
@@ -52,6 +57,7 @@ export async function GET(
       total_amount: quotation.total_amount || 0,
       validity_date: quotation.validity_date,
       notes: quotation.notes || "",
+      quotation_no: quotation.quotation_no || "",
       status: quotation.status || "open",
       created_at: quotation.created_at,
       updated_at: quotation.updated_at,
@@ -61,6 +67,14 @@ export async function GET(
         logo: userDoc?.company_logo || null,
         signatureImage: userDoc?.signature_image || null,
       },
+      party_details: customerDoc ? {
+        name: customerDoc.name,
+        company_name: customerDoc.company_name,
+        email: customerDoc.email,
+        phone: customerDoc.phone,
+        address: customerDoc.address,
+        gstin: customerDoc.gstin,
+      } : null,
     };
 
     await updateUserLastActivity();
@@ -139,6 +153,7 @@ export async function PUT(
       total_amount: updated.total_amount || 0,
       validity_date: updated.validity_date,
       notes: updated.notes || "",
+      quotation_no: updated.quotation_no || "",
       status: updated.status || "open",
       created_at: updated.created_at,
       updated_at: updated.updated_at,
@@ -172,11 +187,10 @@ export async function DELETE(
 
     const quotationsCollection = await getCollection<QuotationDoc>(COLLECTIONS.QUOTATIONS);
 
-    // ✅ Use setLastUpdated to update status and updated_at
     const filter = { _id: toObjectId(id), user_id: toObjectId(user.id) };
-    const updateResult = await setLastUpdated(quotationsCollection, filter, { status: "cancelled" });
+    const deleteResult = await quotationsCollection.deleteOne(filter);
 
-    if (updateResult.matchedCount === 0) {
+    if (deleteResult.deletedCount === 0) {
       return NextResponse.json({ error: "Quotation not found" }, { status: 404 });
     }
 
@@ -190,11 +204,7 @@ export async function DELETE(
     await updateUserLastActivity();
     return NextResponse.json({
       success: true,
-      message: "Quotation cancelled successfully",
-      quotation: updated ? {
-        _id: updated._id?.toString(),
-        status: updated.status,
-      } : null,
+      message: "Quotation deleted successfully",
     });
   } catch (error: any) {
     console.error("DELETE /api/quotations/[id] error:", error);
