@@ -1,106 +1,166 @@
-
-
-import { NextRequest, NextResponse } from "next/server";
-import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated } from "@/lib/db/mongodb";
+// src/app/[locale]/api/quotations/[id]/convert/route.ts
+import {
+  getCollection,
+  COLLECTIONS,
+  toObjectId,
+  isValidObjectId,
+  setLastUpdated,
+} from "@/lib/db/mongodb";
+import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
-import type { QuotationDoc } from "../../route";
-
-interface InvoiceDoc {
-  user_id: any;
-  party_id: any;
-  party_name: string;
-  items: any[];
-  discount: number;
-  discount_type: string;
-  tax: number;
-  tax_type: string;
-  total_amount: number;
-  paid_amount: number;
-  balance_due: number;
-  is_paid: boolean;
-  notes?: string;
-  quotation_id: any;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-}
+import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  request: Request,
+  { params }: { params: { id: string; locale: string } }
 ) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  
-  const { id } = await params;
-  if (!isValidObjectId(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  
-  const quotationsCollection = await getCollection<QuotationDoc>(COLLECTIONS.QUOTATIONS);
-  const quotation = await quotationsCollection.findOne({ 
-    _id: toObjectId(id), 
-    user_id: toObjectId(user.id) 
-  });
-  
-  if (!quotation) return NextResponse.json({ error: "Quotation not found" }, { status: 404 });
-  if (quotation.converted_to_invoice_id) {
-    return NextResponse.json({ 
-      message: "Quotation already converted to invoice", 
-      invoice_id: quotation.converted_to_invoice_id 
-    });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = params;
+  if (!isValidObjectId(id)) {
+    return NextResponse.json({ error: "Invalid quotation ID" }, { status: 400 });
   }
 
   try {
-    const ordersCollection = await getCollection<InvoiceDoc>(COLLECTIONS.ORDERS);
-    
-    const now = new Date().toISOString();
-    const invoiceData: InvoiceDoc = {
-      user_id: quotation.user_id,
-      party_id: quotation.party_id,
-      party_name: quotation.party_name,
-      items: quotation.items || [],
-      discount: quotation.discount || 0,
-      discount_type: quotation.discount_type || "fixed",
-      tax: quotation.tax || 0,
-      tax_type: quotation.tax_type || "fixed",
-      total_amount: quotation.total_amount || 0,
-      paid_amount: 0,
-      balance_due: quotation.total_amount || 0,
-      is_paid: false,
-      notes: quotation.notes || "",
-      quotation_id: toObjectId(id),
-      status: "draft",
-      created_at: now,
-      updated_at: now,
-    };
+    const quotationsCollection = await getCollection(COLLECTIONS.QUOTATIONS);
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
 
-    const invoiceResult = await ordersCollection.insertOne(invoiceData);
-
-    // ✅ Update quotation: mark converted, update timestamp, set invoice id
-    const filter = { _id: toObjectId(id) };
-    const updateResult = await setLastUpdated(quotationsCollection, filter, {
-      converted_to_invoice_id: invoiceResult.insertedId.toString(),
-      status: "converted",
+    const quotation = await quotationsCollection.findOne({
+      _id: toObjectId(id),
+      user_id: toObjectId(user.id),
     });
 
-    if (updateResult.matchedCount === 0) {
-      // If update fails, revert? For simplicity just log error
-      console.error("Failed to update quotation after conversion");
+    if (!quotation) {
+      return NextResponse.json({ error: "Quotation not found" }, { status: 404 });
     }
 
-    // ✅ Update user's last activity
-    const usersCollection = await getCollection(COLLECTIONS.USERS);
-    await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
+    if (quotation.status === "converted") {
+      return NextResponse.json({ error: "Quotation already converted" }, { status: 400 });
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: "Quotation converted to invoice successfully",
-      invoice_id: invoiceResult.insertedId.toString(),
+    const now = new Date();
+    // Invoice number format: inv- + quotation_no
+    const invoiceNo = `inv-${quotation.quotation_no || id.slice(-6)}`;
+
+    // 1. Prepare Order Items
+    const orderItems = quotation.items.map((item: any) => ({
+      product_id: item.product_id ? toObjectId(item.product_id) : null,
+      name: item.product_name || item.name,
+      description: item.product_description || item.description || "",
+      quantity: item.quantity,
+      quantityType: "prime",
+      price: item.cost_price || item.price || 0,
+      discount: item.discount || 0,
+      discountType: item.discount_type || "value",
+      unit_of_measurement: item.uom || item.unit_of_measurement || "",
+    }));
+
+    // 2. Insert Order
+    const orderDoc: any = {
+      customer_id: toObjectId(quotation.party_id),
+      total_amount: quotation.total_amount,
+      subtotal: quotation.total_amount,
+      invoice_no: invoiceNo,
+      sale_date: now,
+      due_date: null,
+      charges: [],
+      overallDiscount: 0,
+      shippingCharges: 0,
+      items: orderItems,
+      payment: {
+        method: null,
+        paid_amount: 0,
+        paid_date: null,
+        no_payment_at_all: true,
+      },
+      user_id: toObjectId(user.id),
+      status: "completed",
+      created_at: now,
+      updated_at: now,
+      quotation_id: toObjectId(id),
+    };
+
+    const orderResult = await ordersCollection.insertOne(orderDoc);
+    const orderId = orderResult.insertedId;
+
+    if (!orderId) {
+      throw new Error("Failed to create order");
+    }
+
+    // 3. Deduct Stock from Products (only for goods type)
+    for (const item of orderItems) {
+      if (!item.product_id) continue;
+      
+      const productDoc = await productsCollection.findOne({ _id: item.product_id });
+      if (!productDoc) continue;
+
+      const isGoods = !productDoc.type || productDoc.type === "goods" || productDoc.type === "good";
+      if (!isGoods) continue;
+
+      const orderQty = item.quantity;
+      const quantityType = item.quantityType || "prime";
+      const isDamaged = quantityType === "damaged";
+
+      let stockField: string;
+      if (isDamaged) {
+        stockField = "damaged_quantity";
+      } else {
+        stockField = productDoc.quantity !== undefined && productDoc.quantity !== null
+          ? "quantity"
+          : productDoc.in_stock !== undefined && productDoc.in_stock !== null
+            ? "in_stock"
+            : "quantity";
+      }
+
+      await productsCollection.updateOne(
+        { _id: item.product_id },
+        { 
+          $inc: { [stockField]: -orderQty },
+          $set: { updated_at: now } 
+        }
+      );
+    }
+
+    // 4. Update Customer Ledger (Record the sale)
+    await appendCustomerLedgerEntry({
+      userId: user.id,
+      customerId: quotation.party_id,
+      eventKey: `order_debit:${orderId.toString()}`,
+      eventType: "order_debit",
+      eventSource: "order",
+      eventSourceId: orderId.toString(),
+      amountDelta: quotation.total_amount,
+      effectiveAt: now,
+      metadata: {
+        invoice_no: invoiceNo || null,
+        total_amount: quotation.total_amount,
+        quotation_id: id,
+        description: `Sale from Quotation #${quotation.quotation_no || id}`
+      },
     });
-  } catch (error) {
+
+    // 5. Update Quotation Status
+    await setLastUpdated(quotationsCollection, {
+      _id: toObjectId(id),
+      user_id: toObjectId(user.id)
+    }, {
+      status: "converted",
+      converted_to_invoice_id: orderId
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      orderId: orderId.toString(),
+      invoiceNo: invoiceNo
+    });
+
+  } catch (error: any) {
     console.error("Conversion error:", error);
-    return NextResponse.json(
-      { error: "Failed to convert quotation to invoice" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || "Failed to convert" }, { status: 500 });
   }
 }

@@ -448,6 +448,7 @@ function QuotationFormPageInner({
     const [selectedProductObj, setSelectedProductObj] = useState<any>(null);
     const [itemQuantity, setItemQuantity] = useState<string>("1");
     const [isSaving, setIsSaving] = useState(false);
+    const [quotationNo, setQuotationNo] = useState<string>("");
     const [errorDialog, setErrorDialog] = useState({
         open: false,
         title: "",
@@ -490,8 +491,15 @@ function QuotationFormPageInner({
                                 quot.validity_date ? quot.validity_date.split("T")[0] : ""
                             );
                             setNotes(quot.notes || "");
+                            setQuotationNo(quot.quotation_no || "");
                         }
                     }
+                } else {
+                    // Generate a new quotation number
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const random = Math.floor(Math.random() * 9000) + 1000;
+                    setQuotationNo(`QT-${year}-${random}`);
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
@@ -588,7 +596,8 @@ function QuotationFormPageInner({
                 tax_type: taxType,
                 total_amount: calculations.totalAmount,
                 validity_date: validityDate,
-                status: "pending",
+                quotation_no: quotationNo,
+                status: "open",
                 notes,
             };
 
@@ -915,6 +924,14 @@ function QuotationFormPageInner({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-4">
+                            <div className="space-y-2">
+                                <Label>{t("quotation_number") || "Quotation No"}</Label>
+                                <Input
+                                    value={quotationNo}
+                                    onChange={(e) => setQuotationNo(e.target.value)}
+                                    placeholder="QT-2026-001"
+                                />
+                            </div>
                             <div className="space-y-2">
                                 <Label>{t("validity_date")}</Label>
                                 <Input

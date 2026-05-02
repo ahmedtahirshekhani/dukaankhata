@@ -77,7 +77,7 @@ interface POSProduct extends Product {
 
 export default function NewInvoicePage() {
   const t = useTranslations("invoice");
-    const tCommon = useTranslations("common");
+  const tCommon = useTranslations("common");
 
   const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
@@ -359,10 +359,10 @@ export default function NewInvoicePage() {
       charges.map((charge) =>
         charge.id === id
           ? {
-              ...charge,
-              [field]:
-                field === "value" ? parseFloat(val.toString()) || 0 : val,
-            }
+            ...charge,
+            [field]:
+              field === "value" ? parseFloat(val.toString()) || 0 : val,
+          }
           : charge,
       ),
     );
@@ -375,10 +375,10 @@ export default function NewInvoicePage() {
   const pendingCharge =
     newChargeItem.trim() || newChargeValue
       ? {
-          id: "pending",
-          item: newChargeItem.trim() || t("adjustment"),
-          value: parseFloat(newChargeValue) || 0,
-        }
+        id: "pending",
+        item: newChargeItem.trim() || t("adjustment"),
+        value: parseFloat(newChargeValue) || 0,
+      }
       : null;
   const displayCharges = pendingCharge ? [...charges, pendingCharge] : charges;
 
@@ -395,9 +395,9 @@ export default function NewInvoicePage() {
   const finalTotal = Math.max(
     0,
     total -
-      Math.min(overallDiscountAmount, total) +
-      shippingChargesNum +
-      chargesTotal,
+    Math.min(overallDiscountAmount, total) +
+    shippingChargesNum +
+    chargesTotal,
   );
 
   const handleSaveOrder = () => {

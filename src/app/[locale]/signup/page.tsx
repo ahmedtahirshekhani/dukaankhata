@@ -221,7 +221,12 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     const { name, value } = e.target;
 
     if (name === "phoneNumber") {
-      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      let digitsOnly = value.replace(/\D/g, "");
+      // Automatically strip leading zero if present
+      if (digitsOnly.startsWith("0")) {
+        digitsOnly = digitsOnly.substring(1);
+      }
+      digitsOnly = digitsOnly.slice(0, 10);
       setFormData((prev) => ({
         ...prev,
         phoneNumber: digitsOnly,
@@ -397,7 +402,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                     name="phoneNumber"
                     type="tel"
                     inputMode="numeric"
-                    maxLength={10}
+                    maxLength={11}
                     pattern="[0-9]{10}"
                     placeholder="3001234567"
                     value={formData.phoneNumber}

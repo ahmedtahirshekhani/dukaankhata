@@ -94,6 +94,7 @@ export async function POST(request: Request) {
     shippingCharges,
     paymentDate,
     payment,
+    quotationId,
   } = await request.json();
 
   try {
@@ -223,6 +224,18 @@ export async function POST(request: Request) {
     }
 
     const orderId = orderResult.insertedId;
+
+    // Update quotation status if conversion
+    if (quotationId && isValidObjectId(quotationId)) {
+      const quotationsCollection = await getCollection(COLLECTIONS.QUOTATIONS);
+      await setLastUpdated(quotationsCollection, {
+        _id: toObjectId(quotationId),
+        user_id: toObjectId(user.id)
+      }, {
+        status: "converted",
+        converted_to_invoice_id: orderId
+      });
+    }
 
     // Insert the transaction record (optional)
     const paymentInfo = payment || {

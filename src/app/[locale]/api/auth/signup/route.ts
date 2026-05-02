@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     const newUser = await usersCollection.findOne({ _id: result.insertedId });
 
-    // Create default party: Cash In Hand
+    // Create default party: Walk In Customer
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
       await partiesCollection.insertOne({
