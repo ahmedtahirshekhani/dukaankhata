@@ -12,25 +12,51 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get("page") || "1");
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam === "-1" ? 0 : parseInt(limitParam || "10");
+  const search = searchParams.get("search") || "";
+  const skip = limit > 0 ? (page - 1) * limit : 0;
+
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
+  
+  // Build query
+  const query: any = { 
+    user_id: toObjectId(user.id), 
+    is_delete: { $ne: 1 } 
+  };
+
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { phone: { $regex: search, $options: "i" } },
+      { company_name: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  // Get total count for pagination
+  const totalCount = await customersCollection.countDocuments(query);
+  const totalPages = Math.ceil(totalCount / limit);
+
   const data = await customersCollection
-    .find(
-      { user_id: toObjectId(user.id), is_delete: { $ne: 1 } },
-      {
-        projection: {
-          _id: 1,
-          name: 1,
-          email: 1,
-          phone: 1,
-          company_name: 1,
-          company_address: 1,
-          opening_balance: 1,
-          balance: 1,
-          status: 1,
-          is_delete: 1,
-        },
+    .find(query, {
+      projection: {
+        _id: 1,
+        name: 1,
+        email: 1,
+        phone: 1,
+        company_name: 1,
+        company_address: 1,
+        opening_balance: 1,
+        balance: 1,
+        status: 1,
+        is_delete: 1,
       },
-    )
+    })
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(limit)
     .toArray();
 
   const customers = data.map((customer) => ({
@@ -47,7 +73,12 @@ export async function GET(request: Request) {
   }));
 
   await updateUserLastActivity();
-  return NextResponse.json(customers);
+  return NextResponse.json({
+    customers,
+    totalCount,
+    totalPages,
+    currentPage: page,
+  });
 }
 
 export async function POST(request: Request) {

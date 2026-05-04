@@ -39,20 +39,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (phoneNumber !== undefined && !/^\d{10}$/.test(String(phoneNumber))) {
-      return NextResponse.json(
-        { error: "Invalid phone number" },
-        { status: 400 },
-      );
-    }
-
     const localDigits = rawPhoneValue.replace(/\D/g, "");
     const normalizedLocalPhone = localDigits;
     const normalizedPhone = `${countryCode}${normalizedLocalPhone}`;
 
-    if (normalizedLocalPhone.length !== 10) {
+    if (normalizedLocalPhone.length < 5) {
       return NextResponse.json(
-        { error: "Invalid phone number" },
+        { error: "Invalid phone number - too short" },
         { status: 400 },
       );
     }

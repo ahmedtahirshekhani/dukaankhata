@@ -44,36 +44,40 @@ export async function POST(
     }
 
     const now = new Date();
-    // Invoice number format: inv- + quotation_no
-    const invoiceNo = `inv-${quotation.quotation_no || id.slice(-6)}`;
+    // Invoice number format: INV- + quotation_no (or fallback to id)
+    const invoiceNo = `INV-${quotation.quotation_no || id.slice(-6)}`.toUpperCase();
 
     // 1. Prepare Order Items
     const orderItems = quotation.items.map((item: any) => ({
       product_id: item.product_id ? toObjectId(item.product_id) : null,
       name: item.product_name || item.name,
       description: item.product_description || item.description || "",
-      quantity: item.quantity,
+      quantity: Number(item.quantity || 0),
       quantityType: "prime",
-      price: item.cost_price || item.price || 0,
-      discount: item.discount || 0,
-      discountType: item.discount_type || "value",
+      price: Number(item.unit_price || item.sell_price || item.price || 0),
+      discount: Number(item.discount || 0),
+      discountType: item.discount_type || "fixed",
       unit_of_measurement: item.uom || item.unit_of_measurement || "",
     }));
 
     // 2. Insert Order
     const orderDoc: any = {
       customer_id: toObjectId(quotation.party_id),
-      total_amount: quotation.total_amount,
-      subtotal: quotation.total_amount,
+      party_name: quotation.party_name,
+      total_amount: Number(quotation.total_amount || 0),
+      subtotal: Number(quotation.total_amount || 0),
       invoice_no: invoiceNo,
       sale_date: now,
       due_date: null,
       charges: [],
-      overallDiscount: 0,
+      overallDiscount: Number(quotation.discount || 0),
+      discountType: quotation.discount_type || "fixed",
+      tax: Number(quotation.tax || 0),
+      taxType: quotation.tax_type || "fixed",
       shippingCharges: 0,
       items: orderItems,
       payment: {
-        method: null,
+        method: "cash",
         paid_amount: 0,
         paid_date: null,
         no_payment_at_all: true,
@@ -83,6 +87,7 @@ export async function POST(
       created_at: now,
       updated_at: now,
       quotation_id: toObjectId(id),
+      notes: quotation.notes || `Converted from Quotation ${quotation.quotation_no || id}`,
     };
 
     const orderResult = await ordersCollection.insertOne(orderDoc);
@@ -91,6 +96,8 @@ export async function POST(
     if (!orderId) {
       throw new Error("Failed to create order");
     }
+
+    const orderIdStr = orderId.toString();
 
     // 3. Deduct Stock from Products (only for goods type)
     for (const item of orderItems) {
@@ -127,17 +134,18 @@ export async function POST(
     }
 
     // 4. Update Customer Ledger (Record the sale)
+    const partyIdStr = quotation.party_id.toString();
     await appendCustomerLedgerEntry({
       userId: user.id,
-      customerId: quotation.party_id,
-      eventKey: `order_debit:${orderId.toString()}`,
+      customerId: partyIdStr,
+      eventKey: `order_debit:${orderIdStr}`,
       eventType: "order_debit",
       eventSource: "order",
-      eventSourceId: orderId.toString(),
-      amountDelta: quotation.total_amount,
+      eventSourceId: orderIdStr,
+      amountDelta: Number(quotation.total_amount || 0),
       effectiveAt: now,
       metadata: {
-        invoice_no: invoiceNo || null,
+        invoice_no: invoiceNo,
         total_amount: quotation.total_amount,
         quotation_id: id,
         description: `Sale from Quotation #${quotation.quotation_no || id}`

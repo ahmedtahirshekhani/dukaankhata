@@ -496,10 +496,13 @@ function QuotationFormPageInner({
                     }
                 } else {
                     // Generate a new quotation number
-                    const now = new Date();
-                    const year = now.getFullYear();
-                    const random = Math.floor(Math.random() * 9000) + 1000;
-                    setQuotationNo(`QT-${year}-${random}`);
+                    const random = Math.floor(Math.random() * 900000) + 100000;
+                    setQuotationNo(`QT-${random}`);
+
+                    // Default validity date: 30 days from now
+                    const thirtyDaysLater = new Date();
+                    thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+                    setValidityDate(thirtyDaysLater.toISOString().split("T")[0]);
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
@@ -572,13 +575,17 @@ function QuotationFormPageInner({
         setItemQuantity("1");
     }, [selectedProductObj, itemQuantity, editingItemId, quotationItems, tCommon]);
 
-    // Save quotation
     const handleSaveQuotation = async () => {
         if (!selectedPartyId || quotationItems.length === 0 || !validityDate) {
+            const missing = [];
+            if (!selectedPartyId) missing.push("Party");
+            if (quotationItems.length === 0) missing.push("Items");
+            if (!validityDate) missing.push("Validity Date");
+
             setErrorDialog({
                 open: true,
                 title: tCommon("error"),
-                message: "Fill all required fields",
+                message: `Please fill required fields: ${missing.join(", ")}`,
                 isSuccess: false,
             });
             return;

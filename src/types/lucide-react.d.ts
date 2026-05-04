@@ -205,6 +205,8 @@ declare module 'lucide-react' {
   export const Divide: Icon;
   export const Equal: Icon;
     export const FileSpreadsheet: Icon;
+    export const ChevronsLeft: Icon;
+    export const ChevronsRight: Icon;
   
   // Catch-all for any other icons that might be used
   const lucideReact: {

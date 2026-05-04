@@ -275,10 +275,16 @@ export default function QuotationViewClient({ id }: { id: string }) {
                                 <p className="text-sm font-medium text-slate-600 italic">{quotation.party_details.company_name}</p>
                             )}
                             {quotation.party_details?.phone && (
-                                <p className="text-xs text-muted-foreground mt-1">{quotation.party_details.phone}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Phone: {quotation.party_details.phone}</p>
+                            )}
+                            {quotation.party_details?.email && (
+                                <p className="text-xs text-muted-foreground">Email: {quotation.party_details.email}</p>
                             )}
                             {quotation.party_details?.address && (
-                                <p className="text-xs text-muted-foreground whitespace-pre-line max-w-[250px]">{quotation.party_details.address}</p>
+                                <p className="text-xs text-muted-foreground whitespace-pre-line max-w-[250px] mt-1">{quotation.party_details.address}</p>
+                            )}
+                            {quotation.party_details?.gstin && (
+                                <p className="text-[10px] font-bold text-primary mt-2">GSTIN/TRN: {quotation.party_details.gstin}</p>
                             )}
                             <p className="text-sm text-muted-foreground mt-2">Status: <span className={`font-bold uppercase text-[10px] tracking-widest ${quotation.status === "converted" ? "text-green-600" : "text-primary"}`}>{quotation.status || "Pending"}</span></p>
                         </div>

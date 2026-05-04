@@ -13,6 +13,11 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
+  const page = parseInt(searchParams.get("page") || "1");
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam === "-1" ? 0 : parseInt(limitParam || "10");
+  const search = searchParams.get("search") || "";
+  const skip = limit > 0 ? (page - 1) * limit : 0;
 
   const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
   
@@ -21,8 +26,23 @@ export async function GET(request: Request) {
     query.type = type;
   }
 
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { sku: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+      { category: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  const totalCount = await productsCollection.countDocuments(query);
+  const totalPages = limit > 0 ? Math.ceil(totalCount / limit) : 1;
+
   const data = await productsCollection
     .find(query)
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(limit)
     .toArray();
 
   // Convert _id to id for consistency
@@ -33,7 +53,12 @@ export async function GET(request: Request) {
   }));
 
   await updateUserLastActivity();
-  return NextResponse.json(products)
+  return NextResponse.json({
+    products,
+    totalCount,
+    totalPages,
+    currentPage: page
+  });
 }
 
 export async function POST(request: Request) {
