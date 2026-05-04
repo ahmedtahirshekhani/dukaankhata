@@ -31,7 +31,12 @@
     "searchCustomer": "Search Party...",
     "searchPaymentMethods": "Search payment methods...",
     "noPaymentMethodsFound": "No payment methods found",
-    "addPaymentMethod": "Add Payment Method"
+    "addPaymentMethod": "Add Payment Method",
+    "page": "Page",
+    "of": "ka",
+    "total": "Total",
+    "totalCountLabel": "Total {count} records",
+    "rowsPerPage": "Rows per page"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",

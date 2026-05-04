@@ -31,7 +31,12 @@
     "searchCustomer": "پارٹی تلاش کریں...",
     "searchPaymentMethods": "ادائیگی کے طریقوں کا تلاش کریں...",
     "noPaymentMethodsFound": "کوئی ادائیگی کے طریقوں نہیں ملے",
-    "addPaymentMethod": "ادائیگی کا طریقہ شامل کریں"
+    "addPaymentMethod": "ادائیگی کا طریقہ شامل کریں",
+    "page": "صفحہ",
+    "of": "کا",
+    "total": "کل",
+    "totalCountLabel": "کل {count} ریکارڈز",
+    "rowsPerPage": "قطاریں فی صفحہ"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",

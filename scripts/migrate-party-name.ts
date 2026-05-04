@@ -8,7 +8,7 @@ async function migrate() {
     const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
 
     const result = await partiesCollection.updateMany(
-      { name: "Cash In Hand" },
+      { name: { $in: ["Cash in Hand", "Cash In Hand", "cash in hand", "CASH IN HAND"] } },
       { $set: { name: "Walk In Customer" } }
     );
 

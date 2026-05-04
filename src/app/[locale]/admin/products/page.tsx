@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +19,15 @@ import {
 } from "lucide-react";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import { createSampleProductsExcel } from "@/lib/excel/sample-products";
+import { useDebounce } from "../../../../hooks/use-debounce";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -72,7 +81,9 @@ export default function Products() {
     costPriceMax: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [productsPerPage] = useState(100);
+  const [pageSize, setPageSize] = useState(10);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
@@ -108,11 +119,22 @@ export default function Products() {
   const [importColumns, setImportColumns] = useState<string[]>([]);
 
   // Use custom hook for data fetching
-  const { products, categories, branches, loading, setProducts, refetchData } =
+  const { products, categories, branches, loading: isInitialLoading, totalCount, totalPages, setProducts, refetchData } =
     useProductsData({
       filters,
       priceRanges,
+      page: currentPage,
+      limit: pageSize,
+      search: debouncedSearchTerm,
     });
+
+  // Handle loading state
+  const loading = isInitialLoading || isPageLoading;
+
+  // Reset to first page when search or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, pageSize]);
 
   const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
     if (isEdit) {
@@ -141,69 +163,8 @@ export default function Products() {
     }
   }, [productToDelete, products, setProducts]);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      // Category filter
-      if (filters.category !== "all" && product.category !== filters.category) {
-        return false;
-      }
-      // Branch filter
-      if (filters.branch !== "all" && product.branch !== filters.branch) {
-        return false;
-      }
-      // Stock filter
-      if (
-        filters.inStock !== "all" &&
-        filters.inStock === "in-stock" &&
-        (product.quantity === 0 ||
-          (product.in_stock === 0 && !product.quantity))
-      ) {
-        return false;
-      }
-      // Sell price range filter
-      if (
-        priceRanges.sellPriceMin &&
-        product.sell_price !== undefined &&
-        product.sell_price < Number(priceRanges.sellPriceMin)
-      ) {
-        return false;
-      }
-      if (
-        priceRanges.sellPriceMax &&
-        product.sell_price !== undefined &&
-        product.sell_price > Number(priceRanges.sellPriceMax)
-      ) {
-        return false;
-      }
-      // Cost price range filter
-      if (
-        priceRanges.costPriceMin &&
-        product.cost_price !== undefined &&
-        product.cost_price < Number(priceRanges.costPriceMin)
-      ) {
-        return false;
-      }
-      if (
-        priceRanges.costPriceMax &&
-        product.cost_price !== undefined &&
-        product.cost_price > Number(priceRanges.costPriceMax)
-      ) {
-        return false;
-      }
 
-      // Search filter
-      return product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  }, [products, filters, priceRanges, searchTerm]);
-
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = filteredProducts.slice(
-    indexOfFirstProduct,
-    indexOfLastProduct
-  );
-
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const currentProducts = products;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -299,8 +260,17 @@ export default function Products() {
     try {
       setIsDownloading(true);
       
-      // Use products already loaded in state (not from API)
-      if (!products || products.length === 0) {
+      // Fetch all products for export
+      const url = new URL("/api/products", window.location.origin);
+      url.searchParams.append("limit", "-1");
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error("Failed to fetch products for export");
+      
+      const data = await response.json();
+      const allProducts = data.products;
+
+      if (!allProducts || allProducts.length === 0) {
         throw new Error("No products to export");
       }
 
@@ -308,7 +278,7 @@ export default function Products() {
       const filename = `products-${new Date().toISOString().split('T')[0]}.xlsx`;
 
       // Export to Excel
-      exportProductsToExcel(products, filename);
+      exportProductsToExcel(allProducts, filename);
     } catch (error) {
       console.error("Error downloading Excel:", error);
       setErrorDialog({
@@ -319,7 +289,7 @@ export default function Products() {
     } finally {
       setIsDownloading(false);
     }
-  }, [products, t]);
+  }, [t]);
 
   const handleDownloadTemplate = useCallback(() => {
     exportProductsTemplate("products-template.xlsx");
@@ -631,18 +601,15 @@ export default function Products() {
                 <FilterIcon className="w-3 h-3 mr-1" />
                 {t("filters")}
               </Button>
-              <div className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-                {t("total")}: {filteredProducts.length.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Desktop Total */}
-            <div className="hidden md:flex text-xs text-muted-foreground justify-end">
-              {t("total")}: {filteredProducts.length.toLocaleString()}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 relative">
+          {loading && products.length > 0 && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[2px]">
+              <Loader2Icon className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          )}
           <ProductsTable
             products={currentProducts}
             onEdit={(product) => {
@@ -656,7 +623,40 @@ export default function Products() {
             capitalizeFirstLetter={capitalizeFirstLetter}
           />
         </CardContent>
-        <CardFooter></CardFooter>
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: totalCount })}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage")}
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(parseInt(value))}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isLoading={loading}
+          />
+        </CardFooter>
       </Card>
       <ProductDialog
         open={isProductDialogOpen}

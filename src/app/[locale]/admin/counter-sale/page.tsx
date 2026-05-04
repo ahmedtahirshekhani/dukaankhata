@@ -35,14 +35,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";
 import { Combobox } from "@/components/ui/combobox";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import {
@@ -94,7 +87,7 @@ interface Product {
   description?: string;
 }
 
-const ITEMS_PER_PAGE = 25;
+
 
 interface Transaction {
   id: number;
@@ -121,6 +114,7 @@ interface PaginatedResponse {
 
 export default function CounterSale() {
   const t = useTranslations("counterSale");
+  const tCommon = useTranslations("common");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
@@ -131,6 +125,7 @@ export default function CounterSale() {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [pageInfo, setPageInfo] = useState({ total: 0, totalPages: 0 });
   const [sortColumn, setSortColumn] = useState<keyof Transaction>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -640,7 +635,7 @@ export default function CounterSale() {
         if (wasOnPage1) {
           try {
             const refreshResponse = await fetch(
-              `/api/transactions?page=1&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
+              `/api/transactions?page=1&limit=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
             );
             if (refreshResponse.ok) {
               const refreshResult: PaginatedResponse =
@@ -648,7 +643,7 @@ export default function CounterSale() {
               setTransactions(refreshResult.data);
               const computedTotalPages = Math.max(
                 1,
-                Math.ceil(refreshResult.total / ITEMS_PER_PAGE),
+                Math.ceil(refreshResult.total / pageSize),
               );
               setPageInfo({
                 total: refreshResult.total,
@@ -1146,7 +1141,7 @@ export default function CounterSale() {
       try {
         setLoading(true);
         const response = await fetch(
-          `/api/transactions?page=${currentPage}&limit=${ITEMS_PER_PAGE}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
+          `/api/transactions?page=${currentPage}&limit=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
         );
         if (!response.ok) {
           throw new Error("Failed to fetch transactions");
@@ -1155,7 +1150,7 @@ export default function CounterSale() {
         setTransactions(result.data);
         const computedTotalPages = Math.max(
           1,
-          Math.ceil(result.total / ITEMS_PER_PAGE),
+          Math.ceil(result.total / pageSize),
         );
         console.log("Computed Total Pages:", result.total);
         setPageInfo({
@@ -1177,7 +1172,12 @@ export default function CounterSale() {
 
     fetchTransactions();
     fetchProducts();
-  }, [currentPage, sortColumn, sortDirection, selectedYear]);
+  }, [currentPage, pageSize, sortColumn, sortDirection, selectedYear]);
+
+  // Reset to first page when search or filters change or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters.type, pageSize]);
 
   if (loading) {
     return (
@@ -2407,89 +2407,43 @@ export default function CounterSale() {
           </div>
 
           {/* Pagination */}
-          {pageInfo.total > ITEMS_PER_PAGE && pageInfo.totalPages > 1 && (
-            <div className="mt-4 sm:mt-6">
-              <Pagination>
-                <PaginationContent className="flex-wrap gap-1">
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage((prev) => Math.max(prev - 1, 1));
-                      }}
-                      className={
-                        currentPage === 1
-                          ? "pointer-events-none opacity-50 h-8 sm:h-10 text-xs sm:text-sm"
-                          : "cursor-pointer h-8 sm:h-10 text-xs sm:text-sm"
-                      }
-                    />
-                  </PaginationItem>
-
-                  {Array.from({ length: pageInfo.totalPages }).map(
-                    (_, index) => {
-                      const pageNum = index + 1;
-                      // Show first page, last page, current page, and pages around current
-                      if (
-                        pageNum === 1 ||
-                        pageNum === pageInfo.totalPages ||
-                        (pageNum >= currentPage - 1 &&
-                          pageNum <= currentPage + 1)
-                      ) {
-                        return (
-                          <PaginationItem key={pageNum}>
-                            <PaginationLink
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setCurrentPage(pageNum);
-                              }}
-                              isActive={pageNum === currentPage}
-                              className="h-8 w-8 sm:h-10 sm:w-10 text-xs sm:text-sm"
-                            >
-                              {pageNum}
-                            </PaginationLink>
-                          </PaginationItem>
-                        );
-                      }
-                      // Show ellipsis
-                      if (
-                        (pageNum === currentPage - 2 && currentPage > 3) ||
-                        (pageNum === currentPage + 2 &&
-                          currentPage < pageInfo.totalPages - 2)
-                      ) {
-                        return (
-                          <PaginationItem key={`ellipsis-${pageNum}`}>
-                            <span className="px-1 sm:px-1.5 py-2 text-xs sm:text-sm">
-                              ...
-                            </span>
-                          </PaginationItem>
-                        );
-                      }
-                      return null;
-                    },
-                  )}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage((prev) =>
-                          Math.min(prev + 1, pageInfo.totalPages),
-                        );
-                      }}
-                      className={
-                        currentPage === pageInfo.totalPages
-                          ? "pointer-events-none opacity-50 h-8 sm:h-10 text-xs sm:text-sm"
-                          : "cursor-pointer h-8 sm:h-10 text-xs sm:text-sm"
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+          <div className="mt-4 sm:mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+              <div className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("totalCountLabel", { count: pageInfo.total })}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {tCommon("rowsPerPage")}
+                </span>
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(value) => setPageSize(parseInt(value))}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue placeholder={pageSize.toString()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((size) => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          )}
+            
+            {pageInfo.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pageInfo.totalPages}
+                onPageChange={setCurrentPage}
+                isLoading={loading}
+              />
+            )}
+          </div>
         </CardContent>
         {/* Remove card footer */}
       </Card>

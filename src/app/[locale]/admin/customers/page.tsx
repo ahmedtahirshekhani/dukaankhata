@@ -59,6 +59,9 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { Pagination } from "@/components/ui/pagination";
+import { useDebounce } from "../../../../hooks/use-debounce";
 import { exportCustomersToExcel, exportCustomersTemplate } from "@/lib/excel";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
@@ -76,6 +79,7 @@ type Customer = {
 
 export default function PartiesPage() {
   const t = useTranslations("customers");
+  const tCommon = useTranslations("common");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +114,15 @@ export default function PartiesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
     title?: string;
@@ -120,41 +133,35 @@ export default function PartiesPage() {
     message: "",
   });
 
+  const fetchCustomers = useCallback(async (page: number, search: string) => {
+    setIsPageLoading(true);
+    try {
+      const response = await fetch(`/api/customers?page=${page}&limit=${pageSize}&search=${encodeURIComponent(search)}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers");
+      }
+      const data = await response.json();
+      setCustomers(data.customers || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setIsPageLoading(false);
+      setLoading(false);
+    }
+  }, [pageSize]);
+
   useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const response = await fetch("/api/customers");
-        if (!response.ok) {
-          throw new Error("Failed to fetch customers");
-        }
-        const data = await response.json();
-        const activeCustomers = data.filter(
-          (customer: Customer) => customer.is_delete !== 1,
-        );
-        setCustomers(activeCustomers);
-      } catch (error) {
-        setError((error as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchCustomers(currentPage, debouncedSearchTerm);
+  }, [currentPage, debouncedSearchTerm, fetchCustomers]);
 
-    fetchCustomers();
-  }, []);
+  // Reset to first page when search or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, pageSize]);
 
-  const filteredCustomers = useMemo(() => {
-    if (customers.length === 0) return [];
-    return customers.filter((customer) => {
-      if (customer.is_delete === 1) {
-        return false;
-      }
-      return (
-        customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer?.phone?.includes(searchTerm)
-      );
-    });
-  }, [customers, searchTerm]);
+  const filteredCustomers = customers;
 
   const resetSelectedCustomer = () => {
     setSelectedCustomerId(null);
@@ -213,7 +220,7 @@ export default function PartiesPage() {
         throw new Error(createdCustomer.error || "Error creating customer");
       }
 
-      setCustomers([...customers, createdCustomer]);
+      fetchCustomers(currentPage, debouncedSearchTerm);
       setShowNewCustomerDialog(false);
       resetSelectedCustomer();
 
@@ -287,21 +294,7 @@ export default function PartiesPage() {
       }
 
       const updatedCustomerData = await response.json();
-      setCustomers(
-        customers.map((c) =>
-          c.id === updatedCustomerData.id || c.id === selectedCustomerId
-            ? {
-                ...updatedCustomerData,
-                balance:
-                  typeof updatedCustomerData.balance === "undefined"
-                    ? typeof updatedCustomerData.opening_balance !== "undefined"
-                      ? updatedCustomerData.opening_balance
-                      : c.balance
-                    : updatedCustomerData.balance,
-              }
-            : c,
-        ),
-      );
+      fetchCustomers(currentPage, debouncedSearchTerm);
       setIsEditCustomerDialogOpen(false);
       resetSelectedCustomer();
 
@@ -368,11 +361,7 @@ export default function PartiesPage() {
         throw new Error(errorData.error || "Error deleting customer");
       }
 
-      setCustomers(
-        customers.map((c) =>
-          c.id === customerToDelete.id ? { ...c, is_delete: 1 } : c,
-        ),
-      );
+      fetchCustomers(currentPage, debouncedSearchTerm);
       setIsDeleteConfirmationOpen(false);
       setCustomerToDelete(null);
 
@@ -402,11 +391,12 @@ export default function PartiesPage() {
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      const response = await fetch("/api/customers");
+      const response = await fetch("/api/customers?limit=-1");
       if (!response.ok) {
         throw new Error("Failed to fetch customers");
       }
-      const allCustomers = await response.json();
+      const data = await response.json();
+      const allCustomers = data.customers || [];
 
       const filename = `customers.xlsx`;
 
@@ -479,10 +469,12 @@ export default function PartiesPage() {
           message: message,
           isSuccess: result.errorCount === 0,
         });
-        const refreshResponse = await fetch("/api/customers");
+        const refreshResponse = await fetch(`/api/customers?page=${currentPage}&limit=${pageSize}`);
         if (refreshResponse.ok) {
-          const refreshedCustomers = await refreshResponse.json();
-          setCustomers(refreshedCustomers);
+          const data = await refreshResponse.json();
+          setCustomers(data.customers || []);
+          setTotalPages(data.totalPages || 1);
+          setTotalCount(data.totalCount || 0);
         }
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -682,8 +674,24 @@ export default function PartiesPage() {
                     <TableHead>{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {filteredCustomers.map((customer) => (
+                <TableBody className="relative">
+                  {isPageLoading && customers.length > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="p-0">
+                        <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[1px]">
+                          <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {filteredCustomers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                        {t("noCustomers")}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredCustomers.map((customer) => (
                     <TableRow key={customer.id}>
                       <TableCell>{customer.name}</TableCell>
                       <TableCell>{customer.phone}</TableCell>
@@ -743,7 +751,8 @@ export default function PartiesPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -865,10 +874,46 @@ export default function PartiesPage() {
                 </div>
               </Card>
             ))}
+            {filteredCustomers.length === 0 && (
+              <div className="py-12 text-center text-muted-foreground">
+                {t("noCustomers")}
+              </div>
+            )}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          {/* Pagination can be added here if needed */}
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: totalCount })}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage")}
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(parseInt(value))}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isLoading={isPageLoading}
+          />
         </CardFooter>
 
         <Dialog

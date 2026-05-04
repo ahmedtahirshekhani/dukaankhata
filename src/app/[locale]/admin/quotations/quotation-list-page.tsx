@@ -184,7 +184,7 @@ export default function QuotationListPage() {
           <p className="text-sm text-muted-foreground">{tNav("quotationsDescription")}</p>
         </div>
         <Button asChild className="shrink-0">
-          <Link href="./quotations/new">{t("common.add")}</Link>
+          <Link href={`/${locale}/admin/quotations/new`}>{t("common.add")}</Link>
         </Button>
       </div>
 
@@ -237,12 +237,12 @@ export default function QuotationListPage() {
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button size="sm" variant="ghost" asChild>
-                            <Link href={`./quotations/${quotId}/view`}>
+                            <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
                               <EyeIcon className="h-4 w-4" />
                             </Link>
                           </Button>
                           <Button size="sm" variant="ghost" asChild>
-                            <Link href={`./quotations/${quotId}/edit`}>
+                            <Link href={`/${locale}/admin/quotations/${quotId}/edit`}>
                               {t("common.edit")}
                             </Link>
                           </Button>
@@ -337,6 +337,7 @@ function QuotationCard({
   t: (key: string) => string;
   tNav: (key: string) => string;
 }) {
+  const locale = useLocale();
   const quotId = quotation._id || quotation.id;
   
   return (
@@ -373,13 +374,13 @@ function QuotationCard({
 
       <div className="flex justify-end gap-2 mt-3 pt-2 border-t">
         <Button size="sm" variant="ghost" asChild>
-          <Link href={`./quotations/${quotId}/view`}>
+          <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
             <EyeIcon className="h-4 w-4 mr-1" />
             {t("common.view") || "View"}
           </Link>
         </Button>
         <Button size="sm" variant="ghost" asChild>
-          <Link href={`./quotations/${quotId}/edit`}>
+          <Link href={`/${locale}/admin/quotations/${quotId}/edit`}>
             {t("common.edit")}
           </Link>
         </Button>

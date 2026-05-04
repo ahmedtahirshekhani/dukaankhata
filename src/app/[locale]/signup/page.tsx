@@ -64,9 +64,10 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       return false;
     }
 
+    // No length validation for phone number as per user request
     const phoneDigits = formData.phoneNumber.replace(/\D/g, "");
-    if (phoneDigits.length !== 10) {
-      setError("Phone number must be exactly 10 digits");
+    if (phoneDigits.length < 5) {
+      setError("Phone number is too short");
       return false;
     }
 
@@ -222,11 +223,6 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
     if (name === "phoneNumber") {
       let digitsOnly = value.replace(/\D/g, "");
-      // Automatically strip leading zero if present
-      if (digitsOnly.startsWith("0")) {
-        digitsOnly = digitsOnly.substring(1);
-      }
-      digitsOnly = digitsOnly.slice(0, 10);
       setFormData((prev) => ({
         ...prev,
         phoneNumber: digitsOnly,
@@ -397,14 +393,12 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                     </SelectContent>
                   </Select>
 
-                  <Input
+                   <Input
                     id="phone"
                     name="phoneNumber"
                     type="tel"
                     inputMode="numeric"
-                    maxLength={11}
-                    pattern="[0-9]{10}"
-                    placeholder="3001234567"
+                    placeholder="e.g. 03001234567 or 923001234567"
                     value={formData.phoneNumber}
                     onChange={handleChange}
                     required
