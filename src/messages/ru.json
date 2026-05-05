@@ -36,7 +36,9 @@
     "of": "ka",
     "total": "Total",
     "totalCountLabel": "Total {count} records",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "noResults": "Aap ki talash ke mutabiq koi nataij nahi mile",
+    "clearSearch": "Talash khatam karain"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -961,6 +963,7 @@
   "purchaseBill": {
     "title": "Khareedari Bill",
     "purchaseBilldescription": "Khareedari ke bills banain aur manage karain",
+    "searchPlaceholder": "Party, raqam ya status se search karein...",
     "billDetails": "Bill ki Tafseelat",
     "partyName": "Party ka Naam",
     "selectParty": "Ek party muntakhab karain",

@@ -1,8 +1,33 @@
-
 // src/app/[locale]/api/products/[productId]/route.ts
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
+
+export async function GET(
+  request: Request,
+  { params }: { params: { productId: string } }
+) {
+  const user = await getCurrentUser() as { id: string } | null
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const productId = params.productId
+  if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+
+  const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+  const product = await productsCollection.findOne({
+    _id: toObjectId(productId),
+    user_id: toObjectId(user.id)
+  });
+
+  if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+
+  await updateUserLastActivity();
+  return NextResponse.json({
+    ...product,
+    id: product._id.toString(),
+    _id: undefined
+  })
+}
 
 export async function PUT(
   request: Request,

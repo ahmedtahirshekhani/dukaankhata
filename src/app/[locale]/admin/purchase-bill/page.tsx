@@ -16,8 +16,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Loader2, Edit2 } from "lucide-react";
+import { Trash2, Plus, Loader2, Edit2, SearchIcon, X } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import React from "react";
 
 interface PurchaseBillItem {
   id: string;
@@ -50,11 +61,21 @@ interface PurchaseBill {
 
 export default function PurchaseBillPage() {
   const t = useTranslations("purchaseBill");
+  const tCommon = useTranslations("common");
+
   const locale = useLocale();
   const router = useRouter();
 
   const [bills, setBills] = useState<PurchaseBill[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  
+  // Pagination & Search states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -73,28 +94,49 @@ export default function PurchaseBillPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        const billsRes = await fetch(`/${locale}/api/purchase-bills`);
-        if (billsRes.ok) {
-          const data = await billsRes.json();
-          setBills(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error("Error fetching bills:", error);
-        setErrorDialog({
-          open: true,
-          title: t("error"),
-          message: t("failedToLoadData"),
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchBills = useCallback(async (page = currentPage, limit = pageSize, search = debouncedSearch) => {
+    if (bills.length === 0 && !search && page === 1) {
+      setLoading(true);
+    }
+    setIsPageLoading(true);
+    try {
+      const url = new URL(`/${locale}/api/purchase-bills`, window.location.origin);
+      url.searchParams.append("page", page.toString());
+      url.searchParams.append("limit", limit.toString());
+      if (search) url.searchParams.append("search", search);
 
-    fetchBills();
-  }, [locale, t]);
+      const billsRes = await fetch(url.toString());
+      if (billsRes.ok) {
+        const data = await billsRes.json();
+        if (data.bills) {
+          setBills(data.bills);
+          setTotalPages(data.pagination?.totalPages || 1);
+        } else {
+          setBills(Array.isArray(data) ? data : []);
+          setTotalPages(1);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching bills:", error);
+      setErrorDialog({
+        open: true,
+        title: t("error"),
+        message: t("failedToLoadData"),
+      });
+    } finally {
+      setLoading(false);
+      setIsPageLoading(false);
+    }
+  }, [locale, t, bills.length, currentPage, pageSize, debouncedSearch]);
+
+  useEffect(() => {
+    fetchBills(1, pageSize, debouncedSearch);
+    setCurrentPage(1);
+  }, [debouncedSearch, locale, pageSize]);
+
+  useEffect(() => {
+    fetchBills(currentPage, pageSize, debouncedSearch);
+  }, [currentPage, locale]);
 
   const handleDeleteBill = useCallback(async (billId: string) => {
     setIsSaving(true);
@@ -142,33 +184,52 @@ export default function PurchaseBillPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">
-            {t("title") || "Purchase Bill"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("purchaseBilldescription") || "Manage purchase bills"}
-          </p>
+    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("purchaseBilldescription")}</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t("searchPlaceholder") || "Search purchase bills..."}
+            className="pl-9 pr-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
         <Button
           onClick={() => router.push(`/${locale}/admin/purchase-bill/new`)}
-          className="gap-2"
+          className="gap-2 shrink-0"
         >
           <Plus className="h-4 w-4" />
           {t("addBills") || "Add Purchase Bill"}
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("purchaseBills") || "Purchase Bills"}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="shadow-sm overflow-hidden">
+        <CardContent className="p-0 relative">
+          {isPageLoading && (
+            <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+          
           {bills.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              {t("noBills") || "No purchase bills found"}
+            <div className="text-center text-muted-foreground py-20 flex flex-col items-center justify-center gap-2">
+              <SearchIcon className="h-10 w-10 opacity-20" />
+              <p>{searchTerm ? t("common.noResults") || "No results found" : t("noBills") || "No purchase bills found"}</p>
+              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{t("common.clearSearch") || "Clear search"}</Button>}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -181,7 +242,7 @@ export default function PurchaseBillPage() {
                     <TableHead className="text-right">{t("balanceDue") || "Balance"}</TableHead>
                     <TableHead>{t("status") || "Status"}</TableHead>
                     <TableHead>{t("date") || "Date"}</TableHead>
-                    <TableHead className="text-right">{t("actions") || "Actions"}</TableHead>
+                    <TableHead className="text-right pr-6">{t("actions") || "Actions"}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,18 +272,18 @@ export default function PurchaseBillPage() {
                           ? new Date(bill.created_at).toLocaleDateString(locale)
                           : "-"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right pr-4">
                         <div className="flex gap-2 justify-end">
                           <Button
-                            size="sm"
-                            variant="outline"
+                            size="icon"
+                            variant="ghost"
                             onClick={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="sm"
-                            variant="outline"
+                            size="icon"
+                            variant="ghost"
                             onClick={() => {
                               setDeleteConfirmDialog({ open: true, billId: bill.id });
                             }}
@@ -238,6 +299,41 @@ export default function PurchaseBillPage() {
             </div>
           )}
         </CardContent>
+
+        {bills.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground order-2 sm:order-1">
+              <span>{tCommon("rowsPerPage") || "Rows per page"}:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(val) => {
+                  setPageSize(Number(val));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 20, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="order-1 sm:order-2">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                isLoading={isPageLoading}
+              />
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Delete Confirmation Dialog */}

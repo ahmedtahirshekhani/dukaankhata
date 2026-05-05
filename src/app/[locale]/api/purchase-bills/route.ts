@@ -27,86 +27,96 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const billId = url.searchParams.get("id");
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const limit = parseInt(url.searchParams.get("limit") || "10");
+  const search = url.searchParams.get("search") || "";
+  const skip = (page - 1) * limit;
 
-  const purchaseBillsCollection = await getCollection(
-    COLLECTIONS.PURCHASE_BILLS
-  );
-  const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
+  const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
 
   try {
-    let bills;
-
     if (billId) {
       if (!isValidObjectId(billId)) {
-        return NextResponse.json(
-          { error: "Invalid bill ID" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Invalid bill ID" }, { status: 400 });
       }
-      const billObjId = toObjectId(billId);
       const bill = await purchaseBillsCollection.findOne({
-        _id: billObjId,
+        _id: toObjectId(billId),
         user_id: toObjectId(user.id),
       });
 
       if (!bill) {
-        return NextResponse.json(
-          { error: "Bill not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Bill not found" }, { status: 404 });
       }
-      bills = [bill];
-    } else {
-      bills = await purchaseBillsCollection
-        .find({ user_id: toObjectId(user.id) })
-        .sort({ created_at: -1 })
-        .toArray();
+
+      return NextResponse.json({
+        ...bill,
+        id: bill._id.toString(),
+        party_id: bill.party_id.toString(),
+      });
     }
 
-    const billsWithParties = await Promise.all(
-      bills.map(async (bill) => {
-        const party = await partiesCollection.findOne(
-          { _id: bill.party_id },
-          { projection: { name: 1, email: 1, phone: 1, company_name: 1 } }
-        );
+    // Match query
+    const matchQuery: any = { user_id: toObjectId(user.id) };
 
-        return {
-          id: bill._id.toString(),
-          party_id: bill.party_id.toString(),
-          party_name: bill.party_name,
-          items: bill.items || [],
-          discount: bill.discount || 0,
-          discount_type: bill.discount_type || "fixed",
-          tax: bill.tax || 0,
-          tax_type: bill.tax_type || "fixed",
-          total_amount: bill.total_amount,
-          paid_amount: bill.paid_amount || 0,
-          balance_due: bill.balance_due || 0,
-          is_paid: bill.is_paid || false,
-          payment_method_id: bill.payment_method_id || null,
-          payment_method_name: bill.payment_method_name || null,
-          description: bill.description || null,
-          created_at: bill.created_at,
-          updated_at: bill.updated_at || null,
-          party: party
-            ? {
-                name: party.name,
-                email: party.email,
-                phone: party.phone,
-                company_name: party.company_name,
-              }
-            : null,
-        };
-      })
-    );
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), "i");
+      matchQuery.$or = [
+        { party_name: searchRegex },
+        { description: searchRegex },
+      ];
+    }
+
+    const pipeline: any[] = [
+      { $match: matchQuery },
+      { $sort: { created_at: -1 } },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+    ];
+
+    const result = await purchaseBillsCollection.aggregate(pipeline).toArray();
+    const bills = result[0].data || [];
+    const total = result[0].metadata[0]?.total || 0;
+
+    const formattedBills = bills.map((bill: any) => ({
+      id: bill._id.toString(),
+      party_id: bill.party_id.toString(),
+      party_name: bill.party_name,
+      items: bill.items || [],
+      discount: bill.discount || 0,
+      discount_type: bill.discount_type || "fixed",
+      tax: bill.tax || 0,
+      tax_type: bill.tax_type || "fixed",
+      total_amount: bill.total_amount,
+      paid_amount: bill.paid_amount || 0,
+      balance_due: bill.balance_due || 0,
+      is_paid: bill.is_paid || false,
+      payment_method_id: bill.payment_method_id || null,
+      payment_method_name: bill.payment_method_name || null,
+      description: bill.description || null,
+      created_at: bill.created_at,
+      updated_at: bill.updated_at || null,
+    }));
 
     await updateUserLastActivity();
-    return NextResponse.json(billId ? billsWithParties[0] : billsWithParties);
+    return NextResponse.json({
+      bills: formattedBills,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: unknown) {
     console.error("Error fetching purchase bills:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch purchase bills";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch purchase bills" },
+      { status: 500 }
+    );
   }
 }
 

@@ -189,10 +189,10 @@ export default function NewInvoicePage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/products");
+      const response = await fetch("/api/products?limit=-1");
       if (!response.ok) throw new Error("Failed to fetch products");
       const data = await response.json();
-      setProducts(data);
+      setProducts(data.products || []);
     } catch (error) {
       console.error("Error fetching products:", error);
     }
@@ -200,10 +200,10 @@ export default function NewInvoicePage() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch("/api/customers");
+      const response = await fetch("/api/customers?limit=-1");
       if (!response.ok) throw new Error(t("failedToFetchCustomers"));
       const data = await response.json();
-      setCustomers(data);
+      setCustomers(data.customers || []);
     } catch (error) {
       console.error("Error fetching customers:", error);
     }

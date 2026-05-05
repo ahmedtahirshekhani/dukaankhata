@@ -1,7 +1,7 @@
 // components/dropdown/product-dropdown.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, forwardRef } from "react";
+import React, { useState, useEffect, useCallback, forwardRef, useRef, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Select,
@@ -14,21 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
 import { ProductDialog } from "@/components/dialogs/product-dialog";
-import { formatCurrencyString } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 
-interface Product {
-  id: number;
-  _id?: number;
-  type?: string;
-  name: string;
-  description?: string;
-  sell_price?: number;
-  cost_price?: number;
-  quantity?: number;
-  unit_of_measurement?: string;
-  category?: string;
-  branch?: string;
-}
+import { Product } from "@/types/product";
 
 interface ProductDropdownProps {
   value?: string;
@@ -39,8 +27,10 @@ interface ProductDropdownProps {
   enableSearch?: boolean;
   searchPlaceholder?: string;
   noResultsText?: string;
-  addButtonPosition?: "top" | "bottom";  // NEW PROP
+  addButtonPosition?: "top" | "bottom";
 }
+
+const ITEMS_PER_PAGE = 20;
 
 export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProps>(
   (
@@ -53,7 +43,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       enableSearch = true,
       searchPlaceholder = "Search product...",
       noResultsText = "No products found",
-      addButtonPosition = "bottom", // default bottom
+      addButtonPosition = "bottom",
     },
     ref
   ) => {
@@ -61,43 +51,106 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const tCommon = useTranslations("common");
 
     const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [isOpen, setIsOpen] = useState(false);
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [selectedProductForDialog, setSelectedProductForDialog] = useState<Product | null>(null);
+    
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const observerTarget = useRef<HTMLDivElement>(null);
+    const [initialProductLoaded, setInitialProductLoaded] = useState(false);
 
-    const fetchProducts = useCallback(async () => {
+    const getProductId = (p: Product) => String(p.id || p._id);
+
+    // Fetch products from server
+    const fetchProducts = useCallback(async (pageNum: number, search: string, append = false) => {
       try {
-        setLoading(true);
-        const res = await fetch("/api/products");
+        if (pageNum === 1) setLoading(true);
+        else setLoadingMore(true);
+
+        const url = new URL("/api/products", window.location.origin);
+        url.searchParams.append("page", pageNum.toString());
+        url.searchParams.append("limit", ITEMS_PER_PAGE.toString());
+        if (search) url.searchParams.append("search", search);
+
+        const res = await fetch(url.toString());
         if (!res.ok) throw new Error("Failed to fetch products");
         const data = await res.json();
-        setProducts(Array.isArray(data) ? data : []);
+        
+        const newProducts = data.products || [];
+        setProducts(prev => append ? [...prev, ...newProducts] : newProducts);
+        setHasMore(newProducts.length === ITEMS_PER_PAGE);
       } catch (error) {
         console.error(error);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     }, []);
 
-    useEffect(() => {
-      fetchProducts();
-    }, [fetchProducts]);
+    // Load initial product if value is provided and not in the list
+    const fetchSelectedProduct = useCallback(async (productId: string) => {
+      if (!productId) return;
+      try {
+        const res = await fetch(`/api/products/${productId}`);
+        if (res.ok) {
+          const product = await res.json();
+          setProducts(prev => {
+            const exists = prev.find(p => getProductId(p) === productId);
+            if (exists) return prev;
+            return [product, ...prev];
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching selected product:", error);
+      }
+    }, []);
 
-    // Filter products based on search term
-    const filteredProducts = React.useMemo(() => {
-      if (!searchTerm.trim()) return products;
-      const term = searchTerm.toLowerCase();
-      return products.filter(
-        (p) =>
-          p.name?.toLowerCase().includes(term) ||
-          p.description?.toLowerCase().includes(term)
+    // Initial load and search
+    useEffect(() => {
+      setPage(1);
+      fetchProducts(1, debouncedSearchTerm, false);
+    }, [debouncedSearchTerm, fetchProducts]);
+
+    // Ensure selected product is loaded
+    useEffect(() => {
+      if (value && !initialProductLoaded) {
+        const exists = products.find(p => getProductId(p) === value);
+        if (!exists) {
+          fetchSelectedProduct(value);
+        }
+        setInitialProductLoaded(true);
+      }
+    }, [value, products, initialProductLoaded, fetchSelectedProduct]);
+
+    // Handle intersection observer for infinite scroll
+    useEffect(() => {
+      if (!hasMore || loading || loadingMore || !isOpen) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchProducts(nextPage, debouncedSearchTerm, true);
+          }
+        },
+        { threshold: 0.1 }
       );
-    }, [products, searchTerm]);
+
+      if (observerTarget.current) {
+        observer.observe(observerTarget.current);
+      }
+
+      return () => observer.disconnect();
+    }, [hasMore, loading, loadingMore, page, debouncedSearchTerm, fetchProducts, isOpen]);
 
     const handleValueChange = (newValue: string) => {
-      const selected = products.find((p) => String(p.id || p._id) === newValue);
+      const selected = products.find((p) => getProductId(p) === newValue);
       onValueChange(newValue, selected);
       setIsOpen(false);
       setSearchTerm("");
@@ -109,36 +162,26 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     };
 
     const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
-      // Refresh product list
-      fetchProducts();
-      // Auto-select the newly added or edited product
-      const productId = String(product.id || product._id);
+      setPage(1);
+      fetchProducts(1, "", false);
+      const productId = getProductId(product);
       onValueChange(productId, product);
       setIsProductDialogOpen(false);
-      setSelectedProductForDialog(null);
     };
 
-    const getProductId = (p: Product) => String(p.id || p._id);
-
-    // Truncate description for dropdown (max 60 chars)
     const truncateDesc = (desc?: string) => {
       if (!desc) return "";
       return desc.length > 60 ? desc.substring(0, 57) + "..." : desc;
     };
 
-    // Function to open add product dialog and close dropdown
     const openAddProductDialog = () => {
-      setIsOpen(false); // Close dropdown first to prevent overlay conflict
+      setIsOpen(false);
       setSelectedProductForDialog(null);
       setIsProductDialogOpen(true);
     };
 
-    // Render Add Button component
     const AddButton = () => (
-      <div
-        className="border-t mt-0 pt-1 sticky bottom-0 bg-popover"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
         <Button
           type="button"
           variant="ghost"
@@ -151,12 +194,8 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       </div>
     );
 
-    // Render Add Button at top (sticky)
     const AddButtonTop = () => (
-      <div
-        className="sticky top-0 bg-popover z-10 border-b"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="sticky top-0 bg-popover z-10 border-b" onClick={(e) => e.stopPropagation()}>
         <Button
           type="button"
           variant="ghost"
@@ -175,18 +214,21 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
           <Select
             value={value}
             onValueChange={handleValueChange}
-            disabled={disabled || loading}
+            disabled={disabled}
             open={isOpen}
             onOpenChange={handleOpenChange}
           >
             <SelectTrigger className={className} ref={ref}>
-              <SelectValue placeholder={loading ? "Loading..." : placeholder} />
+              <SelectValue placeholder={loading && page === 1 ? "Loading..." : placeholder} />
             </SelectTrigger>
-            <SelectContent className="min-w-[280px] max-w-[90vw] p-0">
-              {/* Add Button at Top if position is top */}
+            <SelectContent 
+              position="popper" 
+              sideOffset={5} 
+              className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden"
+              collisionPadding={10}
+            >
               {addButtonPosition === "top" && <AddButtonTop />}
 
-              {/* Search Input */}
               {enableSearch && (
                 <div className="sticky top-0 bg-popover z-10 border-b p-2">
                   <div className="relative">
@@ -215,28 +257,23 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                 </div>
               )}
 
-              {/* Product List */}
-              <div className="max-h-[300px] overflow-y-auto">
-                {filteredProducts.length === 0 && !loading && (
+              <div className="max-h-[min(300px,var(--radix-select-content-available-height)-100px)] overflow-y-auto custom-scrollbar">
+                {products.length === 0 && !loading && (
                   <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                     {searchTerm ? noResultsText : "No products available"}
                   </div>
                 )}
-                {filteredProducts.map((product) => {
+                {products.map((product) => {
                   const productId = getProductId(product);
-                  const price = product.sell_price || 0;
                   const shortDesc = truncateDesc(product.description);
                   return (
                     <SelectItem key={productId} value={productId}>
                       <div className="flex flex-col items-start gap-0.5 py-0.5">
                         <div className="flex items-center justify-between w-full">
                           <span className="font-medium">{product.name}</span>
-                          {/* <span className="text-xs text-muted-foreground ml-2">
-                            {formatCurrencyString(price)}
-                          </span> */}
                         </div>
                         {shortDesc && (
-                          <span className="text-xs text-black hover:text-white truncate max-w-[280px]">
+                          <span className="text-xs text-muted-foreground truncate max-w-[240px]">
                             {shortDesc}
                           </span>
                         )}
@@ -244,21 +281,33 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                     </SelectItem>
                   );
                 })}
+                
+                {/* Intersection Observer Target */}
+                <div ref={observerTarget} className="flex flex-col items-center justify-center p-4 gap-2 min-h-[50px]">
+                  {loadingMore ? (
+                    <>
+                      <Loader2Icon className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground animate-pulse">Loading more...</span>
+                    </>
+                  ) : hasMore ? (
+                    <div className="h-1 w-1" />
+                  ) : products.length > 0 ? (
+                    <span className="text-[10px] text-muted-foreground/50">End of list</span>
+                  ) : null}
+                </div>
               </div>
 
-              {/* Add Button at Bottom if position is bottom */}
               {addButtonPosition === "bottom" && <AddButton />}
             </SelectContent>
           </Select>
 
-          {loading && (
+          {loading && page === 1 && (
             <div className="absolute right-8 top-1/2 -translate-y-1/2">
               <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
           )}
         </div>
 
-        {/* Product Dialog - will render with normal overlay */}
         <ProductDialog
           open={isProductDialogOpen}
           onOpenChange={setIsProductDialogOpen}

@@ -12,6 +12,32 @@ import { getCurrentUser } from "@/lib/auth/utils";
 import { NextResponse } from "next/server";
 import { setCustomerBalanceTarget } from "@/lib/ledger/customer-ledger";
 
+export async function GET(
+  request: Request,
+  { params }: { params: { customerId: string } },
+) {
+  const user = (await getCurrentUser()) as { id: string } | null;
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const customerId = params.customerId;
+  if (!isValidObjectId(customerId)) return NextResponse.json({ error: "Invalid customer ID" }, { status: 400 });
+
+  const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
+  const customer = await customersCollection.findOne({
+    _id: toObjectId(customerId),
+    user_id: toObjectId(user.id),
+  });
+
+  if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+
+  await updateUserLastActivity();
+  return NextResponse.json({
+    ...customer,
+    id: customer._id.toString(),
+    _id: undefined,
+  });
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: { customerId: string } },

@@ -51,6 +51,7 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { Pagination } from "@/components/ui/pagination";
 
 type Customer = {
   id: string;
@@ -104,6 +105,13 @@ export default function PaymentInPage() {
     isSuccess?: boolean;
   }>({ open: false, message: "" });
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+
   const [formCustomerId, setFormCustomerId] = useState("");
   const [formPaymentAmount, setFormPaymentAmount] = useState("");
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
@@ -111,23 +119,28 @@ export default function PaymentInPage() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-in`);
+      setIsPageLoading(true);
+      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-in&page=${currentPage}&limit=${pageSize}`);
       if (!res.ok) throw new Error(t("failedToFetch"));
       const data = await res.json();
-      setTransactions(data);
+      setTransactions(data.transactions || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("failedToFetch"));
     } finally {
+      setIsPageLoading(false);
       setLoading(false);
     }
-  }, [locale, t]);
+  }, [locale, t, currentPage, pageSize]);
 
   const fetchCustomers = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customers`);
+      const res = await fetch(`/${locale}/api/customers?limit=-1`);
       if (!res.ok) return;
       const data = await res.json();
-      setCustomers(data.filter((c: Customer & { is_delete?: number }) => c.is_delete !== 1));
+      const customersList = data.customers || [];
+      setCustomers(customersList.filter((c: Customer & { is_delete?: number }) => c.is_delete !== 1));
     } catch {
       // ignore
     }
@@ -216,22 +229,7 @@ export default function PaymentInPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || t("failedToCreate"));
 
-      setTransactions((prev) => {
-        const customer = customers.find((c) => c.id === formCustomerId);
-        const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
-        return [
-          {
-            id: data.id,
-            customerId: formCustomerId,
-            customerName: customer?.name ?? "",
-            paymentAmount: amount,
-            paymentMethodId: formPaymentMethodId,
-            paymentMethodName: pm?.name ?? "",
-            date: formDate,
-          },
-          ...prev,
-        ];
-      });
+      await fetchTransactions();
       setShowAddDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("createdSuccess"), isSuccess: true });
@@ -269,23 +267,7 @@ export default function PaymentInPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || t("failedToUpdate"));
 
-      const customer = customers.find((c) => c.id === formCustomerId);
-      const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
-      setTransactions((prev) =>
-        prev.map((item) =>
-          item.id === selectedId
-            ? {
-              ...item,
-              customerId: formCustomerId,
-              customerName: customer?.name ?? "",
-              paymentAmount: amount,
-              paymentMethodId: formPaymentMethodId,
-              paymentMethodName: pm?.name ?? "",
-              date: formDate,
-            }
-            : item
-        )
-      );
+      await fetchTransactions();
       setShowEditDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("updatedSuccess"), isSuccess: true });
@@ -305,7 +287,7 @@ export default function PaymentInPage() {
         const data = await res.json();
         throw new Error(data?.error || t("failedToDelete"));
       }
-      setTransactions((prev) => prev.filter((t) => t.id !== transactionToDelete.id));
+      await fetchTransactions();
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
       setErrorDialog({ open: true, title: tCommon("success"), message: t("deletedSuccess"), isSuccess: true });
@@ -534,6 +516,46 @@ export default function PaymentInPage() {
             )}
           </div>
         </CardContent>
+        <div className="border-t p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: totalCount })}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage")}
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isLoading={isPageLoading}
+            />
+          )}
+        </div>
       </Card>
 
       {/* Add Dialog */}

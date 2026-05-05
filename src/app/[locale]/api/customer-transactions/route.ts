@@ -19,15 +19,25 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const type = url.searchParams.get('type') ?? 'payment-in';
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
 
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
 
-    const items = await collection
-      .find({ user_id: toObjectId(user.id), type: type })
-      .sort({ date: -1 })
-      .toArray();
+    const filter = { user_id: toObjectId(user.id), type: type };
+    
+    const [items, totalCount] = await Promise.all([
+      collection
+        .find(filter)
+        .sort({ date: -1 })
+        .skip(limit === -1 ? 0 : skip)
+        .limit(limit === -1 ? 0 : limit)
+        .toArray(),
+      collection.countDocuments(filter)
+    ]);
 
     const customerIds = Array.from(new Set(items.map((i) => i.customer_id?.toString()).filter(Boolean))).filter(isValidObjectId);
     const allPaymentMethodIds = Array.from(new Set(items.map((i) => i.payment_method_id?.toString()).filter(Boolean)));
@@ -71,7 +81,12 @@ export async function GET(req: NextRequest) {
     }));
 
     await updateUserLastActivity();
-    return NextResponse.json(list);
+    return NextResponse.json({
+      transactions: list,
+      totalCount,
+      totalPages: limit === -1 ? 1 : Math.ceil(totalCount / limit),
+      currentPage: page,
+    });
   } catch (err: unknown) {
     console.error('customer-transactions GET error', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

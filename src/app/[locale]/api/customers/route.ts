@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 
   // Get total count for pagination
   const totalCount = await customersCollection.countDocuments(query);
-  const totalPages = Math.ceil(totalCount / limit);
+  const totalPages = limit > 0 ? Math.ceil(totalCount / limit) : 1;
 
   const data = await customersCollection
     .find(query, {
