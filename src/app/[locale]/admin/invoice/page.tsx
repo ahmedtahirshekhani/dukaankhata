@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { useDebounce } from "../../../../hooks/use-debounce";
 import {
   Card,
   CardContent,
@@ -57,6 +58,7 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
+import { Pagination } from "@/components/ui/pagination";
 import { Plus } from "lucide-react";
 
 // ------------------------------------------------------------
@@ -457,50 +459,63 @@ type Order = {
 export default function OrdersPage() {
   const t = useTranslations("orders");
   const locale = useLocale();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({ status: "all" });
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
-  const [editOrderOpen, setEditOrderOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+  const [editOrderOpen, setEditOrderOpen] = useState(false);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
-      const response = await fetch("/api/orders");
+      setLoading(true);
+      const url = new URL("/api/orders", window.location.origin);
+      url.searchParams.append("page", currentPage.toString());
+      url.searchParams.append("limit", pageSize.toString());
+      if (debouncedSearchTerm) {
+        url.searchParams.append("search", debouncedSearchTerm);
+      }
+      if (filters.status !== "all") {
+        url.searchParams.append("status", filters.status);
+      }
+      
+      const response = await fetch(url.toString());
       if (!response.ok) throw new Error(t("failedToFetchOrders"));
       const data = await response.json();
-      setOrders(data);
+      setOrders(data.orders || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
     } catch (error) {
       setError((error as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, currentPage, pageSize, debouncedSearchTerm, filters.status]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      if (!order.customer) return false;
-      if (filters.status !== "all" && order.status !== filters.status) return false;
-      return (
-        order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.id.toString().includes(searchTerm)
-      );
-    });
-  }, [orders, filters.status, searchTerm]);
+  // filteredOrders is still useful for local filtering if needed, but we should probably rely on backend search
+  const filteredOrders = orders; 
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+    setCurrentPage(1);
   };
 
   const handleFilterChange = (value: string) => {
     setFilters({ status: value });
+    setCurrentPage(1);
   };
 
   const handleEditOrder = (order: Order) => {
@@ -512,7 +527,7 @@ export default function OrdersPage() {
     fetchOrders();
   };
 
-  if (loading) {
+  if (loading && orders.length === 0) {
     return (
       <div className="h-[80vh] flex items-center justify-center">
         <Loader2Icon className="mx-auto h-12 w-12 animate-spin" />
@@ -599,7 +614,12 @@ export default function OrdersPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
+        <CardContent className="p-0 relative">
+          {loading && orders.length > 0 && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[2px]">
+              <Loader2Icon className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          )}
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
             <Table>
@@ -615,29 +635,75 @@ export default function OrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
-                    <TableCell>{order.customer.name}</TableCell>
-                    <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
-                    <TableCell>{t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
-                    <TableCell>
-                      {t("currencySymbol")}{" "}
-                      {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
+                {filteredOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      {t("noOrdersFound") || "No orders found"}
                     </TableCell>
-                    <TableCell>
-                      {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)}>
+                  </TableRow>
+                ) : (
+                  filteredOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
+                      <TableCell>{order.customer?.name || "-"}</TableCell>
+                      <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
+                      <TableCell>{t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
+                      <TableCell>
+                        {t("currencySymbol")}{" "}
+                        {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)}>
+                            <FilePenIcon className="w-4 h-4" />
+                            <span className="sr-only">{t("edit")}</span>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedInvoiceOrder(order);
+                              setInvoiceDialogOpen(true);
+                            }}
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                            <span className="sr-only">{t("showInvoice")}</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {t("noOrdersFound") || "No orders found"}
+              </div>
+            ) : (
+              filteredOrders.map((order) => (
+                <Card key={order.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{t("invoiceNo")}</p>
+                        <p className="font-semibold text-sm">{order.invoice_no || `ORD-${order.id}`}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
                           <FilePenIcon className="w-4 h-4" />
-                          <span className="sr-only">{t("edit")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -646,91 +712,93 @@ export default function OrdersPage() {
                             setSelectedInvoiceOrder(order);
                             setInvoiceDialogOpen(true);
                           }}
+                          className="h-8 w-8"
                         >
                           <EyeIcon className="w-4 h-4" />
-                          <span className="sr-only">{t("showInvoice")}</span>
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden space-y-3">
-            {filteredOrders.map((order) => (
-              <Card key={order.id} className="p-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("invoiceNo")}</p>
-                      <p className="font-semibold text-sm">{order.invoice_no || `ORD-${order.id}`}</p>
                     </div>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
-                        <FilePenIcon className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedInvoiceOrder(order);
-                          setInvoiceDialogOpen(true);
-                        }}
-                        className="h-8 w-8"
-                      >
-                        <EyeIcon className="w-4 h-4" />
-                      </Button>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("customer")}</p>
+                      <p className="font-medium text-sm">{order.customer?.name || "-"}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{t("total")}</p>
+                        <p className="font-semibold text-sm">
+                          {t("currencySymbol")} {Math.floor(order.total_amount)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">{t("paid")}</p>
+                        <p className="font-semibold text-sm">
+                          {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{t("balance")}</p>
+                        <p className="font-semibold text-sm">
+                          {t("currencySymbol")}{" "}
+                          {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">{t("date")}</p>
+                        <p className="font-semibold text-sm">
+                          {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("customer")}</p>
-                    <p className="font-medium text-sm">{order.customer.name}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("total")}</p>
-                      <p className="font-semibold text-sm">
-                        {t("currencySymbol")} {Math.floor(order.total_amount)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("paid")}</p>
-                      <p className="font-semibold text-sm">
-                        {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("balance")}</p>
-                      <p className="font-semibold text-sm">
-                        {t("currencySymbol")}{" "}
-                        {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("date")}</p>
-                      <p className="font-semibold text-sm">
-                        {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
-                          weekday: "short",
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            )}
           </div>
         </CardContent>
 
-        <CardFooter className="flex justify-between items-center">
-          {/* Pagination can be added here if needed */}
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {totalCount} {t("total")}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                Rows per page
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isLoading={loading}
+          />
         </CardFooter>
       </Card>
 

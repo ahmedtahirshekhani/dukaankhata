@@ -58,96 +58,120 @@ function sanitizeItems(items: unknown): SaleReturnItem[] {
     .filter((item) => item.itemName && item.amount > 0);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = (await getCurrentUser()) as { id: string } | null;
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
+    const customerId = searchParams.get("customerId");
+    const paymentMethodId = searchParams.get("paymentMethod");
+    const skip = (page - 1) * limit;
+
     const collection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
-    const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
-    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    
+    // Build match query
+    const matchQuery: any = { user_id: toObjectId(user.id) };
+    if (customerId && customerId !== "all") {
+      matchQuery.customer_id = toObjectId(customerId);
+    }
+    if (paymentMethodId && paymentMethodId !== "all") {
+      matchQuery.payment_method_id = paymentMethodId === "cash" || paymentMethodId === "cheque" 
+        ? paymentMethodId 
+        : toObjectId(paymentMethodId);
+    }
+    
+    // Aggregation pipeline to include customer name for searching
+    const pipeline: any[] = [
+      { $match: matchQuery },
+      {
+        $lookup: {
+          from: COLLECTIONS.CUSTOMERS,
+          localField: "customer_id",
+          foreignField: "_id",
+          as: "customer"
+        }
+      },
+      { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } }
+    ];
 
-    const items = await collection
-      .find({ user_id: toObjectId(user.id) })
-      .sort({ date: -1 })
-      .toArray();
+    // Add search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { return_number: { $regex: search, $options: "i" } },
+            { invoice_no: { $regex: search, $options: "i" } },
+            { "customer.name": { $regex: search, $options: "i" } }
+          ]
+        }
+      });
+    }
 
-    const customerIds = Array.from(
-      new Set(items.map((i) => i.customer_id?.toString()).filter(Boolean))
-    ).filter(isValidObjectId);
+    // Get total count for pagination
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await collection.aggregate(countPipeline).toArray();
+    const totalRecords = countResult.length > 0 ? countResult[0].total : 0;
+    const totalPages = Math.ceil(totalRecords / limit);
 
-    const allPaymentMethodIds = Array.from(
-      new Set(items.map((i) => i.payment_method_id?.toString()).filter(Boolean))
-    );
-    const dbPaymentMethodIds = allPaymentMethodIds.filter(isValidObjectId);
+    // Get paginated results
+    pipeline.push({ $sort: { date: -1, created_at: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
 
-    const customers =
-      customerIds.length > 0
-        ? await customersCollection
-            .find({ _id: { $in: customerIds.map((id) => toObjectId(id)) } })
-            .toArray()
-        : [];
+    // Lookup payment methods
+    pipeline.push({
+      $lookup: {
+        from: COLLECTIONS.PAYMENT_METHOD,
+        localField: "payment_method_id",
+        foreignField: "_id",
+        as: "paymentMethod"
+      }
+    });
+    pipeline.push({ $unwind: { path: "$paymentMethod", preserveNullAndEmptyArrays: true } });
 
-    const paymentMethodDocs =
-      dbPaymentMethodIds.length > 0
-        ? await paymentMethodCollection
-            .find({
-              _id: { $in: dbPaymentMethodIds.map((id) => toObjectId(id)) },
-              user_id: toObjectId(user.id),
-            })
-            .toArray()
-        : [];
+    const items = await collection.aggregate(pipeline).toArray();
 
-    const customerMap = Object.fromEntries(
-      customers.map((c) => [c._id.toString(), c.name])
-    );
+    const list = items.map((item) => {
+      let pmName = "";
+      if (item.payment_method_id === "cash") pmName = "Cash";
+      else if (item.payment_method_id === "cheque") pmName = "Cheque";
+      else pmName = item.paymentMethod?.bank_name ?? "";
 
-    const paymentMethodMap: Record<string, string> = {
-      cash: "Cash",
-      cheque: "Cheque",
-      ...Object.fromEntries(
-        paymentMethodDocs.map((pm) => [
-          (pm._id as { toString: () => string }).toString(),
-          (pm as { bank_name?: string }).bank_name ?? "",
-        ])
-      ),
-    };
-
-    const list = items.map((item) => ({
-      id: (item._id as { toString: () => string }).toString(),
-      returnNumber: item.return_number ?? "",
-      customerId: item.customer_id?.toString() ?? "",
-      customerName: item.customer_id
-        ? customerMap[item.customer_id.toString()] ?? ""
-        : "",
-      items: Array.isArray(item.items) ? item.items : [],
-      totalAmount: item.total_amount ?? item.payment_amount ?? 0,
-      paidAmount: item.paid_amount ?? 0,
-      balanceDue:
-        item.balance_due ??
-        Number(
-          (
-            (item.total_amount ?? item.payment_amount ?? 0) -
-            (item.paid_amount ?? 0)
-          ).toFixed(2)
-        ),
-      paymentAmount: item.payment_amount ?? item.total_amount ?? 0,
-      paymentMethodId: item.payment_method_id?.toString() ?? "",
-      paymentMethodName: item.payment_method_id
-        ? paymentMethodMap[item.payment_method_id.toString()] ?? ""
-        : "",
-      paymentRefNo: item.payment_ref_no ?? "",
-      invoiceNo: item.invoice_no ?? "",
-      invoiceDate: item.invoice_date
-        ? new Date(item.invoice_date).toISOString().split("T")[0]
-        : "",
-      date: item.date ? new Date(item.date).toISOString().split("T")[0] : "",
-    }));
+      return {
+        id: (item._id as { toString: () => string }).toString(),
+        returnNumber: item.return_number ?? "",
+        customerId: item.customer_id?.toString() ?? "",
+        customerName: item.customer?.name ?? "",
+        items: Array.isArray(item.items) ? item.items : [],
+        totalAmount: item.total_amount ?? item.payment_amount ?? 0,
+        paidAmount: item.paid_amount ?? 0,
+        balanceDue: item.balance_due ?? Number(((item.total_amount ?? 0) - (item.paid_amount ?? 0)).toFixed(2)),
+        paymentAmount: item.payment_amount ?? item.total_amount ?? 0,
+        paymentMethodId: item.payment_method_id?.toString() ?? "",
+        paymentMethodName: pmName,
+        paymentRefNo: item.payment_ref_no ?? "",
+        invoiceNo: item.invoice_no ?? "",
+        invoiceDate: item.invoice_date ? new Date(item.invoice_date).toISOString().split("T")[0] : "",
+        date: item.date ? new Date(item.date).toISOString().split("T")[0] : "",
+      };
+    });
 
     await updateUserLastActivity();
-    return NextResponse.json(list);
+    return NextResponse.json({
+      transactions: list,
+      pagination: {
+        totalRecords,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    });
   } catch (err: unknown) {
     console.error("sale-return-transactions GET error", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

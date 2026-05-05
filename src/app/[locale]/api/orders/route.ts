@@ -23,13 +23,36 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get("page") || "1");
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam === "-1" ? 0 : parseInt(limitParam || "10");
+  const search = searchParams.get("search") || "";
+  const status = searchParams.get("status") || "all";
+  const skip = limit > 0 ? (page - 1) * limit : 0;
+
   const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
 
+  // Build query
+  const query: any = { user_id: toObjectId(user.id) };
+  if (search) {
+    query.invoice_no = { $regex: search, $options: "i" };
+  }
+  if (status !== "all") {
+    query.status = status;
+  }
+
+  // Get total count
+  const totalCount = await ordersCollection.countDocuments(query);
+  const totalPages = limit > 0 ? Math.ceil(totalCount / limit) : 1;
+
   // Get orders for the user
   const orders = await ordersCollection
-    .find({ user_id: toObjectId(user.id) })
+    .find(query)
     .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(limit)
     .toArray();
 
   // Get customer data for each order
@@ -68,7 +91,12 @@ export async function GET(request: Request) {
   );
 
   await updateUserLastActivity();
-  return NextResponse.json(ordersWithCustomers);
+  return NextResponse.json({
+    orders: ordersWithCustomers,
+    totalCount,
+    totalPages,
+    currentPage: page
+  });
 }
 
 export async function POST(request: Request) {

@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { Pagination } from "@/components/ui/pagination";
 
 type Party = {
   id: string;
@@ -105,6 +106,13 @@ export default function PaymentOutPage() {
     isSuccess?: boolean;
   }>({ open: false, message: "" });
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+
   const [formPartyId, setFormPartyId] = useState("");
   const [formPaymentAmount, setFormPaymentAmount] = useState("");
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
@@ -113,10 +121,11 @@ export default function PaymentOutPage() {
   // Fetch vendors (not customers for payment out)
   const fetchParties = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customers`);
+      const res = await fetch(`/${locale}/api/customers?limit=-1`);
       if (!res.ok) return;
       const data = await res.json();
-      setParties(data.filter((p: Party & { is_delete?: number }) => p.is_delete !== 1));
+      const customers = data.customers || [];
+      setParties(customers.filter((p: Party & { is_delete?: number }) => p.is_delete !== 1));
     } catch {
       // ignore
     }
@@ -124,16 +133,20 @@ export default function PaymentOutPage() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-out`);
+      setIsPageLoading(true);
+      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-out&page=${currentPage}&limit=${pageSize}`);
       if (!res.ok) throw new Error(t("failedToFetch"));
       const data = await res.json();
-      setTransactions(data);
+      setTransactions(data.transactions || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("failedToFetch"));
     } finally {
+      setIsPageLoading(false);
       setLoading(false);
     }
-  }, [locale, t]);
+  }, [locale, t, currentPage, pageSize]);
 
   const fetchPaymentMethods = useCallback(async () => {
     try {
@@ -514,6 +527,46 @@ export default function PaymentOutPage() {
             )}
           </div>
         </CardContent>
+        <div className="border-t p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: totalCount })}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage")}
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isLoading={isPageLoading}
+            />
+          )}
+        </div>
       </Card>
 
       {/* Add Dialog */}

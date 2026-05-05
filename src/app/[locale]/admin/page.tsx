@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,6 +25,14 @@ import { supportContact } from "@/lib/constants";
 import { Loader2Icon, TrendingDown, TrendingUp, Activity, File } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from '@/components/VyaparImportButton';
+import { Pagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
@@ -86,6 +94,12 @@ export default function DashboardPage() {
     month: "long",
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+
   useEffect(() => {
     const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
     if (savedPrivacyMode) {
@@ -96,89 +110,103 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Fetch summary on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSummary = async () => {
       try {
-        const [dashboardRes, ordersRes, customersRes, productsRes] =
-          await Promise.all([
-            fetch("/api/admin/dashboard/summary"),
-            fetch("/api/orders"),
-            fetch("/api/customers"),
-            fetch("/api/products"),
-          ]);
-
-        if (dashboardRes.status === 401) {
+        const res = await fetch("/api/admin/dashboard/summary");
+        if (res.status === 401) {
           router.replace(`/${locale}/login`);
           return;
         }
-
-        const dashboardData = await dashboardRes.json();
+        const dashboardData = await res.json();
         setTotalBalance(dashboardData.totalBalance || 0);
         setTotalRevenue(dashboardData.totalRevenue || 0);
         setTotalExpenses(dashboardData.totalExpenses || 0);
-
-        if (ordersRes.ok) {
-          const ordersData = await ordersRes.json();
-          const orderRows = Array.isArray(ordersData)
-            ? ordersData.map((order: any, index: number) => {
-              const total = Number(order?.total_amount || 0);
-              const paid = Number(order?.payment?.paid_amount || 0);
-              return {
-                id: order?.id || String(index),
-                invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
-                customerName: order?.customer?.name || "-",
-                total,
-                paid,
-                balance: Math.max(0, total - paid),
-                date:
-                  order?.sale_date || order?.created_at
-                    ? new Date(
-                      order?.sale_date || order?.created_at,
-                    ).toLocaleDateString()
-                    : "-",
-              };
-            })
-            : [];
-          setSalesRows(orderRows);
-        }
-
-        if (customersRes.ok) {
-          const customersData = await customersRes.json();
-          const rows = Array.isArray(customersData)
-            ? customersData.map((item: any, index: number) => ({
-              id: item?.id || String(index),
-              name: item?.name || "-",
-              email: item?.email || "-",
-              phone: item?.phone || "-",
-              balance: Number(item?.balance || 0),
-              status: item?.status || "active",
-            }))
-            : [];
-          setCustomerRows(rows);
-        }
-
-        if (productsRes.ok) {
-          const productsData = await productsRes.json();
-          const pRows = Array.isArray(productsData)
-            ? productsData.map((item: any, index: number) => ({
-              id: item?.id || String(index),
-              name: item?.name || item?.title || "-",
-              category: item?.category || "-",
-              stock: Number(item?.stock || item?.quantity || 0),
-              price: Number(item?.sell_price || item?.price || 0),
-            }))
-            : [];
-          setItemRows(pRows);
-        }
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("Error fetching summary:", error);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchData();
+    fetchSummary();
   }, [locale, router]);
+
+  // Fetch tab data when tab, page or pageSize changes
+  useEffect(() => {
+    const fetchTabData = async () => {
+      setIsDataLoading(true);
+      try {
+        let endpoint = "";
+        if (activeDashboardTab === "sales") endpoint = "/api/orders";
+        else if (activeDashboardTab === "customers") endpoint = "/api/customers";
+        else if (activeDashboardTab === "items") endpoint = "/api/products";
+
+        const url = new URL(endpoint, window.location.origin);
+        url.searchParams.append("page", currentPage.toString());
+        url.searchParams.append("limit", pageSize.toString());
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Failed to fetch data");
+        const data = await res.json();
+
+        if (activeDashboardTab === "sales") {
+          const orders = data.orders || [];
+          const orderRows = orders.map((order: any, index: number) => {
+            const total = Number(order?.total_amount || 0);
+            const paid = Number(order?.payment?.paid_amount || 0);
+            return {
+              id: order?.id || String(index),
+              invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
+              customerName: order?.customer?.name || "-",
+              total,
+              paid,
+              balance: Math.max(0, total - paid),
+              date: order?.sale_date || order?.created_at
+                ? new Date(order?.sale_date || order?.created_at).toLocaleDateString()
+                : "-",
+            };
+          });
+          setSalesRows(orderRows);
+        } else if (activeDashboardTab === "customers") {
+          const customers = data.customers || [];
+          const rows = customers.map((item: any, index: number) => ({
+            id: item?.id || String(index),
+            name: item?.name || "-",
+            email: item?.email || "-",
+            phone: item?.phone || "-",
+            balance: Number(item?.balance || 0),
+            status: item?.status || "active",
+          }));
+          setCustomerRows(rows);
+        } else if (activeDashboardTab === "items") {
+          const products = data.products || [];
+          const pRows = products.map((item: any, index: number) => ({
+            id: item?.id || String(index),
+            name: item?.name || item?.title || "-",
+            category: item?.category || "-",
+            stock: Number(item?.stock || item?.quantity || 0),
+            price: Number(item?.sell_price || item?.price || 0),
+          }));
+          setItemRows(pRows);
+        }
+
+        setTotalCount(data.totalCount || 0);
+        setTotalPages(data.totalPages || 1);
+      } catch (error) {
+        console.error("Error fetching tab data:", error);
+      } finally {
+        setIsDataLoading(false);
+      }
+    };
+
+    fetchTabData();
+  }, [activeDashboardTab, currentPage, pageSize, locale]);
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeDashboardTab]);
 
   if (loading) {
     return (
@@ -315,7 +343,12 @@ export default function DashboardPage() {
       </Card>
 
       <Card>
-        <CardContent className="p-2 sm:p-3 pt-3">
+        <CardContent className="p-2 sm:p-3 pt-3 relative">
+          {isDataLoading && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[2px]">
+              <Loader2Icon className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          )}
           {/* Desktop Table View - hidden on mobile */}
           <div className="hidden md:block overflow-x-auto max-h-[28rem] overflow-y-auto">
             <Table>
@@ -517,6 +550,43 @@ export default function DashboardPage() {
             )}
           </div>
         </CardContent>
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-4 py-3 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {totalCount} Total
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                Rows per page
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isLoading={isDataLoading}
+          />
+        </CardFooter>
       </Card>
 
       <Card className="mt-10">

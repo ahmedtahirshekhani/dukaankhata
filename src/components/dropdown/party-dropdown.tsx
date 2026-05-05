@@ -1,7 +1,7 @@
-
+// components/dropdown/party-dropdown.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, forwardRef } from "react";
+import React, { useState, useEffect, useCallback, forwardRef, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Select,
@@ -22,9 +22,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 
 type Party = {
   id: string | number;
+  _id?: string | number;
   name: string;
   email?: string;
   phone?: string;
@@ -50,6 +52,8 @@ interface PartyDropdownProps {
   noResultsText?: string;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
   (
     {
@@ -72,11 +76,19 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const tCommon = useTranslations("common");
 
     const [parties, setParties] = useState<Party[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [isOpen, setIsOpen] = useState(false);
+    
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const observerTarget = useRef<HTMLDivElement>(null);
+    const [initialPartyLoaded, setInitialPartyLoaded] = useState(false);
+
     const [newPartyName, setNewPartyName] = useState("");
     const [newPartyEmail, setNewPartyEmail] = useState("");
     const [newPartyPhone, setNewPartyPhone] = useState("");
@@ -90,51 +102,88 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       isSuccess?: boolean;
     }>({ open: false, message: "" });
 
-    const fetchParties = useCallback(async () => {
+    const getPartyId = (p: Party) => String(p.id || p._id);
+
+    const fetchParties = useCallback(async (pageNum: number, search: string, append = false) => {
       try {
-        setLoading(true);
-        const response = await fetch("/api/customers");
-        if (!response.ok) {
-          throw new Error("Failed to fetch parties");
-        }
+        if (pageNum === 1) setLoading(true);
+        else setLoadingMore(true);
+
+        const url = new URL("/api/customers", window.location.origin);
+        url.searchParams.append("page", pageNum.toString());
+        url.searchParams.append("limit", ITEMS_PER_PAGE.toString());
+        if (search) url.searchParams.append("search", search);
+        if (filterActiveOnly) url.searchParams.append("status", "active");
+
+        const response = await fetch(url.toString());
+        if (!response.ok) throw new Error("Failed to fetch parties");
         const data = await response.json();
-        let filteredData = data;
-        if (filterActiveOnly) {
-          filteredData = data.filter(
-            (party: Party) => party.is_delete !== 1 && party.status === "active"
-          );
-        } else {
-          filteredData = data.filter((party: Party) => party.is_delete !== 1);
-        }
-        setParties(filteredData);
+        
+        const customers = data.customers || [];
+        const filteredData = customers.filter((party: Party) => party.is_delete !== 1);
+        
+        setParties(prev => append ? [...prev, ...filteredData] : filteredData);
+        setHasMore(customers.length === ITEMS_PER_PAGE);
       } catch (error) {
         console.error("Error fetching parties:", error);
-        setErrorDialog({
-          open: true,
-          title: t("error"),
-          message: error instanceof Error ? error.message : t("failedToFetch"),
-        });
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
-    }, [filterActiveOnly, t]);
+    }, [filterActiveOnly]);
+
+    const fetchSelectedParty = useCallback(async (partyId: string) => {
+      if (!partyId || partyId === "all") return;
+      try {
+        const res = await fetch(`/api/customers/${partyId}`);
+        if (res.ok) {
+          const party = await res.json();
+          setParties(prev => {
+            const exists = prev.find(p => getPartyId(p) === partyId);
+            if (exists) return prev;
+            return [party, ...prev];
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching selected party:", error);
+      }
+    }, []);
 
     useEffect(() => {
-      fetchParties();
-    }, [fetchParties]);
+      setPage(1);
+      fetchParties(1, debouncedSearchTerm, false);
+    }, [debouncedSearchTerm, fetchParties]);
 
-    // Filter parties based on search term
-    const filteredParties = React.useMemo(() => {
-      if (!searchTerm.trim()) return parties;
-      
-      const term = searchTerm.toLowerCase().trim();
-      return parties.filter((party) => 
-        party.name?.toLowerCase().includes(term) ||
-        party.email?.toLowerCase().includes(term) ||
-        party.phone?.toLowerCase().includes(term) ||
-        party.company_name?.toLowerCase().includes(term)
+    useEffect(() => {
+      if (value && value !== "all" && !initialPartyLoaded) {
+        const exists = parties.find(p => getPartyId(p) === value);
+        if (!exists) {
+          fetchSelectedParty(value);
+        }
+        setInitialPartyLoaded(true);
+      }
+    }, [value, parties, initialPartyLoaded, fetchSelectedParty]);
+
+    useEffect(() => {
+      if (!hasMore || loading || loadingMore || !isOpen) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchParties(nextPage, debouncedSearchTerm, true);
+          }
+        },
+        { threshold: 0.1 }
       );
-    }, [parties, searchTerm]);
+
+      if (observerTarget.current) {
+        observer.observe(observerTarget.current);
+      }
+
+      return () => observer.disconnect();
+    }, [hasMore, loading, loadingMore, page, debouncedSearchTerm, fetchParties, isOpen]);
 
     const resetForm = () => {
       setNewPartyName("");
@@ -143,10 +192,6 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       setNewPartyCompanyName("");
       setNewPartyCompanyAddress("");
       setNewPartyOpeningBalance("");
-    };
-
-    const resetSearch = () => {
-      setSearchTerm("");
     };
 
     const handleAddParty = async () => {
@@ -173,38 +218,20 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
         const response = await fetch("/api/customers", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newParty),
         });
 
-        const text = await response.text();
-        let createdParty;
-        try {
-          createdParty = JSON.parse(text);
-        } catch (e) {
-          throw new Error(`Server response error: ${text || response.statusText}`);
-        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Error creating party");
 
-        if (!response.ok) {
-          throw new Error(createdParty.error || "Error creating party");
-        }
-
-        // Add the new party to the list
-        setParties((prev) => [createdParty, ...prev]);
-        
-        // Auto-select the newly created party
-        onValueChange(createdParty.id, createdParty);
-        
-        // Call the callback if provided
-        if (onPartyAdded) {
-          onPartyAdded(createdParty);
-        }
+        setParties((prev) => [data, ...prev]);
+        onValueChange(String(data.id || data._id), data);
+        if (onPartyAdded) onPartyAdded(data);
 
         setShowAddDialog(false);
         resetForm();
-        resetSearch();
+        setSearchTerm("");
 
         setErrorDialog({
           open: true,
@@ -225,18 +252,15 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     };
 
     const handleValueChange = (newValue: string) => {
-      const selectedParty = parties.find((p) => String(p.id) === newValue);
+      const selectedParty = parties.find((p) => getPartyId(p) === newValue);
       onValueChange(newValue, selectedParty);
       setIsOpen(false);
-      resetSearch();
+      setSearchTerm("");
     };
 
     const handleOpenChange = (open: boolean) => {
       setIsOpen(open);
-      if (!open) {
-        // Reset search when dropdown closes
-        resetSearch();
-      }
+      if (!open) setSearchTerm("");
     };
 
     return (
@@ -245,15 +269,19 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           <Select
             value={value}
             onValueChange={handleValueChange}
-            disabled={disabled || loading}
+            disabled={disabled}
             open={isOpen}
             onOpenChange={handleOpenChange}
           >
             <SelectTrigger className={className} ref={ref}>
-              <SelectValue placeholder={loading ? "Loading..." : placeholder} />
+              <SelectValue placeholder={loading && page === 1 ? "Loading..." : placeholder} />
             </SelectTrigger>
-            <SelectContent className="min-w-[280px] max-w-[90vw] p-0">
-              {/* Search Input */}
+            <SelectContent 
+              position="popper" 
+              sideOffset={5} 
+              className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden"
+              collisionPadding={10}
+            >
               {enableSearch && (
                 <div className="sticky top-0 bg-popover z-10 border-b p-2">
                   <div className="relative">
@@ -271,7 +299,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          resetSearch();
+                          setSearchTerm("");
                         }}
                         className="absolute right-2 top-1/2 -translate-y-1/2"
                       >
@@ -282,38 +310,51 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 </div>
               )}
               
-              <div className="max-h-[300px] overflow-y-auto">
+              <div className="max-h-[min(300px,var(--radix-select-content-available-height)-100px)] overflow-y-auto custom-scrollbar">
                 {includeAllOption && (
                   <SelectItem value="all" className="font-medium">
                     {allOptionLabel}
                   </SelectItem>
                 )}
                 
-                {filteredParties.length === 0 && !loading && (
+                {parties.length === 0 && !loading && (
                   <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                     {searchTerm ? noResultsText : "No parties found"}
                   </div>
                 )}
                 
-                {filteredParties.map((party) => (
-                  <SelectItem key={String(party.id)} value={String(party.id)}>
-                    <div className="flex flex-col items-start gap-0.5 py-0.5">
-                      <span className="font-medium">{party.name}</span>
-                      {party.company_name && searchTerm && (
-                        <span className="text-xs text-muted-foreground">
-                          {party.company_name}
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
+                {parties.map((party) => {
+                  const partyId = getPartyId(party);
+                  return (
+                    <SelectItem key={partyId} value={partyId}>
+                      <div className="flex flex-col items-start gap-0.5 py-0.5">
+                        <span className="font-medium">{party.name}</span>
+                        {party.company_name && (
+                          <span className="text-xs text-muted-foreground">
+                            {party.company_name}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+
+                {/* Intersection Observer Target */}
+                <div ref={observerTarget} className="flex flex-col items-center justify-center p-4 gap-2 min-h-[50px]">
+                  {loadingMore ? (
+                    <>
+                      <Loader2Icon className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground animate-pulse">Loading more...</span>
+                    </>
+                  ) : hasMore ? (
+                    <div className="h-1 w-1" />
+                  ) : parties.length > 0 ? (
+                    <span className="text-[10px] text-muted-foreground/50">End of list</span>
+                  ) : null}
+                </div>
               </div>
               
-              {/* Add Party Button at bottom */}
-              <div
-                className="border-t mt-0 pt-1 sticky bottom-0 bg-popover"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
                 <Button
                   type="button"
                   variant="ghost"
@@ -330,27 +371,21 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
             </SelectContent>
           </Select>
           
-          {loading && (
+          {loading && page === 1 && (
             <div className="absolute right-8 top-1/2 -translate-y-1/2">
               <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
           )}
         </div>
 
-        {/* Add Party Modal */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl sm:text-2xl">
-                {t("createNewCustomer")}
-              </DialogTitle>
+              <DialogTitle className="text-xl sm:text-2xl">{t("createNewCustomer")}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
-              {/* Contact Information Section */}
               <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  {t("contactInformation")}
-                </h3>
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("contactInformation")}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="party-name" className="text-xs sm:text-sm font-medium">
@@ -365,16 +400,11 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="party-phone" className="text-xs sm:text-sm font-medium">
-                      {t("phoneLabel")}
-                    </Label>
+                    <Label htmlFor="party-phone" className="text-xs sm:text-sm font-medium">{t("phoneLabel")}</Label>
                     <Input
                       id="party-phone"
                       value={newPartyPhone}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "").slice(0, 11);
-                        setNewPartyPhone(value);
-                      }}
+                      onChange={(e) => setNewPartyPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
                       maxLength={11}
                       placeholder={t("phonePlaceholder")}
                       className="h-9 sm:h-10 text-sm"
@@ -382,9 +412,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="party-email" className="text-xs sm:text-sm font-medium">
-                    {t("emailLabel")}
-                  </Label>
+                  <Label htmlFor="party-email" className="text-xs sm:text-sm font-medium">{t("emailLabel")}</Label>
                   <Input
                     id="party-email"
                     type="email"
@@ -396,15 +424,10 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 </div>
               </div>
 
-              {/* Company Information Section */}
               <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  {t("companyInformation")}
-                </h3>
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("companyInformation")}</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="party-company" className="text-xs sm:text-sm font-medium">
-                    {t("companyNameLabel")}
-                  </Label>
+                  <Label htmlFor="party-company" className="text-xs sm:text-sm font-medium">{t("companyNameLabel")}</Label>
                   <Input
                     id="party-company"
                     value={newPartyCompanyName}
@@ -414,9 +437,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="party-address" className="text-xs sm:text-sm font-medium">
-                    {t("companyAddressLabel")}
-                  </Label>
+                  <Label htmlFor="party-address" className="text-xs sm:text-sm font-medium">{t("companyAddressLabel")}</Label>
                   <Input
                     id="party-address"
                     value={newPartyCompanyAddress}
@@ -427,15 +448,10 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 </div>
               </div>
 
-              {/* Financial Information Section */}
               <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
-                  {t("financialInformation")}
-                </h3>
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("financialInformation")}</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">
-                    {t("openingBalance")}
-                  </Label>
+                  <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">{t("openingBalance")}</Label>
                   <Input
                     id="party-balance"
                     type="number"
@@ -444,28 +460,14 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                     placeholder={t("balancePlaceholder")}
                     className="h-9 sm:h-10 text-sm"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("openingBalanceHelper")}
-                  </p>
                 </div>
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowAddDialog(false);
-                  resetForm();
-                }}
-                className="h-9 sm:h-10 w-full sm:w-auto"
-              >
+              <Button variant="secondary" onClick={() => { setShowAddDialog(false); resetForm(); }} className="h-9 sm:h-10 w-full sm:w-auto">
                 {tCommon("cancel")}
               </Button>
-              <Button
-                onClick={handleAddParty}
-                disabled={!newPartyName || newPartyName.trim() === "" || isSaving}
-                className="h-9 sm:h-10 w-full sm:w-auto sm:min-w-[120px]"
-              >
+              <Button onClick={handleAddParty} disabled={!newPartyName || newPartyName.trim() === "" || isSaving} className="h-9 sm:h-10 w-full sm:w-auto sm:min-w-[120px]">
                 {isSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                 {t("createCustomer")}
               </Button>

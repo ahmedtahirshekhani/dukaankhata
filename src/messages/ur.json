@@ -36,7 +36,9 @@
     "of": "کا",
     "total": "کل",
     "totalCountLabel": "کل {count} ریکارڈز",
-    "rowsPerPage": "قطاریں فی صفحہ"
+    "rowsPerPage": "قطاریں فی صفحہ",
+    "noResults": "آپ کی تلاش کے کوئی نتائج نہیں ملے",
+    "clearSearch": "تلاش ختم کریں"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -960,6 +962,7 @@
   "purchaseBill": {
     "title": "خریداری بل",
     "purchaseBilldescription": "خریداری کے بلز بنائیں اور منظم کریں",
+    "searchPlaceholder": "پارٹی، رقم یا اسٹیٹس سے تلاش کریں...",
     "billDetails": "بل کی تفصیلات",
     "partyName": "فریق کا نام",
     "selectParty": "ایک فریق منتخب کریں",

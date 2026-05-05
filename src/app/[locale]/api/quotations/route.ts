@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
     }
 
     const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "10");
+    const skip = (page - 1) * limit;
+    const search = url.searchParams.get("search") || "";
     const partyId = url.searchParams.get("partyId");
     const status = url.searchParams.get("status");
 
@@ -54,10 +58,26 @@ export async function GET(request: NextRequest) {
     if (partyId && isValidObjectId(partyId)) query.party_id = toObjectId(partyId);
     if (status) query.status = status;
     
-    const quotations = await quotationsCollection
+    if (search) {
+      query.$or = [
+        { party_name: { $regex: search, $options: "i" } },
+        { quotation_no: { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const totalItems = await quotationsCollection.countDocuments(query);
+    const totalPages = limit === 0 ? 1 : Math.ceil(totalItems / limit);
+    
+    const cursor = quotationsCollection
       .find(query)
-      .sort({ created_at: -1 })
-      .toArray();
+      .sort({ created_at: -1 });
+
+    if (limit > 0) {
+      cursor.skip(skip).limit(limit);
+    }
+
+    const quotations = await cursor.toArray();
     
     const formatted = quotations.map((q) => ({
       _id: q._id?.toString(),
@@ -80,7 +100,15 @@ export async function GET(request: NextRequest) {
     }));
     
     await updateUserLastActivity();
-    return NextResponse.json(formatted);
+    return NextResponse.json({
+      quotations: formatted,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        pageSize: limit
+      }
+    });
     
   } catch (error) {
     console.error("❌ Error in GET quotations:", error);

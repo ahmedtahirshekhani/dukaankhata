@@ -10,7 +10,11 @@ import {
   SearchIcon,
   FilePenIcon,
   FilterIcon,
+  X,
+  ChevronRight,
 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableBody,
@@ -143,14 +147,22 @@ export default function SaleReturnPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination & Search states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [transactionToDelete, setTransactionToDelete] =
     useState<SaleReturnTransaction | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     paymentMethod: "all",
     customer: "all",
@@ -193,18 +205,39 @@ export default function SaleReturnPage() {
     [totalAmount, paidAmount],
   );
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async (page = currentPage, limit = pageSize, search = debouncedSearch, currentFilters = filters) => {
+    // Only show full-screen loader on the very first load
+    if (transactions.length === 0 && !search && page === 1 && currentFilters.customer === "all" && currentFilters.paymentMethod === "all") {
+      setLoading(true);
+    }
+    setIsPageLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`/${locale}/api/sale-return-transactions`);
+      const url = new URL(`/${locale}/api/sale-return-transactions`, window.location.origin);
+      url.searchParams.append("page", page.toString());
+      url.searchParams.append("limit", limit.toString());
+      if (search) url.searchParams.append("search", search);
+      if (currentFilters.customer !== "all") url.searchParams.append("customerId", currentFilters.customer);
+      if (currentFilters.paymentMethod !== "all") url.searchParams.append("paymentMethod", currentFilters.paymentMethod);
+      
+      const res = await fetch(url.toString());
       if (!res.ok) throw new Error(t("failedToFetch"));
       const data = await res.json();
-      setTransactions(Array.isArray(data) ? data : []);
+      
+      if (data.transactions) {
+        setTransactions(data.transactions);
+        setTotalPages(data.pagination?.totalPages || 1);
+      } else {
+        setTransactions(Array.isArray(data) ? data : []);
+        setTotalPages(1);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("failedToFetch"));
     } finally {
       setLoading(false);
+      setIsPageLoading(false);
     }
-  }, [locale, t]);
+  }, [locale, t, transactions.length, currentPage, pageSize, debouncedSearch, filters]);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -287,11 +320,19 @@ export default function SaleReturnPage() {
   }, [locale]);
 
   useEffect(() => {
-    fetchTransactions();
+    fetchTransactions(1, pageSize, debouncedSearch, filters);
+    setCurrentPage(1);
+  }, [debouncedSearch, locale, pageSize, filters]);
+
+  useEffect(() => {
+    fetchTransactions(currentPage, pageSize, debouncedSearch, filters);
+  }, [currentPage, locale]);
+
+  useEffect(() => {
     fetchCustomers();
     fetchProducts();
     fetchPaymentMethods();
-  }, [fetchTransactions, fetchCustomers, fetchProducts, fetchPaymentMethods]);
+  }, [fetchCustomers, fetchProducts, fetchPaymentMethods]);
 
   const resetForm = useCallback(() => {
     setFormReturnNumber(generateReturnNumber());
@@ -306,28 +347,6 @@ export default function SaleReturnPage() {
     setSelectedId(null);
   }, []);
 
-  const filteredTransactions = useMemo(() => {
-    let result = transactions;
-    if (filters.paymentMethod !== "all") {
-      result = result.filter((item) => item.paymentMethodId === filters.paymentMethod);
-    }
-    if (filters.customer !== "all") {
-      result = result.filter((item) => item.customerId === filters.customer);
-    }
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.customerName?.toLowerCase().includes(term) ||
-          item.returnNumber?.toLowerCase().includes(term) ||
-          item.invoiceNo?.toLowerCase().includes(term) ||
-          item.paymentMethodName?.toLowerCase().includes(term) ||
-          item.totalAmount?.toString().includes(term) ||
-          item.date?.includes(term),
-      );
-    }
-    return result;
-  }, [transactions, searchTerm, filters]);
 
   const updateFormItem = <K extends keyof ReturnItem>(
     id: string,
@@ -627,14 +646,6 @@ export default function SaleReturnPage() {
     setShowAddDialog(true);
   };
 
-  const handleFilterPaymentMethod = (value: string) => {
-    setFilters((prev) => ({ ...prev, paymentMethod: value }));
-  };
-
-  const handleFilterCustomer = (value: string) => {
-    setFilters((prev) => ({ ...prev, customer: value }));
-  };
-
   const openEditDialog = (item: SaleReturnTransaction) => {
     setSelectedId(item.id);
     setFormReturnNumber(item.returnNumber || generateReturnNumber());
@@ -876,81 +887,91 @@ export default function SaleReturnPage() {
       </div>
     );
   }
-
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-6">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t("searchPlaceholder") || "Search transactions..."}
+            className="pl-9 pr-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <FilterIcon className="h-4 w-4" />
+                {tCommon("filter")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 max-h-[70vh] overflow-y-auto">
+              <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={filters.paymentMethod === "all"}
+                onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: "all" }))}
+              >
+                {t("allPaymentMethods")}
+              </DropdownMenuCheckboxItem>
+              {paymentMethods.map((pm) => (
+                <DropdownMenuCheckboxItem
+                  key={pm.id}
+                  checked={filters.paymentMethod === pm.id}
+                  onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: pm.id }))}
+                >
+                  {pm.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={filters.customer === "all"}
+                onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: "all" }))}
+              >
+                {t("allCustomers")}
+              </DropdownMenuCheckboxItem>
+              {customers.map((c) => (
+                <DropdownMenuCheckboxItem
+                  key={c.id}
+                  checked={filters.customer === c.id}
+                  onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: c.id }))}
+                >
+                  {c.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            onClick={openAddDialog}
+            className="gap-2 shrink-0"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span>{t("addSaleReturn")}</span>
+          </Button>
+        </div>
       </div>
-      <Card className="flex flex-col gap-6 p-6">
-        <CardHeader className="p-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
-              <div className="relative flex-1 min-w-[180px] max-w-sm">
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pr-8"
-                />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 shrink-0">
-                    <FilterIcon className="w-4 h-4" />
-                    <span>{tCommon("filter")}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 max-h-[70vh] overflow-y-auto">
-                  <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.paymentMethod === "all"}
-                    onCheckedChange={(checked) => checked && handleFilterPaymentMethod("all")}
-                  >
-                    {t("allPaymentMethods")}
-                  </DropdownMenuCheckboxItem>
-                  {paymentMethods.map((pm) => (
-                    <DropdownMenuCheckboxItem
-                      key={pm.id}
-                      checked={filters.paymentMethod === pm.id}
-                      onCheckedChange={(checked) => checked && handleFilterPaymentMethod(pm.id)}
-                    >
-                      {pm.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.customer === "all"}
-                    onCheckedChange={(checked) => checked && handleFilterCustomer("all")}
-                  >
-                    {t("allCustomers")}
-                  </DropdownMenuCheckboxItem>
-                  {customers.map((customer) => (
-                    <DropdownMenuCheckboxItem
-                      key={customer.id}
-                      checked={filters.customer === customer.id}
-                      onCheckedChange={(checked) => checked && handleFilterCustomer(customer.id)}
-                    >
-                      {customer.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+
+      <Card className="shadow-sm overflow-hidden">
+        <CardContent className="p-0 relative">
+          {isPageLoading && (
+            <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
+              <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
             </div>
-            <Button size="sm" onClick={openAddDialog} className="shrink-0">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              {t("addSaleReturn")}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {/* Desktop Table View - hidden on mobile */}
+          )}
+          
+          {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
@@ -961,32 +982,46 @@ export default function SaleReturnPage() {
                   <TableHead>{t("totalAmount")}</TableHead>
                   <TableHead>{t("paidAmount")}</TableHead>
                   <TableHead>{t("balanceDue")}</TableHead>
-                  <TableHead>{t("paymentMethod")}</TableHead>
-                  <TableHead>{tCommon("actions")}</TableHead>
+                  <TableHead className="text-right pr-6">{tCommon("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.length === 0 ? (
+                {transactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      {t("noRecords")}
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-20">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <SearchIcon className="h-10 w-10 opacity-20" />
+                        <p>{searchTerm ? tCommon("noResults") : t("noRecords")}</p>
+                        {searchTerm && (
+                          <Button 
+                            variant="link" 
+                            onClick={() => setSearchTerm("")}
+                          >
+                            {tCommon("clearSearch")}
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTransactions.map((item) => (
+                  transactions.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{item.returnNumber || "-"}</TableCell>
+                      <TableCell className="font-medium">
+                        {item.returnNumber || "-"}
+                      </TableCell>
                       <TableCell>{item.customerName || "-"}</TableCell>
                       <TableCell>{item.date || "-"}</TableCell>
                       <TableCell>Rs. {item.totalAmount?.toFixed(2)}</TableCell>
                       <TableCell>Rs. {item.paidAmount?.toFixed(2)}</TableCell>
                       <TableCell>Rs. {item.balanceDue?.toFixed(2)}</TableCell>
-                      <TableCell>{item.paymentMethodName || "-"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button size="icon" variant="ghost" onClick={() => openEditDialog(item)}>
-                            <FilePenIcon className="w-4 h-4" />
-                            <span className="sr-only">{tCommon("edit")}</span>
+                      <TableCell className="text-right pr-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            onClick={() => openEditDialog(item)}
+                          >
+                            <FilePenIcon className="h-4 w-4" />
                           </Button>
                           <Button
                             size="icon"
@@ -996,8 +1031,7 @@ export default function SaleReturnPage() {
                               setShowDeleteDialog(true);
                             }}
                           >
-                            <Trash2 className="w-4 h-4" />
-                            <span className="sr-only">{tCommon("delete")}</span>
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -1008,14 +1042,20 @@ export default function SaleReturnPage() {
             </Table>
           </div>
 
-          {/* Mobile Cards View - visible only on mobile */}
-          <div className="block md:hidden space-y-3">
-            {filteredTransactions.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                {t("noRecords")}
+          {/* Mobile Cards View */}
+          <div className="block md:hidden space-y-3 p-4">
+            {transactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                <SearchIcon className="h-10 w-10 opacity-20" />
+                <p>{searchTerm ? tCommon("noResults") : t("noRecords")}</p>
+                {searchTerm && (
+                   <Button variant="link" onClick={() => setSearchTerm("")}>
+                     {tCommon("clearSearch")}
+                   </Button>
+                )}
               </div>
             ) : (
-              filteredTransactions.map((item) => (
+              transactions.map((item) => (
                 <SaleReturnCard
                   key={item.id}
                   transaction={item}
@@ -1031,6 +1071,41 @@ export default function SaleReturnPage() {
             )}
           </div>
         </CardContent>
+
+        {transactions.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground order-2 sm:order-1">
+              <span>{tCommon("rowsPerPage")}:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(val) => {
+                  setPageSize(Number(val));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 20, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="order-1 sm:order-2">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                isLoading={isPageLoading}
+              />
+            </div>
+          </div>
+        )}
       </Card>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -1145,7 +1220,7 @@ function SaleReturnCard({
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">{t("totalAmount")}:</span>
-          <span className="font-medium">Rs. {transaction.totalAmount?.toFixed(2)}</span>
+          <span>Rs. {transaction.totalAmount?.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">{t("paidAmount")}:</span>

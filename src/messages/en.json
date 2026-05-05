@@ -36,7 +36,9 @@
     "of": "of",
     "total": "Total",
     "totalCountLabel": "Total {count} records",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "noResults": "No results found for your search",
+    "clearSearch": "Clear search"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -1031,6 +1033,7 @@
   "purchaseBill": {
     "title": "Purchase Bill",
     "purchaseBilldescription": "Create and manage purchase bills",
+    "searchPlaceholder": "Search by party, amount, status...",
     "billDetails": "Bill Details",
     "partyName": "Party Name",
     "selectParty": "Select a party",

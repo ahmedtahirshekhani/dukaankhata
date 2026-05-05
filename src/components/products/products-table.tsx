@@ -13,21 +13,8 @@ import { Card } from "@/components/ui/card";
 import { FilePenIcon, TrashIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-export interface Product {
-  id: number;
-  type?: string;
-  name: string;
-  description?: string;
-  price?: number;
-  sell_price?: number;
-  cost_price?: number;
-  in_stock?: number;
-  quantity?: number;
-  damaged_quantity?: number;
-  category?: string;
-  unit_of_measurement?: string;
-  branch?: string;
-}
+import { Product } from "@/types/product";
+export type { Product };
 
 interface ProductsTableProps {
   products: Product[];

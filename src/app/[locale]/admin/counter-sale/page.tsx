@@ -1118,12 +1118,13 @@ export default function CounterSale() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/products");
+      const response = await fetch("/api/products?limit=-1");
       if (!response.ok) throw new Error("Failed to fetch products");
       const data = await response.json();
+      const productsData = data.products || [];
       // Add "Others" option at the end
       const productsWithOthers: Product[] = [
-        ...data,
+        ...productsData,
         {
           id: 0, // Special ID for "Others"
           name: t("others"),
