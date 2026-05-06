@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Pagination } from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 import { useDebounce } from "../../../../hooks/use-debounce";
 import { exportCustomersToExcel, exportCustomersTemplate } from "@/lib/excel";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -95,6 +96,7 @@ export default function PartiesPage() {
   const [newCustomerStatus, setNewCustomerStatus] = useState<
     "active" | "inactive"
   >("active");
+  const [newCustomerOpeningBalanceType, setNewCustomerOpeningBalanceType] = useState<"receive" | "pay">("receive");
   const [isEditCustomerDialogOpen, setIsEditCustomerDialogOpen] =
     useState(false);
   const [isViewCustomerDialogOpen, setIsViewCustomerDialogOpen] =
@@ -172,6 +174,7 @@ export default function PartiesPage() {
     setNewCustomerCompanyAddress("");
     setNewCustomerOpeningBalance("");
     setNewCustomerStatus("active");
+    setNewCustomerOpeningBalanceType("receive");
   };
 
   const handleAddCustomer = useCallback(async () => {
@@ -194,7 +197,7 @@ export default function PartiesPage() {
         company_name: newCustomerCompanyName,
         company_address: newCustomerCompanyAddress,
         balance: newCustomerOpeningBalance
-          ? parseFloat(newCustomerOpeningBalance)
+          ? parseFloat(newCustomerOpeningBalance) * (newCustomerOpeningBalanceType === "pay" ? -1 : 1)
           : 0,
         status: newCustomerStatus,
       };
@@ -248,9 +251,14 @@ export default function PartiesPage() {
     newCustomerCompanyName,
     newCustomerCompanyAddress,
     newCustomerOpeningBalance,
+    newCustomerOpeningBalanceType,
     newCustomerStatus,
     customers,
     t,
+    fetchCustomers,
+    currentPage,
+    debouncedSearchTerm,
+    resetSelectedCustomer,
   ]);
 
   const handleEditCustomer = useCallback(async () => {
@@ -275,7 +283,7 @@ export default function PartiesPage() {
         company_name: newCustomerCompanyName,
         company_address: newCustomerCompanyAddress,
         balance: newCustomerOpeningBalance
-          ? parseFloat(newCustomerOpeningBalance)
+          ? parseFloat(newCustomerOpeningBalance) * (newCustomerOpeningBalanceType === "pay" ? -1 : 1)
           : 0,
         status: newCustomerStatus,
       };
@@ -323,8 +331,14 @@ export default function PartiesPage() {
     newCustomerCompanyName,
     newCustomerCompanyAddress,
     newCustomerOpeningBalance,
+    newCustomerOpeningBalanceType,
     newCustomerStatus,
     customers,
+    fetchCustomers,
+    currentPage,
+    debouncedSearchTerm,
+    resetSelectedCustomer,
+    t,
   ]);
 
   const handleDeleteCustomer = useCallback(async () => {
@@ -541,6 +555,17 @@ export default function PartiesPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
+              <div className="flex items-center gap-4 mr-2 text-xs border rounded-md px-3 py-1.5 bg-muted/30">
+                <span className="font-semibold text-muted-foreground">{t("legend")}:</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
+                  <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
+                  <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
+                </div>
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -658,6 +683,18 @@ export default function PartiesPage() {
                 style={{ display: "none" }}
               />
             </div>
+            {/* Legend for mobile */}
+            <div className="flex items-center gap-4 text-[10px] border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none">
+              <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500 border border-green-600" />
+                <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-500 border border-red-600" />
+                <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 md:p-6">
@@ -692,7 +729,13 @@ export default function PartiesPage() {
                     </TableRow>
                   ) : (
                     filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
+                    <TableRow 
+                      key={customer.id}
+                      className={cn(
+                        customer.balance !== undefined && customer.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
+                        customer.balance !== undefined && customer.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
+                      )}
+                    >
                       <TableCell>{customer.name}</TableCell>
                       <TableCell>{customer.phone}</TableCell>
                       <TableCell>{customer.company_name || "-"}</TableCell>
@@ -717,6 +760,7 @@ export default function PartiesPage() {
                             size="icon"
                             variant="ghost"
                             onClick={() => {
+                              const balance = customer.balance || 0;
                               setSelectedCustomerId(customer.id);
                               setNewCustomerName(customer.name);
                               setNewCustomerEmail(customer.email);
@@ -728,8 +772,9 @@ export default function PartiesPage() {
                                 customer.company_address || "",
                               );
                               setNewCustomerOpeningBalance(
-                                customer.balance?.toString() || "",
+                                Math.abs(balance).toString(),
                               );
+                              setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
                               setNewCustomerStatus(customer.status);
                               setIsEditCustomerDialogOpen(true);
                             }}
@@ -763,7 +808,12 @@ export default function PartiesPage() {
             {filteredCustomers.map((customer) => (
               <Card
                 key={customer.id}
-                className="p-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800"
+                className={cn(
+                  "p-4 border shadow-sm",
+                  customer.balance !== undefined && customer.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" : 
+                  customer.balance !== undefined && customer.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
+                  "bg-card border-border"
+                )}
               >
                 <div className="space-y-3">
                   {/* Header with Name and Actions */}
@@ -792,6 +842,7 @@ export default function PartiesPage() {
                         variant="ghost"
                         className="h-8 w-8"
                         onClick={() => {
+                          const balance = customer.balance || 0;
                           setSelectedCustomerId(customer.id);
                           setNewCustomerName(customer.name);
                           setNewCustomerEmail(customer.email);
@@ -803,8 +854,9 @@ export default function PartiesPage() {
                             customer.company_address || "",
                           );
                           setNewCustomerOpeningBalance(
-                            customer.balance?.toString() || "",
+                            Math.abs(balance).toString(),
                           );
+                          setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
                           setNewCustomerStatus(customer.status);
                           setIsEditCustomerDialogOpen(true);
                         }}
@@ -1040,27 +1092,41 @@ export default function PartiesPage() {
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">
                   {t("financialInformation")}
                 </h3>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="balance"
-                    className="text-xs sm:text-sm font-medium"
-                  >
-                    {showNewCustomerDialog ? t("openingBalance") : t("balanceLabel")}
-                  </Label>
-                  <Input
-                    id="balance"
-                    type="number"
-                    value={newCustomerOpeningBalance}
-                    onChange={(e) =>
-                      setNewCustomerOpeningBalance(e.target.value)
-                    }
-                    placeholder={t("balancePlaceholder")}
-                    className="h-9 sm:h-10 text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t("openingBalanceHelper")}
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="balance"
+                      className="text-xs sm:text-sm font-medium"
+                    >
+                      {showNewCustomerDialog ? t("openingBalance") : t("balanceLabel")}
+                    </Label>
+                    <Input
+                      id="balance"
+                      type="number"
+                      value={newCustomerOpeningBalance}
+                      onChange={(e) =>
+                        setNewCustomerOpeningBalance(e.target.value)
+                      }
+                      placeholder={t("balancePlaceholder")}
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
+                    <Select value={newCustomerOpeningBalanceType} onValueChange={(val: "receive" | "pay") => setNewCustomerOpeningBalanceType(val)}>
+                      <SelectTrigger className="h-9 sm:h-10 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="receive">{t("receive")}</SelectItem>
+                        <SelectItem value="pay">{t("pay")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {t("openingBalanceHelper")}
+                </p>
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">

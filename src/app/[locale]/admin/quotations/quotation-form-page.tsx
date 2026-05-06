@@ -622,7 +622,14 @@ function QuotationFormPageInner({
                 headers: { "Content-Type": "application/json" },
             });
 
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                if (errorData.code === "DUPLICATE_QUOTATION_NO") {
+                    throw new Error(t("quotationNumberExists") || "Quotation number already exists");
+                }
+                throw new Error(errorData.error || "Failed to save quotation");
+            }
+
             setErrorDialog({
                 open: true,
                 title: tCommon("success"),
@@ -630,11 +637,11 @@ function QuotationFormPageInner({
                 isSuccess: true,
             });
             setTimeout(() => router.push(`/${locale}/admin/quotations`), 1500);
-        } catch (e) {
+        } catch (e: any) {
             setErrorDialog({
                 open: true,
                 title: tCommon("error"),
-                message: "Failed to save quotation",
+                message: e.message || "Failed to save quotation",
                 isSuccess: false,
             });
         } finally {

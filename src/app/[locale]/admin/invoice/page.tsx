@@ -57,6 +57,7 @@ import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialo
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { Pagination } from "@/components/ui/pagination";
 import { Plus } from "lucide-react";
@@ -108,6 +109,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
     paidDate: "",
     noPaymentAtAll: false,
   });
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (order && open) {
@@ -189,9 +192,17 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
   const handleSubmit = async () => {
     if (!customerId || products.length === 0) {
-      alert(t("selectPartyAndItems"));
+      setErrorMessage(t("selectPartyAndItems"));
+      setShowErrorDialog(true);
       return;
     }
+
+    if (payment.paidAmount > total) {
+      setErrorMessage(t("paidAmountExceedsTotal"));
+      setShowErrorDialog(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -232,14 +243,16 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
       onOpenChange(false);
     } catch (err) {
       console.error(err);
-      alert(t("updateError"));
+      setErrorMessage(t("updateError"));
+      setShowErrorDialog(true);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("editOrder")} - {order?.invoice_no || `ORD-${order?.id}`}</DialogTitle>
@@ -367,28 +380,43 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
           <div>
             <Label className="mb-2 block">{t("payment")}</Label>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>{t("paymentMethod")}</Label>
-                <PaymentMethodDropdown
-                  value={payment.method}
-                  onValueChange={(val) => setPayment({ ...payment, method: val })}
-                  placeholder={t("selectMethod") || "Select Method"}
-                  enableSearch={true}
-                  searchPlaceholder="Search payment method..."
-                  noResultsText="No payment methods found"
-                  addButtonPosition="bottom"
-                  includeDefaultMethods={true}
-                />
-              </div>
-              <div>
-                <Label>{t("paidAmount")}</Label>
-                <Input type="number" value={payment.paidAmount} onChange={(e) => setPayment({ ...payment, paidAmount: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>{t("paidDate")}</Label>
-                <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} />
-              </div>
-              <div className="flex items-center gap-2">
+              {!payment.noPaymentAtAll && (
+                <>
+                  <div>
+                    <Label>{t("paymentMethod")}</Label>
+                    <PaymentMethodDropdown
+                      value={payment.method}
+                      onValueChange={(val) => setPayment({ ...payment, method: val })}
+                      placeholder={t("selectMethod") || "Select Method"}
+                      enableSearch={true}
+                      searchPlaceholder="Search payment method..."
+                      noResultsText="No payment methods found"
+                      addButtonPosition="bottom"
+                      includeDefaultMethods={true}
+                    />
+                  </div>
+                  <div>
+                    <Label>{t("paidAmount")}</Label>
+                    <Input
+                      type="number"
+                      value={payment.paidAmount}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        if (val > total) {
+                          setErrorMessage(t("paidAmountExceedsTotal"));
+                          setShowErrorDialog(true);
+                        }
+                        setPayment({ ...payment, paidAmount: val });
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>{t("paidDate")}</Label>
+                    <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} />
+                  </div>
+                </>
+              )}
+              <div className="flex items-center gap-2 col-span-2">
                 <input type="checkbox" id="noPayment" checked={payment.noPaymentAtAll} onChange={(e) => setPayment({ ...payment, noPaymentAtAll: e.target.checked })} />
                 <Label htmlFor="noPayment">{t("noPaymentAtAll")}</Label>
               </div>
@@ -411,7 +439,14 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
           <Button onClick={handleSubmit} disabled={loading}>{loading ? t("updating") : t("updateOrder")}</Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      <ErrorDialog
+        open={showErrorDialog}
+        onOpenChange={setShowErrorDialog}
+        title={t("error")}
+        message={errorMessage}
+      />
+    </>
   );
 }
 

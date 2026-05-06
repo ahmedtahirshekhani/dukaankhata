@@ -118,6 +118,22 @@ export async function PUT(
     }
 
     const quotationsCollection = await getCollection<QuotationDoc>(COLLECTIONS.QUOTATIONS);
+
+    // ✅ Check for unique quotation number if provided
+    if (updateData.quotation_no) {
+      const existing = await quotationsCollection.findOne({
+        user_id: toObjectId(user.id),
+        quotation_no: updateData.quotation_no,
+        _id: { $ne: toObjectId(id) }
+      });
+      if (existing) {
+        return NextResponse.json({ 
+          error: `Quotation number "${updateData.quotation_no}" already exists`,
+          code: "DUPLICATE_QUOTATION_NO"
+        }, { status: 400 });
+      }
+    }
+
     const filter = { _id: toObjectId(id), user_id: toObjectId(user.id) };
 
     // ✅ Use setLastUpdated instead of manual $set

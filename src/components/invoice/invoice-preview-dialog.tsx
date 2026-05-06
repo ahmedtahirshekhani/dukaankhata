@@ -445,30 +445,31 @@ export function InvoicePreviewDialog({
               <div className="lg:col-span-1">
                 <div className="space-y-3 sm:space-y-4">
                   <div className="space-y-2">
-                    {isPaymentMade ? (
-                      <Button
-                        onClick={() => {
-                          setPaymentSeed(editPaymentSeed);
-                          setPaymentDialogOpen(true);
-                        }}
-                        className="w-full"
-                        variant="outline"
-                      >
-                        {t("editPayment")}
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          setPaymentSeed(newPaymentSeed);
-                          setNoPaymentAtAll(false);
-                          setPaymentDialogOpen(true);
-                        }}
-                        disabled={noPaymentAtAll}
-                        className="w-full"
-                        variant={noPaymentAtAll ? "outline" : "default"}
-                      >
-                        Make Payment
-                      </Button>
+                    {!noPaymentAtAll && (
+                      isPaymentMade ? (
+                        <Button
+                          onClick={() => {
+                            setPaymentSeed(editPaymentSeed);
+                            setPaymentDialogOpen(true);
+                          }}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          {t("editPayment")}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            setPaymentSeed(newPaymentSeed);
+                            setNoPaymentAtAll(false);
+                            setPaymentDialogOpen(true);
+                          }}
+                          className="w-full"
+                          variant="default"
+                        >
+                          Make Payment
+                        </Button>
+                      )
                     )}
                     <div className="flex items-center gap-2 px-2">
                       <input

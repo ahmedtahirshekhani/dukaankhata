@@ -26,6 +26,7 @@ import { Loader2Icon, TrendingDown, TrendingUp, Activity, File } from "lucide-re
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from '@/components/VyaparImportButton';
 import { Pagination } from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -36,6 +37,7 @@ import {
 
 export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
+  const tCust = useTranslations("customers");
   const router = useRouter();
   const params = useParams();
   const locale =
@@ -343,6 +345,21 @@ export default function DashboardPage() {
       </Card>
 
       <Card>
+        <CardHeader className="p-3 pb-0">
+          {activeDashboardTab === "customers" && (
+            <div className="flex items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-fit">
+              <span className="font-semibold text-muted-foreground">{tCust("legend")}:</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
+                <span className="font-medium text-green-700 dark:text-green-400">{tCust("legendReceive")}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
+                <span className="font-medium text-red-700 dark:text-red-400">{tCust("legendPay")}</span>
+              </div>
+            </div>
+          )}
+        </CardHeader>
         <CardContent className="p-2 sm:p-3 pt-3 relative">
           {isDataLoading && (
             <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[2px]">
@@ -434,7 +451,13 @@ export default function DashboardPage() {
                     </TableRow>
                   ) : (
                     customerRows.map((row) => (
-                      <TableRow key={row.id}>
+                      <TableRow 
+                        key={row.id}
+                        className={cn(
+                          row.balance !== undefined && row.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
+                          row.balance !== undefined && row.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
+                        )}
+                      >
                         <TableCell>{row.name}</TableCell>
                         <TableCell>{row.email}</TableCell>
                         <TableCell>{row.phone}</TableCell>
@@ -676,7 +699,12 @@ function CustomerCard({
   return (
     <div
       onClick={onClick}
-      className="bg-card border rounded-lg p-4 shadow-sm cursor-pointer active:bg-muted/50 transition-colors"
+      className={cn(
+        "border rounded-lg p-4 shadow-sm cursor-pointer active:bg-muted/50 transition-colors",
+        row.balance !== undefined && row.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" : 
+        row.balance !== undefined && row.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
+        "bg-card border-border"
+      )}
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-base">{row.name}</h3>

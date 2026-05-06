@@ -157,7 +157,6 @@ export async function POST(request: NextRequest) {
       tax_type: data.tax_type || "fixed",
       total_amount: Number(data.total_amount),
       validity_date: data.validity_date,
-      notes: data.notes || "",
       quotation_no: data.quotation_no || "",
       status: data.status || "open",
       created_at: now,
@@ -165,6 +164,21 @@ export async function POST(request: NextRequest) {
     };
 
     const quotationsCollection = await getCollection(COLLECTIONS.QUOTATIONS);
+
+    // ✅ Check for unique quotation number if provided
+    if (data.quotation_no) {
+      const existing = await quotationsCollection.findOne({
+        user_id: toObjectId(user.id),
+        quotation_no: data.quotation_no,
+      });
+      if (existing) {
+        return NextResponse.json({ 
+          error: `Quotation number "${data.quotation_no}" already exists`,
+          code: "DUPLICATE_QUOTATION_NO" 
+        }, { status: 400 });
+      }
+    }
+
     const result = await quotationsCollection.insertOne(quotation);
     
     // ✅ Update user's last activity

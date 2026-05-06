@@ -20,9 +20,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
+import { PlusCircle, Loader2Icon, SearchIcon, X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
+import { cn } from "@/lib/utils";
 
 type Party = {
   id: string | number;
@@ -95,6 +96,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const [newPartyCompanyName, setNewPartyCompanyName] = useState("");
     const [newPartyCompanyAddress, setNewPartyCompanyAddress] = useState("");
     const [newPartyOpeningBalance, setNewPartyOpeningBalance] = useState("");
+    const [newPartyOpeningBalanceType, setNewPartyOpeningBalanceType] = useState<"receive" | "pay">("receive");
     const [errorDialog, setErrorDialog] = useState<{
       open: boolean;
       title?: string;
@@ -192,6 +194,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       setNewPartyCompanyName("");
       setNewPartyCompanyAddress("");
       setNewPartyOpeningBalance("");
+      setNewPartyOpeningBalanceType("receive");
     };
 
     const handleAddParty = async () => {
@@ -212,7 +215,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           phone: newPartyPhone,
           company_name: newPartyCompanyName,
           company_address: newPartyCompanyAddress,
-          balance: newPartyOpeningBalance ? parseFloat(newPartyOpeningBalance) : 0,
+          balance: newPartyOpeningBalance 
+            ? parseFloat(newPartyOpeningBalance) * (newPartyOpeningBalanceType === "pay" ? -1 : 1) 
+            : 0,
           status: "active" as const,
         };
 
@@ -273,7 +278,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
             open={isOpen}
             onOpenChange={handleOpenChange}
           >
-            <SelectTrigger className={className} ref={ref}>
+            <SelectTrigger className={cn("w-full [&>span]:flex-1 [&>span]:flex [&>span]:items-center [&>span]:justify-between gap-2", className)} ref={ref}>
               <SelectValue placeholder={loading && page === 1 ? "Loading..." : placeholder} />
             </SelectTrigger>
             <SelectContent 
@@ -311,6 +316,25 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
               )}
               
               <div className="max-h-[min(300px,var(--radix-select-content-available-height)-100px)] overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col sticky top-0 z-[5] bg-popover border-b">
+                  {/* Dropdown Legend */}
+                  <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/50 text-[10px]">
+                    <span className="font-semibold text-muted-foreground uppercase tracking-wider">{t("legend")}:</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span>{t("receive")}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <span>{t("pay")}</span>
+                    </div>
+                  </div>
+                  {/* Column Headers */}
+                  <div className="flex items-center justify-between px-3 py-1 bg-muted/20 text-[9px] font-bold uppercase tracking-wider text-muted-foreground border-t">
+                    <span>{t("nameLabel")}</span>
+                    <span>{t("balance")}</span>
+                  </div>
+                </div>
                 {includeAllOption && (
                   <SelectItem value="all" className="font-medium">
                     {allOptionLabel}
@@ -325,15 +349,40 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 
                 {parties.map((party) => {
                   const partyId = getPartyId(party);
+                  const balance = party.balance || 0;
                   return (
-                    <SelectItem key={partyId} value={partyId}>
-                      <div className="flex flex-col items-start gap-0.5 py-0.5">
-                        <span className="font-medium">{party.name}</span>
-                        {party.company_name && (
-                          <span className="text-xs text-muted-foreground">
-                            {party.company_name}
+                    <SelectItem 
+                      key={partyId} 
+                      value={partyId}
+                      className={cn(
+                        "w-full [&>span]:w-full [&>span]:flex [&>span]:items-center",
+                        balance < 0 && "bg-red-100/50 focus:bg-red-200/50 focus:text-black data-[state=checked]:bg-red-200/70",
+                        balance > 0 && "bg-green-100/50 focus:bg-green-200/50 focus:text-black data-[state=checked]:bg-green-200/70"
+                      )}
+                    >
+                      <div className="flex w-full items-center justify-between gap-4 py-0.5">
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className="font-medium">{party.name}</span>
+                          {party.company_name && (
+                            <span className="text-[10px] opacity-70">
+                              {party.company_name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs font-semibold">
+                            {Math.abs(balance).toLocaleString()}
                           </span>
-                        )}
+                          {balance < 0 ? (
+                            <div className="p-0.5 bg-red-500 rounded text-white">
+                              <ArrowUpRight className="w-3 h-3" />
+                            </div>
+                          ) : balance > 0 ? (
+                            <div className="p-0.5 bg-green-500 rounded text-white">
+                              <ArrowDownLeft className="w-3 h-3" />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     </SelectItem>
                   );
@@ -450,16 +499,30 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("financialInformation")}</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">{t("openingBalance")}</Label>
-                  <Input
-                    id="party-balance"
-                    type="number"
-                    value={newPartyOpeningBalance}
-                    onChange={(e) => setNewPartyOpeningBalance(e.target.value)}
-                    placeholder={t("balancePlaceholder")}
-                    className="h-9 sm:h-10 text-sm"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">{t("openingBalance")}</Label>
+                    <Input
+                      id="party-balance"
+                      type="number"
+                      value={newPartyOpeningBalance}
+                      onChange={(e) => setNewPartyOpeningBalance(e.target.value)}
+                      placeholder={t("balancePlaceholder")}
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
+                    <Select value={newPartyOpeningBalanceType} onValueChange={(val: "receive" | "pay") => setNewPartyOpeningBalanceType(val)}>
+                      <SelectTrigger className="h-9 sm:h-10 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="receive">{t("receive")}</SelectItem>
+                        <SelectItem value="pay">{t("pay")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </div>
