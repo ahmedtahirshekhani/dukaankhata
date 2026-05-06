@@ -503,7 +503,13 @@
     "view": "Dekhain",
     "edit": "Tarmeem Karain",
     "deleteAction": "Delete Karain",
-    "currencySymbol": "Rs."
+    "currencySymbol": "Rs.",
+    "balanceType": "Balance ki Qisam",
+    "receive": "Aap Wasool Karain Gey",
+    "pay": "Aap Ada Karain Gey",
+    "legend": "Legend",
+    "legendReceive": "Aap Wasool Karain Gey (+ve)",
+    "legendPay": "Aap Ada Karain Gey (-ve)"
   },
   "orders": {
     "title": "Orders",

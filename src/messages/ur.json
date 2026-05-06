@@ -503,7 +503,13 @@
     "view": "دیکھیں",
     "edit": "ترمیم کریں",
     "deleteAction": "حذف کریں",
-    "currencySymbol": "Rs."
+    "currencySymbol": "Rs.",
+    "balanceType": "بیلنس کی قسم",
+    "receive": "آپ وصول کریں گے",
+    "pay": "آپ ادا کریں گے",
+    "legend": "وضاحت (Legend)",
+    "legendReceive": "آپ وصول کریں گے (+ve)",
+    "legendPay": "آپ ادا کریں گے (-ve)"
   },
   "orders": {
     "title": "آرڈرز",

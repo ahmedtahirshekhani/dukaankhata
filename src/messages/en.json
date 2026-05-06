@@ -576,7 +576,13 @@
     "view": "View",
     "edit": "Edit",
     "deleteAction": "Delete",
-    "currencySymbol": "Rs."
+    "currencySymbol": "Rs.",
+    "balanceType": "Balance Type",
+    "receive": "You'll Receive",
+    "pay": "You'll Pay",
+    "legend": "Legend",
+    "legendReceive": "You'll Receive (+ve)",
+    "legendPay": "You'll Pay (-ve)"
   },
   "orders": {
     "title": "Orders",
