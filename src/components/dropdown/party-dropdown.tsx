@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
+import { PlusCircle, Loader2Icon, SearchIcon, X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
@@ -316,16 +316,23 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
               )}
               
               <div className="max-h-[min(300px,var(--radix-select-content-available-height)-100px)] overflow-y-auto custom-scrollbar">
-                {/* Dropdown Legend */}
-                <div className="flex items-center gap-3 px-3 py-1.5 border-b bg-muted/50 text-[10px] sticky top-0 z-[5]">
-                  <span className="font-semibold text-muted-foreground uppercase tracking-wider">{t("legend")}:</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>{t("receive")}</span>
+                <div className="flex flex-col sticky top-0 z-[5] bg-popover border-b">
+                  {/* Dropdown Legend */}
+                  <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/50 text-[10px]">
+                    <span className="font-semibold text-muted-foreground uppercase tracking-wider">{t("legend")}:</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span>{t("receive")}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <span>{t("pay")}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500" />
-                    <span>{t("pay")}</span>
+                  {/* Column Headers */}
+                  <div className="flex items-center justify-between px-3 py-1 bg-muted/20 text-[9px] font-bold uppercase tracking-wider text-muted-foreground border-t">
+                    <span>{t("nameLabel")}</span>
+                    <span>{t("balance")}</span>
                   </div>
                 </div>
                 {includeAllOption && (
@@ -348,17 +355,34 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                       key={partyId} 
                       value={partyId}
                       className={cn(
+                        "w-full [&>span]:w-full [&>span]:flex [&>span]:items-center",
                         balance < 0 && "bg-red-100/50 focus:bg-red-200/50 focus:text-black data-[state=checked]:bg-red-200/70",
                         balance > 0 && "bg-green-100/50 focus:bg-green-200/50 focus:text-black data-[state=checked]:bg-green-200/70"
                       )}
                     >
-                      <div className="flex flex-col items-start gap-0.5 py-0.5">
-                        <span className="font-medium">{party.name}</span>
-                        {party.company_name && (
-                          <span className="text-xs text-muted-foreground">
-                            {party.company_name}
+                      <div className="flex w-full items-center justify-between gap-4 py-0.5">
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className="font-medium">{party.name}</span>
+                          {party.company_name && (
+                            <span className="text-[10px] opacity-70">
+                              {party.company_name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs font-semibold">
+                            {Math.abs(balance).toLocaleString()}
                           </span>
-                        )}
+                          {balance < 0 ? (
+                            <div className="p-0.5 bg-red-500 rounded text-white">
+                              <ArrowUpRight className="w-3 h-3" />
+                            </div>
+                          ) : balance > 0 ? (
+                            <div className="p-0.5 bg-green-500 rounded text-white">
+                              <ArrowDownLeft className="w-3 h-3" />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     </SelectItem>
                   );

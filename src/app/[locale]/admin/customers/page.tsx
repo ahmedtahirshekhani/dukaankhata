@@ -683,6 +683,18 @@ export default function PartiesPage() {
                 style={{ display: "none" }}
               />
             </div>
+            {/* Legend for mobile */}
+            <div className="flex items-center gap-4 text-[10px] border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none">
+              <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500 border border-green-600" />
+                <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-500 border border-red-600" />
+                <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 md:p-6">

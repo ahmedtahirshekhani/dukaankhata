@@ -1,18 +1,18 @@
 declare module 'lucide-react' {
   import { FC, SVGProps } from 'react';
-  
+
   export interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number | string;
     color?: string;
     strokeWidth?: number | string;
     absoluteStrokeWidth?: boolean;
   }
-  
+
   export type Icon = FC<IconProps>;
-  
+
   // Export all possible icon variants
   // Since lucide-react exports hundreds of icons, we'll use a more flexible approach
-  
+
   // Common icons used in the project
   export const Loader2Icon: Icon;
   export const Loader2: Icon;
@@ -204,14 +204,16 @@ declare module 'lucide-react' {
   export const Percent: Icon;
   export const Divide: Icon;
   export const Equal: Icon;
-    export const FileSpreadsheet: Icon;
-    export const ChevronsLeft: Icon;
-    export const ChevronsRight: Icon;
-  
+  export const FileSpreadsheet: Icon;
+  export const ChevronsLeft: Icon;
+  export const ChevronsRight: Icon;
+  export const ArrowDownLeft: Icon;
+  export const ArrowUpRight: Icon;
+
   // Catch-all for any other icons that might be used
   const lucideReact: {
     [key: string]: Icon;
   };
-  
+
   export default lucideReact;
 }
