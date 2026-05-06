@@ -13,26 +13,33 @@ type ExpenseItemInput = {
   amount?: number | string;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = (await getCurrentUser()) as { id: string } | null;
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const skip = (page - 1) * limit;
+
     const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
     const userId = toObjectId(user.id);
 
-    const [categoriesRaw, itemNamesRaw, expenseRows] = await Promise.all([
+    const query = { user_id: userId };
+
+    const [categoriesRaw, itemNamesRaw, expenseRows, totalCount] = await Promise.all([
       expensesCollection.distinct("category", { user_id: userId }),
       expensesCollection.distinct("item_name", { user_id: userId }),
       expensesCollection
-        .find({
-          user_id: userId,
-        })
+        .find(query)
         .sort({ created_at: -1 })
-        .limit(500)
+        .skip(skip)
+        .limit(limit)
         .toArray(),
+      expensesCollection.countDocuments(query),
     ]);
 
     const categories = categoriesRaw
@@ -58,8 +65,17 @@ export async function GET() {
       amount: Number(row.amount ?? 0),
     }));
 
+    const totalPages = Math.ceil(totalCount / limit);
+
     await updateUserLastActivity();
-    return NextResponse.json({ categories, items, expenses });
+    return NextResponse.json({
+      categories,
+      items,
+      expenses,
+      totalCount,
+      totalPages,
+      currentPage: page,
+    });
   } catch (err) {
     console.error("expenses GET error", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
