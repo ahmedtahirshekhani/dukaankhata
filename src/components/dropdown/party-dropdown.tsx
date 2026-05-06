@@ -278,7 +278,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
             open={isOpen}
             onOpenChange={handleOpenChange}
           >
-            <SelectTrigger className={className} ref={ref}>
+            <SelectTrigger className={cn("w-full [&>span]:flex-1 [&>span]:flex [&>span]:items-center [&>span]:justify-between gap-2", className)} ref={ref}>
               <SelectValue placeholder={loading && page === 1 ? "Loading..." : placeholder} />
             </SelectTrigger>
             <SelectContent 
