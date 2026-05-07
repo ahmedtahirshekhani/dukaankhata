@@ -4,13 +4,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CreatableSelect from "react-select/creatable";
-import { PlusCircle, Trash2, Edit } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -111,6 +119,10 @@ export default function ExpensesPage() {
     defaultCategories.map((value) => ({ value, label: value })),
   );
   const [itemOptions, setItemOptions] = useState<SelectOption[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
     message: string;
@@ -153,7 +165,7 @@ export default function ExpensesPage() {
   const fetchExpensesData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/${locale}/api/expenses`);
+      const response = await fetch(`/${locale}/api/expenses?page=${page}&limit=${pageSize}`);
       if (!response.ok) {
         throw new Error(t("loadOptionsFailed"));
       }
@@ -166,12 +178,14 @@ export default function ExpensesPage() {
       setCategoryOptions((prev) => mergeOptions(prev, categories));
       setItemOptions((prev) => mergeOptions(prev, items));
       setExpenses(rows);
+      setTotalPages(data?.totalPages || 1);
+      setTotalCount(data?.totalCount || 0);
     } catch {
       setCategoryOptions((prev) => mergeOptions(prev, defaultCategories));
     } finally {
       setIsLoading(false);
     }
-  }, [locale, mergeOptions, t]);
+  }, [locale, mergeOptions, t, page, pageSize]);
 
   useEffect(() => {
     fetchExpensesData();
@@ -291,6 +305,7 @@ export default function ExpensesPage() {
 
       setShowAddDialog(false);
       resetForm();
+      setPage(1);
       fetchExpensesData();
     } catch (err) {
       setErrorDialog({
@@ -462,8 +477,11 @@ export default function ExpensesPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      {tCommon("loading")}
+                    <TableCell colSpan={8} className="py-12">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                        <p>{tCommon("loading")}</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : expenses.length === 0 ? (
@@ -511,8 +529,9 @@ export default function ExpensesPage() {
           {/* Mobile Cards View - visible only on mobile */}
           <div className="block md:hidden space-y-3">
             {isLoading ? (
-              <div className="text-center text-muted-foreground py-8">
-                {tCommon("loading")}
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                <p>{tCommon("loading")}</p>
               </div>
             ) : expenses.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
@@ -532,6 +551,43 @@ export default function ExpensesPage() {
             )}
           </div>
         </CardContent>
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: totalCount })}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage")}
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            isLoading={isLoading}
+          />
+        </CardFooter>
       </Card>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
