@@ -6,6 +6,8 @@ import GATracker from "@/components/analytics/ga-tracker";
 import GTMTracker from "@/components/analytics/gtm-tracker";
 import MetaPixelTracker from "@/components/analytics/meta-pixel-tracker";
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next"
+
 
 const locales = ["en", "ur", "ru"];
 
@@ -142,6 +144,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         {/* Meta Pixel client-side tracker */}
         <MetaPixelTracker pixelId="1465101935058460" />
       </body>
+      <SpeedInsights />
     </html>
   );
 }
