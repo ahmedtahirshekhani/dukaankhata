@@ -241,12 +241,10 @@ export default function SaleReturnPage() {
 
   const fetchCustomers = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customers`);
+      const res = await fetch(`/${locale}/api/customers?limit=-1`);
       if (!res.ok) return;
       const data = await res.json();
-      setCustomers(
-        data.filter((c: Customer & { is_delete?: number }) => c.is_delete !== 1),
-      );
+      setCustomers(data.customers || []);
     } catch {
       setCustomers([]);
     }
@@ -254,11 +252,11 @@ export default function SaleReturnPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/products`);
+      const res = await fetch(`/${locale}/api/products?limit=-1`);
       if (!res.ok) return;
       const data = await res.json();
-      const list = Array.isArray(data)
-        ? data.map((item: Record<string, unknown>) => ({
+      const list = Array.isArray(data.products)
+        ? data.products.map((item: Record<string, unknown>) => ({
           id: String(item.id ?? ""),
           name: String(
             item.name ?? item.productName ?? item.itemName ?? item.title ?? "",
@@ -358,8 +356,8 @@ export default function SaleReturnPage() {
     );
   };
 
-  const handleSelectProduct = (lineId: string, productId: string) => {
-    const product = products.find((item) => item.id === productId);
+  const handleSelectProduct = (lineId: string, productId: string, selectedProd?: Product) => {
+    const product = selectedProd || products.find((item) => item.id === productId);
     if (!product) return;
 
     const resolvedRate =
@@ -657,7 +655,7 @@ export default function SaleReturnPage() {
       item.items?.length
         ? item.items.map((line, index) => ({
           id: line.id || `${item.id}-${index}`,
-          productId: line.productId || "",
+          productId: (line.productId || (line as any).product_id || "").toString(),
           itemName: line.itemName || "",
           quantity: String(line.quantity ?? 1),
           rate: String(line.rate ?? 0),
@@ -783,7 +781,7 @@ export default function SaleReturnPage() {
                   <TableCell className="min-w-[180px]">
                     <ProductDropdown
                       value={item.productId}
-                      onValueChange={(value) => handleSelectProduct(item.id, value)}
+                      onValueChange={(value, prod) => handleSelectProduct(item.id, value, prod)}
                       placeholder={tCommon("searchProduct")}
                       enableSearch={true}
                       searchPlaceholder={tCommon("searchProduct") || "Search product..."}
@@ -819,7 +817,7 @@ export default function SaleReturnPage() {
                     <Button
                       type="button"
                       size="icon"
-                      variant="ghost"
+                      variant="danger"
                       onClick={() => removeItemRow(item.id)}
                       disabled={formItems.length === 1}
                     >
@@ -1023,9 +1021,11 @@ export default function SaleReturnPage() {
                           >
                             <FilePenIcon className="h-4 w-4" />
                           </Button>
+
                           <Button
                             size="icon"
-                            variant="ghost"
+                            variant="danger"
+                            className="h-8 w-8"
                             onClick={() => {
                               setTransactionToDelete(item);
                               setShowDeleteDialog(true);
@@ -1160,7 +1160,7 @@ export default function SaleReturnPage() {
             >
               {tCommon("cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+             <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting ? tCommon("loading") : tCommon("delete")}
             </Button>
           </DialogFooter>
@@ -1203,7 +1203,7 @@ function SaleReturnCard({
             <FilePenIcon className="w-4 h-4" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8">
+           <Button size="icon" variant="danger" onClick={onDelete} className="h-8 w-8">
             <Trash2 className="w-4 h-4" />
             <span className="sr-only">{tCommon("delete")}</span>
           </Button>

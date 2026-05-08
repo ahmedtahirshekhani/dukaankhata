@@ -58,6 +58,7 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { Pagination } from "@/components/ui/pagination";
 import { Plus } from "lucide-react";
@@ -328,7 +329,14 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                       </TableCell>
                       <TableCell>{Math.floor(calculateLineTotal(p))}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveProduct(idx)}><XIcon className="w-4 h-4" /></Button>
+                        <Button 
+                          variant="danger" 
+                          size="icon" 
+                          onClick={() => handleRemoveProduct(idx)}
+                          disabled={products.length <= 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -509,6 +517,10 @@ export default function OrdersPage() {
   const [editOrderOpen, setEditOrderOpen] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -560,6 +572,29 @@ export default function OrdersPage() {
 
   const handleOrderUpdated = () => {
     fetchOrders();
+  };
+
+  const handleDeleteClick = (order: Order) => {
+    setOrderToDelete(order);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!orderToDelete) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/orders?id=${orderToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(t("errorDeletingOrder"));
+      setDeleteConfirmOpen(false);
+      setOrderToDelete(null);
+      fetchOrders();
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading && orders.length === 0) {
@@ -697,13 +732,14 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)}>
+                          <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
                             <FilePenIcon className="w-4 h-4" />
                             <span className="sr-only">{t("edit")}</span>
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-8 w-8"
                             onClick={() => {
                               setSelectedInvoiceOrder(order);
                               setInvoiceDialogOpen(true);
@@ -711,6 +747,15 @@ export default function OrdersPage() {
                           >
                             <EyeIcon className="w-4 h-4" />
                             <span className="sr-only">{t("showInvoice")}</span>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="danger"
+                            className="h-8 w-8"
+                            onClick={() => handleDeleteClick(order)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="sr-only">{t("delete")}</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -740,18 +785,26 @@ export default function OrdersPage() {
                         <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
                           <FilePenIcon className="w-4 h-4" />
                         </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedInvoiceOrder(order);
-                            setInvoiceDialogOpen(true);
-                          }}
-                          className="h-8 w-8"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedInvoiceOrder(order);
+                              setInvoiceDialogOpen(true);
+                            }}
+                            className="h-8 w-8"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="danger"
+                            className="h-8 w-8"
+                            onClick={() => handleDeleteClick(order)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">{t("customer")}</p>
@@ -877,6 +930,16 @@ export default function OrdersPage() {
           onOrderUpdated={handleOrderUpdated}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title={t("confirmDeletion")}
+        description={t("confirmDeleteMessage", { invoiceNo: orderToDelete?.invoice_no || `ORD-${orderToDelete?.id}` })}
+        onConfirm={handleDeleteConfirm}
+        isLoading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }

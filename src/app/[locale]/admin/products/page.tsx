@@ -687,7 +687,7 @@ export default function Products() {
             >
               {tCommon("cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>
+            <Button variant="danger" onClick={handleDeleteProduct}>
               {tCommon("delete")}
             </Button>
           </DialogFooter>

@@ -133,7 +133,8 @@ export function ProductsTable({
                     </Button>
                     <Button
                       size="icon"
-                      variant="ghost"
+                      variant="danger"
+                      className="h-8 w-8"
                       onClick={() => onDelete(product)}
                       style={{ display: "none" }}
                     >

@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Loader2, Edit2, SearchIcon, X } from "lucide-react";
+import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -233,69 +233,88 @@ export default function PurchaseBillPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("partyName") || "Party"}</TableHead>
-                    <TableHead className="text-right">{t("totalAmount") || "Total"}</TableHead>
-                    <TableHead className="text-right">{t("paidAmount") || "Paid"}</TableHead>
-                    <TableHead className="text-right">{t("balanceDue") || "Balance"}</TableHead>
-                    <TableHead>{t("status") || "Status"}</TableHead>
-                    <TableHead>{t("date") || "Date"}</TableHead>
-                    <TableHead className="text-right pr-6">{t("actions") || "Actions"}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bills.map((bill) => (
-                    <TableRow key={bill.id}>
-                      <TableCell className="font-medium">
-                        {bill.party_name}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrencyString(bill.total_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrencyString(bill.paid_amount || 0)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrencyString(bill.balance_due || 0)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={bill.is_paid ? "default" : "secondary"}
-                        >
-                          {bill.is_paid ? t("paid") || "Paid" : t("pending") || "Pending"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {bill.created_at
-                          ? new Date(bill.created_at).toLocaleDateString(locale)
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right pr-4">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setDeleteConfirmDialog({ open: true, billId: bill.id });
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("partyName") || "Party"}</TableHead>
+                      <TableHead className="text-right">{t("totalAmount") || "Total"}</TableHead>
+                      <TableHead className="text-right">{t("paidAmount") || "Paid"}</TableHead>
+                      <TableHead className="text-right">{t("balanceDue") || "Balance"}</TableHead>
+                      <TableHead>{t("status") || "Status"}</TableHead>
+                      <TableHead>{t("date") || "Date"}</TableHead>
+                      <TableHead className="text-left pr-6">{t("actions") || "Actions"}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {bills.map((bill) => (
+                      <TableRow key={bill.id}>
+                        <TableCell className="font-medium">
+                          {bill.party_name}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrencyString(bill.total_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrencyString(bill.paid_amount || 0)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrencyString(bill.balance_due || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={bill.is_paid ? "default" : "secondary"}
+                          >
+                            {bill.is_paid ? t("paid") || "Paid" : t("pending") || "Pending"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {bill.created_at
+                            ? new Date(bill.created_at).toLocaleDateString(locale)
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="text-right pr-4">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setDeleteConfirmDialog({ open: true, billId: bill.id });
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden p-4 space-y-4">
+                {bills.map((bill) => (
+                  <PurchaseBillCard
+                    key={bill.id}
+                    bill={bill}
+                    onEdit={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
+                    onDelete={() => setDeleteConfirmDialog({ open: true, billId: bill.id })}
+                    t={t}
+                    tCommon={tCommon}
+                    locale={locale}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -347,7 +366,7 @@ export default function PurchaseBillPage() {
             handleDeleteBill(deleteConfirmDialog.billId);
           }
         }}
-        variant="destructive"
+        variant="danger"
       />
 
       <ErrorDialog
@@ -359,6 +378,78 @@ export default function PurchaseBillPage() {
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
       />
+    </div>
+  );
+}
+
+// Mobile Card Component for Purchase Bill
+function PurchaseBillCard({
+  bill,
+  onEdit,
+  onDelete,
+  t,
+  tCommon,
+  locale,
+}: {
+  bill: PurchaseBill;
+  onEdit: () => void;
+  onDelete: () => void;
+  t: (key: string) => string;
+  tCommon: (key: string) => string;
+  locale: string;
+}) {
+  return (
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-semibold text-base truncate max-w-[70%]">
+          {bill.party_name}
+        </h3>
+        <div className="flex gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onEdit}
+            className="h-8 w-8"
+          >
+            <Edit className="h-4 w-4" />
+            <span className="sr-only">{tCommon("edit")}</span>
+          </Button>
+          <Button
+            size="icon"
+            variant="danger"
+            onClick={onDelete}
+            className="h-8 w-8"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">{tCommon("delete")}</span>
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("totalAmount") || "Total"}:</span>
+          <span className="font-medium">{formatCurrencyString(bill.total_amount)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("paidAmount") || "Paid"}:</span>
+          <span>{formatCurrencyString(bill.paid_amount || 0)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("balanceDue") || "Balance"}:</span>
+          <span className={(bill.balance_due || 0) > 0 ? "text-destructive font-medium" : "text-green-600"}>
+            {formatCurrencyString(bill.balance_due || 0)}
+          </span>
+        </div>
+        <div className="flex justify-between items-center pt-1">
+           <span className="text-muted-foreground">{t("status") || "Status"}:</span>
+           <Badge variant={bill.is_paid ? "default" : "secondary"}>
+             {bill.is_paid ? t("paid") || "Paid" : t("pending") || "Pending"}
+           </Badge>
+        </div>
+        <div className="flex justify-between pt-1 text-xs text-muted-foreground border-t">
+          <span>{bill.created_at ? new Date(bill.created_at).toLocaleDateString(locale) : "-"}</span>
+        </div>
+      </div>
     </div>
   );
 }

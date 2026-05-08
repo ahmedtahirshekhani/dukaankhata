@@ -1960,7 +1960,7 @@ export default function CounterSale() {
                                     <Button
                                       aria-haspopup="true"
                                       size="icon"
-                                      variant="ghost"
+                                      variant="danger"
                                       className="h-8 w-8"
                                       onClick={() => {
                                         setTransactionToDelete(transaction);
@@ -2353,7 +2353,7 @@ export default function CounterSale() {
                         <Button
                           aria-haspopup="true"
                           size="icon"
-                          variant="ghost"
+                          variant="danger"
                           className="h-7 w-7"
                           onClick={() => {
                             setTransactionToDelete(transaction);
@@ -2471,7 +2471,7 @@ export default function CounterSale() {
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               onClick={handleDeleteTransaction}
               className="w-full sm:w-auto"
             >

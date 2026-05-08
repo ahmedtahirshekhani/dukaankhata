@@ -486,7 +486,8 @@ export default function PaymentOutPage() {
                           </Button>
                           <Button
                             size="icon"
-                            variant="ghost"
+                            variant="danger"
+                            className="h-8 w-8"
                             onClick={() => {
                               setTransactionToDelete(item);
                               setShowDeleteDialog(true);
@@ -771,7 +772,7 @@ export default function PaymentOutPage() {
               {tCommon("cancel")}
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               onClick={handleDelete}
               disabled={isDeleting}
             >
@@ -824,7 +825,7 @@ function PaymentOutCard({
           </Button>
           <Button
             size="icon"
-            variant="ghost"
+            variant="danger"
             onClick={onDelete}
             className="h-8 w-8"
           >

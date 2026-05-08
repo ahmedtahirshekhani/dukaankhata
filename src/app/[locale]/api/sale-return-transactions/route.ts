@@ -26,14 +26,8 @@ function sanitizeItems(items: unknown): SaleReturnItem[] {
 
   return items
     .map((raw, index) => {
-      const item = raw as {
-        id?: string;
-        productId?: string;
-        itemName?: string;
-        quantity?: number | string;
-        rate?: number | string;
-        amount?: number | string;
-      };
+      const item = raw as any;
+      const productId = (item.productId || item.product_id || "").toString();
       const quantity =
         typeof item.quantity === "number"
           ? item.quantity
@@ -48,7 +42,7 @@ function sanitizeItems(items: unknown): SaleReturnItem[] {
 
       return {
         id: item.id?.toString() || `item-${index + 1}`,
-        productId: item.productId?.toString() || "",
+        productId,
         itemName: item.itemName?.toString().trim() || "",
         quantity,
         rate,

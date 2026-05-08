@@ -619,7 +619,7 @@
     "createOrder": "Create Order",
     "updateOrder": "Update Order",
     "confirmDeletion": "Confirm Deletion",
-    "confirmDeleteMessage": "Are you sure you want to delete this order? This action cannot be undone.",
+    "confirmDeleteMessage": "Are you sure you want to delete order {invoiceNo}? This action cannot be undone.",
     "failedToFetchOrders": "Failed to fetch orders",
     "errorCreatingOrder": "Error creating order",
     "errorUpdatingOrder": "Error updating order",
