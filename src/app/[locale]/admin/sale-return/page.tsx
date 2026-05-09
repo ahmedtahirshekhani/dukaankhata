@@ -698,28 +698,6 @@ export default function SaleReturnPage() {
             searchPlaceholder={t("searchCustomer") || "Search customer..."}
           />
         </div>
-        {/* <div className="space-y-2">
-        <Label>{t("paymentMethod")}</Label>
-        <Select value={formPaymentMethodId} onValueChange={setFormPaymentMethodId}>
-          <SelectTrigger>
-            <SelectValue placeholder={t("selectPaymentMethod")} />
-          </SelectTrigger>
-          <SelectContent className="min-w-[20rem] max-w-[90vw]">
-            {paymentMethods.map((pm) => (
-              <SelectItem key={pm.id} value={pm.id} className="text-left group">
-                <div className="flex flex-col items-start text-left gap-0.5 py-0.5 w-full">
-                  <span className="font-medium w-full">{pm.name}</span>
-                  {pm.bankDetails && (
-                    <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap w-full group-data-[highlighted]:text-white">
-                      {pm.bankDetails}
-                    </span>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div> */}
         <div className="space-y-2">
           <Label>{t("paymentMethod")}</Label>
           <PaymentMethodDropdown
@@ -781,7 +759,7 @@ export default function SaleReturnPage() {
                   <TableCell className="min-w-[180px]">
                     <ProductDropdown
                       value={item.productId}
-                      onValueChange={(value, prod) => handleSelectProduct(item.id, value, prod)}
+                      onValueChange={(value, prod) => handleSelectProduct(String(item.id), value, prod)}
                       placeholder={tCommon("searchProduct")}
                       enableSearch={true}
                       searchPlaceholder={tCommon("searchProduct") || "Search product..."}
