@@ -8,8 +8,6 @@ This particular iteration embraces the spirit of open-source development, making
 
 ## Features
 
-changes done
-
 - **Dashboard**: Overview of key metrics and charts
 - **Products Management**: Add, edit, delete, and view products
 - **Customer Management**: Manage customer information and status
