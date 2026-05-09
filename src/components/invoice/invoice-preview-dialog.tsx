@@ -484,7 +484,7 @@ export function InvoicePreviewDialog({
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 mt-2">
                   <div className="space-y-0.5">
                     <Label className="text-xs sm:text-sm font-bold text-slate-700">Party Signature</Label>
-                    <p className="text-[10px] text-muted-foreground italic">Show "Sign Here" box for customer</p>
+                    <p className="text-[10px] text-muted-foreground italic">Show &quot;Sign Here&quot; box for customer</p>
                   </div>
                   <Switch 
                     checked={requestCustomerSignature} 

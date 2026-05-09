@@ -497,6 +497,7 @@ type Order = {
     paid_date: string;
     no_payment_at_all: boolean;
   } | null;
+  customer_notes?: string;
 };
 
 export default function OrdersPage() {
@@ -918,7 +919,7 @@ export default function OrdersPage() {
           onCreateOrder={() => {}}
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
-          customerNotes={selectedInvoiceOrder.notes}
+          customerNotes={selectedInvoiceOrder.customer_notes}
         />
       )}
 

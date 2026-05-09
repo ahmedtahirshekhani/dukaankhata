@@ -61,7 +61,7 @@ type Customer = {
 };
 
 type Product = {
-  id: string;
+  id: string | number;
   name: string;
   sellPrice?: number;
   sell_price?: number;
