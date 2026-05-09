@@ -29,6 +29,9 @@ export default function ConfigurationPage({
   const { refreshSession } = useUserProfile();
 
   const [companyName, setCompanyName] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -53,7 +56,22 @@ export default function ConfigurationPage({
             data.companyName ||
             (session?.user as any)?.company ||
             "";
+          const savedCompanyAddress = 
+            data.companyAddress || 
+            (typeof window !== "undefined" ? localStorage.getItem("companyAddress") : "") || 
+            "";
+          const savedCompanyPhone = 
+            data.companyPhone || 
+            (typeof window !== "undefined" ? localStorage.getItem("companyPhone") : "") || 
+            "";
+          const savedCompanyEmail = 
+            data.companyEmail || 
+            (typeof window !== "undefined" ? localStorage.getItem("companyEmail") : "") || 
+            "";
           setCompanyName(savedCompanyName);
+          setCompanyAddress(savedCompanyAddress as string);
+          setCompanyPhone(savedCompanyPhone as string);
+          setCompanyEmail(savedCompanyEmail as string);
           setCompanyLogo(data.companyLogo || null);
           setSignatureImage(data.signatureImage || null);
         }
@@ -112,7 +130,7 @@ export default function ConfigurationPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, companyLogo, signatureImage }),
+          body: JSON.stringify({ companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage }),
         },
       );
       const configData = await configRes.json();
@@ -139,6 +157,21 @@ export default function ConfigurationPage({
       } else {
         localStorage.removeItem("companyName");
       }
+      if (companyAddress) {
+        localStorage.setItem("companyAddress", companyAddress);
+      } else {
+        localStorage.removeItem("companyAddress");
+      }
+      if (companyPhone) {
+        localStorage.setItem("companyPhone", companyPhone);
+      } else {
+        localStorage.removeItem("companyPhone");
+      }
+      if (companyEmail) {
+        localStorage.setItem("companyEmail", companyEmail);
+      } else {
+        localStorage.removeItem("companyEmail");
+      }
       if (companyLogo) {
         localStorage.setItem("companyLogo", companyLogo);
       } else {
@@ -153,7 +186,7 @@ export default function ConfigurationPage({
       // Dispatch custom event to update UI across all components
       window.dispatchEvent(
         new CustomEvent("companyDetailsUpdated", {
-          detail: { companyName, companyLogo, signatureImage },
+          detail: { companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage },
         }),
       );
       window.dispatchEvent(
@@ -220,6 +253,42 @@ export default function ConfigurationPage({
                         placeholder={t("enterCompanyName")}
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Company Address */}
+                    <div className="space-y-2">
+                      <Label htmlFor="company-address">{t("companyAddress")}</Label>
+                      <Input
+                        id="company-address"
+                        type="text"
+                        placeholder={t("enterCompanyAddress")}
+                        value={companyAddress}
+                        onChange={(e) => setCompanyAddress(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Company Phone */}
+                    <div className="space-y-2">
+                      <Label htmlFor="company-phone">{t("companyPhone")}</Label>
+                      <Input
+                        id="company-phone"
+                        type="text"
+                        placeholder={t("enterCompanyPhone")}
+                        value={companyPhone}
+                        onChange={(e) => setCompanyPhone(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Company Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="company-email">{t("companyEmail")}</Label>
+                      <Input
+                        id="company-email"
+                        type="email"
+                        placeholder={t("enterCompanyEmail")}
+                        value={companyEmail}
+                        onChange={(e) => setCompanyEmail(e.target.value)}
                       />
                     </div>
 

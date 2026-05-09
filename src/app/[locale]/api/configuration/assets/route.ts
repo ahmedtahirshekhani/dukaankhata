@@ -13,12 +13,15 @@ export async function GET() {
     const userId = (session.user as any).id as string;
     const user = await users.findOne(
       { _id: toObjectId(userId) },
-      { projection: { company_logo: 1, signature_image: 1, company_name: 1 } },
+      { projection: { company_logo: 1, signature_image: 1, company_name: 1, company_address: 1, company_phone: 1, company_email: 1 } },
     );
-
+    
     return NextResponse.json({
       ok: true,
       companyName: user?.company_name || null,
+      companyAddress: user?.company_address || null,
+      companyPhone: user?.company_phone || null,
+      companyEmail: user?.company_email || null,
       companyLogo: user?.company_logo || null,
       signatureImage: user?.signature_image || null,
     });
@@ -36,13 +39,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { companyName, companyLogo, signatureImage } = body || {};
+    const { companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage } = body || {};
 
     const additionalUpdate: Record<string, any> = {};
     if (typeof companyName === "string") additionalUpdate.company_name = companyName.trim();
+    if (typeof companyAddress === "string") additionalUpdate.company_address = companyAddress.trim();
+    if (typeof companyPhone === "string") additionalUpdate.company_phone = companyPhone.trim();
+    if (typeof companyEmail === "string") additionalUpdate.company_email = companyEmail.trim();
     if (typeof companyLogo === "string") additionalUpdate.company_logo = companyLogo;
     if (typeof signatureImage === "string") additionalUpdate.signature_image = signatureImage;
-
 
     const users = await getCollection(COLLECTIONS.USERS);
     const userId = (session.user as any).id as string;

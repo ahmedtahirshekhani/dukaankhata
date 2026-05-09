@@ -468,10 +468,10 @@ export default function ExpensesPage() {
                   <TableHead>{t("date")}</TableHead>
                   <TableHead>{t("category")}</TableHead>
                   <TableHead>{t("itemName")}</TableHead>
-                  <TableHead className="text-right">{t("qty")}</TableHead>
-                  <TableHead className="text-right">{t("rate")}</TableHead>
-                  <TableHead className="text-right">{t("amount")}</TableHead>
-                  <TableHead className="text-right">{tCommon("actions")}</TableHead>
+                  <TableHead>{t("qty")}</TableHead>
+                  <TableHead>{t("rate")}</TableHead>
+                  <TableHead>{t("amount")}</TableHead>
+                  <TableHead>{tCommon("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -497,19 +497,19 @@ export default function ExpensesPage() {
                       <TableCell>{expense.date}</TableCell>
                       <TableCell>{expense.category}</TableCell>
                       <TableCell>{expense.itemName}</TableCell>
-                      <TableCell className="text-right">{formatNumber(expense.qty)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(expense.rate)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(expense.amount)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell>{formatNumber(expense.qty)}</TableCell>
+                      <TableCell>{formatNumber(expense.rate)}</TableCell>
+                      <TableCell>{formatNumber(expense.amount)}</TableCell>
+                      <TableCell>
                         <div className="flex justify-end gap-2">
                           <Button
                             size="icon"
-                            variant="outline"
+                            variant="ghost"
                             className="h-8 w-8"
                             onClick={() => openEditDialog(expense)}
                           >
                             <Edit className="h-4 w-4" />
-                            <span className="sr-only">{tCommon("edit")}</span>
+                            {/* <span className="sr-only">{tCommon("edit")}</span> */}
                           </Button>
                           <Button
                             size="sm"

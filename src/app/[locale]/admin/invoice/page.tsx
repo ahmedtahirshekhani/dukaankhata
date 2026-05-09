@@ -918,6 +918,7 @@ export default function OrdersPage() {
           onCreateOrder={() => {}}
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
+          customerNotes={selectedInvoiceOrder.notes}
         />
       )}
 

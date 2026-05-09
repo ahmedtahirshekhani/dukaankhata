@@ -307,7 +307,7 @@ export default function QuotationListPage() {
                           <TableCell className="text-muted-foreground">
                             {q.created_at ? new Date(q.created_at).toLocaleDateString() : "-"}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell>
                             <div className="flex gap-1 justify-end">
                               <Button size="icon" variant="ghost" asChild title="View">
                                 <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
