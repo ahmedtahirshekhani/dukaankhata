@@ -546,7 +546,7 @@
     "createOrder": "آرڈر بنائیں",
     "updateOrder": "آرڈر اپ ڈیٹ کریں",
     "confirmDeletion": "حذف کی تصدیق",
-    "confirmDeleteMessage": "کیا آپ واقعی یہ آرڈر حذف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں ہو سکتا۔",
+    "confirmDeleteMessage": "کیا آپ واقعی آرڈر {invoiceNo} حذف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں ہو سکتا۔",
     "failedToFetchOrders": "آرڈرز حاصل کرنے میں ناکام",
     "errorCreatingOrder": "آرڈر بنانے میں خرابی",
     "errorUpdatingOrder": "آرڈر اپ ڈیٹ کرنے میں خرابی",

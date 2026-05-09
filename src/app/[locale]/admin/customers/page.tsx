@@ -784,7 +784,8 @@ export default function PartiesPage() {
                           </Button>
                           <Button
                             size="icon"
-                            variant="ghost"
+                            variant="danger"
+                            className="h-8 w-8"
                             onClick={() => {
                               setCustomerToDelete(customer);
                               setIsDeleteConfirmationOpen(true);
@@ -866,7 +867,7 @@ export default function PartiesPage() {
                       </Button>
                       <Button
                         size="icon"
-                        variant="ghost"
+                        variant="danger"
                         className="h-8 w-8"
                         onClick={() => {
                           setCustomerToDelete(customer);
@@ -1263,7 +1264,7 @@ export default function PartiesPage() {
                 {t("cancel")}
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={handleDeleteCustomer}
                 disabled={isDeleting}
               >

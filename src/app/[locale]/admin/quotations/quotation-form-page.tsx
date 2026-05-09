@@ -781,9 +781,9 @@ function QuotationFormPageInner({
                                                                 <Edit2 className="h-4 w-4" />
                                                             </Button>
                                                             <Button
-                                                                variant="ghost"
+                                                                variant="danger"
                                                                 size="icon"
-                                                                className="text-destructive"
+                                                                className="h-8 w-8"
                                                                 onClick={() =>
                                                                     setQuotationItems(
                                                                         quotationItems.filter(
@@ -895,9 +895,9 @@ function QuotationFormPageInner({
               <Edit2 className="h-4 w-4" />
             </Button> */}
             <Button
-              variant="ghost"
+              variant="danger"
               size="icon"
-              className="text-destructive"
+              className="h-8 w-8"
               onClick={() =>
                 setQuotationItems(quotationItems.filter((i) => i.id !== item.id))
               }

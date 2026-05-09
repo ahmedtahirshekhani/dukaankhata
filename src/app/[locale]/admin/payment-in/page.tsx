@@ -475,7 +475,8 @@ export default function PaymentInPage() {
                           </Button>
                           <Button
                             size="icon"
-                            variant="ghost"
+                            variant="danger"
+                            className="h-8 w-8"
                             onClick={() => {
                               setTransactionToDelete(item);
                               setShowDeleteDialog(true);
@@ -712,7 +713,7 @@ export default function PaymentInPage() {
               {tCommon("cancel")}
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               onClick={handleDelete}
               disabled={isDeleting}
             >
@@ -765,7 +766,7 @@ function TransactionCard({
           </Button>
           <Button
             size="icon"
-            variant="ghost"
+            variant="danger"
             onClick={onDelete}
             className="h-8 w-8"
           >

@@ -19,7 +19,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Product } from "@/types/product";
 
 interface ProductDropdownProps {
-  value?: string;
+  value?: string | number;
   onValueChange: (value: string, product?: Product) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -62,7 +62,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const observerTarget = useRef<HTMLDivElement>(null);
-    const [initialProductLoaded, setInitialProductLoaded] = useState(false);
+    const lastFetchedValue = useRef<string | number | undefined>(undefined);
 
     const getProductId = (p: Product) => String(p.id || p._id);
 
@@ -82,7 +82,22 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
         const data = await res.json();
         
         const newProducts = data.products || [];
-        setProducts(prev => append ? [...prev, ...newProducts] : newProducts);
+        setProducts(prev => {
+          const combined = append ? [...prev, ...newProducts] : newProducts;
+          // If not appending (i.e., first page or search), preserve the currently selected product
+          // so it doesn't disappear from the dropdown display
+          if (!append && value) {
+            const valStr = String(value);
+            const isAlreadyInNewList = newProducts.some((p: any) => String(p.id || p._id) === valStr);
+            if (!isAlreadyInNewList) {
+              const selectedInPrev = prev.find((p: any) => String(p.id || p._id) === valStr);
+              if (selectedInPrev) {
+                return [selectedInPrev, ...combined];
+              }
+            }
+          }
+          return combined;
+        });
         setHasMore(newProducts.length === ITEMS_PER_PAGE);
       } catch (error) {
         console.error(error);
@@ -93,7 +108,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     }, []);
 
     // Load initial product if value is provided and not in the list
-    const fetchSelectedProduct = useCallback(async (productId: string) => {
+    const fetchSelectedProduct = useCallback(async (productId: string | number) => {
       if (!productId) return;
       try {
         const res = await fetch(`/api/products/${productId}`);
@@ -118,14 +133,15 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
 
     // Ensure selected product is loaded
     useEffect(() => {
-      if (value && !initialProductLoaded) {
-        const exists = products.find(p => getProductId(p) === value);
+      const valStr = value ? String(value) : "";
+      if (valStr && valStr !== String(lastFetchedValue.current)) {
+        const exists = products.find(p => getProductId(p) === valStr);
         if (!exists) {
-          fetchSelectedProduct(value);
+          fetchSelectedProduct(value!);
         }
-        setInitialProductLoaded(true);
+        lastFetchedValue.current = value;
       }
-    }, [value, products, initialProductLoaded, fetchSelectedProduct]);
+    }, [value, products, fetchSelectedProduct]);
 
     // Handle intersection observer for infinite scroll
     useEffect(() => {
@@ -212,7 +228,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       <>
         <div className="relative">
           <Select
-            value={value}
+            value={value ? String(value) : undefined}
             onValueChange={handleValueChange}
             disabled={disabled}
             open={isOpen}

@@ -21,7 +21,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   onConfirm: () => void;
   onCancel?: () => void;
-  variant?: "default" | "warning" | "destructive";
+  variant?: "default" | "warning" | "destructive" | "danger";
+  isLoading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -34,10 +35,10 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = "warning",
+  isLoading = false,
 }: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
-    onOpenChange(false);
   };
 
   const handleCancel = () => {
@@ -46,11 +47,16 @@ export function ConfirmDialog({
   };
 
   const iconColor =
-    variant === "destructive"
+    variant === "destructive" || variant === "danger"
       ? "text-red-600"
       : variant === "warning"
         ? "text-amber-600"
         : "text-foreground";
+
+  const confirmVariant = 
+    variant === "danger" ? "danger" : 
+    variant === "destructive" ? "destructive" : 
+    "default";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,10 +77,13 @@ export function ConfirmDialog({
           )}
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             {cancelLabel}
           </Button>
-          <Button onClick={handleConfirm}>{confirmLabel}</Button>
+          <Button variant={confirmVariant} onClick={handleConfirm} disabled={isLoading}>
+            {isLoading && <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+            {confirmLabel}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

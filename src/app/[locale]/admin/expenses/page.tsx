@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CreatableSelect from "react-select/creatable";
-import { PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
+import { PlusCircle, Trash2, Edit, Loader2, Edit2 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -503,19 +503,23 @@ export default function ExpensesPage() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
-                            size="sm"
+                            size="icon"
                             variant="outline"
+                            className="h-8 w-8"
                             onClick={() => openEditDialog(expense)}
                           >
-                            {tCommon("edit")}
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">{tCommon("edit")}</span>
                           </Button>
                           <Button
                             size="sm"
-                            variant="destructive"
+                            variant="danger"
                             onClick={() => requestDeleteExpense(expense)}
                             disabled={isDeleting}
+                            className="h-8 w-8 p-0"
                           >
-                            {tCommon("delete")}
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">{tCommon("delete")}</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -857,9 +861,8 @@ export default function ExpensesPage() {
             : undefined
         }
         confirmLabel={tCommon("delete")}
-        cancelLabel={tCommon("cancel")}
         onConfirm={handleDeleteExpense}
-        variant="destructive"
+        variant="danger"
       />
     </div>
   );
@@ -891,8 +894,13 @@ function ExpenseCard({
             <Edit className="w-4 h-4" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8">
-            <Trash2 className="w-4 h-4" />
+          <Button 
+            size="icon" 
+            variant="danger" 
+            onClick={onDelete} 
+            className="h-8 w-8"
+          >
+            <Trash2 className="h-4 w-4" />
             <span className="sr-only">{tCommon("delete")}</span>
           </Button>
         </div>

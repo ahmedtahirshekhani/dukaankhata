@@ -443,4 +443,140 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  const user = (await getCurrentUser()) as { id: string } | null;
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id || !isValidObjectId(id)) {
+    return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+  }
+
+  try {
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const orderId = toObjectId(id);
+
+    // Find the order first to get items and customer info
+    const order = await ordersCollection.findOne({
+      _id: orderId,
+      user_id: toObjectId(user.id),
+    });
+
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // 1. Revert stock deduction
+    if (order.items && Array.isArray(order.items)) {
+      for (const item of order.items) {
+        if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
+          continue;
+        }
+
+        const productDoc = await productsCollection.findOne(
+          { _id: toObjectId(item.product_id.toString()) },
+          { projection: { type: 1, quantity: 1, in_stock: 1, damaged_quantity: 1 } }
+        );
+
+        if (!productDoc) continue;
+
+        const productType = (productDoc as { type?: string }).type;
+        const isGoods = !productType || productType === "goods" || productType === "good";
+        if (!isGoods) continue;
+
+        const orderQty = item.quantity || 0;
+        if (orderQty <= 0) continue;
+
+        const quantityType = item.quantityType || "prime";
+        const isDamaged = quantityType === "damaged";
+
+        let stockField: string;
+        if (isDamaged) {
+          stockField = "damaged_quantity";
+        } else {
+          const productQuantity = (productDoc as { quantity?: number }).quantity;
+          const productInStock = (productDoc as { in_stock?: number }).in_stock;
+          stockField = productQuantity !== undefined && productQuantity !== null
+            ? "quantity"
+            : productInStock !== undefined && productInStock !== null
+              ? "in_stock"
+              : "quantity";
+        }
+
+        // Increment stock back
+        await productsCollection.updateOne(
+          { _id: toObjectId(item.product_id.toString()) },
+          { $inc: { [stockField]: orderQty } }
+        );
+      }
+    }
+
+    // 2. Remove associated ledger entries and update balance
+    const ledgerCollection = await getCollection(COLLECTIONS.CUSTOMER_LEDGER_ENTRIES);
+    const ledgerEntries = await ledgerCollection.find({
+      user_id: toObjectId(user.id),
+      event_source_id: isValidObjectId(id) ? toObjectId(id) : id,
+    }).toArray();
+
+    const totalDelta = ledgerEntries.reduce((sum, entry) => sum + (entry.amount_delta || 0), 0);
+
+    await ledgerCollection.deleteMany({
+      user_id: toObjectId(user.id),
+      event_source_id: isValidObjectId(id) ? toObjectId(id) : id,
+    });
+
+    if (totalDelta !== 0 && order.customer_id) {
+      const balanceStateCollection = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+      const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
+      
+      await balanceStateCollection.updateOne(
+        { user_id: toObjectId(user.id), party_id: toObjectId(order.customer_id.toString()) },
+        { $inc: { current_balance: -totalDelta } }
+      );
+
+      await partiesCollection.updateOne(
+        { _id: toObjectId(order.customer_id.toString()), user_id: toObjectId(user.id) },
+        { $inc: { balance: -totalDelta } }
+      );
+    }
+
+    // 3. Remove associated transactions
+    const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+    await transactionsCollection.deleteMany({
+      user_id: toObjectId(user.id),
+      order_id: orderId,
+    });
+
+    // 4. Delete the order itself
+    const result = await ordersCollection.deleteOne({
+      _id: orderId,
+      user_id: toObjectId(user.id),
+    });
+
+    if (result.deletedCount === 0) {
+      throw new Error("Failed to delete order");
+    }
+
+    // Update user's last activity
+    const usersCollection = await getCollection(COLLECTIONS.USERS);
+    await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
+
+    await updateUserLastActivity();
+    return NextResponse.json({ success: true, message: "Order deleted successfully" });
+  } catch (error) {
+    console.error("Order deletion error:", error);
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
   

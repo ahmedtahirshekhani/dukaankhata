@@ -26,13 +26,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Edit2, Trash2, Plus, Loader2, X, ArrowLeft } from "lucide-react";
+import { Edit2, Trash2, Plus, Loader2, X, ArrowLeft, Edit } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { formatCurrencyString } from "@/lib/utils";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { Product } from "@/types/product";
 
+// Local interfaces for this page
 interface Party {
     id: string;
     name: string;
@@ -40,17 +42,6 @@ interface Party {
     phone?: string;
     company_name?: string;
     balance?: number;
-}
-
-interface Product {
-    id: string;
-    name: string;
-    description?: string;
-    category?: string;
-    cost_price?: number;
-    sell_price?: number;
-    quantity?: number;
-    in_stock?: number;
 }
 
 interface PaymentMethod {
@@ -65,7 +56,7 @@ interface PaymentMethod {
 
 interface PurchaseBillItem {
     id: string;
-    product_id: string;
+    product_id: string | number;
     product_name: string;
     product_description?: string;
     quantity: number;
@@ -123,7 +114,8 @@ function AddPurchaseBillPageInner() {
 
     const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    const [selectedProduct, setSelectedProduct] = useState<string>("");
+    const [selectedProduct, setSelectedProduct] = useState<string | number>("");
+    const [selectedProductObj, setSelectedProductObj] = useState<Product | null>(null);
     const [itemQuantity, setItemQuantity] = useState<string>("1");
 
     const [errorDialog, setErrorDialog] = useState<{
@@ -266,8 +258,15 @@ function AddPurchaseBillPageInner() {
             return;
         }
 
-        const product = products.find((p) => p.id === selectedProduct);
-        if (!product) return;
+        const product = selectedProductObj;
+        if (!product) {
+            setErrorDialog({
+                open: true,
+                title: t("error"),
+                message: t("productNotFound") || "Product not found. Please try again.",
+            });
+            return;
+        }
 
         const quantity = Number(itemQuantity) || 1;
         const costPrice = product.cost_price || 0;
@@ -306,13 +305,20 @@ function AddPurchaseBillPageInner() {
         }
 
         setSelectedProduct("");
+        setSelectedProductObj(null);
         setItemQuantity("1");
         setIsItemDialogOpen(false);
-    }, [selectedProduct, itemQuantity, editingItemId, billItems, products, t]);
+    }, [selectedProductObj, itemQuantity, editingItemId, billItems, t]);
 
     const handleEditItem = useCallback((item: PurchaseBillItem) => {
         setEditingItemId(item.id);
         setSelectedProduct(item.product_id);
+        setSelectedProductObj({
+            id: item.product_id,
+            name: item.product_name,
+            description: item.product_description,
+            cost_price: item.cost_price,
+        } as Product);
         setItemQuantity(item.quantity.toString());
         setIsItemDialogOpen(true);
     }, []);
@@ -528,15 +534,16 @@ function AddPurchaseBillPageInner() {
                                                     {formatCurrencyString(item.amount)}
                                                 </div>
                                                 <Button
-                                                    size="sm"
+                                                    size="icon"
                                                     variant="ghost"
                                                     onClick={() => handleEditItem(item)}
                                                 >
-                                                    <Edit2 className="h-4 w-4" />
+                                                    <Edit className="h-4 w-4" />
                                                 </Button>
                                                 <Button
-                                                    size="sm"
-                                                    variant="ghost"
+                                                    size="icon"
+                                                    variant="danger"
+                                                    className="h-8 w-8"
                                                     onClick={() => handleDeleteItem(item.id)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -551,6 +558,7 @@ function AddPurchaseBillPageInner() {
                             onClick={() => {
                                 setEditingItemId(null);
                                 setSelectedProduct("");
+                                setSelectedProductObj(null);
                                 setItemQuantity("1");
                                 setIsItemDialogOpen(true);
                             }}
@@ -760,9 +768,12 @@ function AddPurchaseBillPageInner() {
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>{t("selectProduct") || "Select Product"}</Label>
-                            <ProductDropdown
+                             <ProductDropdown
                                 value={selectedProduct}
-                                onValueChange={(value) => setSelectedProduct(value)}
+                                onValueChange={(value, product) => {
+                                    setSelectedProduct(value);
+                                    if (product) setSelectedProductObj(product);
+                                }}
                                 placeholder={t("selectProduct") || "Select Product"}
                                 enableSearch={true}
                                 addButtonPosition="top"

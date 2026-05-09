@@ -546,7 +546,7 @@
     "createOrder": "Order Banayen",
     "updateOrder": "Order Update Karain",
     "confirmDeletion": "Delete ki Tasdeeq",
-    "confirmDeleteMessage": "Kya aap yeh order delete karna chahte hain? Yeh amal wapas nahi ho sakta.",
+    "confirmDeleteMessage": "Kya aap waqai order {invoiceNo} delete karna chahte hain? Yeh amal wapas nahi ho sakta.",
     "failedToFetchOrders": "Orders hasil karne mein nakam",
     "errorCreatingOrder": "Order banne mein kharabi",
     "errorUpdatingOrder": "Order update karne mein kharabi",

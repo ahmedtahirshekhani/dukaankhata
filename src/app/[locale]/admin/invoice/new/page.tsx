@@ -881,7 +881,7 @@ export default function NewInvoicePage() {
                     </TableCell>
                     <TableCell>
                       <Button
-                        variant="destructive"
+                        variant="danger"
                         size="sm"
                         onClick={() => handleRemoveProduct(product.id)}
                       >

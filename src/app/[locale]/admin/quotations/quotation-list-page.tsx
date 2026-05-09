@@ -279,7 +279,7 @@ export default function QuotationListPage() {
                       <TableHead>{tInv("status")}</TableHead>
                       <TableHead>{tInv("validity")}</TableHead>
                       <TableHead>{tInv("date")}</TableHead>
-                      <TableHead className="text-right">{tCommon("actions")}</TableHead>
+                      <TableHead >{tCommon("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -333,8 +333,8 @@ export default function QuotationListPage() {
                               </Button>
                               <Button
                                 size="icon"
-                                variant="ghost"
-                                className="text-destructive hover:bg-destructive/10"
+                                variant="danger"
+                                className="h-8 w-8"
                                 onClick={() => handleDeleteClick(q)}
                                 title="Delete"
                               >
@@ -431,7 +431,7 @@ export default function QuotationListPage() {
         confirmLabel={isDeleting ? tInv("deleting") : tCommon("delete")}
         cancelLabel={tCommon("cancel")}
         onConfirm={handleDeleteConfirm}
-        variant="destructive"
+        variant="danger"
       />
 
       {/* Error/Success Dialog */}
@@ -503,16 +503,16 @@ function QuotationCard({
 
       <div className="flex flex-wrap justify-end gap-2 mt-4 pt-3 border-t">
         <div className="flex gap-1">
-          <Button size="sm" variant="ghost" asChild title="View" className="h-9 px-3">
+          <Button size="icon" variant="ghost" asChild title="View" className="h-8 w-8">
             <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
-              <EyeIcon className="h-4 w-4 mr-1.5" />
-              {t("common.view") || "View"}
+              <EyeIcon className="h-4 w-4" />
+              <span className="sr-only">{t("common.view") || "View"}</span>
             </Link>
           </Button>
-          <Button size="sm" variant="ghost" asChild title="Edit" className="h-9 px-3">
+          <Button size="icon" variant="ghost" asChild title="Edit" className="h-8 w-8">
             <Link href={`/${locale}/admin/quotations/${quotId}/edit`}>
-              <Edit className="h-4 w-4 mr-1.5" />
-              {t("common.edit") || "Edit"}
+              <Edit className="h-4 w-4" />
+              <span className="sr-only">{t("common.edit") || "Edit"}</span>
             </Link>
           </Button>
         </div>
@@ -530,7 +530,12 @@ function QuotationCard({
              ) : null}
              {tNav("convertToSale")}
            </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete} className="h-9 w-9 text-destructive hover:bg-destructive/10">
+           <Button
+            size="icon"
+            variant="danger"
+            onClick={onDelete}
+            className="h-8 w-8"
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
