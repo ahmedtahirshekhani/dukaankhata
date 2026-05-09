@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -78,6 +79,8 @@ interface POSProduct extends Product {
 export default function NewInvoicePage() {
   const t = useTranslations("invoice");
   const tCommon = useTranslations("common");
+  const router = useRouter();
+  const locale = useLocale();
 
   const { data: session } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
@@ -649,6 +652,9 @@ export default function NewInvoicePage() {
       setShowAddCharge(false);
       setShowInvoicePreview(false);
       setShowOrderCreatedDialog(true);
+      
+      // Navigate to invoice list page
+      router.push(`/${locale}/admin/invoice`);
     } catch (error) {
       console.error("Error creating order:", error);
     } finally {
@@ -1491,7 +1497,10 @@ export default function NewInvoicePage() {
                 ? t("sendingOnWhatsApp")
                 : t("sendInvoicePdfOnWhatsApp")}
             </Button>
-            <Button onClick={() => setShowOrderCreatedDialog(false)}>
+            <Button onClick={() => {
+              setShowOrderCreatedDialog(false);
+              router.push(`/${locale}/admin/invoice`);
+            }}>
               {t("ok")}
             </Button>
           </DialogFooter>

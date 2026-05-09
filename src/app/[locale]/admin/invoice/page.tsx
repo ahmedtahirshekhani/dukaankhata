@@ -254,35 +254,37 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] sm:w-[90vw] md:max-w-5xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
         <DialogHeader>
-          <DialogTitle>{t("editOrder")} - {order?.invoice_no || `ORD-${order?.id}`}</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">{t("editOrder")} - {order?.invoice_no || `ORD-${order?.id}`}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
-              <Label>{t("customer")}</Label>
+              <Label className="text-xs sm:text-sm">{t("customer")}</Label>
               <PartyDropdown value={customerId} onValueChange={setCustomerId} placeholder={t("selectCustomer")} />
             </div>
             <div>
-              <Label>{t("saleDate")}</Label>
-              <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+              <Label className="text-xs sm:text-sm">{t("saleDate")}</Label>
+              <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="h-9 sm:h-10 text-sm" />
             </div>
             <div>
-              <Label>{t("dueDate")}</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Label className="text-xs sm:text-sm">{t("dueDate")}</Label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9 sm:h-10 text-sm" />
             </div>
             <div>
-              <Label>{t("invoiceNo")}</Label>
-              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />
+              <Label className="text-xs sm:text-sm">{t("invoiceNo")}</Label>
+              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="h-9 sm:h-10 text-sm" />
             </div>
           </div>
 
           {/* Products Table */}
           <div>
-            <Label className="mb-2 block">{t("products")}</Label>
-            <div className="border rounded-md overflow-x-auto">
+            <Label className="mb-2 block text-sm font-semibold">{t("products")}</Label>
+            
+            {/* Desktop Table View */}
+            <div className="hidden md:block border rounded-md overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -303,14 +305,14 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24" />
+                        <Input type="number" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={p.quantity} onChange={(e) => handleUpdateProduct(idx, "quantity", parseFloat(e.target.value) || 0)} className="w-20" />
+                        <Input type="number" value={p.quantity} onChange={(e) => handleUpdateProduct(idx, "quantity", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
                         <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
-                          <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="prime">{t("prime")}</SelectItem>
                             <SelectItem value="damaged">{t("damaged")}</SelectItem>
@@ -318,22 +320,23 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         </Select>
                       </TableCell>
                       <TableCell className="flex gap-1">
-                        <Input type="number" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20" />
+                        <Input type="number" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
                         <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
-                          <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="value">PKR</SelectItem>
                             <SelectItem value="percentage">%</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>{Math.floor(calculateLineTotal(p))}</TableCell>
+                      <TableCell className="text-sm">{Math.floor(calculateLineTotal(p))}</TableCell>
                       <TableCell>
                         <Button 
                           variant="danger" 
                           size="icon" 
                           onClick={() => handleRemoveProduct(idx)}
                           disabled={products.length <= 1}
+                          className="h-8 w-8"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -348,29 +351,124 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                 </TableBody>
               </Table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {products.map((p, idx) => (
+                <Card key={idx} className="p-3 border shadow-sm">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="max-w-[80%]">
+                        <p className="font-semibold text-sm leading-tight">{p.name}</p>
+                        {p.description && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{p.description}</p>}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleRemoveProduct(idx)}
+                        disabled={products.length <= 1}
+                        className="h-6 w-6 p-0 text-red-500"
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("price")}</Label>
+                        <Input 
+                          type="number" 
+                          value={p.sell_price} 
+                          onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} 
+                          className="h-8 text-xs" 
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("quantity")}</Label>
+                        <Input 
+                          type="number" 
+                          value={p.quantity} 
+                          onChange={(e) => handleUpdateProduct(idx, "quantity", parseFloat(e.target.value) || 0)} 
+                          className="h-8 text-xs" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("type")}</Label>
+                        <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="prime">{t("prime")}</SelectItem>
+                            <SelectItem value="damaged">{t("damaged")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("discount")}</Label>
+                        <div className="flex gap-1">
+                          <Input 
+                            type="number" 
+                            value={p.discount} 
+                            onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} 
+                            className="h-8 text-xs flex-1" 
+                          />
+                          <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
+                            <SelectTrigger className="h-8 w-12 text-xs px-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="value">Rs</SelectItem>
+                              <SelectItem value="percentage">%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <span className="text-xs font-medium text-muted-foreground">{t("total")}</span>
+                      <span className="text-sm font-bold">Rs. {Math.floor(calculateLineTotal(p))}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+              <div className="pt-2">
+                <ProductDropdown value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+              </div>
+            </div>
           </div>
 
           {/* Charges */}
-          <div>
-            <Label className="mb-2 block">{t("charges")}</Label>
-            {charges.map((ch, idx) => (
-              <div key={ch.id} className="flex gap-2 mb-2">
-                <Input placeholder={t("chargeName")} value={ch.item} onChange={(e) => handleUpdateCharge(idx, "item", e.target.value)} />
-                <Input type="number" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} />
-                <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(idx)}><XIcon className="w-4 h-4" /></Button>
-              </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={handleAddCharge}><Plus className="w-4 h-4 mr-1" />{t("addCharge")}</Button>
+          <div className="space-y-2">
+            <Label className="block text-sm font-semibold">{t("charges")}</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {charges.map((ch, idx) => (
+                <div key={ch.id} className="flex gap-2 items-end p-2 border rounded-md bg-muted/20">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-[10px] text-muted-foreground uppercase">{t("chargeName")}</Label>
+                    <Input placeholder={t("chargeName")} value={ch.item} onChange={(e) => handleUpdateCharge(idx, "item", e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label className="text-[10px] text-muted-foreground uppercase">{t("amount")}</Label>
+                    <Input type="number" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(idx)} className="h-8 w-8 text-red-500"><XIcon className="w-4 h-4" /></Button>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={handleAddCharge} className="w-full sm:w-auto h-8 text-xs mt-2">
+              <Plus className="w-4 h-4 mr-1" />{t("addCharge")}
+            </Button>
           </div>
 
           {/* Discount & Shipping */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label>{t("overallDiscount")}</Label>
+              <Label className="text-xs sm:text-sm font-semibold">{t("overallDiscount")}</Label>
               <div className="flex gap-2">
-                <Input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} />
+                <Input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
                 <Select value={overallDiscountType} onValueChange={(val: any) => setOverallDiscountType(val)}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-24 h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="value">PKR</SelectItem>
                     <SelectItem value="percentage">%</SelectItem>
@@ -379,19 +477,19 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
               </div>
             </div>
             <div>
-              <Label>{t("shippingCharges")}</Label>
-              <Input type="number" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} />
+              <Label className="text-xs sm:text-sm font-semibold">{t("shippingCharges")}</Label>
+              <Input type="number" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
             </div>
           </div>
 
           {/* Payment */}
-          <div>
-            <Label className="mb-2 block">{t("payment")}</Label>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <Label className="block text-sm font-semibold">{t("payment")}</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {!payment.noPaymentAtAll && (
                 <>
-                  <div>
-                    <Label>{t("paymentMethod")}</Label>
+                  <div className="sm:col-span-1">
+                    <Label className="text-xs sm:text-sm">{t("paymentMethod")}</Label>
                     <PaymentMethodDropdown
                       value={payment.method}
                       onValueChange={(val) => setPayment({ ...payment, method: val })}
@@ -403,8 +501,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                       includeDefaultMethods={true}
                     />
                   </div>
-                  <div>
-                    <Label>{t("paidAmount")}</Label>
+                  <div className="sm:col-span-1">
+                    <Label className="text-xs sm:text-sm">{t("paidAmount")}</Label>
                     <Input
                       type="number"
                       value={payment.paidAmount}
@@ -416,17 +514,18 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         }
                         setPayment({ ...payment, paidAmount: val });
                       }}
+                      className="h-9 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label>{t("paidDate")}</Label>
-                    <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} />
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <Label className="text-xs sm:text-sm">{t("paidDate")}</Label>
+                    <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} className="h-9 text-sm" />
                   </div>
                 </>
               )}
-              <div className="flex items-center gap-2 col-span-2">
-                <input type="checkbox" id="noPayment" checked={payment.noPaymentAtAll} onChange={(e) => setPayment({ ...payment, noPaymentAtAll: e.target.checked })} />
-                <Label htmlFor="noPayment">{t("noPaymentAtAll")}</Label>
+              <div className="flex items-center gap-2 col-span-full pt-1">
+                <input type="checkbox" id="noPayment" checked={payment.noPaymentAtAll} onChange={(e) => setPayment({ ...payment, noPaymentAtAll: e.target.checked })} className="h-4 w-4 rounded" />
+                <Label htmlFor="noPayment" className="text-sm font-medium cursor-pointer">{t("noPaymentAtAll")}</Label>
               </div>
             </div>
           </div>
@@ -442,9 +541,9 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
             {t("total")}: {Math.floor(total)} PKR
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("cancel")}</Button>
-          <Button onClick={handleSubmit} disabled={loading}>{loading ? t("updating") : t("updateOrder")}</Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-6">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto h-10">{t("cancel")}</Button>
+          <Button onClick={handleSubmit} disabled={loading} className="w-full sm:w-auto h-10">{loading ? t("updating") : t("updateOrder")}</Button>
         </DialogFooter>
       </DialogContent>
       </Dialog>

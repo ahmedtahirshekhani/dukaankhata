@@ -70,8 +70,6 @@ type Product = {
   retailPrice?: number;
 };
 
-
-
 type PaymentMethod = {
   id: string;
   name: string;

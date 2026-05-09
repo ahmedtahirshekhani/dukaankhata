@@ -335,7 +335,8 @@ export function InvoicePreviewDialog({
           <head>
             <title>${invoiceNo || "Invoice"}</title>
             <style>
-              body { margin: 0; padding: 0; background: white; }
+              @page { margin: 0; }
+              body { margin: 10mm; padding: 0; background: white; }
               img { max-width: 100%; height: auto; display: block; }
             </style>
           </head>
