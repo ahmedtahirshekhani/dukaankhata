@@ -509,7 +509,6 @@ export default function ExpensesPage() {
                             onClick={() => openEditDialog(expense)}
                           >
                             <Edit className="h-4 w-4" />
-                            {/* <span className="sr-only">{tCommon("edit")}</span> */}
                           </Button>
                           <Button
                             size="sm"
