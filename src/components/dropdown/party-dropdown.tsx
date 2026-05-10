@@ -361,13 +361,18 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                       )}
                     >
                       <div className="flex w-full items-center justify-between gap-4 py-0.5">
-                        <div className="flex flex-col items-start gap-0.5">
-                          <span className="font-medium">{party.name}</span>
-                          {party.company_name && (
-                            <span className="text-[10px] opacity-70">
-                              {party.company_name}
+                        <div className="flex flex-col items-start gap-0.5 max-w-[200px]">
+                          <span className="font-medium truncate w-full">{party.name}</span>
+                          {/* {party.company_name && (
+                            <span className="text-[10px] opacity-70 truncate w-full">
+                              🏢 {party.company_name}
                             </span>
-                          )}
+                          )} */}
+                          {/* {party.company_address && (
+                            <span className="text-[9px] opacity-60 truncate w-full italic">
+                              📍 {party.company_address}
+                            </span>
+                          )} */}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs font-semibold">

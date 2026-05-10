@@ -86,6 +86,8 @@ export async function GET(request: Request) {
             }
           : null,
         payment: order.payment || null,
+        notes: order.customer_notes || "",
+        customer_notes: order.customer_notes || "",
       };
     }),
   );

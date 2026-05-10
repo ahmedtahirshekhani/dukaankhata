@@ -23,6 +23,7 @@ import {
   type InvoiceProduct,
 } from "@/components/invoice/invoice-preview";
 import { PaymentDialog } from "@/components/invoice/payment-dialog";
+import { Switch } from "../ui/switch";
 
 interface InvoicePreviewDialogProps {
   open: boolean;
@@ -32,6 +33,9 @@ interface InvoicePreviewDialogProps {
     name: string;
     email?: string;
     phone?: string;
+    company_name?: string;
+    company_address?: string;
+    address?: string;
   };
   saleDate: string;
   dueDate: string | null;
@@ -57,6 +61,9 @@ interface InvoicePreviewDialogProps {
     no_payment_at_all: boolean;
   } | null;
   companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
   customerNotes?: string;
 }
 
@@ -78,7 +85,10 @@ export function InvoicePreviewDialog({
   isCreatingOrder = false,
   hidePaymentActions = false,
   initialPayment = null,
-  companyName,
+  companyName: initialCompanyName,
+  companyAddress: initialCompanyAddress,
+  companyPhone: initialCompanyPhone,
+  companyEmail: initialCompanyEmail,
   customerNotes = "",
 }: InvoicePreviewDialogProps) {
   const t = useTranslations("invoice");
@@ -102,6 +112,10 @@ export function InvoicePreviewDialog({
   const invoiceRef = useRef<HTMLDivElement | null>(null);
   const isCreatingRef = useRef(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>(initialCompanyName || "");
+  const [companyAddress, setCompanyAddress] = useState<string>(initialCompanyAddress || "");
+  const [companyPhone, setCompanyPhone] = useState<string>(initialCompanyPhone || "");
+  const [companyEmail, setCompanyEmail] = useState<string>(initialCompanyEmail || "");
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [includeSignature, setIncludeSignature] = useState(true);
   const [requestCustomerSignature, setRequestCustomerSignature] =
@@ -128,56 +142,95 @@ export function InvoicePreviewDialog({
       : getToday(),
   }));
 
-  useEffect(() => {
-    const loadBranding = async () => {
-      try {
-        // Check localStorage first
-        const cachedLogo =
-          typeof window !== "undefined"
-            ? localStorage.getItem("companyLogo")
-            : null;
-        const cachedSignature =
-          typeof window !== "undefined"
-            ? localStorage.getItem("invoiceSignature")
-            : null;
+  const loadBranding = async () => {
+    try {
+      // Check localStorage first
+      const cachedLogo =
+        typeof window !== "undefined" ? localStorage.getItem("companyLogo") : null;
+      const cachedSignature =
+        typeof window !== "undefined"
+          ? localStorage.getItem("invoiceSignature")
+          : null;
+      const cachedName =
+        typeof window !== "undefined" ? localStorage.getItem("companyName") : null;
+      const cachedAddress =
+        typeof window !== "undefined"
+          ? localStorage.getItem("companyAddress")
+          : null;
+      const cachedPhone =
+        typeof window !== "undefined"
+          ? localStorage.getItem("companyPhone")
+          : null;
+      const cachedEmail =
+        typeof window !== "undefined"
+          ? localStorage.getItem("companyEmail")
+          : null;
 
-        // Set cached values if available
-        if (cachedLogo) setCompanyLogo(cachedLogo);
-        if (cachedSignature) setSignatureImage(cachedSignature);
+      // Set cached values if available
+      if (cachedLogo) setCompanyLogo(cachedLogo);
+      if (cachedSignature) setSignatureImage(cachedSignature);
+      if (cachedAddress) setCompanyAddress(cachedAddress);
+      if (cachedName) setCompanyName(cachedName);
+      if (cachedPhone) setCompanyPhone(cachedPhone);
+      if (cachedEmail) setCompanyEmail(cachedEmail);
 
-        // Always fetch from API to ensure we have latest data
-        const locale =
-          typeof window !== "undefined"
-            ? window.location.pathname.split("/")[1]
-            : "";
-        const res = await fetch(`/${locale || ""}/api/configuration/assets`);
-        const data = await res.json();
-        if (res.ok) {
-          const logo = data.companyLogo || null;
-          const sig = data.signatureImage || null;
+      // Always fetch from API to ensure we have latest data
+      const locale =
+        typeof window !== "undefined"
+          ? window.location.pathname.split("/")[1]
+          : "";
+      const res = await fetch(`/${locale || ""}/api/configuration/assets`);
+      const data = await res.json();
+      if (res.ok) {
+        const logo = data.companyLogo || null;
+        const sig = data.signatureImage || null;
+        const addr = data.companyAddress || "";
+        const name = data.companyName || "";
+        const phone = data.companyPhone || "";
+        const email = data.companyEmail || "";
 
-          // Update state with API data
-          setCompanyLogo(logo);
-          setSignatureImage(sig);
+        // Update state with API data
+        setCompanyLogo(logo);
+        setSignatureImage(sig);
+        setCompanyAddress(addr || initialCompanyAddress || "");
+        setCompanyName(name || initialCompanyName || "");
+        setCompanyPhone(phone || initialCompanyPhone || "");
+        setCompanyEmail(email || initialCompanyEmail || "");
 
-          // Update localStorage cache
-          if (logo) {
-            localStorage.setItem("companyLogo", logo);
-          } else {
-            localStorage.removeItem("companyLogo");
-          }
-          if (sig) {
-            localStorage.setItem("invoiceSignature", sig);
-          } else {
-            localStorage.removeItem("invoiceSignature");
-          }
-        }
-      } catch (err) {
-        // Silent fail; fall back to cached values if they exist
-        console.error("branding fetch failed", err);
+        // Update localStorage cache
+        if (logo) localStorage.setItem("companyLogo", logo);
+        else localStorage.removeItem("companyLogo");
+
+        if (sig) localStorage.setItem("invoiceSignature", sig);
+        else localStorage.removeItem("invoiceSignature");
+
+        if (addr) localStorage.setItem("companyAddress", addr);
+        else localStorage.removeItem("companyAddress");
+
+        if (name) localStorage.setItem("companyName", name);
+        else localStorage.removeItem("companyName");
+
+        if (phone) localStorage.setItem("companyPhone", phone);
+        else localStorage.removeItem("companyPhone");
+
+        if (email) localStorage.setItem("companyEmail", email);
+        else localStorage.removeItem("companyEmail");
       }
-    };
+    } catch (err) {
+      console.error("branding fetch failed", err);
+    }
+  };
+
+  useEffect(() => {
     loadBranding();
+
+    const handleUpdate = () => {
+      loadBranding();
+    };
+    window.addEventListener("companyDetailsUpdated", handleUpdate);
+    return () => {
+      window.removeEventListener("companyDetailsUpdated", handleUpdate);
+    };
   }, []);
 
   const handleDownloadPdf = async () => {
@@ -247,8 +300,8 @@ export function InvoicePreviewDialog({
           break;
         case "a4":
         default:
-          // 210mm (approximately 595 pixels)
-          windowWidth = 595;
+          // A4 width (approximately 794 pixels at 96 dpi)
+          windowWidth = 794;
           scale = 2;
           break;
       }
@@ -282,7 +335,8 @@ export function InvoicePreviewDialog({
           <head>
             <title>${invoiceNo || "Invoice"}</title>
             <style>
-              body { margin: 0; padding: 0; background: white; }
+              @page { margin: 0; }
+              body { margin: 10mm; padding: 0; background: white; }
               img { max-width: 100%; height: auto; display: block; }
             </style>
           </head>
@@ -370,6 +424,9 @@ export function InvoicePreviewDialog({
                 includeSignature={includeSignature}
                 requestCustomerSignature={requestCustomerSignature}
                 companyName={companyName}
+                companyAddress={companyAddress}
+                companyPhone={companyPhone}
+                companyEmail={companyEmail}
                 customerNotes={customerNotes}
                 printFormat={printFormat}
               />
@@ -422,6 +479,18 @@ export function InvoicePreviewDialog({
                       </span>
                     </label>
                   </div>
+                </div>
+
+                {/* Party Signature Toggle */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 mt-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-xs sm:text-sm font-bold text-slate-700">Party Signature</Label>
+                    <p className="text-[10px] text-muted-foreground italic">Show &quot;Sign Here&quot; box for customer</p>
+                  </div>
+                  <Switch 
+                    checked={requestCustomerSignature} 
+                    onCheckedChange={setRequestCustomerSignature}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Button

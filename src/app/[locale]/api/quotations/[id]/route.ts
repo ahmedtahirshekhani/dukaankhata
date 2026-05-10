@@ -124,9 +124,8 @@ export async function PUT(
       const existing = await quotationsCollection.findOne({
         user_id: toObjectId(user.id),
         quotation_no: updateData.quotation_no,
-        _id: { $ne: toObjectId(id) }
       });
-      if (existing) {
+      if (existing && existing._id.toString() !== id) {
         return NextResponse.json({ 
           error: `Quotation number "${updateData.quotation_no}" already exists`,
           code: "DUPLICATE_QUOTATION_NO"

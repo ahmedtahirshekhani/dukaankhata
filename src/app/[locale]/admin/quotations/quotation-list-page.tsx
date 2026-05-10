@@ -268,7 +268,7 @@ export default function QuotationListPage() {
               )}
               
               {/* Desktop Table View */}
-              <div className="hidden md:block">
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -279,7 +279,7 @@ export default function QuotationListPage() {
                       <TableHead>{tInv("status")}</TableHead>
                       <TableHead>{tInv("validity")}</TableHead>
                       <TableHead>{tInv("date")}</TableHead>
-                      <TableHead >{tCommon("actions")}</TableHead>
+                      <TableHead>{tCommon("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -288,7 +288,7 @@ export default function QuotationListPage() {
                       return (
                         <TableRow key={quotId}>
                           <TableCell className="text-center font-medium">{(currentPage - 1) * pageSize + i + 1}</TableCell>
-                          <TableCell className="font-medium text-primary">{q.quotation_no || "-"}</TableCell>
+                          <TableCell className="font-medium">{q.quotation_no || "-"}</TableCell>
                           <TableCell>{q.party_name || "-"}</TableCell>
                           <TableCell className="font-semibold">{formatCurrencyString(q.total_amount || 0)}</TableCell>
                           <TableCell>
@@ -307,7 +307,7 @@ export default function QuotationListPage() {
                           <TableCell className="text-muted-foreground">
                             {q.created_at ? new Date(q.created_at).toLocaleDateString() : "-"}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell>
                             <div className="flex gap-1 justify-end">
                               <Button size="icon" variant="ghost" asChild title="View">
                                 <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
