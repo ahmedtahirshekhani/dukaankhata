@@ -11,6 +11,10 @@ import {
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 
+// Module-level cache to prevent duplicate API calls across component mounts
+let branchesCache: { value: string; label: string }[] | null = null;
+let branchesPromise: Promise<{ value: string; label: string }[]> | null = null;
+
 interface BranchSelectorProps {
   value: string;
   onChange: (value: string) => void;
@@ -48,13 +52,32 @@ export function BranchSelector({
     // Fetch branches from database
     const fetchBranches = async () => {
       try {
-        const response = await fetch("/api/branches");
-        if (response.ok) {
+        // Return cached data if available
+        if (branchesCache) {
+          setBranches(branchesCache);
+          return;
+        }
+
+        // Reuse in-flight request if available
+        if (branchesPromise) {
+          const result = await branchesPromise;
+          setBranches(result);
+          return;
+        }
+
+        // Create new fetch promise
+        branchesPromise = (async () => {
+          const response = await fetch("/api/branches");
+          if (!response.ok) {
+            throw new Error("Failed to fetch branches");
+          }
+
           const data = await response.json();
           const dbBranches = data.map((branch: any) => ({
             value: branch.name,
             label: branch.name,
           }));
+
           // Merge default branches with database branches, removing duplicates
           const merged = Array.from(
             new Map([
@@ -65,8 +88,13 @@ export function BranchSelector({
               ...dbBranches.map((branch: any) => [branch.value, branch]),
             ]).values()
           ) as { value: string; label: string }[];
-          setBranches(merged);
-        }
+
+          branchesCache = merged;
+          return merged;
+        })();
+
+        const result = await branchesPromise;
+        setBranches(result);
       } catch (error) {
         console.error("Error fetching branches:", error);
       }

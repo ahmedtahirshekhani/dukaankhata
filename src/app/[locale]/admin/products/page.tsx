@@ -53,7 +53,11 @@ import {
   ProductsTable,
   type Product,
 } from "@/components/products/products-table";
-import { useProductsData } from "@/components/products/use-products-data";
+import {
+  useProductsData,
+  useCategories,
+  useBranches,
+} from "@/components/products/use-products-data";
 import { FilterIcon, ChevronDownIcon } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
@@ -118,8 +122,8 @@ export default function Products() {
   const [importPreviewData, setImportPreviewData] = useState<Record<string, any>[]>([]);
   const [importColumns, setImportColumns] = useState<string[]>([]);
 
-  // Use custom hook for data fetching
-  const { products, categories, branches, loading: isInitialLoading, totalCount, totalPages, setProducts, refetchData } =
+  // Use custom hooks for data fetching
+  const { products, loading: isInitialLoading, totalCount, totalPages, setProducts, refetchData } =
     useProductsData({
       filters,
       priceRanges,
@@ -127,6 +131,9 @@ export default function Products() {
       limit: pageSize,
       search: debouncedSearchTerm,
     });
+
+  const { categories } = useCategories();
+  const { branches } = useBranches();
 
   // Handle loading state
   const loading = isInitialLoading || isPageLoading;
@@ -605,11 +612,6 @@ export default function Products() {
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
-          {loading && products.length > 0 && (
-            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[2px]">
-              <Loader2Icon className="h-10 w-10 animate-spin text-primary" />
-            </div>
-          )}
           <ProductsTable
             products={currentProducts}
             onEdit={(product) => {

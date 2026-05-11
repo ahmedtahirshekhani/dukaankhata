@@ -11,6 +11,10 @@ import {
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 
+// Module-level cache to prevent duplicate API calls across component mounts
+let categoriesCache: { value: string; label: string }[] | null = null;
+let categoriesPromise: Promise<{ value: string; label: string }[]> | null = null;
+
 interface CategorySelectorProps {
   value: string;
   onChange: (value: string) => void;
@@ -58,13 +62,32 @@ export function CategorySelector({
     // Fetch categories from database
     const fetchCategories = async () => {
       try {
-        const response = await fetch("/api/categories");
-        if (response.ok) {
+        // Return cached data if available
+        if (categoriesCache) {
+          setCategories(categoriesCache);
+          return;
+        }
+
+        // Reuse in-flight request if available
+        if (categoriesPromise) {
+          const result = await categoriesPromise;
+          setCategories(result);
+          return;
+        }
+
+        // Create new fetch promise
+        categoriesPromise = (async () => {
+          const response = await fetch("/api/categories");
+          if (!response.ok) {
+            throw new Error("Failed to fetch categories");
+          }
+
           const data = await response.json();
           const dbCategories = data.map((cat: any) => ({
             value: cat.name,
             label: cat.name,
           }));
+
           // Merge default categories with database categories, removing duplicates
           const merged = Array.from(
             new Map([
@@ -75,8 +98,13 @@ export function CategorySelector({
               ...dbCategories.map((cat: any) => [cat.value, cat]),
             ]).values()
           ) as { value: string; label: string }[];
-          setCategories(merged);
-        }
+
+          categoriesCache = merged;
+          return merged;
+        })();
+
+        const result = await categoriesPromise;
+        setCategories(result);
       } catch (error) {
         console.error("Error fetching categories:", error);
       }
