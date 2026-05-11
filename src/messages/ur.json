@@ -349,7 +349,9 @@
     "filterByPaymentMethod": "ادائیگی کے طریقے سے فلٹر کریں",
     "filterByCustomer": "پارٹیز سے فلٹر کریں",
     "allPaymentMethods": "تمام ادائیگی کے طریقے",
-    "allCustomers": "تمام پارٹیز"
+    "allCustomers": "تمام پارٹیز",
+    "noPaymentMethodsFound": "ادائیگی کے طریقے نہیں ملے",
+    "searchPaymentMethods": "ادائیگی کے طریقے تلاش کریں..."
   },
   "paymentOut": {
     "title": "ادائیگی بھیجیں",
@@ -439,7 +441,8 @@
     "filterByPaymentMethod": "ریفنڈ طریقے سے فلٹر کریں",
     "filterByCustomer": "گاہک سے فلٹر کریں",
     "allPaymentMethods": "تمام ریفنڈ طریقے",
-    "allCustomers": "تمام گاہک"
+    "allCustomers": "تمام گاہک",
+    "searchCustomer": "پارٹی تلاش کریں"
   },
   "customers": {
     "title": "پارٹیز",
@@ -594,7 +597,8 @@
     "selectPaymentMethod": "ادائیگی کا طریقہ منتخب کریں",
     "product": "مصنوعات",
     "uom": "پیمائش کی اکائی",
-    "paidAmountExceedsTotal": "ادا شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی۔"
+    "paidAmountExceedsTotal": "ادا شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی۔",
+    "noOrdersFound": "کوئی آرڈر نہیں ملا"
   },
   "counterSale": {
     "title": "کاؤنٹر سیل",

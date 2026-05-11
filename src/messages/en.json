@@ -350,7 +350,9 @@
     "filterByPaymentMethod": "Filter by Payment Method",
     "filterByCustomer": "Filter by Party",
     "allPaymentMethods": "All Payment Methods",
-    "allCustomers": "All Parties"
+    "allCustomers": "All Parties",
+    "noPaymentMethodsFound": "No payment methods found",
+    "searchPaymentMethods": "Search payment methods..."
   },
   "paymentOut": {
     "title": "Payment Out",
@@ -440,7 +442,8 @@
     "filterByPaymentMethod": "Filter by Refund Method",
     "filterByCustomer": "Filter by Party",
     "allPaymentMethods": "All Refund Methods",
-    "allCustomers": "All Parties"
+    "allCustomers": "All Parties",
+    "searchCustomer": "Search Party..."
   },
   "parties": {
     "title": "Parties",
@@ -666,7 +669,8 @@
     "selectMethod": "Select payment method",
     "selectPaymentMethod": "Select Payment Method",
     "product": "Product",
-    "paidAmountExceedsTotal": "Paid amount cannot exceed the total amount."
+    "paidAmountExceedsTotal": "Paid amount cannot exceed the total amount.",
+    "noOrdersFound": "No Orders Found"
   },
   "counterSale": {
     "title": "Counter Sale Transactions",

@@ -29,6 +29,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Sparkles,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -126,6 +127,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/counter-sale": tNav("counterSale"),
     "/admin/quotations": tNav("quotations"),
     "/admin/account-statement": tNav("accountStatement"),
+    "/admin/account-statement-latest": tNav("accountStatement") + " (New)",
     "/admin/ai-chat": tNav("aiChat"),
   };
 
@@ -555,6 +557,29 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("accountStatementDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+
+            {/* Account Statement Latest */}
+            <div>
+              <Link
+                href={`/${locale}/admin/account-statement-latest`}
+                onClick={() => setSidebarOpen(false)}
+                className={`${navItemBase} ${pathWithoutLocale === "/admin/account-statement-latest" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("accountStatement") + " (New)" : ""}
+              >
+                <Sparkles className="h-5 w-5 flex-shrink-0 text-blue-500 opacity-90" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium leading-none text-blue-600">
+                    {tNav("accountStatement")} (New)
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                    Improved accuracy logic
                   </span>
                 </div>
               </Link>

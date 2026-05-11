@@ -601,7 +601,7 @@ export default function NewInvoicePage() {
       setShowOrderCreatedDialog(true);
       
       // Navigate to invoice list page
-      router.push(`/${locale}/admin/invoice`);
+      // router.push(`/${locale}/admin/invoice`);
     } catch (error) {
       console.error("Error creating order:", error);
     } finally {

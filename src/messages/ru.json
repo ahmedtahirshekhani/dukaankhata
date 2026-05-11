@@ -349,7 +349,9 @@
     "filterByPaymentMethod": "Filter by Payment Method",
     "filterByCustomer": "Filter by Party",
     "allPaymentMethods": "All Payment Methods",
-    "allCustomers": "All Parties"
+    "allCustomers": "All Parties",
+    "noPaymentMethodsFound": "No payment methods found",
+    "searchPaymentMethods": "Search payment methods..."
   },
   "paymentOut": {
     "title": "Payment Out",
@@ -439,7 +441,8 @@
     "filterByPaymentMethod": "Filter by Refund Method",
     "filterByCustomer": "Filter by Customer",
     "allPaymentMethods": "All Refund Methods",
-    "allCustomers": "All Customers"
+    "allCustomers": "All Customers",
+    "searchCustomer": "Search Party..."
   },
   "customers": {
     "title": "Gahak",
@@ -593,7 +596,8 @@
     "selectMethod": "Adaigi ka tareeqa chunain",
     "selectPaymentMethod": "Adaigi ka Tareeqa Chunain",
     "product": "Product",
-    "paidAmountExceedsTotal": "Ada shuda raqam kul raqam se zyada nahi ho sakti."
+    "paidAmountExceedsTotal": "Ada shuda raqam kul raqam se zyada nahi ho sakti.",
+    "noOrdersFound": "No Orders Found"
   },
   "counterSale": {
     "title": "Counter Sale Lain Dain",

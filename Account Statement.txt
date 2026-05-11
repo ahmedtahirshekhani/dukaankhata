@@ -1,0 +1,21 @@
+Purchase Bill Credit
+
+Payment Out Debit 
+
+Sales:
+
+Quotation Not Coming In Statement 
+
+Invoicing Debit
+
+Payment in Credit Side
+
+
+Credit Nagitive 
+
+Debit Positive 
+
+Opening Balance + Debit - Credit = New Balance 
+
+Current Balance Maintain In Party Dropdown
+
