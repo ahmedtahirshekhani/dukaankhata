@@ -154,14 +154,11 @@ export default function PartiesPage() {
     }
   }, [pageSize]);
 
-const didFetch = useRef(false);
+  // Fetch when current page or search term changes
+  useEffect(() => {
+    fetchCustomers(currentPage, debouncedSearchTerm);
+  }, [currentPage, debouncedSearchTerm, fetchCustomers]);
 
-useEffect(() => {
-  if (didFetch.current) return;
-
-  didFetch.current = true;
-  fetchCustomers(currentPage, debouncedSearchTerm);
-}, []);
   // Reset to first page when search or page size changes
   useEffect(() => {
     setCurrentPage(1);
