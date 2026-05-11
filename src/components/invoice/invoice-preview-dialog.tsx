@@ -25,6 +25,18 @@ import {
 import { PaymentDialog } from "@/components/invoice/payment-dialog";
 import { Switch } from "../ui/switch";
 
+type BrandingPayload = {
+  companyLogo: string | null;
+  signatureImage: string | null;
+  companyAddress: string;
+  companyName: string;
+  companyPhone: string;
+  companyEmail: string;
+};
+
+let brandingCache: BrandingPayload | null = null;
+let brandingInFlight: Promise<BrandingPayload> | null = null;
+
 interface InvoicePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -123,6 +135,7 @@ export function InvoicePreviewDialog({
   const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">(
     "a4",
   );
+
   const getToday = () => {
     const d = new Date();
     const y = d.getFullYear();
@@ -130,6 +143,8 @@ export function InvoicePreviewDialog({
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
+
+  const [todayStr, setTodayStr] = useState(getToday());
   const [paymentSeed, setPaymentSeed] = useState<{
     amount: number;
     method: string;
@@ -174,48 +189,73 @@ export function InvoicePreviewDialog({
       if (cachedPhone) setCompanyPhone(cachedPhone);
       if (cachedEmail) setCompanyEmail(cachedEmail);
 
-      // Always fetch from API to ensure we have latest data
-      const locale =
-        typeof window !== "undefined"
-          ? window.location.pathname.split("/")[1]
-          : "";
-      const res = await fetch(`/${locale || ""}/api/configuration/assets`);
-      const data = await res.json();
-      if (res.ok) {
-        const logo = data.companyLogo || null;
-        const sig = data.signatureImage || null;
-        const addr = data.companyAddress || "";
-        const name = data.companyName || "";
-        const phone = data.companyPhone || "";
-        const email = data.companyEmail || "";
+      let data: BrandingPayload;
 
-        // Update state with API data
-        setCompanyLogo(logo);
-        setSignatureImage(sig);
-        setCompanyAddress(addr || initialCompanyAddress || "");
-        setCompanyName(name || initialCompanyName || "");
-        setCompanyPhone(phone || initialCompanyPhone || "");
-        setCompanyEmail(email || initialCompanyEmail || "");
+      if (brandingCache) {
+        data = brandingCache;
+      } else {
+        if (!brandingInFlight) {
+          brandingInFlight = (async () => {
+            const locale =
+              typeof window !== "undefined"
+                ? window.location.pathname.split("/")[1]
+                : "";
+            const res = await fetch(`/${locale || ""}/api/configuration/assets`);
+            const payload = await res.json();
+            if (!res.ok) {
+              throw new Error("Failed to fetch branding assets");
+            }
 
-        // Update localStorage cache
-        if (logo) localStorage.setItem("companyLogo", logo);
-        else localStorage.removeItem("companyLogo");
+            return {
+              companyLogo: payload.companyLogo || null,
+              signatureImage: payload.signatureImage || null,
+              companyAddress: payload.companyAddress || "",
+              companyName: payload.companyName || "",
+              companyPhone: payload.companyPhone || "",
+              companyEmail: payload.companyEmail || "",
+            };
+          })().finally(() => {
+            brandingInFlight = null;
+          });
+        }
 
-        if (sig) localStorage.setItem("invoiceSignature", sig);
-        else localStorage.removeItem("invoiceSignature");
-
-        if (addr) localStorage.setItem("companyAddress", addr);
-        else localStorage.removeItem("companyAddress");
-
-        if (name) localStorage.setItem("companyName", name);
-        else localStorage.removeItem("companyName");
-
-        if (phone) localStorage.setItem("companyPhone", phone);
-        else localStorage.removeItem("companyPhone");
-
-        if (email) localStorage.setItem("companyEmail", email);
-        else localStorage.removeItem("companyEmail");
+        data = await brandingInFlight;
+        brandingCache = data;
       }
+
+      const logo = data.companyLogo || null;
+      const sig = data.signatureImage || null;
+      const addr = data.companyAddress || "";
+      const name = data.companyName || "";
+      const phone = data.companyPhone || "";
+      const email = data.companyEmail || "";
+
+      // Update state with API data
+      setCompanyLogo(logo);
+      setSignatureImage(sig);
+      setCompanyAddress(addr || initialCompanyAddress || "");
+      setCompanyName(name || initialCompanyName || "");
+      setCompanyPhone(phone || initialCompanyPhone || "");
+      setCompanyEmail(email || initialCompanyEmail || "");
+
+      // Update localStorage cache
+      if (logo) localStorage.setItem("companyLogo", logo);
+      else localStorage.removeItem("companyLogo");
+
+      if (sig) localStorage.setItem("invoiceSignature", sig);
+      else localStorage.removeItem("invoiceSignature");
+
+      if (addr) localStorage.setItem("companyAddress", addr);
+      else localStorage.removeItem("companyAddress");
+
+      if (name) localStorage.setItem("companyName", name);
+      else localStorage.removeItem("companyName");
+
+      if (phone) localStorage.setItem("companyPhone", phone);
+      else localStorage.removeItem("companyPhone");
+
+      if (email) localStorage.setItem("companyEmail", email);
+      else localStorage.removeItem("companyEmail");
     } catch (err) {
       console.error("branding fetch failed", err);
     }
@@ -366,16 +406,15 @@ export function InvoicePreviewDialog({
 
   const isPaymentMade = paidAmount > 0;
 
-  const todayStr = getToday();
   const newPaymentSeed = {
     amount: remainingBalance || total,
     method: paymentMethod,
-    date: todayStr,
+    date: todayStr || saleDate || "",
   };
   const editPaymentSeed = {
     amount: paidAmount || total,
     method: paymentMethod,
-    date: paidDate || todayStr,
+    date: paidDate || todayStr || saleDate || "",
   };
 
   return (

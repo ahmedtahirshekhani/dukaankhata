@@ -1,7 +1,7 @@
 // components/dropdown/product-dropdown.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, forwardRef, useRef, useMemo } from "react";
+import React, { useState, useEffect, forwardRef, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Select,
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
 import { ProductDialog } from "@/components/dialogs/product-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useProductsCache } from "@/hooks/use-products-cache";
 
 import { Product } from "@/types/product";
 
@@ -48,11 +49,17 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     ref
   ) => {
     const t = useTranslations("products");
-    const tCommon = useTranslations("common");
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const {
+      products,
+      loading,
+      loadingMore,
+      hasMore,
+      fetchProducts,
+      fetchProductById,
+      revalidate,
+    } = useProductsCache();
+
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [isOpen, setIsOpen] = useState(false);
@@ -60,76 +67,17 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const [selectedProductForDialog, setSelectedProductForDialog] = useState<Product | null>(null);
     
     const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
     const observerTarget = useRef<HTMLDivElement>(null);
     const lastFetchedValue = useRef<string | number | undefined>(undefined);
 
     const getProductId = (p: Product) => String(p.id || p._id);
 
-    // Fetch products from server
-    const fetchProducts = useCallback(async (pageNum: number, search: string, append = false) => {
-      try {
-        if (pageNum === 1) setLoading(true);
-        else setLoadingMore(true);
-
-        const url = new URL("/api/products", window.location.origin);
-        url.searchParams.append("page", pageNum.toString());
-        url.searchParams.append("limit", ITEMS_PER_PAGE.toString());
-        if (search) url.searchParams.append("search", search);
-
-        const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Failed to fetch products");
-        const data = await res.json();
-        
-        const newProducts = data.products || [];
-        setProducts(prev => {
-          const combined = append ? [...prev, ...newProducts] : newProducts;
-          // If not appending (i.e., first page or search), preserve the currently selected product
-          // so it doesn't disappear from the dropdown display
-          if (!append && value) {
-            const valStr = String(value);
-            const isAlreadyInNewList = newProducts.some((p: any) => String(p.id || p._id) === valStr);
-            if (!isAlreadyInNewList) {
-              const selectedInPrev = prev.find((p: any) => String(p.id || p._id) === valStr);
-              if (selectedInPrev) {
-                return [selectedInPrev, ...combined];
-              }
-            }
-          }
-          return combined;
-        });
-        setHasMore(newProducts.length === ITEMS_PER_PAGE);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    }, []);
-
-    // Load initial product if value is provided and not in the list
-    const fetchSelectedProduct = useCallback(async (productId: string | number) => {
-      if (!productId) return;
-      try {
-        const res = await fetch(`/api/products/${productId}`);
-        if (res.ok) {
-          const product = await res.json();
-          setProducts(prev => {
-            const exists = prev.find(p => getProductId(p) === productId);
-            if (exists) return prev;
-            return [product, ...prev];
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching selected product:", error);
-      }
-    }, []);
-
-    // Initial load and search
+    // Load only when dropdown is open; avoids duplicate calls from hidden responsive instances.
     useEffect(() => {
+      if (!isOpen) return;
       setPage(1);
-      fetchProducts(1, debouncedSearchTerm, false);
-    }, [debouncedSearchTerm, fetchProducts]);
+      fetchProducts({ page: 1, limit: ITEMS_PER_PAGE, search: debouncedSearchTerm, append: false });
+    }, [debouncedSearchTerm, fetchProducts, isOpen]);
 
     // Ensure selected product is loaded
     useEffect(() => {
@@ -137,11 +85,11 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       if (valStr && valStr !== String(lastFetchedValue.current)) {
         const exists = products.find(p => getProductId(p) === valStr);
         if (!exists) {
-          fetchSelectedProduct(value!);
+          fetchProductById(value!);
         }
         lastFetchedValue.current = value;
       }
-    }, [value, products, fetchSelectedProduct]);
+    }, [value, products, fetchProductById]);
 
     // Handle intersection observer for infinite scroll
     useEffect(() => {
@@ -152,7 +100,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
           if (entries[0].isIntersecting) {
             const nextPage = page + 1;
             setPage(nextPage);
-            fetchProducts(nextPage, debouncedSearchTerm, true);
+            fetchProducts({ page: nextPage, limit: ITEMS_PER_PAGE, search: debouncedSearchTerm, append: true });
           }
         },
         { threshold: 0.1 }
@@ -177,9 +125,9 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       if (!open) setSearchTerm("");
     };
 
-    const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
+    const handleProductDialogSuccess = async (product: Product, isEdit: boolean) => {
       setPage(1);
-      fetchProducts(1, "", false);
+      await revalidate();
       const productId = getProductId(product);
       onValueChange(productId, product);
       setIsProductDialogOpen(false);

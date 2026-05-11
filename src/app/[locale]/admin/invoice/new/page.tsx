@@ -44,6 +44,14 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 
+const getTodayDateString = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 type Product = {
   id: number | string;
   name: string;
@@ -57,15 +65,11 @@ type Product = {
 };
 
 type Customer = {
-  id: number;
+  id: number | string;
+  _id?: number | string;
   name: string;
   email?: string;
   phone?: string;
-};
-
-type PaymentMethod = {
-  id: number;
-  name: string;
 };
 
 interface POSProduct extends Product {
@@ -83,24 +87,15 @@ export default function NewInvoicePage() {
   const locale = useLocale();
 
   const { data: session } = useSession();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<POSProduct[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
-    null,
-  );
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
   const [invoiceNo, setInvoiceNo] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
   const [addDueDate, setAddDueDate] = useState<boolean>(false);
-  const [dueDate, setDueDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
+  const [dueDate, setDueDate] = useState<string>(getTodayDateString());
+  const [todayIso, setTodayIso] = useState<string>(getTodayDateString());
   const [charges, setCharges] = useState<
     Array<{ id: string; item: string; value: number }>
   >([]);
@@ -173,9 +168,6 @@ export default function NewInvoicePage() {
 
   useEffect(() => {
     generateInvoiceNo();
-    fetchProducts();
-    fetchCustomers();
-    fetchPaymentMethods();
   }, []);
 
   useEffect(() => {
@@ -190,41 +182,8 @@ export default function NewInvoicePage() {
     setInvoiceNo(`INV-${timestamp}-${random}`);
   };
 
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch("/api/products?limit=-1");
-      if (!response.ok) throw new Error("Failed to fetch products");
-      const data = await response.json();
-      setProducts(data.products || []);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await fetch("/api/customers?limit=-1");
-      if (!response.ok) throw new Error(t("failedToFetchCustomers"));
-      const data = await response.json();
-      setCustomers(data.customers || []);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-    }
-  };
-
-  const fetchPaymentMethods = async () => {
-    try {
-      const response = await fetch("/api/payment-methods");
-      if (!response.ok) throw new Error(t("failedToFetchPaymentMethods"));
-      const data = await response.json();
-      setPaymentMethods(data);
-    } catch (error) {
-      console.error("Error fetching payment methods:", error);
-    }
-  };
-
-  const handleSelectProduct = (productId: number | string) => {
-    const product = products.find((p) => p.id === productId);
+  const handleSelectProduct = (product: Product) => {
+    const productId = product.id;
     if (!product) return;
     setSaveError("");
     if (selectedProducts.some((p) => p.id === productId)) {
@@ -248,18 +207,11 @@ export default function NewInvoicePage() {
     }
   };
 
-  const handleSelectCustomer = (customerId: string) => {
-    const customer = customers.find((c) => String(c.id) === customerId);
+  const handleSelectCustomer = (customerId: string, customer?: Customer) => {
+    if (!customer) return;
     if (customer) {
       setSelectedCustomer(customer);
       setSaveError("");
-    }
-  };
-
-  const handleSelectPaymentMethod = (paymentMethodId: number | string) => {
-    const method = paymentMethods.find((pm) => pm.id === paymentMethodId);
-    if (method) {
-      setPaymentMethod(method);
     }
   };
 
@@ -418,9 +370,7 @@ export default function NewInvoicePage() {
     // Check for products exceeding available stock (only for goods type)
     const items: { name: string; requested: number; inStock: number }[] = [];
     for (const selected of selectedProducts) {
-      const product = products.find(
-        (p) => String(p.id) === String(selected.id) || p.id === selected.id,
-      );
+      const product = selected;
       const isGoods =
         !product?.type || product.type === "goods" || product.type === "good";
       if (!isGoods) continue;
@@ -638,16 +588,13 @@ export default function NewInvoicePage() {
       const order = await response.json();
       setCreatedOrderShareData(shareData);
 
-      // Refetch products to sync stock with inventory
-      fetchProducts();
-
       // Reset the form
       setSelectedProducts([]);
       setSelectedCustomer(null);
       setInvoiceNo("");
-      setSelectedDate(new Date().toISOString().split("T")[0]);
+      setSelectedDate(todayIso || getTodayDateString());
       setAddDueDate(false);
-      setDueDate(new Date().toISOString().split("T")[0]);
+      setDueDate(todayIso || getTodayDateString());
       setCharges([]);
       setShowAddCharge(false);
       setShowInvoicePreview(false);
@@ -699,7 +646,7 @@ export default function NewInvoicePage() {
               </Label>
               <PartyDropdown
                 value={selectedCustomer?.id ? String(selectedCustomer.id) : ""}
-                onValueChange={(val) => handleSelectCustomer(val)}
+                onValueChange={(val, customer) => handleSelectCustomer(val, customer as Customer | undefined)}
                 placeholder={t("selectCustomer")}
                 className="w-full"
                 filterActiveOnly={true}
@@ -718,7 +665,7 @@ export default function NewInvoicePage() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
+                max={todayIso || undefined}
                 className="h-8 text-sm"
               />
             </div>
@@ -748,7 +695,7 @@ export default function NewInvoicePage() {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={todayIso || undefined}
                   className="h-8 text-sm"
                 />
               </div>
@@ -1059,7 +1006,7 @@ export default function NewInvoicePage() {
                       value={""}
                       onValueChange={(value, product) => {
                         if (!product) return;
-                        handleSelectProduct(product.id);
+                        handleSelectProduct(product as Product);
                       }}
                       placeholder={t("addItem")}
                       enableSearch={true}
@@ -1079,7 +1026,7 @@ export default function NewInvoicePage() {
               value={""}
               onValueChange={(value, product) => {
                 if (!product) return;
-                handleSelectProduct(product.id);
+                handleSelectProduct(product as Product);
               }}
               placeholder={t("selectProductToAdd")}
               enableSearch={true}

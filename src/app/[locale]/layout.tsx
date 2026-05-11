@@ -12,6 +12,8 @@ import { MacChromeInstallPromptWrapper } from "@/components/pwa/mac-chrome-insta
 import { PWAProvider } from "@/components/pwa/pwa-context";
 import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import GTMUserTracker from "@/components/analytics/gtm-user-tracker";
+import { CustomersProvider } from "@/components/dropdown/customers-context";
+import { ProductsProvider } from "@/components/dropdown/products-context";
 import "../globals.css";
 
 const locales = ["en", "ur", "ru"] as const;
@@ -63,9 +65,13 @@ export default async function LocalizedRootLayout({
           <IOSInstallPromptWrapper />
           <MacChromeInstallPromptWrapper />
           <OfflineIndicator />
-          <NextIntlClientProvider locale={locale} messages={messages}>
-            {children}
-          </NextIntlClientProvider>
+          <CustomersProvider>
+            <ProductsProvider>
+              <NextIntlClientProvider locale={locale} messages={messages}>
+                {children}
+              </NextIntlClientProvider>
+            </ProductsProvider>
+          </CustomersProvider>
         </AnalyticsProvider>
       </AuthProvider>
     </PWAProvider>

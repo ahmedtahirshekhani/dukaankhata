@@ -2,6 +2,7 @@
 
 import { NextIntlClientProvider } from 'next-intl';
 import { ReactNode } from 'react';
+import { CustomersProvider } from './dropdown/customers-context';
 
 type Props = {
   children: ReactNode;
@@ -12,7 +13,9 @@ type Props = {
 export function Providers({ children, locale, messages }: Props) {
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      {children}
+      <CustomersProvider>
+        {children}
+      </CustomersProvider>
     </NextIntlClientProvider>
   );
 }

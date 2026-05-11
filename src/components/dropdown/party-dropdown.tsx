@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Loader2Icon, SearchIcon, X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useCustomers } from "@/hooks/use-customers";
 import { cn } from "@/lib/utils";
 
 type Party = {
@@ -53,8 +54,6 @@ interface PartyDropdownProps {
   noResultsText?: string;
 }
 
-const ITEMS_PER_PAGE = 20;
-
 export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
   (
     {
@@ -76,9 +75,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const t = useTranslations("customers");
     const tCommon = useTranslations("common");
 
-    const [parties, setParties] = useState<Party[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
+    // Use custom hook to manage customers data with caching
+    const { customers: parties, loading, loadingMore, hasMore, fetchCustomers, revalidate } = useCustomers();
+
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -86,7 +85,6 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const [isOpen, setIsOpen] = useState(false);
     
     const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
     const observerTarget = useRef<HTMLDivElement>(null);
     const [initialPartyLoaded, setInitialPartyLoaded] = useState(false);
 
@@ -106,66 +104,38 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
     const getPartyId = (p: Party) => String(p.id || p._id);
 
-    const fetchParties = useCallback(async (pageNum: number, search: string, append = false) => {
-      try {
-        if (pageNum === 1) setLoading(true);
-        else setLoadingMore(true);
-
-        const url = new URL("/api/customers", window.location.origin);
-        url.searchParams.append("page", pageNum.toString());
-        url.searchParams.append("limit", ITEMS_PER_PAGE.toString());
-        if (search) url.searchParams.append("search", search);
-        if (filterActiveOnly) url.searchParams.append("status", "active");
-
-        const response = await fetch(url.toString());
-        if (!response.ok) throw new Error("Failed to fetch parties");
-        const data = await response.json();
-        
-        const customers = data.customers || [];
-        const filteredData = customers.filter((party: Party) => party.is_delete !== 1);
-        
-        setParties(prev => append ? [...prev, ...filteredData] : filteredData);
-        setHasMore(customers.length === ITEMS_PER_PAGE);
-      } catch (error) {
-        console.error("Error fetching parties:", error);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    }, [filterActiveOnly]);
-
-    const fetchSelectedParty = useCallback(async (partyId: string) => {
-      if (!partyId || partyId === "all") return;
-      try {
-        const res = await fetch(`/api/customers/${partyId}`);
-        if (res.ok) {
-          const party = await res.json();
-          setParties(prev => {
-            const exists = prev.find(p => getPartyId(p) === partyId);
-            if (exists) return prev;
-            return [party, ...prev];
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching selected party:", error);
-      }
-    }, []);
-
+    // Fetch parties when dropdown opens or search term changes
     useEffect(() => {
-      setPage(1);
-      fetchParties(1, debouncedSearchTerm, false);
-    }, [debouncedSearchTerm, fetchParties]);
+      if (isOpen) {
+        setPage(1);
+        fetchCustomers({ page: 1, limit: 20, search: debouncedSearchTerm, filterActiveOnly, append: false });
+      }
+    }, [debouncedSearchTerm, isOpen, fetchCustomers, filterActiveOnly]);
 
+    // Load selected party if not in cache
     useEffect(() => {
       if (value && value !== "all" && !initialPartyLoaded) {
         const exists = parties.find(p => getPartyId(p) === value);
         if (!exists) {
-          fetchSelectedParty(value);
+          // Fetch specific party to add to cache
+          const fetchParty = async () => {
+            try {
+              const res = await fetch(`/api/customers/${value}`);
+              if (res.ok) {
+                const party = await res.json();
+                fetchCustomers({ page: 1, limit: 20, append: false });
+              }
+            } catch (error) {
+              console.error("Error fetching selected party:", error);
+            }
+          };
+          fetchParty();
         }
         setInitialPartyLoaded(true);
       }
-    }, [value, parties, initialPartyLoaded, fetchSelectedParty]);
+    }, [value, parties, initialPartyLoaded, fetchCustomers]);
 
+    // Infinite scroll pagination
     useEffect(() => {
       if (!hasMore || loading || loadingMore || !isOpen) return;
 
@@ -174,7 +144,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           if (entries[0].isIntersecting) {
             const nextPage = page + 1;
             setPage(nextPage);
-            fetchParties(nextPage, debouncedSearchTerm, true);
+            fetchCustomers({ page: nextPage, limit: 20, search: debouncedSearchTerm, filterActiveOnly, append: true });
           }
         },
         { threshold: 0.1 }
@@ -185,7 +155,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       }
 
       return () => observer.disconnect();
-    }, [hasMore, loading, loadingMore, page, debouncedSearchTerm, fetchParties, isOpen]);
+    }, [hasMore, loading, loadingMore, page, debouncedSearchTerm, fetchCustomers, isOpen, filterActiveOnly]);
 
     const resetForm = () => {
       setNewPartyName("");
@@ -230,7 +200,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Error creating party");
 
-        setParties((prev) => [data, ...prev]);
+        // Invalidate cache and revalidate to fetch fresh data
+        await revalidate();
+        
         onValueChange(String(data.id || data._id), data);
         if (onPartyAdded) onPartyAdded(data);
 
@@ -279,7 +251,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
             onOpenChange={handleOpenChange}
           >
             <SelectTrigger className={cn("w-full [&>span]:flex-1 [&>span]:flex [&>span]:items-center [&>span]:justify-between gap-2", className)} ref={ref}>
-              <SelectValue placeholder={loading && page === 1 ? "Loading..." : placeholder} />
+              <SelectValue placeholder={loading ? "Loading..." : placeholder} />
             </SelectTrigger>
             <SelectContent 
               position="popper" 
@@ -425,7 +397,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
             </SelectContent>
           </Select>
           
-          {loading && page === 1 && (
+          {loading && (
             <div className="absolute right-8 top-1/2 -translate-y-1/2">
               <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>

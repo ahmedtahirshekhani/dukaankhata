@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useDebounce } from "../../../../hooks/use-debounce";
 import {
@@ -622,8 +622,16 @@ export default function OrdersPage() {
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const inFlightOrdersRequest = useRef<string | null>(null);
+
   const fetchOrders = useCallback(async () => {
+    const requestKey = `${currentPage}|${pageSize}|${debouncedSearchTerm}|${filters.status}`;
+    if (inFlightOrdersRequest.current === requestKey) {
+      return;
+    }
+
     try {
+      inFlightOrdersRequest.current = requestKey;
       setLoading(true);
       const url = new URL("/api/orders", window.location.origin);
       url.searchParams.append("page", currentPage.toString());
@@ -644,6 +652,9 @@ export default function OrdersPage() {
     } catch (error) {
       setError((error as Error).message);
     } finally {
+      if (inFlightOrdersRequest.current === requestKey) {
+        inFlightOrdersRequest.current = null;
+      }
       setLoading(false);
     }
   }, [t, currentPage, pageSize, debouncedSearchTerm, filters.status]);
