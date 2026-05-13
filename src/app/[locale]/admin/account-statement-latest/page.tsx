@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyString, formatStatementDate } from "@/lib/utils";
 import {
@@ -27,7 +27,6 @@ import {
   Loader2,
   Calendar,
   Search,
-  Download,
   Printer,
   User,
   TrendingUp,
@@ -39,16 +38,6 @@ import {
   ChevronRight
 } from "lucide-react";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
-import { Separator } from "@/components/ui/separator";
-
-interface Customer {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  balance?: number;
-  opening_balance?: number;
-}
 
 interface TransactionItem {
   name: string;
@@ -98,14 +87,11 @@ export default function AccountStatementLatestPage() {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
-  const [customersLoading, setCustomersLoading] = useState(false);
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>(() => {
     return new Date().toISOString().split("T")[0];
   });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [summary, setSummary] = useState<StatementSummary | null>(null);
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
   const [loading, setLoading] = useState(false);
@@ -147,25 +133,6 @@ export default function AccountStatementLatestPage() {
       }
     };
     loadBranding();
-  }, [locale]);
-
-  // Fetch customers
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      setCustomersLoading(true);
-      try {
-        const res = await fetch(`/${locale}/api/customers`);
-        if (res.ok) {
-          const data = await res.json();
-          setCustomers(data.customers || data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch customers:", err);
-      } finally {
-        setCustomersLoading(false);
-      }
-    };
-    fetchCustomers();
   }, [locale]);
 
   useEffect(() => {
@@ -221,8 +188,8 @@ export default function AccountStatementLatestPage() {
   const handleExportPdf = useCallback(async () => {
     if (!reportRef.current) return;
     setExportingPdf(true);
+    const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
     try {
-      const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
       if (pdfHeader) pdfHeader.style.display = "block";
       
       // Force columns to show for PDF capture
@@ -255,12 +222,11 @@ export default function AccountStatementLatestPage() {
         })
         .from(reportRef.current)
         .save();
-
-      if (pdfHeader) pdfHeader.style.display = "none";
-      reportRef.current.classList.remove("is-exporting");
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {
+      if (pdfHeader) pdfHeader.style.display = "none";
+      if (reportRef.current) reportRef.current.classList.remove("is-exporting");
       setExportingPdf(false);
     }
   }, [reportMeta, fromDate, toDate]);
@@ -277,6 +243,7 @@ export default function AccountStatementLatestPage() {
       payment_in: t("typePaymentIn"),
       payment_out: t("typePaymentOut"),
       purchase_bill: t("typePurchase"),
+      adjustment: t("typeAdjustment"),
       opening_balance: t("typeOpeningBalance"),
     };
     return types[type] || type;
@@ -388,12 +355,6 @@ export default function AccountStatementLatestPage() {
                   <User className="h-3.5 w-3.5" />
                   {t("selectCustomer")}
                 </Label>
-                {customersLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500 h-10 px-3 bg-gray-50 rounded border border-gray-200">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t("loadingCustomers")}
-                  </div>
-                ) : (
                   <PartyDropdown
                     value={selectedCustomerId}
                     onValueChange={(val, party) => {
@@ -405,7 +366,6 @@ export default function AccountStatementLatestPage() {
                     filterActiveOnly={true}
                     enableSearch={true}
                   />
-                )}
               </div>
 
               <div className="md:col-span-3 space-y-1">
@@ -523,7 +483,6 @@ export default function AccountStatementLatestPage() {
               <div className="flex justify-center gap-1.5 mt-3 md:hidden">
                 {summaryCards.map((_, idx) => {
                   const cardWidth = 280;
-                  const visibleCount = Math.floor((sliderRef.current?.clientWidth || 300) / cardWidth);
                   const currentIndex = Math.round(scrollPosition / cardWidth);
                   const isActive = currentIndex === idx;
                   return (
@@ -583,9 +542,12 @@ export default function AccountStatementLatestPage() {
                       <tr>
                         <td style={{ width: "25%", verticalAlign: "top" }}>
                           {branding.logo && (
-                            <img
+                            <Image
                               src={branding.logo}
                               alt="Company Logo"
+                              width={150}
+                              height={64}
+                              unoptimized
                               style={{
                                 height: "64px",
                                 width: "auto",

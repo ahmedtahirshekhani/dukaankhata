@@ -151,28 +151,26 @@ export async function GET(request: NextRequest) {
         },
         { projection: { current_balance: 1 } }
       ),
-      ledgerCollection.aggregate([
+      ledgerCollection.findOne(
         {
-          $match: {
-            user_id: userId,
-            $or: [
-              { party_id: customerObjId },
-              { customer_id: customerObjId }
-            ],
-            effective_at: { $lt: from },
-          }
+          user_id: userId,
+          $or: [
+            { party_id: customerObjId },
+            { customer_id: customerObjId }
+          ],
+          effective_at: { $lt: from },
         },
         {
-          $group: {
-            _id: null,
-            total: { $sum: "$amount_delta" }
-          }
+          sort: { effective_at: -1, created_at: -1 },
+          projection: { running_balance: 1 },
         }
-      ]).toArray(),
+      ),
       paymentMethodsCollection.find({ user_id: userId }).toArray()
     ]);
 
-    const openingBalance = openingBalanceAgg.length > 0 ? Number(openingBalanceAgg[0].total) : 0;
+    const openingBalance = Number(
+      openingBalanceAgg?.running_balance ?? customer?.opening_balance ?? 0
+    );
 
     const paymentMethodMap = new Map<string, string>([
       ['cash', 'Cash'],
@@ -181,7 +179,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const entries = rangeEntries.filter(
-      (entry) => entry.event_type !== "opening_balance" || entry.effective_at >= from
+      (entry) => entry.event_type !== "opening_balance"
     );
 
     const orderIds = entries
@@ -351,7 +349,7 @@ export async function GET(request: NextRequest) {
       amount: Math.abs(openingBalance),
       debit: openingBalance > 0 ? Math.abs(openingBalance) : 0,
       credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
-      orderId: "OP-76", // Matching the voucher style in user image
+      orderId: null, // Removed hardcoded OP-76
       dateTime: from.toISOString(),
       balance: openingBalance,
     };
