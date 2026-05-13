@@ -204,8 +204,10 @@ export async function POST(request: Request) {
           }
         }
 
+        const productId = item.product_id && isValidObjectId(item.product_id) ? toObjectId(item.product_id) : null;
+
         return {
-          product_id: item.product_id || null,
+          product_id: productId,
           product_name: productName,
           product_description: productDescription,
           quantity: Number(item.quantity) || 0,

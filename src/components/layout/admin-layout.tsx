@@ -131,7 +131,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/ai-chat": tNav("aiChat"),
   };
 
-
   const handleLogout = async () => {
     await signOut({
       redirect: true,

@@ -74,7 +74,8 @@ export function getYearsFromDates(dates: (Date | string)[]): number[] {
 }
 
 export function formatCurrencyString(amount: number): string {
-  return `Rs. ${Math.floor(amount)}`
+  if (amount === undefined || amount === null || isNaN(amount)) return "Rs. 0";
+  return `Rs. ${Math.floor(amount)}`;
 }
 
 export function formatCurrencyWithSuper(amount: number): { whole: string; decimal: string } {

@@ -104,9 +104,10 @@ export async function GET(request: NextRequest) {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
+    const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
 
     // Parallel queries
-    const [customer, userDoc, rangeEntries, balanceState, openingBalanceAgg] = await Promise.all([
+    const [customer, userDoc, rangeEntries, balanceState, openingBalanceAgg, paymentMethodsDocs] = await Promise.all([
       customersCollection.findOne(
         { _id: customerObjId, user_id: userId },
         {
@@ -150,7 +151,6 @@ export async function GET(request: NextRequest) {
         },
         { projection: { current_balance: 1 } }
       ),
-      // Step 1: Calculate Opening Balance (Sum of all transactions before fromDate)
       ledgerCollection.aggregate([
         {
           $match: {
@@ -169,11 +169,16 @@ export async function GET(request: NextRequest) {
           }
         }
       ]).toArray(),
+      paymentMethodsCollection.find({ user_id: userId }).toArray()
     ]);
 
-    // Core Logic: Opening Balance = Sum of previous transactions
-    // Since seedCustomerOpeningBalance already creates an entry, we don't need to add customer.opening_balance separately
     const openingBalance = openingBalanceAgg.length > 0 ? Number(openingBalanceAgg[0].total) : 0;
+
+    const paymentMethodMap = new Map<string, string>([
+      ['cash', 'Cash'],
+      ['cheque', 'Cheque'],
+      ...(paymentMethodsDocs.map((pm: any) => [pm._id.toString(), pm.bank_name || ''] as [string, string]))
+    ]);
 
     const entries = rangeEntries.filter(
       (entry) => entry.event_type !== "opening_balance" || entry.effective_at >= from
@@ -255,35 +260,42 @@ export async function GET(request: NextRequest) {
       const items = Array.isArray(sourceOrder?.items) ? sourceOrder.items : [];
       const billItems = Array.isArray(sourcePurchaseBill?.items) ? sourcePurchaseBill.items : [];
       
-      const qty =
-        isOrderDebit
-          ? items.reduce(
-              (sum: number, item: any) => sum + Number(item?.quantity || 0),
-              0
-            )
-          : isPurchaseBillDebit
-            ? billItems.reduce(
-                (sum: number, item: any) => sum + Number(item?.quantity || 0),
-                0
-              )
-            : null;
-
-      const unitPrice =
-        isOrderDebit && items.length === 1 ? Number(items[0]?.price || 0) : null;
-
       let description = "Adjustment";
+      let expandedItems = [];
+
       if (isOrderDebit) {
-        const names = items
-          .map((item: any) => item?.name)
-          .filter((name: unknown) => typeof name === "string" && name.trim() !== "")
-          .slice(0, 3);
-        description = names.length > 0 ? names.join(", ") : "Order";
+        description = "SALES";
+        expandedItems = items.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const prc = parseFloat(item.price) || 0;
+          return {
+            name: item.name || "Item",
+            quantity: qty,
+            price: prc,
+            amount: qty * prc
+          };
+        });
       } else if (isPaymentCredit) {
-        description = "Payment In";
+        const methodId = sourcePayment?.payment_method_id?.toString() || "";
+        const methodName = paymentMethodMap.get(methodId) || "Cash";
+        description = `Payment Received - Ref # ${methodName}-${Math.abs(amountDelta)}`;
       } else if (isPaymentOutDebit) {
-        description = "Payment Out";
+        const methodId = sourcePayment?.payment_method_id?.toString() || "";
+        const methodName = paymentMethodMap.get(methodId) || "Cash";
+        description = `Payment Out - Ref # ${methodName}-${Math.abs(amountDelta)}`;
       } else if (isPurchaseBillDebit) {
-        description = "Purchase Bill";
+        description = "PURCHASE BILL";
+        expandedItems = billItems.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const cost = parseFloat(item.cost_price || item.price) || 0;
+          const amt = parseFloat(item.amount) || (qty * cost);
+          return {
+            name: item.product_name || item.name || "Item",
+            quantity: qty,
+            price: cost,
+            amount: amt
+          };
+        });
       } else if (entry.event_type === "manual_adjustment") {
         description = "Manual Adjustment";
       } else if (entry.event_type === "opening_balance") {
@@ -291,8 +303,18 @@ export async function GET(request: NextRequest) {
       }
 
       const amount = Math.abs(amountDelta);
-      const debit = amountDelta > 0 ? amount : 0;
-      const credit = amountDelta < 0 ? amount : 0;
+      
+      // Calculate debit/credit based on user rules for display, but keep original amountDelta for balance
+      let debit = 0;
+      let credit = 0;
+      if (isOrderDebit || isPaymentOutDebit) {
+        debit = amount;
+      } else if (isPaymentCredit || isPurchaseBillDebit) {
+        credit = amount;
+      } else {
+        debit = amountDelta > 0 ? amount : 0;
+        credit = amountDelta < 0 ? amount : 0;
+      }
 
       return {
         id: entry._id.toString(),
@@ -306,8 +328,7 @@ export async function GET(request: NextRequest) {
                 ? "purchase_bill"
                 : "adjustment",
         description,
-        qty,
-        unitPrice,
+        items: expandedItems,
         amount,
         debit,
         credit,
@@ -326,12 +347,11 @@ export async function GET(request: NextRequest) {
       id: "opening_balance",
       type: "opening_balance",
       description: "Opening Balance",
-      qty: null,
-      unitPrice: null,
+      items: [],
       amount: Math.abs(openingBalance),
       debit: openingBalance > 0 ? Math.abs(openingBalance) : 0,
       credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
-      orderId: null,
+      orderId: "OP-76", // Matching the voucher style in user image
       dateTime: from.toISOString(),
       balance: openingBalance,
     };
@@ -377,7 +397,7 @@ export async function GET(request: NextRequest) {
         grandTotal: totalOrders + totalPurchaseBills,
       },
       reportMeta: {
-        title: "Account Ledger (Latest)",
+        title: "Account Ledger",
         fromDate,
         toDate,
         reportDate: reportNow.toISOString().split("T")[0],

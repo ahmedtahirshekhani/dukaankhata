@@ -57,7 +57,7 @@ export function LandingHero() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href={`/${locale}/admin`}>
+                <Link href={`/${locale}/admin/welcome`}>
                   <Button size="lg" className="gap-2">
                     {t("dashboardButton")}
                     <ArrowRight className="h-4 w-4" />

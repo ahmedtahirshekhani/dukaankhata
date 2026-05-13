@@ -209,6 +209,10 @@ declare module 'lucide-react' {
   export const ChevronsRight: Icon;
   export const ArrowDownLeft: Icon;
   export const ArrowUpRight: Icon;
+  export const ArrowRightLeft: Icon;
+  export const Receipt: Icon;
+  export const Settings: Icon;
+  export const Sparkles: Icon;
 
   // Catch-all for any other icons that might be used
   const lucideReact: {
