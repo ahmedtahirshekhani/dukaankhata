@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,47 +20,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrencyString, formatStatementDateTime, formatStatementDate } from "@/lib/utils";
-import { FileText, Loader2, Calendar, Search, Download } from "lucide-react";
+import { formatCurrencyString, formatStatementDate } from "@/lib/utils";
+import {
+  FileText,
+  Loader2,
+  Calendar,
+  Search,
+  Printer,
+  User,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Receipt,
+  ArrowRightLeft,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 
-interface Customer {
-  id: string;
+interface TransactionItem {
   name: string;
-  email?: string;
-  phone?: string;
-  balance?: number;
-  opening_balance?: number;
+  quantity: number;
+  price: number;
+  amount: number;
 }
 
 interface Transaction {
   id: string;
-  type: "order" | "payment_in" | "payment_out" | "opening_balance" | "adjustment" | "purchase_bill";
-  orderValue: number | null;
-  paidAmount: number | null;
-  orderId?: string | null;
+  type: string;
   description?: string;
-  qty?: number | null;
-  unitPrice?: number | null;
+  items?: TransactionItem[];
   amount?: number;
   debit?: number;
   credit?: number;
   balance: number;
   dateTime: string;
-  paidDate: string | null;
+  orderId?: string | null;
 }
 
 interface StatementSummary {
   openingBalance: number;
   totalOrders: number;
   totalPurchaseBills?: number;
-  totalPayments: number;
   totalPaymentsIn?: number;
   totalPaymentsOut?: number;
   currentBalance: number;
-  grandTotal?: number;
 }
 
 interface ReportMeta {
@@ -75,23 +81,16 @@ interface ReportMeta {
   customerName: string;
 }
 
-export default function AccountStatementPage() {
+export default function AccountStatementLatestPage() {
   const t = useTranslations("accountStatement");
   const locale = useLocale();
 
-  // Customer selection
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
-  const [customersLoading, setCustomersLoading] = useState(false);
-
-  // Date range
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>(() => {
     return new Date().toISOString().split("T")[0];
   });
-
-  // Transactions
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<StatementSummary | null>(null);
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
@@ -99,27 +98,43 @@ export default function AccountStatementPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  
+  // For card slider
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
-  // Fetch customers
+  const [branding, setBranding] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    email: "",
+    logo: null as string | null,
+  });
+
+  // Fetch branding
   useEffect(() => {
-    const fetchCustomers = async () => {
-      setCustomersLoading(true);
+    const loadBranding = async () => {
       try {
-        const res = await fetch(`/${locale}/api/customers`);
+        const res = await fetch(`/${locale}/api/configuration/assets`);
         if (res.ok) {
           const data = await res.json();
-          setCustomers(data);
+          setBranding({
+            name: data.companyName || "",
+            address: data.companyAddress || "",
+            phone: data.companyPhone || "",
+            email: data.companyEmail || "",
+            logo: data.companyLogo || null,
+          });
         }
       } catch (err) {
-        console.error("Failed to fetch customers:", err);
-      } finally {
-        setCustomersLoading(false);
+        console.error("Failed to load branding", err);
       }
     };
-    fetchCustomers();
+    loadBranding();
   }, [locale]);
 
-  // Set default fromDate to 30 days ago
   useEffect(() => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -146,7 +161,6 @@ export default function AccountStatementPage() {
         setSummary(data.summary || null);
         setReportMeta(data.reportMeta || null);
       } else {
-        console.error("Failed to fetch statement");
         setTransactions([]);
         setSummary(null);
         setReportMeta(null);
@@ -161,13 +175,6 @@ export default function AccountStatementPage() {
     }
   }, [selectedCustomerId, fromDate, toDate, locale]);
 
-  const handleCustomerSelect = (id: number | string) => {
-    const custId = id.toString();
-    setSelectedCustomerId(custId);
-    const customer = customers.find((c) => c.id === custId);
-    setSelectedCustomerName(customer?.name || "");
-  };
-
   const handleGenerateStatement = () => {
     if (!isFormValid) return;
     fetchStatement();
@@ -178,386 +185,592 @@ export default function AccountStatementPage() {
     [selectedCustomerId, fromDate, toDate]
   );
 
-  const grandTotal = useMemo(() => {
-    return transactions.reduce((sum, txn) => sum + Number(txn.amount || 0), 0);
-  }, [transactions]);
-
   const handleExportPdf = useCallback(async () => {
     if (!reportRef.current) return;
     setExportingPdf(true);
+    const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
     try {
-      // Show header for PDF export
-      const headerDiv = reportRef.current.querySelector(".pdf-header") as HTMLElement;
-      if (headerDiv) {
-        headerDiv.style.display = "block";
-      }
+      if (pdfHeader) pdfHeader.style.display = "block";
+      
+      // Force columns to show for PDF capture
+      reportRef.current.classList.add("is-exporting");
+      
+      // Reset scroll for all horizontal scroll containers inside reportRef
+      const scrollContainers = reportRef.current.querySelectorAll(".overflow-x-auto");
+      scrollContainers.forEach((el: any) => {
+        el.scrollLeft = 0;
+      });
 
       const mod = await import("html2pdf.js");
       const html2pdf = (mod as any).default || mod;
+
       await html2pdf()
         .set({
-          margin: 8,
-          filename: `account-ledger-${reportMeta?.customerId || "customer"}-${reportMeta?.fromDate || ""}-to-${reportMeta?.toDate || ""}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
+          margin: [8, 8, 8, 8],
+          filename: `account-statement-${reportMeta?.customerName || "customer"}_${fromDate}_to_${toDate}.pdf`,
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+          },
+          jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "landscape"
+          },
         })
         .from(reportRef.current)
         .save();
-
-      // Hide header again after PDF is generated
-      if (headerDiv) {
-        headerDiv.style.display = "none";
-      }
+    } catch (error) {
+      console.error("PDF export failed:", error);
     } finally {
+      if (pdfHeader) pdfHeader.style.display = "none";
+      if (reportRef.current) reportRef.current.classList.remove("is-exporting");
       setExportingPdf(false);
     }
-  }, [reportMeta]);
+  }, [reportMeta, fromDate, toDate]);
+
+  const getBalanceColor = (balance: number) => {
+    if (balance > 0) return "text-red-600";
+    if (balance < 0) return "text-green-600";
+    return "text-gray-600";
+  };
+
+  const getTransactionType = (type: string) => {
+    const types: Record<string, string> = {
+      order: t("typeOrder"),
+      payment_in: t("typePaymentIn"),
+      payment_out: t("typePaymentOut"),
+      purchase_bill: t("typePurchase"),
+      adjustment: t("typeAdjustment"),
+      opening_balance: t("typeOpeningBalance"),
+    };
+    return types[type] || type;
+  };
+
+  const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
+  const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
+
+  // Card slider handlers
+  const handleScroll = useCallback(() => {
+    if (sliderRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
+      setScrollPosition(scrollLeft);
+      setShowLeftArrow(scrollLeft > 20);
+      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 20);
+    }
+  }, []);
+
+  const scrollLeft = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: -280, behavior: "smooth" });
+    }
+  };
+
+  const scrollRight = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: 280, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    const slider = sliderRef.current;
+    if (slider) {
+      slider.addEventListener("scroll", handleScroll);
+      handleScroll();
+      return () => slider.removeEventListener("scroll", handleScroll);
+    }
+  }, [handleScroll, summary]);
+
+  // Card data array
+  const summaryCards = summary ? [
+    {
+      title: t("openingBalance"),
+      value: summary.openingBalance,
+      color: "blue",
+      icon: DollarSign,
+      bgClass: "bg-blue-50",
+      iconClass: "text-blue-600"
+    },
+    {
+      title: t("netOrders"),
+      value: summary.totalOrders,
+      color: "orange",
+      icon: Receipt,
+      bgClass: "bg-orange-50",
+      iconClass: "text-orange-600"
+    },
+    {
+      title: t("netPayments"),
+      value: (summary.totalPaymentsIn || 0) - (summary.totalPaymentsOut || 0),
+      color: "green",
+      icon: ArrowRightLeft,
+      bgClass: "bg-green-50",
+      iconClass: "text-green-600"
+    },
+    {
+      title: t("currentBalance"),
+      value: summary.currentBalance,
+      color: summary.currentBalance > 0 ? "red" : "green",
+      icon: summary.currentBalance > 0 ? TrendingUp : TrendingDown,
+      bgClass: summary.currentBalance > 0 ? "bg-red-50" : "bg-green-50",
+      iconClass: summary.currentBalance > 0 ? "text-red-600" : "text-green-600"
+    }
+  ] : [];
 
   return (
-    <div className="space-y-4">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          {t("title")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("modalDescription")}
-        </p>
-      </div>
+    <div className="min-h-screen md:py-6">
 
-      {/* Inline Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-            {/* Customer Selection */}
-            <div className="sm:col-span-4 space-y-2">
-              <Label htmlFor="customer">{t("selectCustomer")}</Label>
-              {customersLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground h-10">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("loadingCustomers")}
-                </div>
-              ) : (
+        {/* Page Header */}
+        <div className="mb-6 mt-4">
+          <div className="flex items-start gap-3">
+            <FileText className="h-7 w-7 text-gray-700 mt-1" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                {t("title") || "Account Statement"}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {t("modalDescription") || "Select a party and date range to generate an account statement."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Section */}
+        <Card className="border border-gray-100 shadow-sm bg-white overflow-hidden mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-end gap-4">
+              {/* Party Selection */}
+              <div className="flex-1 w-full space-y-1.5">
+                <Label className="text-[13px] font-medium text-gray-700">
+                  {t("selectCustomer") || "Party"}
+                </Label>
                 <PartyDropdown
                   value={selectedCustomerId}
                   onValueChange={(val, party) => {
                     setSelectedCustomerId(val);
                     setSelectedCustomerName(party?.name || "");
                   }}
-                  placeholder={t("selectCustomerPlaceholder")}
-                  className="w-full"
+                  placeholder={t("selectCustomerPlaceholder") || "Select Party"}
+                  className="w-full bg-white border-gray-200 h-10 rounded-md text-sm focus:ring-1 focus:ring-sky-200"
                   filterActiveOnly={true}
                   enableSearch={true}
-                  searchPlaceholder={typeof t("searchCustomer") === "string" && t("searchCustomer") ? t("searchCustomer") : "Search customer..."}
                 />
-              )}
+              </div>
+
+              {/* From Date */}
+              <div className="w-full md:w-48 space-y-1.5">
+                <Label className="text-[13px] font-medium text-gray-700 flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                  {t("fromDate") || "From Date"}
+                </Label>
+                <Input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  max={toDate}
+                  className="bg-white border-gray-200 h-10 rounded-md text-sm focus:ring-1 focus:ring-sky-200"
+                />
+              </div>
+
+              {/* To Date */}
+              <div className="w-full md:w-48 space-y-1.5">
+                <Label className="text-[13px] font-medium text-gray-700 flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                  {t("toDate") || "To Date"}
+                </Label>
+                <Input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  min={fromDate}
+                  className="bg-white border-gray-200 h-10 rounded-md text-sm focus:ring-1 focus:ring-sky-200"
+                />
+              </div>
+
+              {/* Generate Button */}
+              <div className="w-full md:w-auto">
+                <Button
+                  onClick={handleGenerateStatement}
+                  disabled={!isFormValid || loading}
+                  className="w-full md:w-auto bg-[#7CD2F1] hover:bg-[#6bc2e1] text-white font-medium h-10 px-6 rounded-md transition-colors flex items-center justify-center gap-2 border-none shadow-sm"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  {t("generateStatement") || "Generate"}
+                </Button>
+              </div>
             </div>
-
-            {/* From Date */}
-            <div className="sm:col-span-3 space-y-2">
-              <Label htmlFor="fromDate">
-                <Calendar className="inline h-4 w-4 mr-1" />
-                {t("fromDate")}
-              </Label>
-              <Input
-                id="fromDate"
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                max={toDate}
-              />
-            </div>
-
-            {/* To Date */}
-            <div className="sm:col-span-3 space-y-2">
-              <Label htmlFor="toDate">
-                <Calendar className="inline h-4 w-4 mr-1" />
-                {t("toDate")}
-              </Label>
-              <Input
-                id="toDate"
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                min={fromDate}
-              />
-            </div>
-
-            {/* Generate Button */}
-            <div className="sm:col-span-2">
-              <Button
-                onClick={handleGenerateStatement}
-                disabled={!isFormValid || loading}
-                className="w-full"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Search className="h-4 w-4 mr-2" />
-                )}
-                {t("generateStatement")}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Cards */}
-      {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("totalOrders")} + {t("openingBalance")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {formatCurrencyString(summary.totalOrders + summary.openingBalance)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Purchase Bills
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-orange-600">
-                {formatCurrencyString(summary.totalPurchaseBills || 0)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("totalPaymentsIn")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-600">
-                {formatCurrencyString(summary.totalPaymentsIn || 0)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("totalPaymentsOut")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-red-600">
-                {formatCurrencyString(summary.totalPaymentsOut || 0)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("currentBalance")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p
-                className={`text-2xl font-bold ${summary.currentBalance > 0 ? "text-red-600" : "text-green-600"}`}
-              >
-                {formatCurrencyString(summary.currentBalance)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {transactions.length > 0 && (
-        <div className="flex justify-end">
-          <Button onClick={handleExportPdf} disabled={exportingPdf}>
-            {exportingPdf ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            Print PDF
-          </Button>
-        </div>
-      )}
-
-      {/* Transactions Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">
-            {t("loadingTransactions")}
-          </span>
-        </div>
-      ) : hasSearched && transactions.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">{t("noTransactions")}</p>
           </CardContent>
         </Card>
-      ) : transactions.length > 0 ? (
-        <Card>
-          <CardContent className="p-0" ref={reportRef}>
-            <div style={{ display: "none" }} className="pdf-header p-8 border-b space-y-4">
-              {/* Company Header Section */}
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex-1">
-                  {reportMeta?.companyLogo && (
-                    <div className="mb-4">
-                      <img
-                        src={reportMeta.companyLogo}
-                        alt="Company Logo"
-                        className="h-16 w-auto"
-                      />
-                    </div>
-                  )}
-                  <h2 className="text-3xl font-bold leading-tight mb-2">{reportMeta?.companyName || "Company"}</h2>
-                  <div className="space-y-1 text-sm text-gray-700">
-                    <p>{reportMeta?.companyAddress || "-"}</p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Report Title */}
-              <div className="border-t border-b py-3 mb-4">
-                <h3 className="text-2xl font-bold text-center">{reportMeta?.title || "Account Statement"}</h3>
-              </div>
+        {/* Summary Cards with Slider */}
+        {summary && (
+          <div className="relative">
+            {/* Left Arrow */}
+            {showLeftArrow && (
+              <button
+                onClick={scrollLeft}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full shadow-md p-1.5 border border-gray-200 hover:bg-gray-50 transition-all md:hidden"
+                style={{ transform: "translateY(-50%)" }}
+              >
+                <ChevronLeft className="h-5 w-5 text-gray-600" />
+              </button>
+            )}
 
-              {/* Report Details Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600 font-medium">From Date</p>
-                  <p className="font-semibold">{reportMeta?.fromDate || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium">To Date</p>
-                  <p className="font-semibold">{reportMeta?.toDate || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium">Report Date</p>
-                  <p className="font-semibold">{reportMeta?.reportDate || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium">Report Time</p>
-                  <p className="font-semibold">{reportMeta?.reportTime || "-"}</p>
-                </div>
-              </div>
+            {/* Right Arrow */}
+            {showRightArrow && (
+              <button
+                onClick={scrollRight}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full shadow-md p-1.5 border border-gray-200 hover:bg-gray-50 transition-all md:hidden"
+                style={{ transform: "translateY(-50%)" }}
+              >
+                <ChevronRight className="h-5 w-5 text-gray-600" />
+              </button>
+            )}
 
-              {/* Customer Details Section */}
-              <div className="border-t pt-3 mt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600 font-medium">Customer ID</p>
-                    <p className="font-semibold">{reportMeta?.customerId || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 font-medium">Customer Name</p>
-                    <p className="font-semibold">{reportMeta?.customerName || "-"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Desktop Table */}
-            <div className="hidden sm:block overflow-x-auto p-5">
-              <Table className="text-sm">
-                <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead className="w-24 px-1 py-1">{t("date")}</TableHead>
-                    <TableHead className="w-20 px-1 py-1">Order Id</TableHead>
-                    <TableHead className="w-28 px-1 py-1">Description</TableHead>
-                    <TableHead className="text-right w-12 px-1 py-1">Qty</TableHead>
-                    <TableHead className="text-right w-20 px-1 py-1">Unit Price</TableHead>
-                    <TableHead className="text-right w-20 px-1 py-1">Amount</TableHead>
-                    <TableHead className="text-right w-20 px-1 py-1">Debit</TableHead>
-                    <TableHead className="text-right w-20 px-1 py-1">Credit</TableHead>
-                    <TableHead className="text-right w-24 px-1 py-1">{t("balance")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="text-xs">
-                  {transactions.map((txn) => (
-                    <TableRow key={txn.id} className="h-8">
-                      <TableCell className="text-muted-foreground px-1 py-1 whitespace-nowrap">
-                        {formatStatementDate(txn.dateTime)}
-                      </TableCell>
-                      <TableCell className="px-1 py-1 truncate">{txn.orderId || "-"}</TableCell>
-                      <TableCell className="px-1 py-1 truncate">{txn.description || "-"}</TableCell>
-                      <TableCell className="text-right px-1 py-1">{txn.qty ?? "-"}</TableCell>
-                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{txn.unitPrice !== null && txn.unitPrice !== undefined ? formatCurrencyString(txn.unitPrice) : "-"}</TableCell>
-                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{formatCurrencyString(Number(txn.amount || 0))}</TableCell>
-                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{formatCurrencyString(Number(txn.debit || 0))}</TableCell>
-                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">{formatCurrencyString(Number(txn.credit || 0))}</TableCell>
-                      <TableCell className="text-right px-1 py-1 whitespace-nowrap">
-                        <span
-                          className={
-                            txn.balance > 0
-                              ? "text-red-600 font-medium"
-                              : "text-green-600 font-medium"
-                          }
-                        >
-                          {formatCurrencyString(txn.balance)}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="h-8 bg-muted/50">
-                    <TableCell colSpan={5} className="font-bold text-right px-1 py-1">Grand Total</TableCell>
-                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(grandTotal)}</TableCell>
-                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(transactions.reduce((sum, txn) => sum + Number(txn.debit || 0), 0))}</TableCell>
-                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(transactions.reduce((sum, txn) => sum + Number(txn.credit || 0), 0))}</TableCell>
-                    <TableCell className="text-right font-bold px-1 py-1 whitespace-nowrap">{formatCurrencyString(summary?.currentBalance || 0)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile Cards */}
-            <div className="sm:hidden divide-y">
-              {transactions.map((txn) => (
-                <div key={txn.id} className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {formatStatementDate(txn.dateTime)}
-                    </span>
-                    <Badge variant="outline">{txn.type}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Order ID:</span><span>{txn.orderId || "-"}</span></div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Description:</span><span>{txn.description || "-"}</span></div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Qty:</span><span>{txn.qty ?? "-"}</span></div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Unit Price:</span><span>{txn.unitPrice !== null && txn.unitPrice !== undefined ? formatCurrencyString(txn.unitPrice) : "-"}</span></div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Amount:</span><span>{formatCurrencyString(Number(txn.amount || 0))}</span></div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Debit:</span><span>{formatCurrencyString(Number(txn.debit || 0))}</span></div>
-                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Credit:</span><span>{formatCurrencyString(Number(txn.credit || 0))}</span></div>
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span className="text-muted-foreground">
-                      {t("balance")}:
-                    </span>
-                    <span
-                      className={
-                        txn.balance > 0
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }
-                    >
-                      {formatCurrencyString(txn.balance)}
-                    </span>
-                  </div>
+            {/* Slider Container */}
+            <div
+              ref={sliderRef}
+              className="flex overflow-x-auto scroll-smooth gap-4 pb-2 hide-scrollbar md:grid md:grid-cols-4 md:overflow-visible"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              <style jsx>{`
+                .hide-scrollbar::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              
+              {summaryCards.map((card, index) => (
+                <div 
+                  key={index} 
+                  className="flex-shrink-0 w-[280px] md:w-auto"
+                >
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-gray-500">{card.title}</p>
+                          <p className={`text-lg font-semibold mt-1 ${card.title === t("currentBalance") ? getBalanceColor(card.value) : "text-gray-800"}`}>
+                            {formatCurrencyString(card.value)}
+                          </p>
+                        </div>
+                        <div className={`p-2 ${card.bgClass} rounded-lg`}>
+                          <card.icon className={`h-4 w-4 ${card.iconClass}`} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               ))}
-              <div className="p-4">
-                <div className="flex items-center justify-between text-sm font-bold">
-                  <span>Grand Total</span>
-                  <span>{formatCurrencyString(grandTotal)}</span>
+            </div>
+
+            {/* Scroll Indicator Dots for Mobile */}
+            {summary && (
+              <div className="flex justify-center gap-1.5 mt-3 md:hidden">
+                {summaryCards.map((_, idx) => {
+                  const cardWidth = 280;
+                  const currentIndex = Math.round(scrollPosition / cardWidth);
+                  const isActive = currentIndex === idx;
+                  return (
+                    <div
+                      key={idx}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        isActive ? "w-6 bg-blue-500" : "w-1.5 bg-gray-300"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Transactions Section */}
+        {loading ? (
+          <Card className="border border-gray-200">
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <span className="ml-2 text-gray-500">{t("loadingTransactions")}</span>
+            </CardContent>
+          </Card>
+        ) : hasSearched && transactions.length === 0 ? (
+          <Card className="border border-gray-200">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-gray-300 mb-3" />
+              <p className="text-gray-500">{t("noTransactions")}</p>
+              <p className="text-xs text-gray-400 mt-1">Try different date range</p>
+            </CardContent>
+          </Card>
+        ) : transactions.length > 0 ? (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+              >
+                {exportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Printer className="h-4 w-4 mr-2" />
+                )}
+                {t("downloadPdf")}
+              </Button>
+            </div>
+
+            {/* Report Container for PDF */}
+            <div ref={reportRef}>
+              {/* PDF Header */}
+              <div className="pdf-header" style={{ display: "none", backgroundColor: "white" }}>
+                <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: "25%", verticalAlign: "top" }}>
+                          {branding.logo && (
+                            <Image
+                              src={branding.logo}
+                              alt="Company Logo"
+                              width={150}
+                              height={64}
+                              unoptimized
+                              style={{
+                                height: "64px",
+                                width: "auto",
+                                objectFit: "contain",
+                                display: "block",
+                              }}
+                            />
+                          )}
+                        </td>
+                        <td style={{ width: "50%", textAlign: "center", verticalAlign: "top" }}>
+                          <div style={{
+                            fontWeight: 900,
+                            fontSize: "22px",
+                            color: "#0f172a",
+                            textTransform: "uppercase",
+                            letterSpacing: "-0.5px",
+                            lineHeight: 1.2,
+                          }}>
+                            {branding.name}
+                          </div>
+                          <div style={{
+                            fontSize: "11px",
+                            color: "#64748b",
+                            marginTop: "4px",
+                            lineHeight: 1.5,
+                            whiteSpace: "pre-line",
+                          }}>
+                            {branding.address}
+                          </div>
+                          {(branding.phone || branding.email) && (
+                            <table style={{ margin: "6px auto 0", borderCollapse: "collapse" }}>
+                              <tbody>
+                                <tr>
+                                  {branding.phone && (
+                                    <td style={{
+                                      paddingRight: branding.email ? "20px" : "0",
+                                      fontSize: "11px",
+                                      color: "#64748b",
+                                      verticalAlign: "middle",
+                                      whiteSpace: "nowrap",
+                                    }}>
+                                      <span style={{ fontSize: "12px", marginRight: "4px" }}>☎</span>
+                                      <span>{branding.phone}</span>
+                                    </td>
+                                  )}
+                                  {branding.email && (
+                                    <td style={{
+                                      fontSize: "11px",
+                                      color: "#64748b",
+                                      verticalAlign: "middle",
+                                      whiteSpace: "nowrap",
+                                    }}>
+                                      <span style={{ fontSize: "12px", marginRight: "4px" }}>✉</span>
+                                      <span style={{ textTransform: "lowercase" }}>{branding.email}</span>
+                                    </td>
+                                  )}
+                                </tr>
+                              </tbody>
+                            </table>
+                          )}
+                        </td>
+                        <td style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
+                          <div style={{
+                            fontWeight: 900,
+                            fontSize: "22px",
+                            color: "#0f172a",
+                            textTransform: "uppercase",
+                            letterSpacing: "-0.5px",
+                          }}>
+                            {t("title")}
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[11px]">
+                    <div className="flex justify-between border-b border-gray-100 pb-1">
+                      <span className="text-gray-500 font-medium">{t("customer")}:</span>
+                      <span className="font-bold">{reportMeta?.customerName}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-100 pb-1">
+                      <span className="text-gray-500 font-medium">Customer ID:</span>
+                      <span className="font-medium text-gray-700">{reportMeta?.customerId}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-100 pb-1">
+                      <span className="text-gray-500 font-medium">{t("period")}:</span>
+                      <span className="font-medium text-gray-700">{reportMeta?.fromDate} to {reportMeta?.toDate}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-100 pb-1">
+                      <span className="text-gray-500 font-medium">Generated On:</span>
+                      <span className="font-medium text-gray-700">{reportMeta?.reportDate} at {reportMeta?.reportTime}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {/* Main Table - Without horizontal scroll in UI */}
+              <Card className="border-none shadow-none bg-white overflow-hidden">
+                <div className="overflow-x-auto md:overflow-visible [.is-exporting_&]:overflow-visible">
+                  <Table className="min-w-[800px] md:min-w-full">
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 border-b border-gray-100">
+                        <TableHead className="w-[100px] text-center text-xs text-gray-600 font-bold uppercase">{t("date")}</TableHead>
+                        <TableHead className="w-[80px] text-center text-xs text-gray-600 font-bold uppercase">{t("voucher")}</TableHead>
+                        <TableHead className="w-[80px] text-center text-xs text-gray-600 font-bold uppercase">{t("type")}</TableHead>
+                        <TableHead className="min-w-[200px] text-xs text-gray-600 font-bold uppercase">{t("descriptionItems")}</TableHead>
+                        {/* These columns are hidden in UI but show in PDF */}
+                        <TableHead className="w-[60px] text-center text-xs text-gray-600 font-bold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("qty")}</TableHead>
+                        <TableHead className="w-[80px] text-right text-xs text-gray-600 font-bold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("rate")}</TableHead>
+                        <TableHead className="w-[90px] text-right text-xs text-gray-600 font-bold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("amount")}</TableHead>
+                        <TableHead className="w-[100px] text-right text-xs text-gray-600 font-bold uppercase">{t("debit")}</TableHead>
+                        <TableHead className="w-[100px] text-right text-xs text-gray-600 font-bold uppercase">{t("credit")}</TableHead>
+                        <TableHead className="w-[110px] text-right text-xs text-gray-600 font-bold uppercase">{t("balance")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map((txn, idx) => {
+                        const hasItems = txn.items && txn.items.length > 0;
+                        const isOpening = txn.id === "opening_balance";
+                        return (
+                          <TableRow
+                            key={txn.id}
+                            className={`${isOpening ? "bg-blue-50/30" : ""} ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/30"} border-b border-gray-100`}
+                          >
+                            <TableCell className="text-center py-2.5 text-xs text-gray-700">
+                              {formatStatementDate(txn.dateTime)}
+                            </TableCell>
+                            <TableCell className="text-center py-2.5 text-xs text-gray-600">
+                              {txn.orderId || "-"}
+                            </TableCell>
+                            <TableCell className="text-center py-2.5">
+                              <span className="text-xs text-gray-600">
+                                {getTransactionType(txn.type)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              <div className="text-xs text-gray-700">
+                                {txn.description}
+                              </div>
+                              {hasItems && (
+                                <div className="text-[10px] text-gray-500 mt-1 space-y-0.5">
+                                  {txn.items?.map((item, itemIdx) => (
+                                    <div key={itemIdx}>
+                                      • {item.name} 
+                                      {/* Show quantity inline only in UI, not in separate column */}
+                                      <span className="inline md:inline [.is-exporting_&]:hidden print:hidden ml-1">
+                                        (x{item.quantity})
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </TableCell>
+                            {/* PDF-only columns - show quantity, rate, amount in separate lines for PDF */}
+                            <TableCell className="text-center py-2.5 text-xs text-gray-600 hidden [.is-exporting_&]:table-cell print:table-cell">
+                              {hasItems ? (
+                                <div className="space-y-0.5">
+                                  {txn.items?.map((item, itemIdx) => (
+                                    <div key={itemIdx}>{item.quantity}</div>
+                                  ))}
+                                </div>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell className="text-right py-2.5 text-xs text-gray-600 hidden [.is-exporting_&]:table-cell print:table-cell">
+                              {hasItems ? (
+                                <div className="space-y-0.5">
+                                  {txn.items?.map((item, itemIdx) => (
+                                    <div key={itemIdx}>{formatCurrencyString(item.price)}</div>
+                                  ))}
+                                </div>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell className="text-right py-2.5 text-xs text-gray-700 hidden [.is-exporting_&]:table-cell print:table-cell">
+                              {hasItems ? (
+                                <div className="space-y-0.5">
+                                  {txn.items?.map((item, itemIdx) => (
+                                    <div key={itemIdx}>{formatCurrencyString(item.amount)}</div>
+                                  ))}
+                                </div>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell className="text-right py-2.5 text-xs text-red-600">
+                              {txn.debit ? formatCurrencyString(txn.debit) : "-"}
+                            </TableCell>
+                            <TableCell className="text-right py-2.5 text-xs text-green-600">
+                              {txn.credit ? formatCurrencyString(txn.credit) : "-"}
+                            </TableCell>
+                            <TableCell className="text-right py-2.5 text-xs font-medium">
+                              <span className={getBalanceColor(txn.balance)}>
+                                {formatCurrencyString(txn.balance)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Footer Summary */}
+                <div className="border-t border-gray-100 bg-gray-50/30 p-3">
+                  <div className="flex justify-end gap-6 text-xs font-bold uppercase">
+                    <div>
+                      <span className="text-gray-400">{t("totalDebit")}:</span>
+                      <span className="ml-2 text-red-600">
+                        {formatCurrencyString(totalDebit)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">{t("totalCredit")}:</span>
+                      <span className="ml-2 text-green-600">
+                        {formatCurrencyString(totalCredit)}
+                      </span>
+                    </div>
+                    <div className="pl-4 border-l border-gray-200">
+                      <span className="text-gray-400">{t("closingBalance")}:</span>
+                      <span className={`ml-2 ${getBalanceColor(summary?.currentBalance || 0)}`}>
+                        {formatCurrencyString(summary?.currentBalance || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-      ) : null}
+          </div>
+        ) : null}
     </div>
   );
 }

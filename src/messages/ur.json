@@ -349,7 +349,9 @@
     "filterByPaymentMethod": "ادائیگی کے طریقے سے فلٹر کریں",
     "filterByCustomer": "پارٹیز سے فلٹر کریں",
     "allPaymentMethods": "تمام ادائیگی کے طریقے",
-    "allCustomers": "تمام پارٹیز"
+    "allCustomers": "تمام پارٹیز",
+    "noPaymentMethodsFound": "ادائیگی کے طریقے نہیں ملے",
+    "searchPaymentMethods": "ادائیگی کے طریقے تلاش کریں..."
   },
   "paymentOut": {
     "title": "ادائیگی بھیجیں",
@@ -439,7 +441,8 @@
     "filterByPaymentMethod": "ریفنڈ طریقے سے فلٹر کریں",
     "filterByCustomer": "گاہک سے فلٹر کریں",
     "allPaymentMethods": "تمام ریفنڈ طریقے",
-    "allCustomers": "تمام گاہک"
+    "allCustomers": "تمام گاہک",
+    "searchCustomer": "پارٹی تلاش کریں"
   },
   "customers": {
     "title": "پارٹیز",
@@ -594,7 +597,8 @@
     "selectPaymentMethod": "ادائیگی کا طریقہ منتخب کریں",
     "product": "مصنوعات",
     "uom": "پیمائش کی اکائی",
-    "paidAmountExceedsTotal": "ادا شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی۔"
+    "paidAmountExceedsTotal": "ادا شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی۔",
+    "noOrdersFound": "کوئی آرڈر نہیں ملا"
   },
   "counterSale": {
     "title": "کاؤنٹر سیل",
@@ -875,9 +879,23 @@
     "typePaymentIn": "ادائیگی داخل",
     "typePaymentOut": "ادائیگی باہر",
     "typeAdjustment": "ایڈجسٹمنٹ",
+    "typePurchase": "خریداری",
+    "typeOpeningBalance": "ابتدائی بیلنس",
     "amount": "رقم",
     "noTransactions": "منتخب مدت کے لیے کوئی لین دین نہیں ملا۔",
-    "loadingTransactions": "لین دین لوڈ ہو رہے ہیں..."
+    "loadingTransactions": "لین دین لوڈ ہو رہے ہیں...",
+    "voucher": "واؤچر",
+    "qty": "مقدار",
+    "rate": "ریٹ",
+    "totalDebit": "کل ڈیبٹ",
+    "totalCredit": "کل کریڈٹ",
+    "closingBalance": "آخری بیلنس",
+    "downloadPdf": "پی ڈی ایف ڈاؤن لوڈ کریں",
+    "filterOptions": "فلٹر کے اختیارات",
+    "go": "جائیں",
+    "netOrders": "کل آرڈرز/بل",
+    "netPayments": "کل ادائیگیاں",
+    "descriptionItems": "تفصیل / اشیاء"
   },
   "payments": {
     "paymentMethod": "ادائیگی کا طریقہ",

@@ -350,7 +350,9 @@
     "filterByPaymentMethod": "Filter by Payment Method",
     "filterByCustomer": "Filter by Party",
     "allPaymentMethods": "All Payment Methods",
-    "allCustomers": "All Parties"
+    "allCustomers": "All Parties",
+    "noPaymentMethodsFound": "No payment methods found",
+    "searchPaymentMethods": "Search payment methods..."
   },
   "paymentOut": {
     "title": "Payment Out",
@@ -440,7 +442,8 @@
     "filterByPaymentMethod": "Filter by Refund Method",
     "filterByCustomer": "Filter by Party",
     "allPaymentMethods": "All Refund Methods",
-    "allCustomers": "All Parties"
+    "allCustomers": "All Parties",
+    "searchCustomer": "Search Party..."
   },
   "parties": {
     "title": "Parties",
@@ -666,7 +669,8 @@
     "selectMethod": "Select payment method",
     "selectPaymentMethod": "Select Payment Method",
     "product": "Product",
-    "paidAmountExceedsTotal": "Paid amount cannot exceed the total amount."
+    "paidAmountExceedsTotal": "Paid amount cannot exceed the total amount.",
+    "noOrdersFound": "No Orders Found"
   },
   "counterSale": {
     "title": "Counter Sale Transactions",
@@ -921,7 +925,7 @@
     "loadingCustomers": "Loading parties...",
     "fromDate": "From Date",
     "toDate": "To Date",
-    "generateStatement": "Generate Statement",
+    "generateStatement": "Generate",
     "changeFilters": "Change Filters",
     "customer": "Party",
     "period": "Period",
@@ -946,9 +950,23 @@
     "typePaymentIn": "Payment In",
     "typePaymentOut": "Payment Out",
     "typeAdjustment": "Adjustment",
+    "typePurchase": "Purchase",
+    "typeOpeningBalance": "Opening Balance",
     "amount": "Amount",
     "noTransactions": "No transactions found for the selected period.",
-    "loadingTransactions": "Loading transactions..."
+    "loadingTransactions": "Loading transactions...",
+    "voucher": "Voucher",
+    "qty": "Qty",
+    "rate": "Rate",
+    "totalDebit": "Total Debit",
+    "totalCredit": "Total Credit",
+    "closingBalance": "Closing Balance",
+    "downloadPdf": "Download PDF",
+    "filterOptions": "Filter Options",
+    "go": "Go",
+    "netOrders": "Net Orders/Bills",
+    "netPayments": "Net Payments",
+    "descriptionItems": "Description / Items"
   },
   "payments": {
     "paymentMethod": "Payment Method",

@@ -29,6 +29,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Sparkles,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -128,7 +129,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/account-statement": tNav("accountStatement"),
     "/admin/ai-chat": tNav("aiChat"),
   };
-
 
   const handleLogout = async () => {
     await signOut({
@@ -523,7 +523,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("expenses") : ""}
               >
-                <FileText className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <Sparkles className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
