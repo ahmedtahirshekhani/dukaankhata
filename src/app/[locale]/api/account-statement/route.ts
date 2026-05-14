@@ -1,4 +1,4 @@
-// app/[locale]/api/account-statement/route.ts
+// app/[locale]/api/account-statement-latest/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
@@ -104,8 +104,10 @@ export async function GET(request: NextRequest) {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
+    const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
 
-    const [customer, userDoc, rangeEntries, balanceState, lastEntryBefore, firstEntryEver] = await Promise.all([
+    // Parallel queries
+    const [customer, userDoc, rangeEntries, balanceState, openingBalanceAgg, paymentMethodsDocs] = await Promise.all([
       customersCollection.findOne(
         { _id: customerObjId, user_id: userId },
         {
@@ -149,7 +151,6 @@ export async function GET(request: NextRequest) {
         },
         { projection: { current_balance: 1 } }
       ),
-      // Last entry before 'from' date (for opening balance value)
       ledgerCollection.findOne(
         {
           user_id: userId,
@@ -161,43 +162,23 @@ export async function GET(request: NextRequest) {
         },
         {
           sort: { effective_at: -1, created_at: -1 },
-          projection: { running_balance: 1, effective_at: 1 },
+          projection: { running_balance: 1 },
         }
       ),
-      // First entry ever for this customer (for opening balance date)
-      ledgerCollection.findOne(
-        {
-          user_id: userId,
-          $or: [
-            { party_id: customerObjId },
-            { customer_id: customerObjId }
-          ],
-        },
-        {
-          sort: { effective_at: 1, created_at: 1 },
-          projection: { effective_at: 1 },
-        }
-      ),
+      paymentMethodsCollection.find({ user_id: userId }).toArray()
     ]);
 
     const openingBalance = Number(
-      lastEntryBefore?.running_balance ?? customer?.opening_balance ?? 0
+      openingBalanceAgg?.running_balance ?? customer?.opening_balance ?? 0
     );
 
-    // 🔥 FIX: Opening balance ki date calculate karo
-    let openingBalanceDate = from; // default to 'from' date
-    
-    if (firstEntryEver?.effective_at) {
-      // Agar koi bhi entry hai customer ki, to pehli entry ki date use karo
-      openingBalanceDate = new Date(firstEntryEver.effective_at);
-    } else if (customer?.created_at) {
-      // Agar koi entry nahi hai to customer creation date use karo
-      openingBalanceDate = new Date(customer.created_at);
-    }
-    // Otherwise 'from' date hi rahegi
+    const paymentMethodMap = new Map<string, string>([
+      ['cash', 'Cash'],
+      ['cheque', 'Cheque'],
+      ...(paymentMethodsDocs.map((pm: any) => [pm._id.toString(), pm.bank_name || ''] as [string, string]))
+    ]);
 
-    const allEntries = rangeEntries;
-    const entries = allEntries.filter(
+    const entries = rangeEntries.filter(
       (entry) => entry.event_type !== "opening_balance"
     );
 
@@ -277,42 +258,61 @@ export async function GET(request: NextRequest) {
       const items = Array.isArray(sourceOrder?.items) ? sourceOrder.items : [];
       const billItems = Array.isArray(sourcePurchaseBill?.items) ? sourcePurchaseBill.items : [];
       
-      const qty =
-        isOrderDebit
-          ? items.reduce(
-              (sum: number, item: any) => sum + Number(item?.quantity || 0),
-              0
-            )
-          : isPurchaseBillDebit
-            ? billItems.reduce(
-                (sum: number, item: any) => sum + Number(item?.quantity || 0),
-                0
-              )
-            : null;
-
-      const unitPrice =
-        isOrderDebit && items.length === 1 ? Number(items[0]?.price || 0) : null;
-
       let description = "Adjustment";
+      let expandedItems = [];
+
       if (isOrderDebit) {
-        const names = items
-          .map((item: any) => item?.name)
-          .filter((name: unknown) => typeof name === "string" && name.trim() !== "")
-          .slice(0, 3);
-        description = names.length > 0 ? names.join(", ") : "Order";
+        description = "SALES";
+        expandedItems = items.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const prc = parseFloat(item.price) || 0;
+          return {
+            name: item.name || "Item",
+            quantity: qty,
+            price: prc,
+            amount: qty * prc
+          };
+        });
       } else if (isPaymentCredit) {
-        description = "Payment In";
+        const methodId = sourcePayment?.payment_method_id?.toString() || "";
+        const methodName = paymentMethodMap.get(methodId) || "Cash";
+        description = `Payment Received - Ref # ${methodName}-${Math.abs(amountDelta)}`;
       } else if (isPaymentOutDebit) {
-        description = "Payment Out";
+        const methodId = sourcePayment?.payment_method_id?.toString() || "";
+        const methodName = paymentMethodMap.get(methodId) || "Cash";
+        description = `Payment Out - Ref # ${methodName}-${Math.abs(amountDelta)}`;
       } else if (isPurchaseBillDebit) {
-        description = "Purchase Bill";
+        description = "PURCHASE BILL";
+        expandedItems = billItems.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const cost = parseFloat(item.cost_price || item.price) || 0;
+          const amt = parseFloat(item.amount) || (qty * cost);
+          return {
+            name: item.product_name || item.name || "Item",
+            quantity: qty,
+            price: cost,
+            amount: amt
+          };
+        });
       } else if (entry.event_type === "manual_adjustment") {
         description = "Manual Adjustment";
+      } else if (entry.event_type === "opening_balance") {
+        description = "Initial Opening Balance";
       }
 
       const amount = Math.abs(amountDelta);
-      const debit = amountDelta > 0 ? amount : 0;
-      const credit = amountDelta < 0 ? amount : 0;
+      
+      // Calculate debit/credit based on user rules for display, but keep original amountDelta for balance
+      let debit = 0;
+      let credit = 0;
+      if (isOrderDebit || isPaymentOutDebit) {
+        debit = amount;
+      } else if (isPaymentCredit || isPurchaseBillDebit) {
+        credit = amount;
+      } else {
+        debit = amountDelta > 0 ? amount : 0;
+        credit = amountDelta < 0 ? amount : 0;
+      }
 
       return {
         id: entry._id.toString(),
@@ -325,49 +325,32 @@ export async function GET(request: NextRequest) {
               : isPurchaseBillDebit
                 ? "purchase_bill"
                 : "adjustment",
-        orderValue: isOrderDebit ? Math.abs(amountDelta) : null,
-        paidAmount: isPaymentCredit ? Math.abs(amountDelta) : null,
+        description,
+        items: expandedItems,
+        amount,
+        debit,
+        credit,
         orderId:
           sourceOrder?.invoice_no ||
           sourceOrder?._id?.toString?.() ||
           (isOrderDebit ? sourceId : null) ||
           (isPurchaseBillDebit && sourcePurchaseBill?.id ? sourcePurchaseBill.id : null),
-        description,
-        qty,
-        unitPrice,
-        amount,
-        debit,
-        credit,
-        invoiceNo:
-          typeof entry.metadata?.invoice_no === "string"
-            ? entry.metadata.invoice_no
-            : sourcePurchaseBill?.id
-              ? `Bill-${sourcePurchaseBill.id.toString().slice(-8)}`
-              : null,
         dateTime: asISO(entry.effective_at || entry.created_at),
-        paidDate: isPaymentCredit
-          ? asISO(entry.effective_at || entry.created_at)
-          : null,
         balance: runningBalance,
       };
     });
 
-    // 🔥 FIXED: Opening balance record with correct date
+    // Virtual Opening Balance record
     const openingBalanceRecord = {
-      id: "opening_balance" as const,
-      type: "opening_balance" as const,
-      orderValue: null,
-      paidAmount: null,
-      orderId: null,
+      id: "opening_balance",
+      type: "opening_balance",
       description: "Opening Balance",
-      qty: null,
-      unitPrice: null,
+      items: [],
       amount: Math.abs(openingBalance),
       debit: openingBalance > 0 ? Math.abs(openingBalance) : 0,
       credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
-      invoiceNo: null,
-      dateTime: openingBalanceDate.toISOString(), // ✅ Fixed: Proper date now
-      paidDate: null,
+      orderId: null, // Removed hardcoded OP-76
+      dateTime: from.toISOString(),
       balance: openingBalance,
     };
 
@@ -391,12 +374,10 @@ export async function GET(request: NextRequest) {
       .filter((entry) => entry.event_type === "payment_out_debit")
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
 
-    const totalPayments = totalPaymentsIn - totalPaymentsOut;
-
     const currentBalance = Number(
       balanceState?.current_balance ??
         customer?.balance ??
-        openingBalance
+        runningBalance
     );
 
     const reportNow = new Date();
@@ -410,7 +391,6 @@ export async function GET(request: NextRequest) {
         totalPurchaseBills,
         totalPaymentsIn,
         totalPaymentsOut,
-        totalPayments,
         currentBalance,
         grandTotal: totalOrders + totalPurchaseBills,
       },
@@ -428,7 +408,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    console.error("account-statement GET error", err);
+    console.error("account-statement-latest GET error", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
