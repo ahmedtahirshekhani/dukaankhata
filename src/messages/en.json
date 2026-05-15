@@ -810,6 +810,7 @@
     "invoiceNoLabel": "Invoice No.",
     "invoiceDate": "Invoice Date",
     "customerDetails": "Party Details",
+    "invoiceDetails": "Invoice Details",
     "dueDate": "Due Date",
     "qty": "Qty",
     "paidOn": "Paid On:",

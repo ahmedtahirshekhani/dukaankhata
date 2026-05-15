@@ -738,6 +738,7 @@
     "invoiceNoLabel": "Invoice Number",
     "invoiceDate": "Invoice ki Tareekh",
     "customerDetails": "Gahak ki Tafseelaat",
+    "invoiceDetails": "Invoice ki Tafseelaat",
     "dueDate": "Adaigi ki Tareekh",
     "qty": "Miqdar",
     "paidOn": "Ada Kiya Gya:",

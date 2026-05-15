@@ -544,7 +544,7 @@ const formatDateShort = (dateStr: string) => {
 const formatUom = (uom?: string) =>
   uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-";
 
-const truncateDescription = (desc?: string, limit = 100) => {
+const truncateDescription = (desc?: string, limit = 25) => {
   if (!desc) return "";
   return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
 };
@@ -621,6 +621,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
       */
       <div
         ref={ref}
+        className="invoice-preview-container"
         style={{
           background: "#ffffff",
           border: "1px solid #e2e8f0",
@@ -628,8 +629,70 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           fontFamily: "'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
           width: "100%",
+          position: "relative",
+          margin: "0 auto",
         }}
       >
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width: 640px) {
+            .invoice-a4-header {
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              text-align: center !important;
+              gap: 4px !important;
+            }
+            .invoice-a4-header td {
+              display: block !important;
+              width: 100% !important;
+              text-align: center !important;
+              padding: 0 !important;
+            }
+            .invoice-a4-header img {
+              margin: 0 auto !important;
+            }
+            .invoice-title-cell {
+              margin-top: 8px !important;
+            }
+            /* Stack Party and Invoice details on mobile as requested */
+            .invoice-customer-meta {
+              display: flex !important;
+              flex-direction: column !important;
+              gap: 16px !important;
+            }
+            .invoice-customer-meta td {
+              display: block !important;
+              width: 100% !important;
+              padding-bottom: 0 !important;
+              text-align: left !important;
+            }
+            .invoice-customer-meta td:last-child {
+              text-align: left !important;
+            }
+            .invoice-customer-meta table {
+              margin-left: 0 !important;
+            }
+            .invoice-items-table {
+              font-size: 10px !important;
+            }
+            .invoice-items-table th, .invoice-items-table td {
+              padding: 4px 2px !important;
+            }
+            .invoice-totals-container {
+              font-size: 11px !important;
+            }
+            .invoice-sig-box {
+              width: 140px !important;
+              height: 48px !important;
+            }
+            .invoice-sig-box span {
+              font-size: 8px !important;
+            }
+            .invoice-sig-line {
+              width: 120px !important;
+            }
+          }
+        `}} />
         {/*
           INNER FLEX COLUMN
           • minHeight keeps A4/Letter content area tall enough that the spacer
@@ -693,7 +756,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               </div>
             ) : (
               /* ── A4 / LETTER HEADER: three-column table ── */
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <table className="invoice-a4-header" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   <tr>
                     {/* Logo — LEFT */}
@@ -710,12 +773,25 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                     {/* Company Info — CENTER */}
                     <td style={{ width: "50%", textAlign: "center", verticalAlign: "top" }}>
                       {companyName && (
-                        <div style={{ fontWeight: 900, fontSize: S.headerFontSize, color: "#0f172a", textTransform: "uppercase", letterSpacing: "-0.5px", lineHeight: 1.2 }}>
+                        <div style={{
+                          fontWeight: 900,
+                          fontSize: S.headerFontSize,
+                          color: "#0f172a",
+                          textTransform: "uppercase",
+                          letterSpacing: "-0.5px",
+                          lineHeight: 1.2,
+                        }}>
                           {companyName}
                         </div>
                       )}
                       {companyAddress && (
-                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px", lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                        <div style={{
+                          fontSize: "11px",
+                          color: "#64748b",
+                          marginTop: "4px",
+                          lineHeight: 1.5,
+                          whiteSpace: "pre-line",
+                        }}>
                           {companyAddress}
                         </div>
                       )}
@@ -754,8 +830,14 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                     </td>
 
                     {/* Document Title — RIGHT */}
-                    <td style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
-                      <div style={{ fontWeight: 900, fontSize: S.headerFontSize, color: "#0f172a", textTransform: "uppercase", letterSpacing: "-0.5px" }}>
+                    <td className="invoice-title-cell" style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
+                      <div style={{
+                        fontWeight: 900,
+                        fontSize: S.headerFontSize,
+                        color: "#0f172a",
+                        textTransform: "uppercase",
+                        letterSpacing: "-0.5px",
+                      }}>
                         {t("invoiceTitle")}
                       </div>
                     </td>
@@ -802,40 +884,84 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               </div>
             ) : (
               /* ── A4 / LETTER: two-column table ── */
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: S.textFontSize }}>
+              <table className="invoice-customer-meta" style={{ width: "100%", borderCollapse: "collapse", fontSize: S.textFontSize }}>
                 <tbody>
                   <tr>
+                    {/* Customer details */}
                     <td style={{ verticalAlign: "top", width: "50%" }}>
-                      <div style={{ fontSize: S.labelFontSize, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#94a3b8", marginBottom: "6px" }}>
-                        {t("customerDetails")}
+                      <div style={{
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#94a3b8",
+                        marginBottom: "6px",
+                      }}>
+                        {t("customerDetails") || "Party Details"}
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>{customer.name}</div>
+                      <div style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>
+                        {customer.name}
+                      </div>
                       {customer.company_name && (
-                        <div style={{ fontSize: "13px", color: "#334155", fontWeight: 500, marginTop: "2px" }}>{customer.company_name}</div>
+                        <div style={{ fontSize: "13px", color: "#334155", fontWeight: 500, marginTop: "2px" }}>
+                          {customer.company_name}
+                        </div>
                       )}
                       {(customer.company_address || customer.address) && (
                         <div style={{ fontSize: "11px", color: "#64748b", fontStyle: "italic", marginTop: "2px", lineHeight: 1.4 }}>
                           {customer.company_address || customer.address}
                         </div>
                       )}
-                      {customer.phone && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{customer.phone}</div>}
-                      {customer.email && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{customer.email}</div>}
+                      {customer.phone && (
+                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                          {customer.phone}
+                        </div>
+                      )}
+                      {customer.email && (
+                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                          {customer.email}
+                        </div>
+                      )}
                     </td>
+
+                    {/* Invoice number / dates */}
                     <td style={{ verticalAlign: "top", textAlign: "right" }}>
-                      <table style={{ marginLeft: "auto", borderCollapse: "collapse", fontSize: S.textFontSize }}>
+                      <div style={{
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#94a3b8",
+                        marginBottom: "6px",
+                      }}>
+                        {t("invoiceDetails") || "Invoice Details"}
+                      </div>
+                      <table style={{ marginLeft: "auto", borderCollapse: "collapse", fontSize: "13px" }}>
                         <tbody>
                           <tr>
-                            <td style={{ color: "#64748b", paddingRight: "16px", paddingBottom: "4px" }}>{t("invoiceNoLabel")}:</td>
-                            <td style={{ fontWeight: 700, color: "#0f172a", paddingBottom: "4px" }}>{invoiceNo}</td>
+                            <td style={{ color: "#64748b", paddingRight: "16px", paddingBottom: "4px", whiteSpace: "nowrap" }}>
+                              {t("invoiceNoLabel") || "Invoice No:"}
+                            </td>
+                            <td style={{ fontWeight: 700, color: "#0f172a", paddingBottom: "4px", whiteSpace: "nowrap" }}>
+                              {invoiceNo}
+                            </td>
                           </tr>
                           <tr>
-                            <td style={{ color: "#64748b", paddingRight: "16px", paddingBottom: "4px" }}>{t("invoiceDate")}:</td>
-                            <td style={{ fontWeight: 700, color: "#0f172a", paddingBottom: "4px" }}>{formatDateShort(saleDate)}</td>
+                            <td style={{ color: "#64748b", paddingRight: "16px", paddingBottom: "4px", whiteSpace: "nowrap" }}>
+                              {t("invoiceDate") || "Date"}:
+                            </td>
+                            <td style={{ fontWeight: 700, color: "#0f172a", paddingBottom: "4px", whiteSpace: "nowrap" }}>
+                              {formatDateShort(saleDate)}
+                            </td>
                           </tr>
                           {dueDate && (
                             <tr>
-                              <td style={{ color: "#ef4444", paddingRight: "16px", fontWeight: 500 }}>{t("dueDate")}:</td>
-                              <td style={{ fontWeight: 700, color: "#ef4444" }}>{formatDateShort(dueDate)}</td>
+                              <td style={{ color: "#ef4444", paddingRight: "16px", whiteSpace: "nowrap" }}>
+                                {t("dueDate") || "Due Date"}:
+                              </td>
+                              <td style={{ fontWeight: 700, color: "#ef4444", whiteSpace: "nowrap" }}>
+                                {formatDateShort(dueDate)}
+                              </td>
                             </tr>
                           )}
                         </tbody>
@@ -851,7 +977,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               ITEMS TABLE
           ══════════════════════════════════════════════════════════════════ */}
           <div style={{ marginBottom: S.sectionGap }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: S.textFontSize }}>
+            <table className="invoice-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: S.textFontSize }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th style={{ textAlign: "left", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
@@ -889,7 +1015,16 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       <td style={{ padding: isThermal ? "6px 4px" : "10px 8px", verticalAlign: "top" }}>
                         <div style={{ fontWeight: 600, color: "#1e293b" }}>{product.name}</div>
                         {product.description && (
-                          <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px", lineHeight: 1.4 }}>
+                          <div style={{
+                            fontSize: "11px",
+                            color: "#94a3b8",
+                            marginTop: "2px",
+                            lineHeight: 1.4,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: isThermal ? "120px" : "350px"
+                          }}>
                             {truncateDescription(product.description)}
                           </div>
                         )}
@@ -928,7 +1063,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           {/* ══════════════════════════════════════════════════════════════════
               TOTALS
           ══════════════════════════════════════════════════════════════════ */}
-          <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginBottom: S.sectionGap }}>
+          <div className="invoice-totals-container" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginBottom: S.sectionGap }}>
             {/* Sub Total */}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: S.textFontSize, marginBottom: "6px" }}>
               <span style={{ color: "#64748b" }}>Sub Total:</span>
@@ -1057,7 +1192,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       {requestCustomerSignature && (
                         <td style={{ verticalAlign: "bottom", textAlign: "right" }}>
                           <div style={{ display: "inline-block" }}>
-                            <div style={{
+                            <div className="invoice-sig-box" style={{
                               width: S.sigW, height: S.sigH,
                               border: "2px dashed #e2e8f0", borderRadius: "8px",
                               display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px",
@@ -1066,7 +1201,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                                 {t("customerSignature")}
                               </span>
                             </div>
-                            <div style={{ width: "160px", borderTop: "1px solid #cbd5e1", marginBottom: "4px", marginLeft: "auto" }} />
+                            <div className="invoice-sig-line" style={{ width: "160px", borderTop: "1px solid #cbd5e1", marginBottom: "4px", marginLeft: "auto" }} />
                             <div style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, textAlign: "right" }}>
                               {customer.name}
                             </div>
