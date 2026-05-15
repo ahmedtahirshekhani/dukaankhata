@@ -271,6 +271,7 @@
     "costPriceTooltip": "جس قیمت پر آپ نے یہ آئٹم خریدا",
     "sellPriceServiceTooltip": "جس قیمت پر آپ یہ سروس دیتے ہیں",
     "processing": "پروسس ہو رہا ہے...",
+    "loading": "لوڈ ہو رہا ہے...",
     "updateItem": "آئٹم اپڈیٹ کریں",
     "units": {
       "piece": "ٹکڑا",
@@ -395,6 +396,7 @@
     "creditNote": "کریڈٹ نوٹ",
     "pageDescription": "گاہک کے سیل ریٹرن ریکارڈ اور انتظام کریں",
     "customer": "گاہک",
+    "party": "پارٹی",
     "items": "آئٹمز",
     "itemName": "آئٹم نام",
     "itemNamePlaceholder": "آئٹم نام درج کریں",
@@ -442,6 +444,7 @@
     "filterByCustomer": "گاہک سے فلٹر کریں",
     "allPaymentMethods": "تمام ریفنڈ طریقے",
     "allCustomers": "تمام گاہک",
+    "noPaymentMethodsFound": "ریفنڈ کے طریقے نہیں ملے",
     "searchCustomer": "پارٹی تلاش کریں"
   },
   "customers": {

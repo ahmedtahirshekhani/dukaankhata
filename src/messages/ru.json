@@ -271,6 +271,7 @@
     "costPriceTooltip": "Jis qeemat par aap ne yeh item khareeda",
     "sellPriceServiceTooltip": "Jis qeemat par aap yeh service dete hain",
     "processing": "Process ho raha hai...",
+    "loading": "Load ho raha hai...",
     "updateItem": "Item Update Karain",
     "units": {
       "piece": "Tukra",
@@ -395,6 +396,7 @@
     "creditNote": "Credit Note",
     "pageDescription": "Record aur manage customer sale returns",
     "customer": "Customer",
+    "party": "Party",
     "items": "Items",
     "itemName": "Item Name",
     "itemNamePlaceholder": "Item name darj karain",
@@ -442,6 +444,7 @@
     "filterByCustomer": "Filter by Customer",
     "allPaymentMethods": "All Refund Methods",
     "allCustomers": "All Customers",
+    "noPaymentMethodsFound": "Refund ke tareeqay nahi milay",
     "searchCustomer": "Search Party..."
   },
   "customers": {

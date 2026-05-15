@@ -10,7 +10,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { FilePenIcon, TrashIcon } from "lucide-react";
+import { FilePenIcon, Trash2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Product } from "@/types/product";
@@ -21,6 +21,7 @@ interface ProductsTableProps {
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
+  isLoading?: boolean;
 }
 
 export function ProductsTable({
@@ -28,6 +29,7 @@ export function ProductsTable({
   onEdit,
   onDelete,
   capitalizeFirstLetter,
+  isLoading = false,
 }: ProductsTableProps) {
   const t = useTranslations("products");
   const nameLabel = t("name");
@@ -136,9 +138,8 @@ export function ProductsTable({
                       variant="danger"
                       className="h-8 w-8"
                       onClick={() => onDelete(product)}
-                      style={{ display: "none" }}
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" />
                       <span className="sr-only">{deleteLabel}</span>
                     </Button>
                   </div>
@@ -162,14 +163,24 @@ export function ProductsTable({
                   )}
                 </p>
               </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => onEdit(product)}
-                className="h-8 w-8"
-              >
-                <FilePenIcon className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => onEdit(product)}
+                  className="h-8 w-8"
+                >
+                  <FilePenIcon className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => onDelete(product)}
+                  className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -252,6 +263,18 @@ export function ProductsTable({
           </div>
         )}
       </div>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center z-20 min-h-[200px]">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-xs font-medium text-muted-foreground animate-pulse">
+              {t("loading") || "Loading..."}
+            </span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -669,8 +669,8 @@ export default function SaleReturnPage() {
   };
 
   const renderForm = () => (
-    <div className="space-y-5 py-2">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>{t("creditNote")}</Label>
           <Input
@@ -681,21 +681,20 @@ export default function SaleReturnPage() {
         </div>
         <div className="space-y-2">
           <Label>{t("date")}</Label>
-          <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+          <Input
+            type="date"
+            value={formDate}
+            onChange={(e) => setFormDate(e.target.value)}
+          />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>{t("customer")}</Label>
+          <Label>{t("party")}</Label>
           <PartyDropdown
             value={formCustomerId}
-            onValueChange={(val) => setFormCustomerId(val)}
+            onValueChange={(id) => setFormCustomerId(id)}
             placeholder={t("selectCustomer")}
-            className="w-full"
-            filterActiveOnly={true}
             enableSearch={true}
-            searchPlaceholder={t("searchCustomer") || "Search customer..."}
+            searchPlaceholder={tCommon("searchCustomer") || "Search Party..."}
           />
         </div>
         <div className="space-y-2">
@@ -711,9 +710,6 @@ export default function SaleReturnPage() {
             includeDefaultMethods={true}
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t("invoiceDate")}</Label>
           <Input
@@ -732,111 +728,179 @@ export default function SaleReturnPage() {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label>{t("items")}</Label>
+          <Label className="text-base font-bold">{t("items")}</Label>
           <Button type="button" variant="outline" size="sm" onClick={addItemRow}>
             <PlusCircle className="w-4 h-4 mr-2" />
             {t("addItems")}
           </Button>
         </div>
 
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("selectProduct")}</TableHead>
-                <TableHead>{t("itemName")}</TableHead>
-                <TableHead>{t("qty")}</TableHead>
-                <TableHead>{t("rate")}</TableHead>
-                <TableHead>{t("amount")}</TableHead>
-                <TableHead>{tCommon("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {formItems.map((item, index) => (
-                <TableRow key={item.id}>
-                  <TableCell className="min-w-[180px]">
+        <div className="border rounded-lg overflow-hidden">
+          {/* Desktop View: Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="min-w-[180px]">{t("selectProduct")}</TableHead>
+                  <TableHead className="min-w-[180px]">{t("itemName")}</TableHead>
+                  <TableHead className="w-[110px]">{t("qty")}</TableHead>
+                  <TableHead className="w-[130px]">{t("rate")}</TableHead>
+                  <TableHead className="w-[120px]">{t("amount")}</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {formItems.map((item, index) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <ProductDropdown
+                        value={item.productId}
+                        onValueChange={(value, prod) => handleSelectProduct(String(item.id), value, prod)}
+                        placeholder={tCommon("searchProduct")}
+                        enableSearch={true}
+                        searchPlaceholder={tCommon("searchProduct") || "Search product..."}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={item.itemName}
+                        onChange={(e) => updateFormItem(item.id, "itemName", e.target.value)}
+                        placeholder={t("itemNamePlaceholder")}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.quantity}
+                        onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.rate}
+                        onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium whitespace-nowrap text-primary">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="danger"
+                        onClick={() => removeItemRow(item.id)}
+                        disabled={formItems.length === 1}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile View: Cards */}
+          <div className="md:hidden divide-y">
+            {formItems.map((item, index) => (
+              <div key={item.id} className="p-4 space-y-4 bg-card">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-sm bg-primary/10 text-primary px-2 py-1 rounded">Item #{index + 1}</span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="danger"
+                    onClick={() => removeItemRow(item.id)}
+                    disabled={formItems.length === 1}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("selectProduct")}</Label>
                     <ProductDropdown
                       value={item.productId}
                       onValueChange={(value, prod) => handleSelectProduct(String(item.id), value, prod)}
                       placeholder={tCommon("searchProduct")}
                       enableSearch={true}
-                      searchPlaceholder={tCommon("searchProduct") || "Search product..."}
                     />
-                  </TableCell>
-                  <TableCell className="min-w-[180px]">
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("itemName")}</Label>
                     <Input
                       value={item.itemName}
                       onChange={(e) => updateFormItem(item.id, "itemName", e.target.value)}
                       placeholder={t("itemNamePlaceholder")}
                     />
-                  </TableCell>
-                  <TableCell className="w-[110px]">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.quantity}
-                      onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell className="w-[130px]">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.rate}
-                      onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="danger"
-                      onClick={() => removeItemRow(item.id)}
-                      disabled={formItems.length === 1}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("qty")}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.quantity}
+                        onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("rate")}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.rate}
+                        onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t text-sm font-medium">
+                    <span className="text-muted-foreground">{t("amount")}:</span>
+                    <span className="text-primary font-bold text-base">Rs. {lineTotals[index]?.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("totalAmount")}</Label>
-          <Input value={totalAmount.toFixed(2)} readOnly />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("totalAmount")}</Label>
+          <div className="text-xl font-bold text-primary">Rs. {totalAmount.toFixed(2)}</div>
         </div>
-        <div className="space-y-2">
-          <Label>{t("paidAmount")}</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paidAmount")}</Label>
           <Input
             type="number"
             min="0"
             step="0.01"
             value={formPaidAmount}
             onChange={(e) => setFormPaidAmount(e.target.value)}
+            className="h-10 text-lg font-semibold"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t("balanceDue")}</Label>
-          <Input value={balanceDue.toFixed(2)} readOnly />
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("balanceDue")}</Label>
+          <div className="text-xl font-bold text-orange-600">Rs. {balanceDue.toFixed(2)}</div>
         </div>
-        <div className="space-y-2">
-          <Label>{t("paymentRefNo")}</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paymentRefNo")}</Label>
           <Input
             value={formPaymentRefNo}
             onChange={(e) => setFormPaymentRefNo(e.target.value)}
             placeholder={t("paymentRefNoPlaceholder")}
+            className="h-10"
           />
         </div>
       </div>
@@ -1087,34 +1151,42 @@ export default function SaleReturnPage() {
       </Card>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("creditNote")}</DialogTitle>
+        <DialogContent className="w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-primary" />
+              {t("addSaleReturn")}
+            </DialogTitle>
           </DialogHeader>
           {renderForm()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={isSaving}>
+          <DialogFooter className="mt-6 flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={isSaving} className="w-full sm:w-auto">
               {tCommon("cancel")}
             </Button>
-            <Button onClick={handleAdd} disabled={isSaving}>
-              {isSaving ? tCommon("loading") : tCommon("save")}
+            <Button onClick={handleAdd} disabled={isSaving} className="w-full sm:w-auto">
+              {isSaving ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {tCommon("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("creditNote")}</DialogTitle>
+        <DialogContent className="w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <FilePenIcon className="h-5 w-5 text-primary" />
+              {t("editRecord")}
+            </DialogTitle>
           </DialogHeader>
           {renderForm()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={isSaving}>
+          <DialogFooter className="mt-6 flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={isSaving} className="w-full sm:w-auto">
               {tCommon("cancel")}
             </Button>
-            <Button onClick={handleEdit} disabled={isSaving}>
-              {isSaving ? tCommon("loading") : tCommon("save")}
+            <Button onClick={handleEdit} disabled={isSaving} className="w-full sm:w-auto">
+              {isSaving ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {tCommon("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

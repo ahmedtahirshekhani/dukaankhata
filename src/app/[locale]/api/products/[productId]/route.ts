@@ -114,3 +114,40 @@ export async function PUT(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { productId: string } }
+) {
+  const user = await getCurrentUser() as { id: string } | null
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const productId = params.productId
+  if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+
+  try {
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const result = await productsCollection.deleteOne({
+      _id: toObjectId(productId),
+      user_id: toObjectId(user.id)
+    });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: 'Product not found or not authorized' }, { status: 404 })
+    }
+
+    // ✅ Update user's last activity
+    const usersCollection = await getCollection(COLLECTIONS.USERS);
+    await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
+
+    await updateUserLastActivity();
+    return NextResponse.json({ message: 'Product deleted successfully' })
+  } catch (err) {
+    console.error('[DELETE /api/products/:productId] Unexpected error', {
+      userId: user.id,
+      productId,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}

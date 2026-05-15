@@ -271,6 +271,7 @@
     "costPriceTooltip": "Price at which you purchased this item",
     "sellPriceServiceTooltip": "Price at which you sell this service",
     "processing": "Processing...",
+    "loading": "Loading...",
     "updateItem": "Update Item",
     "units": {
       "piece": "Piece",
@@ -396,6 +397,7 @@
     "creditNote": "Credit Note",
     "pageDescription": "Record and manage party transactions",
     "customer": "Party",
+    "party": "Party",
     "items": "Items",
     "itemName": "Item Name",
     "itemNamePlaceholder": "Enter item name",
@@ -443,6 +445,7 @@
     "filterByCustomer": "Filter by Party",
     "allPaymentMethods": "All Refund Methods",
     "allCustomers": "All Parties",
+    "noPaymentMethodsFound": "No refund methods found",
     "searchCustomer": "Search Party..."
   },
   "parties": {
