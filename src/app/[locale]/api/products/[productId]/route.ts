@@ -68,8 +68,7 @@ export async function PUT(
       user_id: toObjectId(user.id)
     };
 
-    // ✅ Use setLastUpdated helper instead of manual $set
-    const updateResult = await setLastUpdated(productsCollection, filter, updatedProduct);
+    const updateResult = await productsCollection.updateOne(filter, { $set: updatedProduct });
 
     if (updateResult.matchedCount === 0) {
       console.warn('[PUT /api/products/:productId] Product not found or not authorized', {
@@ -85,10 +84,6 @@ export async function PUT(
     if (!updatedDoc) {
       return NextResponse.json({ error: 'Product not found after update' }, { status: 404 })
     }
-
-    // ✅ Update user's last activity
-    const usersCollection = await getCollection(COLLECTIONS.USERS);
-    await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
     console.info('[PUT /api/products/:productId] Product update succeeded', {
       requestId,
@@ -135,10 +130,6 @@ export async function DELETE(
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Product not found or not authorized' }, { status: 404 })
     }
-
-    // ✅ Update user's last activity
-    const usersCollection = await getCollection(COLLECTIONS.USERS);
-    await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
     await updateUserLastActivity();
     return NextResponse.json({ message: 'Product deleted successfully' })

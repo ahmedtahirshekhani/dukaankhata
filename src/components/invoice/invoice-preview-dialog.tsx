@@ -184,6 +184,7 @@ export function InvoicePreviewDialog({
   const loadBranding = async (force = false) => {
     if (force) {
       brandingCache = null;
+      brandingInFlight = null;
     }
     try {
       // Check localStorage first
