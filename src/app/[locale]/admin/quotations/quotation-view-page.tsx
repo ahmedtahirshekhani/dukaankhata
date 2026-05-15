@@ -296,7 +296,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
             <div
                 ref={quotationRef}
                 id="quotation-paper"
-                className="bg-white border shadow-lg rounded-sm print:shadow-none print:border-none print:m-0"
+                className="quotation-paper bg-white border shadow-lg rounded-sm print:shadow-none print:border-none print:m-0"
                 style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}
             >
                 {/* Inner flex column */}
@@ -304,7 +304,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
                     {/* ── HEADER ──────────────────────────────────────────────── */}
                     <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <table className="quotation-a4-header" style={{ width: "100%", borderCollapse: "collapse" }}>
                             <tbody>
                                 <tr>
                                     {/* Logo */}
@@ -384,7 +384,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                                     </td>
 
                                     {/* Document Title — RIGHT */}
-                                    <td style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
+                                    <td className="quotation-title-cell" style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
                                         <div style={{
                                             fontWeight: 900,
                                             fontSize: "22px",
@@ -402,7 +402,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
                     {/* ── CUSTOMER & META ──────────────────────────────────────── */}
                     <div style={{ padding: "20px 24px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <table className="quotation-customer-meta" style={{ width: "100%", borderCollapse: "collapse" }}>
                             <tbody>
                                 <tr>
                                     {/* Customer details */}
@@ -533,7 +533,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
                     {/* ── TOTALS ──────────────────────────────────────────────── */}
                     <div style={{ padding: "0 24px 24px", display: "flex", justifyContent: "flex-end" }}>
-                        <table style={{ width: "280px", borderCollapse: "collapse", fontSize: "13px" }}>
+                        <table className="quotation-totals" style={{ width: "280px", borderCollapse: "collapse", fontSize: "13px" }}>
                             <tbody>
                                 <tr>
                                     <td style={{ color: "#64748b", paddingBottom: "6px" }}>
@@ -618,7 +618,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
                     {/* ── SIGNATURES ──────────────────────────────────────────── */}
                     <div style={{ padding: "0 24px 28px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <table className="quotation-sig-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                             <tbody>
                                 <tr>
                                     {/* Company Signature */}
@@ -720,6 +720,72 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
             {/* ── Print CSS ───────────────────────────────────────────────────── */}
             <style jsx global>{`
+                @media (max-width: 640px) {
+                    .quotation-a4-header {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        text-align: center !important;
+                        gap: 4px !important;
+                    }
+                    .quotation-a4-header td {
+                        display: block !important;
+                        width: 100% !important;
+                        text-align: center !important;
+                        padding: 0 !important;
+                    }
+                    .quotation-a4-header img {
+                        margin: 0 auto !important;
+                    }
+                    .quotation-title-cell {
+                        margin-top: 8px !important;
+                    }
+                    /* Stack Party and Quotation details on mobile */
+                    .quotation-customer-meta {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 16px !important;
+                    }
+                    .quotation-customer-meta td {
+                        display: block !important;
+                        width: 100% !important;
+                        padding-bottom: 0 !important;
+                        text-align: left !important;
+                    }
+                    .quotation-customer-meta td:last-child {
+                        text-align: left !important;
+                    }
+                    .quotation-customer-meta table {
+                        margin-left: 0 !important;
+                    }
+                    .quotation-sig-table {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 24px !important;
+                    }
+                    .quotation-sig-table td {
+                        display: block !important;
+                        width: 100% !important;
+                        text-align: left !important;
+                    }
+                    .quotation-sig-table td:last-child {
+                        text-align: left !important;
+                    }
+                    .quotation-sig-table td:last-child > div {
+                        margin-left: 0 !important;
+                    }
+                    .quotation-sig-table td:last-child > div > div:nth-child(2) {
+                        margin-left: 0 !important;
+                    }
+                    .quotation-totals {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                    }
+                    .quotation-paper {
+                        width: 100% !important;
+                        overflow-x: hidden !important;
+                    }
+                }
                 @media print {
                     body * { visibility: hidden; }
                     #quotation-paper,
