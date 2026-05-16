@@ -660,20 +660,20 @@ function QuotationFormPageInner({
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-10">
             {/* Header */}
-            <div className="flex items-center justify-between border-b pb-4 mt-4">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between border-b pb-4 mt-4 gap-4 px-4 sm:px-0">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <h1 className="text-2xl font-bold">
+                    <h1 className="text-xl sm:text-2xl font-bold">
                         {editingQuotationId ? t("edit_quotation") : t("create_quotation")}
                     </h1>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => router.back()}>
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                    <Button variant="outline" onClick={() => router.back()} className="flex-1 sm:flex-none">
                         {tCommon("cancel")}
                     </Button>
-                    <Button onClick={handleSaveQuotation} disabled={isSaving}>
+                    <Button onClick={handleSaveQuotation} disabled={isSaving} className="flex-1 sm:flex-none">
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {tCommon("save")}
                     </Button>
@@ -710,7 +710,8 @@ function QuotationFormPageInner({
                             </Button>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="border-t">
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block border-t overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr className="text-left">
@@ -801,84 +802,84 @@ function QuotationFormPageInner({
                                         )}
                                     </tbody> */}
                                     <tbody className="divide-y">
-  {quotationItems.length === 0 ? (
-    <tr>
-      <td colSpan={5} className="p-10 text-center text-muted-foreground">
-        {t("no_items")}
-      </td>
-    </tr>
-  ) : (
-    quotationItems.map((item) => (
-      <tr key={item.id} className="hover:bg-muted/30">
-        {/* Product Name + Description */}
-        <td className="p-4">
-          <div className="font-medium">{item.product_name}</div>
-          {item.product_description && (
-            <div className="text-xs text-muted-foreground">
-              {item.product_description.length > 60
-                ? item.product_description.substring(0, 57) + "..."
-                : item.product_description}
-            </div>
-          )}
-        </td>
+                                        {quotationItems.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="p-10 text-center text-muted-foreground">
+                                                    {t("no_items")}
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            quotationItems.map((item) => (
+                                                <tr key={item.id} className="hover:bg-muted/30">
+                                                    {/* Product Name + Description */}
+                                                    <td className="p-4">
+                                                        <div className="font-medium">{item.product_name}</div>
+                                                        {item.product_description && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {item.product_description.length > 60
+                                                                    ? item.product_description.substring(0, 57) + "..."
+                                                                    : item.product_description}
+                                                            </div>
+                                                        )}
+                                                    </td>
 
-        {/* Quantity - Input Field */}
-        <td className="p-4 text-center">
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={item.quantity}
-            onChange={(e) => {
-              const newQuantity = parseFloat(e.target.value) || 0;
-              const updatedItems = quotationItems.map((i) =>
-                i.id === item.id
-                  ? {
-                      ...i,
-                      quantity: newQuantity,
-                      amount: newQuantity * i.unit_price,
-                    }
-                  : i
-              );
-              setQuotationItems(updatedItems);
-            }}
-            className="w-24 px-2 py-1 border rounded text-center"
-          />
-        </td>
+                                                    {/* Quantity - Input Field */}
+                                                    <td className="p-4 text-center">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="1"
+                                                            value={item.quantity}
+                                                            onChange={(e) => {
+                                                                const newQuantity = parseFloat(e.target.value) || 0;
+                                                                const updatedItems = quotationItems.map((i) =>
+                                                                    i.id === item.id
+                                                                        ? {
+                                                                            ...i,
+                                                                            quantity: newQuantity,
+                                                                            amount: newQuantity * i.unit_price,
+                                                                        }
+                                                                        : i
+                                                                );
+                                                                setQuotationItems(updatedItems);
+                                                            }}
+                                                            className="w-24 px-2 py-1 border rounded text-center"
+                                                        />
+                                                    </td>
 
-        {/* Unit Price - Input Field */}
-        <td className="p-4 text-right">
-          <input
-            type="number"
-            min="0"
-            step="any"
-            value={item.unit_price}
-            onChange={(e) => {
-              const newPrice = parseFloat(e.target.value) || 0;
-              const updatedItems = quotationItems.map((i) =>
-                i.id === item.id
-                  ? {
-                      ...i,
-                      unit_price: newPrice,
-                      amount: i.quantity * newPrice,
-                    }
-                  : i
-              );
-              setQuotationItems(updatedItems);
-            }}
-            className="w-28 px-2 py-1 border rounded text-right"
-          />
-        </td>
+                                                    {/* Unit Price - Input Field */}
+                                                    <td className="p-4 text-right">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="any"
+                                                            value={item.unit_price}
+                                                            onChange={(e) => {
+                                                                const newPrice = parseFloat(e.target.value) || 0;
+                                                                const updatedItems = quotationItems.map((i) =>
+                                                                    i.id === item.id
+                                                                        ? {
+                                                                            ...i,
+                                                                            unit_price: newPrice,
+                                                                            amount: i.quantity * newPrice,
+                                                                        }
+                                                                        : i
+                                                                );
+                                                                setQuotationItems(updatedItems);
+                                                            }}
+                                                            className="w-28 px-2 py-1 border rounded text-right"
+                                                        />
+                                                    </td>
 
-        {/* Total Amount (Dynamic) */}
-        <td className="p-4 text-right font-semibold">
-          {formatCurrencyString(item.amount)}
-        </td>
+                                                    {/* Total Amount (Dynamic) */}
+                                                    <td className="p-4 text-right font-semibold">
+                                                        {formatCurrencyString(item.amount)}
+                                                    </td>
 
-        {/* Action Buttons */}
-        <td className="p-4 text-center">
-          <div className="flex gap-1 justify-center">
-            {/* <Button
+                                                    {/* Action Buttons */}
+                                                    <td className="p-4 text-center">
+                                                        <div className="flex gap-1 justify-center">
+                                                            {/* <Button
               variant="ghost"
               size="icon"
               onClick={() => {
@@ -894,23 +895,83 @@ function QuotationFormPageInner({
             >
               <Edit2 className="h-4 w-4" />
             </Button> */}
-            <Button
-              variant="danger"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() =>
-                setQuotationItems(quotationItems.filter((i) => i.id !== item.id))
-              }
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
+                                                            <Button
+                                                                variant="danger"
+                                                                size="icon"
+                                                                className="h-8 w-8"
+                                                                onClick={() =>
+                                                                    setQuotationItems(quotationItems.filter((i) => i.id !== item.id))
+                                                                }
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
                                 </table>
+                            </div>
+
+                            {/* Mobile Card View */}
+                            <div className="block md:hidden border-t divide-y">
+                                {quotationItems.length === 0 ? (
+                                    <div className="p-10 text-center text-muted-foreground">{t("no_items")}</div>
+                                ) : (
+                                    quotationItems.map((item) => (
+                                        <div key={item.id} className="p-4 space-y-4">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                    <div className="font-medium text-sm">{item.product_name}</div>
+                                                    {item.product_description && (
+                                                        <div className="text-xs text-muted-foreground line-clamp-2">
+                                                            {item.product_description}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    variant="danger"
+                                                    size="icon"
+                                                    className="h-8 w-8 ml-2 shrink-0"
+                                                    onClick={() => setQuotationItems(quotationItems.filter((i) => i.id !== item.id))}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground font-bold">{t("qty")}</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={item.quantity}
+                                                        onChange={(e) => {
+                                                            const newQuantity = parseFloat(e.target.value) || 0;
+                                                            setQuotationItems(quotationItems.map(i => i.id === item.id ? { ...i, quantity: newQuantity, amount: newQuantity * i.unit_price } : i));
+                                                        }}
+                                                        className="h-9 text-center"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground font-bold">{t("price")}</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={item.unit_price}
+                                                        onChange={(e) => {
+                                                            const newPrice = parseFloat(e.target.value) || 0;
+                                                            setQuotationItems(quotationItems.map(i => i.id === item.id ? { ...i, unit_price: newPrice, amount: i.quantity * newPrice } : i));
+                                                        }}
+                                                        className="h-9 text-right"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between items-center pt-2 border-t text-sm">
+                                                <span className="font-medium">{t("total")}</span>
+                                                <span className="font-bold text-primary">{formatCurrencyString(item.amount)}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -931,7 +992,7 @@ function QuotationFormPageInner({
 
                 {/* Right Sidebar Summary */}
                 <div className="lg:col-span-4">
-                    <Card className="sticky top-6">
+                    <Card className="lg:sticky lg:top-6">
                         <CardHeader className="border-b bg-muted/20">
                             <CardTitle className="text-base flex items-center gap-2">
                                 {t("summary")}
