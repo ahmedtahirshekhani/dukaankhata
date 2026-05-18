@@ -103,7 +103,11 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
       start = new Date(thisWeekStart);
       start.setDate(start.getDate() - 7);
       end = getEndOfDay(
-        new Date(thisWeekStart.getTime() - 24 * 60 * 60 * 1000),
+        new Date(
+          thisWeekStart.getFullYear(),
+          thisWeekStart.getMonth(),
+          thisWeekStart.getDate() - 1,
+        ),
       );
       break;
     }
