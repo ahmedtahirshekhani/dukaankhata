@@ -42,7 +42,10 @@ export async function GET(request: Request) {
       startDate > endDate
     ) {
       return NextResponse.json(
-        { error: "Invalid datetime range" },
+        {
+          error:
+            "Invalid datetime range: provide valid datetimes with a start that is before or equal to the end",
+        },
         { status: 400 },
       );
     }

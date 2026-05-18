@@ -85,7 +85,7 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
   switch (rangeKey) {
     case "today":
       start = getStartOfDay(now);
-      end = now;
+      end = getEndOfDay(now);
       break;
     case "thisWeek": {
       const day = now.getDay();
