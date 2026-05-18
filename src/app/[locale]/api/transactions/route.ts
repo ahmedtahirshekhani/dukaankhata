@@ -1,6 +1,11 @@
-
 // src/app/[locale]/api/transactions/route.ts
-import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
+import {
+  getCollection,
+  COLLECTIONS,
+  toObjectId,
+  setLastUpdated,
+  updateUserLastActivity,
+} from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 
@@ -19,13 +24,34 @@ export async function GET(request: Request) {
   const year = searchParams.get("year");
   const fromDate = searchParams.get("fromDate");
   const toDate = searchParams.get("toDate");
+  const fromDateTime = searchParams.get("fromDateTime");
+  const toDateTime = searchParams.get("toDateTime");
   const all = searchParams.get("all") === "true";
 
   const offset = (page - 1) * limit;
   const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
   const filter: Record<string, unknown> = { user_id: toObjectId(user.id) };
 
-  if (fromDate && toDate) {
+  if (fromDateTime && toDateTime) {
+    const startDate = new Date(fromDateTime);
+    const endDate = new Date(toDateTime);
+
+    if (
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime()) ||
+      startDate > endDate
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid fromDateTime/toDateTime range: provide valid datetimes with a start that is before or equal to the end",
+        },
+        { status: 400 },
+      );
+    }
+
+    filter.created_at = { $gte: startDate, $lte: endDate };
+  } else if (fromDate && toDate) {
     const startDate = new Date(fromDate + "T00:00:00.000Z");
     const endDate = new Date(toDate + "T23:59:59.999Z");
     filter.created_at = { $gte: startDate, $lte: endDate };
@@ -81,18 +107,23 @@ export async function POST(request: Request) {
   const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
   const result = await transactionsCollection.insertOne({
     ...newTransaction,
-    productId: newTransaction.productId && typeof newTransaction.productId === 'string' && newTransaction.productId.match(/^[0-9a-fA-F]{24}$/) 
-      ? toObjectId(newTransaction.productId) 
-      : newTransaction.productId,
+    productId:
+      newTransaction.productId &&
+      typeof newTransaction.productId === "string" &&
+      newTransaction.productId.match(/^[0-9a-fA-F]{24}$/)
+        ? toObjectId(newTransaction.productId)
+        : newTransaction.productId,
     user_id: toObjectId(user.id),
-    created_at: newTransaction.created_at ? new Date(newTransaction.created_at) : now,
+    created_at: newTransaction.created_at
+      ? new Date(newTransaction.created_at)
+      : now,
     updated_at: now, // ✅ added updated_at
   });
 
   if (!result.insertedId) {
     return NextResponse.json(
       { error: "Failed to create transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 

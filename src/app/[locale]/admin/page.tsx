@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -22,9 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supportContact } from "@/lib/constants";
-import { Loader2Icon, TrendingDown, TrendingUp, Activity, File } from "lucide-react";
+import {
+  Loader2Icon,
+  TrendingDown,
+  TrendingUp,
+  Activity,
+  File,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import VyaparImportButton from '@/components/VyaparImportButton';
+import VyaparImportButton from "@/components/VyaparImportButton";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import {
@@ -34,6 +46,98 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+type CounterRange =
+  | "today"
+  | "thisWeek"
+  | "lastWeek"
+  | "thisMonth"
+  | "lastMonth"
+  | "ytd";
+
+const getStartOfDay = (date: Date) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+
+const getEndOfDay = (date: Date) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+
+const getRangeTimestamps = (rangeKey: CounterRange) => {
+  const now = new Date();
+  let start = getStartOfDay(now);
+  let end = getEndOfDay(now);
+
+  switch (rangeKey) {
+    case "today":
+      start = getStartOfDay(now);
+      end = getEndOfDay(now);
+      break;
+    case "thisWeek": {
+      const day = now.getDay();
+      const diffToMonday = (day + 6) % 7;
+      start = getStartOfDay(now);
+      start.setDate(start.getDate() - diffToMonday);
+      end = getEndOfDay(now);
+      break;
+    }
+    case "lastWeek": {
+      const day = now.getDay();
+      const diffToMonday = (day + 6) % 7;
+      const thisWeekStart = getStartOfDay(now);
+      thisWeekStart.setDate(thisWeekStart.getDate() - diffToMonday);
+      start = new Date(thisWeekStart);
+      start.setDate(start.getDate() - 7);
+      end = getEndOfDay(
+        new Date(
+          thisWeekStart.getFullYear(),
+          thisWeekStart.getMonth(),
+          thisWeekStart.getDate() - 1,
+        ),
+      );
+      break;
+    }
+    case "thisMonth":
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      end = getEndOfDay(now);
+      break;
+    case "lastMonth":
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      break;
+    case "ytd":
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      end = getEndOfDay(now);
+      break;
+  }
+
+  return {
+    fromDateTime: start.toISOString(),
+    toDateTime: end.toISOString(),
+  };
+};
 
 export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
@@ -53,6 +157,12 @@ export default function DashboardPage() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [counterSales, setCounterSales] = useState(0);
+  const [counterExpenses, setCounterExpenses] = useState(0);
+  const [counterSalesRange, setCounterSalesRange] =
+    useState<CounterRange>("today");
+  const [counterExpensesRange, setCounterExpensesRange] =
+    useState<CounterRange>("today");
   const [importOpen, setImportOpen] = useState(false);
 
   const [salesRows, setSalesRows] = useState<
@@ -125,6 +235,7 @@ export default function DashboardPage() {
         setTotalBalance(dashboardData.totalBalance || 0);
         setTotalRevenue(dashboardData.totalRevenue || 0);
         setTotalExpenses(dashboardData.totalExpenses || 0);
+        // counter totals are fetched separately based on selected ranges
       } catch (error) {
         console.error("Error fetching summary:", error);
       } finally {
@@ -141,7 +252,8 @@ export default function DashboardPage() {
       try {
         let endpoint = "";
         if (activeDashboardTab === "sales") endpoint = "/api/orders";
-        else if (activeDashboardTab === "customers") endpoint = "/api/customers";
+        else if (activeDashboardTab === "customers")
+          endpoint = "/api/customers";
         else if (activeDashboardTab === "items") endpoint = "/api/products";
 
         const url = new URL(endpoint, window.location.origin);
@@ -164,9 +276,12 @@ export default function DashboardPage() {
               total,
               paid,
               balance: Math.max(0, total - paid),
-              date: order?.sale_date || order?.created_at
-                ? new Date(order?.sale_date || order?.created_at).toLocaleDateString()
-                : "-",
+              date:
+                order?.sale_date || order?.created_at
+                  ? new Date(
+                      order?.sale_date || order?.created_at,
+                    ).toLocaleDateString()
+                  : "-",
             };
           });
           setSalesRows(orderRows);
@@ -204,6 +319,56 @@ export default function DashboardPage() {
 
     fetchTabData();
   }, [activeDashboardTab, currentPage, pageSize, locale]);
+
+  // Fetch counter sales total for selected range
+  useEffect(() => {
+    const fetchSales = async () => {
+      try {
+        const params = new URLSearchParams({
+          all: "true",
+          ...getRangeTimestamps(counterSalesRange),
+        });
+        const res = await fetch(`/api/transactions?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const txs = data.data || [];
+        const incomeTotal = txs.reduce(
+          (sum: number, t: any) =>
+            t.type === "income" ? sum + Number(t.amount || 0) : sum,
+          0,
+        );
+        setCounterSales(Math.round(incomeTotal * 100) / 100);
+      } catch (err) {
+        console.error("Error fetching counter sales:", err);
+      }
+    };
+    fetchSales();
+  }, [counterSalesRange]);
+
+  // Fetch counter expenses total for selected range
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const params = new URLSearchParams({
+          all: "true",
+          ...getRangeTimestamps(counterExpensesRange),
+        });
+        const res = await fetch(`/api/transactions?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const txs = data.data || [];
+        const expenseTotal = txs.reduce(
+          (sum: number, t: any) =>
+            t.type === "expense" ? sum + Number(t.amount || 0) : sum,
+          0,
+        );
+        setCounterExpenses(Math.round(expenseTotal * 100) / 100);
+      } catch (err) {
+        console.error("Error fetching counter expenses:", err);
+      }
+    };
+    fetchExpenses();
+  }, [counterExpensesRange]);
 
   // Reset page when tab changes
   useEffect(() => {
@@ -256,8 +421,12 @@ export default function DashboardPage() {
 
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 justify-center" size="sm" variant="outline">
-               <File className="w-4 h-4 sm:w-5 sm:h-5" /> Import Your Data
+              <Button
+                className="flex items-center gap-2 justify-center"
+                size="sm"
+                variant="outline"
+              >
+                <File className="w-4 h-4 sm:w-5 sm:h-5" /> Import Your Data
               </Button>
             </DialogTrigger>
 
@@ -274,7 +443,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           title={tDash("totalBalanceYoullGet") || "Total Balance (You'll get)"}
           value={totalBalance}
@@ -295,6 +464,57 @@ export default function DashboardPage() {
           title={`${tDash("totalExpenses") || "Total Expense"} (${currentMonthName})`}
           value={totalExpenses}
           icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+          isPrivacy={isPrivacyMode}
+          currency="PKR"
+          isExpense
+        />
+
+        <StatCard
+          title={tDash("counterSales") || "Counter Sales"}
+          value={counterSales}
+          icon={
+            <Select
+              value={counterSalesRange}
+              onValueChange={(v) => setCounterSalesRange(v as any)}
+            >
+              <SelectTrigger className="w-36 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="thisWeek">This Week</SelectItem>
+                <SelectItem value="lastWeek">Last Week</SelectItem>
+                <SelectItem value="thisMonth">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
+                <SelectItem value="ytd">Year to date</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          isPrivacy={isPrivacyMode}
+          currency="PKR"
+        />
+
+        <StatCard
+          title={tDash("counterExpenses") || "Counter Expenses"}
+          value={counterExpenses}
+          icon={
+            <Select
+              value={counterExpensesRange}
+              onValueChange={(v) => setCounterExpensesRange(v as any)}
+            >
+              <SelectTrigger className="w-36 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="thisWeek">This Week</SelectItem>
+                <SelectItem value="lastWeek">Last Week</SelectItem>
+                <SelectItem value="thisMonth">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
+                <SelectItem value="ytd">Year to date</SelectItem>
+              </SelectContent>
+            </Select>
+          }
           isPrivacy={isPrivacyMode}
           currency="PKR"
           isExpense
@@ -348,14 +568,20 @@ export default function DashboardPage() {
         <CardHeader className="p-3 pb-0">
           {activeDashboardTab === "customers" && (
             <div className="flex items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-fit">
-              <span className="font-semibold text-muted-foreground">{tCust("legend")}:</span>
+              <span className="font-semibold text-muted-foreground">
+                {tCust("legend")}:
+              </span>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
-                <span className="font-medium text-green-700 dark:text-green-400">{tCust("legendReceive")}</span>
+                <span className="font-medium text-green-700 dark:text-green-400">
+                  {tCust("legendReceive")}
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
-                <span className="font-medium text-red-700 dark:text-red-400">{tCust("legendPay")}</span>
+                <span className="font-medium text-red-700 dark:text-red-400">
+                  {tCust("legendPay")}
+                </span>
               </div>
             </div>
           )}
@@ -451,11 +677,15 @@ export default function DashboardPage() {
                     </TableRow>
                   ) : (
                     customerRows.map((row) => (
-                      <TableRow 
+                      <TableRow
                         key={row.id}
                         className={cn(
-                          row.balance !== undefined && row.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
-                          row.balance !== undefined && row.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
+                          row.balance !== undefined &&
+                            row.balance < 0 &&
+                            "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
+                          row.balance !== undefined &&
+                            row.balance > 0 &&
+                            "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50",
                         )}
                       >
                         <TableCell>{row.name}</TableCell>
@@ -701,18 +931,21 @@ function CustomerCard({
       onClick={onClick}
       className={cn(
         "border rounded-lg p-4 shadow-sm cursor-pointer active:bg-muted/50 transition-colors",
-        row.balance !== undefined && row.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" : 
-        row.balance !== undefined && row.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
-        "bg-card border-border"
+        row.balance !== undefined && row.balance < 0
+          ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800"
+          : row.balance !== undefined && row.balance > 0
+            ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800"
+            : "bg-card border-border",
       )}
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-base">{row.name}</h3>
         <span
-          className={`text-xs px-2 py-0.5 rounded-full ${row.status === "active"
-            ? "bg-green-100 text-green-700"
-            : "bg-gray-100 text-gray-700"
-            }`}
+          className={`text-xs px-2 py-0.5 rounded-full ${
+            row.status === "active"
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-700"
+          }`}
         >
           {row.status}
         </span>

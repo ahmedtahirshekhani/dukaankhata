@@ -87,8 +87,6 @@ interface Product {
   description?: string;
 }
 
-
-
 interface Transaction {
   id: number;
   productId?: number | string;
@@ -139,7 +137,6 @@ export default function CounterSale() {
   });
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
 
-
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
@@ -187,6 +184,15 @@ export default function CounterSale() {
     // Create date at midnight local time and convert to ISO
     const date = new Date(dateString + "T00:00:00");
     return date.toISOString();
+  };
+
+  // Helper to truncate a description to a maximum number of words
+  const truncateWords = (text?: string, maxWords = 3) => {
+    if (!text) return "";
+    const words = text.trim().split(/\s+/);
+    return words.length <= maxWords
+      ? text
+      : `${words.slice(0, maxWords).join(" ")}...`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,8 +336,6 @@ export default function CounterSale() {
     );
   };
 
-
-
   const handleUpdateTransaction = async (id: number) => {
     // Validate required fields
     if (!editFormData.productId) {
@@ -391,7 +395,10 @@ export default function CounterSale() {
       });
       return false;
     }
-    if (newTransaction.unitPrice === undefined || newTransaction.unitPrice === null) {
+    if (
+      newTransaction.unitPrice === undefined ||
+      newTransaction.unitPrice === null
+    ) {
       setErrorDialog({
         open: true,
         title: t("validationError"),
@@ -458,7 +465,7 @@ export default function CounterSale() {
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      
+
       // Filter transactions for selected year from local state
       const yearTransactions = transactions.filter((t) => {
         const transactionYear = new Date(t.created_at).getFullYear();
@@ -507,12 +514,12 @@ export default function CounterSale() {
 
     try {
       setIsDownloading(true);
-      
+
       // Filter transactions for date range from local state
       const fromDate = new Date(dateRange.fromDate);
       const toDate = new Date(dateRange.toDate);
       toDate.setHours(23, 59, 59, 999); // Include entire end day
-      
+
       const dateRangeTransactions = transactions.filter((t) => {
         const tDate = new Date(t.created_at);
         return tDate >= fromDate && tDate <= toDate;
@@ -569,7 +576,10 @@ export default function CounterSale() {
     ];
 
     // Export sample data
-    exportTransactionsToExcel(sampleTransactions, "counter-sale-sample-data.xlsx");
+    exportTransactionsToExcel(
+      sampleTransactions,
+      "counter-sale-sample-data.xlsx",
+    );
   }, []);
 
   const handleImportConfirm = useCallback(
@@ -676,7 +686,15 @@ export default function CounterSale() {
         setIsImporting(false);
       }
     },
-    [t, currentPage, sortColumn, sortDirection, selectedYear, setTransactions, setPageInfo],
+    [
+      t,
+      currentPage,
+      sortColumn,
+      sortDirection,
+      selectedYear,
+      setTransactions,
+      setPageInfo,
+    ],
   );
 
   const handleFileSelect = useCallback(
@@ -707,9 +725,12 @@ export default function CounterSale() {
             const workbook = XLSX.read(data, { type: "array" });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            
-            const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
-            
+
+            const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<
+              string,
+              any
+            >[];
+
             if (jsonData.length > 0) {
               const columns = Object.keys(jsonData[0]);
               setImportData(jsonData);
@@ -1557,12 +1578,18 @@ export default function CounterSale() {
                       <TableRow>
                         <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
                           <ProductDropdown
-                            value={newTransaction.productId ? String(newTransaction.productId) : ""}
+                            value={
+                              newTransaction.productId
+                                ? String(newTransaction.productId)
+                                : ""
+                            }
                             onValueChange={(value, product) => {
                               if (product) {
                                 setNewTransaction((prev) => ({
                                   ...prev,
-                                  productId: (product._id ? String(product._id) : String(product.id)) as any,
+                                  productId: (product._id
+                                    ? String(product._id)
+                                    : String(product.id)) as any,
                                   productName: product.name,
                                   productDescription: product.description,
                                   unitPrice: product.sell_price || 0,
@@ -1708,25 +1735,32 @@ export default function CounterSale() {
                           {editingId === transaction.id ? (
                             <TableRow className="hidden md:table-row">
                               <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                                  <ProductDropdown
-                                    value={editFormData.productId ? String(editFormData.productId) : ""}
-                                    onValueChange={(value, product) => {
-                                      if (product) {
-                                        setEditFormData((prev) => ({
-                                          ...prev,
-                                          productId: (product._id ? String(product._id) : String(product.id)) as any,
-                                          productName: product.name,
-                                          productDescription: product.description,
-                                          unitPrice: product.sell_price || 0,
-                                          uom: product.unit_of_measurement || "unit",
-                                          quantity: 1,
-                                          amount: (product.sell_price || 0) * 1,
-                                        }));
-                                      }
-                                    }}
-                                    placeholder={t("selectItem")}
-                                    className="w-32 truncate text-xs"
-                                  />
+                                <ProductDropdown
+                                  value={
+                                    editFormData.productId
+                                      ? String(editFormData.productId)
+                                      : ""
+                                  }
+                                  onValueChange={(value, product) => {
+                                    if (product) {
+                                      setEditFormData((prev) => ({
+                                        ...prev,
+                                        productId: (product._id
+                                          ? String(product._id)
+                                          : String(product.id)) as any,
+                                        productName: product.name,
+                                        productDescription: product.description,
+                                        unitPrice: product.sell_price || 0,
+                                        uom:
+                                          product.unit_of_measurement || "unit",
+                                        quantity: 1,
+                                        amount: (product.sell_price || 0) * 1,
+                                      }));
+                                    }
+                                  }}
+                                  placeholder={t("selectItem")}
+                                  className="w-32 truncate text-xs"
+                                />
                               </TableCell>
                               <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
                                 <Input
@@ -1885,7 +1919,10 @@ export default function CounterSale() {
                                     </span>
                                     {transaction.productDescription && (
                                       <span className="text-xs text-muted-foreground leading-snug">
-                                        {transaction.productDescription}
+                                        {truncateWords(
+                                          transaction.productDescription,
+                                          3,
+                                        )}
                                       </span>
                                     )}
                                   </div>
@@ -2133,25 +2170,31 @@ export default function CounterSale() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium">Item</label>
-                        <ProductDropdown
-                          value={editFormData.productId ? String(editFormData.productId) : ""}
-                          onValueChange={(value, product) => {
-                            if (product) {
-                              setEditFormData((prev) => ({
-                                ...prev,
-                                productId: (product._id ? String(product._id) : String(product.id)) as any,
-                                productName: product.name,
-                                productDescription: product.description,
-                                unitPrice: product.sell_price || 0,
-                                uom: product.unit_of_measurement || "unit",
-                                quantity: 1,
-                                amount: (product.sell_price || 0) * 1,
-                              }));
-                            }
-                          }}
-                          placeholder="Select Item"
-                          className="w-full truncate text-sm"
-                        />
+                      <ProductDropdown
+                        value={
+                          editFormData.productId
+                            ? String(editFormData.productId)
+                            : ""
+                        }
+                        onValueChange={(value, product) => {
+                          if (product) {
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              productId: (product._id
+                                ? String(product._id)
+                                : String(product.id)) as any,
+                              productName: product.name,
+                              productDescription: product.description,
+                              unitPrice: product.sell_price || 0,
+                              uom: product.unit_of_measurement || "unit",
+                              quantity: 1,
+                              amount: (product.sell_price || 0) * 1,
+                            }));
+                          }
+                        }}
+                        placeholder="Select Item"
+                        className="w-full truncate text-sm"
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium">Type</label>
@@ -2311,7 +2354,7 @@ export default function CounterSale() {
                       </div>
                       {transaction.productDescription && (
                         <div className="text-muted-foreground text-xs">
-                          {transaction.productDescription}
+                          {truncateWords(transaction.productDescription, 3)}
                         </div>
                       )}
                       <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
@@ -2413,7 +2456,7 @@ export default function CounterSale() {
               <div className="text-sm text-muted-foreground whitespace-nowrap">
                 {tCommon("totalCountLabel", { count: pageInfo.total })}
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
                   {tCommon("rowsPerPage")}
@@ -2435,7 +2478,7 @@ export default function CounterSale() {
                 </Select>
               </div>
             </div>
-            
+
             {pageInfo.totalPages > 1 && (
               <Pagination
                 currentPage={currentPage}
@@ -2495,25 +2538,31 @@ export default function CounterSale() {
               <label className="text-xs sm:text-sm font-medium">
                 {t("item")}
               </label>
-                <ProductDropdown
-                  value={newTransaction.productId ? String(newTransaction.productId) : ""}
-                  onValueChange={(value, product) => {
-                    if (product) {
-                      setNewTransaction((prev) => ({
-                        ...prev,
-                        productId: (product._id ? String(product._id) : String(product.id)) as any,
-                        productName: product.name,
-                        productDescription: product.description,
-                        unitPrice: product.sell_price || 0,
-                        uom: product.unit_of_measurement || "unit",
-                        quantity: 1,
-                        amount: (product.sell_price || 0) * 1,
-                      }));
-                    }
-                  }}
-                  placeholder={t("selectItem")}
-                  className="w-full truncate text-sm"
-                />
+              <ProductDropdown
+                value={
+                  newTransaction.productId
+                    ? String(newTransaction.productId)
+                    : ""
+                }
+                onValueChange={(value, product) => {
+                  if (product) {
+                    setNewTransaction((prev) => ({
+                      ...prev,
+                      productId: (product._id
+                        ? String(product._id)
+                        : String(product.id)) as any,
+                      productName: product.name,
+                      productDescription: product.description,
+                      unitPrice: product.sell_price || 0,
+                      uom: product.unit_of_measurement || "unit",
+                      quantity: 1,
+                      amount: (product.sell_price || 0) * 1,
+                    }));
+                  }
+                }}
+                placeholder={t("selectItem")}
+                className="w-full truncate text-sm"
+              />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
@@ -2761,7 +2810,10 @@ export default function CounterSale() {
         isLoading={isImporting}
         onConfirm={handleImportConfirm}
         title={t("importPreview") || "Import Preview"}
-        description={t("editImportData") || "Edit the data below before confirming the import"}
+        description={
+          t("editImportData") ||
+          "Edit the data below before confirming the import"
+        }
       />
     </>
   );

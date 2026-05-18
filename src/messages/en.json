@@ -1035,6 +1035,8 @@
     "totalBalanceYoullGet": "Total Balance (You'll get)",
     "totalRevenue": "Total Revenue",
     "totalExpenses": "Total Expenses",
+    "counterSales": "Counter Sales",
+    "counterExpenses": "Counter Expenses",
     "totalProfit": "Total Profit (selling)",
     "profitMargin": "Profit Margin",
     "revenueTrend": "Revenue Trend",
