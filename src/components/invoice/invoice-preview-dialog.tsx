@@ -37,6 +37,12 @@ type BrandingPayload = {
 let brandingCache: BrandingPayload | null = null;
 let brandingInFlight: Promise<BrandingPayload> | null = null;
 
+// Helper to clear cache if needed
+export const clearBrandingCache = () => {
+  brandingCache = null;
+  brandingInFlight = null;
+};
+
 interface InvoicePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -157,7 +163,29 @@ export function InvoicePreviewDialog({
       : getToday(),
   }));
 
-  const loadBranding = async () => {
+  useEffect(() => {
+    setPaidAmount(initialPayment?.paid_amount || 0);
+    setPaymentMethod(initialPayment?.method || "");
+    setPaidDate(initialPayment?.paid_date
+      ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+      : null);
+    setNoPaymentAtAll(initialPayment?.no_payment_at_all || false);
+    
+    // Also update payment seed
+    setPaymentSeed({
+      amount: initialPayment?.paid_amount || total,
+      method: initialPayment?.method || "",
+      date: initialPayment?.paid_date
+        ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+        : getToday(),
+    });
+  }, [initialPayment, total]);
+
+  const loadBranding = async (force = false) => {
+    if (force) {
+      brandingCache = null;
+      brandingInFlight = null;
+    }
     try {
       // Check localStorage first
       const cachedLogo =
@@ -262,7 +290,7 @@ export function InvoicePreviewDialog({
   };
 
   useEffect(() => {
-    loadBranding();
+    loadBranding(true); // Force fresh load on mount to avoid stale data from other pages
 
     const handleUpdate = () => {
       loadBranding();
@@ -421,7 +449,7 @@ export function InvoicePreviewDialog({
     <React.Fragment>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full ${
+          className={`max-h-[90vh] overflow-y-auto overflow-x-hidden w-[95vw] sm:w-full ${
             printFormat === "thermal" ? "max-w-md" : "max-w-4xl"
           } p-3 sm:p-6`}
         >
@@ -440,35 +468,39 @@ export function InvoicePreviewDialog({
           >
             <div
               className={
-                hidePaymentActions ? "w-full" : "lg:col-span-2 overflow-x-auto"
+                hidePaymentActions 
+                  ? "w-full overflow-x-auto" 
+                  : "lg:col-span-2 overflow-x-auto overflow-y-hidden pb-4 custom-scrollbar max-w-full"
               }
             >
-              <InvoicePreview
-                ref={invoiceRef}
-                invoiceNo={invoiceNo}
-                customer={customer}
-                saleDate={saleDate}
-                dueDate={dueDate}
-                products={products}
-                subtotal={subtotal}
-                charges={charges}
-                overallDiscount={overallDiscount}
-                shippingCharges={shippingCharges}
-                total={total}
-                noPaymentAtAll={noPaymentAtAll}
-                paidAmount={paidAmount}
-                paidDate={paidDate}
-                companyLogo={companyLogo}
-                signatureImage={signatureImage}
-                includeSignature={includeSignature}
-                requestCustomerSignature={requestCustomerSignature}
-                companyName={companyName}
-                companyAddress={companyAddress}
-                companyPhone={companyPhone}
-                companyEmail={companyEmail}
-                customerNotes={customerNotes}
-                printFormat={printFormat}
-              />
+              <div className="md:min-w-0 inline-block w-full">
+                <InvoicePreview
+                  ref={invoiceRef}
+                  invoiceNo={invoiceNo}
+                  customer={customer}
+                  saleDate={saleDate}
+                  dueDate={dueDate}
+                  products={products}
+                  subtotal={subtotal}
+                  charges={charges}
+                  overallDiscount={overallDiscount}
+                  shippingCharges={shippingCharges}
+                  total={total}
+                  noPaymentAtAll={noPaymentAtAll}
+                  paidAmount={paidAmount}
+                  paidDate={paidDate}
+                  companyLogo={companyLogo}
+                  signatureImage={signatureImage}
+                  includeSignature={includeSignature}
+                  requestCustomerSignature={requestCustomerSignature}
+                  companyName={companyName}
+                  companyAddress={companyAddress}
+                  companyPhone={companyPhone}
+                  companyEmail={companyEmail}
+                  customerNotes={customerNotes}
+                  printFormat={printFormat}
+                />
+              </div>
             </div>
 
             {hidePaymentActions ? (

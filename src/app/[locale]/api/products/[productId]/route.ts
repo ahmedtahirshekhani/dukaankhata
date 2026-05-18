@@ -68,8 +68,7 @@ export async function PUT(
       user_id: toObjectId(user.id)
     };
 
-    // ✅ Use setLastUpdated helper instead of manual $set
-    const updateResult = await setLastUpdated(productsCollection, filter, updatedProduct);
+    const updateResult = await productsCollection.updateOne(filter, { $set: updatedProduct });
 
     if (updateResult.matchedCount === 0) {
       console.warn('[PUT /api/products/:productId] Product not found or not authorized', {
@@ -85,10 +84,6 @@ export async function PUT(
     if (!updatedDoc) {
       return NextResponse.json({ error: 'Product not found after update' }, { status: 404 })
     }
-
-    // ✅ Update user's last activity
-    const usersCollection = await getCollection(COLLECTIONS.USERS);
-    await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
     console.info('[PUT /api/products/:productId] Product update succeeded', {
       requestId,
@@ -110,6 +105,39 @@ export async function PUT(
       bodyKeys: Object.keys(updatedProduct || {}),
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
+    })
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { productId: string } }
+) {
+  const user = await getCurrentUser() as { id: string } | null
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const productId = params.productId
+  if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+
+  try {
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const result = await productsCollection.deleteOne({
+      _id: toObjectId(productId),
+      user_id: toObjectId(user.id)
+    });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: 'Product not found or not authorized' }, { status: 404 })
+    }
+
+    await updateUserLastActivity();
+    return NextResponse.json({ message: 'Product deleted successfully' })
+  } catch (err) {
+    console.error('[DELETE /api/products/:productId] Unexpected error', {
+      userId: user.id,
+      productId,
+      error: err instanceof Error ? err.message : String(err),
     })
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }

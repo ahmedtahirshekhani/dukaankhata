@@ -20,6 +20,18 @@ export default function PurchaseModulePage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
+            <CardTitle>{tNav("purchaseBill")}</CardTitle>
+            <CardDescription>{tNav("purchaseBillDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href={`/${locale}/admin/purchase-bill`}>{tPurchase("openModule")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>{tNav("paymentOut")}</CardTitle>
             <CardDescription>{tNav("paymentOutDescription")}</CardDescription>
           </CardHeader>

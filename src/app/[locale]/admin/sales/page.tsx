@@ -20,6 +20,18 @@ export default function SalesModulePage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
+            <CardTitle>{tNav("quotations")}</CardTitle>
+            <CardDescription>{tNav("quotationsDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href={`/${locale}/admin/quotations`}>{tSales("openModule")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>{tNav("invoice")}</CardTitle>
             <CardDescription>{tNav("invoiceDescription")}</CardDescription>
           </CardHeader>

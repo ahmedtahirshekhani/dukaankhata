@@ -108,6 +108,7 @@ export default function Products() {
   });
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -154,12 +155,18 @@ export default function Products() {
   const handleDeleteProduct = useCallback(async () => {
     if (!productToDelete) return;
     try {
+      setIsDeleting(true);
       const response = await fetch(`/api/products/${productToDelete.id}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
+        // Optimistic update
         setProducts(products.filter((p) => p.id !== productToDelete.id));
+        
+        // Refresh all data from server to update pagination and totals
+        await refetchData();
+        
         setIsDeleteConfirmationOpen(false);
         setProductToDelete(null);
       } else {
@@ -167,9 +174,10 @@ export default function Products() {
       }
     } catch (error) {
       console.error("Error deleting product:", error);
+    } finally {
+      setIsDeleting(false);
     }
-  }, [productToDelete, products, setProducts]);
-
+  }, [productToDelete, products, setProducts, refetchData]);
 
   const currentProducts = products;
 
@@ -422,13 +430,6 @@ export default function Products() {
     fileInputRef.current?.click();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="h-[80vh] flex items-center justify-center">
-        <Loader2Icon className="mx-auto h-12 w-12 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <>
@@ -614,6 +615,7 @@ export default function Products() {
         <CardContent className="p-0 relative">
           <ProductsTable
             products={currentProducts}
+            isLoading={loading}
             onEdit={(product) => {
               setSelectedProduct(product);
               setIsProductDialogOpen(true);
@@ -689,7 +691,14 @@ export default function Products() {
             >
               {tCommon("cancel")}
             </Button>
-            <Button variant="danger" onClick={handleDeleteProduct}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProduct}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               {tCommon("delete")}
             </Button>
           </DialogFooter>
