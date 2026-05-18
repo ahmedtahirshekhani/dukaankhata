@@ -92,7 +92,7 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
       const diffToMonday = (day + 6) % 7;
       start = getStartOfDay(now);
       start.setDate(start.getDate() - diffToMonday);
-      end = now;
+      end = getEndOfDay(now);
       break;
     }
     case "lastWeek": {
@@ -109,7 +109,7 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
     }
     case "thisMonth":
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      end = now;
+      end = getEndOfDay(now);
       break;
     case "lastMonth":
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
@@ -125,7 +125,7 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
       break;
     case "ytd":
       start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-      end = now;
+      end = getEndOfDay(now);
       break;
   }
 
