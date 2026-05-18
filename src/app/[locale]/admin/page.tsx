@@ -79,8 +79,8 @@ const getEndOfDay = (date: Date) =>
 
 const getRangeTimestamps = (rangeKey: CounterRange) => {
   const now = new Date();
-  let start: Date;
-  let end: Date;
+  let start = getStartOfDay(now);
+  let end = getEndOfDay(now);
 
   switch (rangeKey) {
     case "today":
@@ -127,9 +127,6 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
       start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
       end = now;
       break;
-    default:
-      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      end = now;
   }
 
   return {
