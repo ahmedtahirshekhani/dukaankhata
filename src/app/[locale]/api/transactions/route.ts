@@ -35,6 +35,18 @@ export async function GET(request: Request) {
   if (fromDateTime && toDateTime) {
     const startDate = new Date(fromDateTime);
     const endDate = new Date(toDateTime);
+
+    if (
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime()) ||
+      startDate > endDate
+    ) {
+      return NextResponse.json(
+        { error: "Invalid datetime range" },
+        { status: 400 },
+      );
+    }
+
     filter.created_at = { $gte: startDate, $lte: endDate };
   } else if (fromDate && toDate) {
     const startDate = new Date(fromDate + "T00:00:00.000Z");
