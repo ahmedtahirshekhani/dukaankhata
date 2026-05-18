@@ -24,13 +24,19 @@ export async function GET(request: Request) {
   const year = searchParams.get("year");
   const fromDate = searchParams.get("fromDate");
   const toDate = searchParams.get("toDate");
+  const fromDateTime = searchParams.get("fromDateTime");
+  const toDateTime = searchParams.get("toDateTime");
   const all = searchParams.get("all") === "true";
 
   const offset = (page - 1) * limit;
   const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
   const filter: Record<string, unknown> = { user_id: toObjectId(user.id) };
 
-  if (fromDate && toDate) {
+  if (fromDateTime && toDateTime) {
+    const startDate = new Date(fromDateTime);
+    const endDate = new Date(toDateTime);
+    filter.created_at = { $gte: startDate, $lte: endDate };
+  } else if (fromDate && toDate) {
     const startDate = new Date(fromDate + "T00:00:00.000Z");
     const endDate = new Date(toDate + "T23:59:59.999Z");
     filter.created_at = { $gte: startDate, $lte: endDate };

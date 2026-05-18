@@ -47,6 +47,96 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type CounterRange =
+  | "today"
+  | "thisWeek"
+  | "lastWeek"
+  | "thisMonth"
+  | "lastMonth"
+  | "ytd";
+
+const getStartOfDay = (date: Date) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+
+const getEndOfDay = (date: Date) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+
+const getRangeTimestamps = (rangeKey: CounterRange) => {
+  const now = new Date();
+  let start: Date;
+  let end: Date;
+
+  switch (rangeKey) {
+    case "today":
+      start = getStartOfDay(now);
+      end = now;
+      break;
+    case "thisWeek": {
+      const day = now.getDay();
+      const diffToMonday = (day + 6) % 7;
+      start = getStartOfDay(now);
+      start.setDate(start.getDate() - diffToMonday);
+      end = now;
+      break;
+    }
+    case "lastWeek": {
+      const day = now.getDay();
+      const diffToMonday = (day + 6) % 7;
+      const thisWeekStart = getStartOfDay(now);
+      thisWeekStart.setDate(thisWeekStart.getDate() - diffToMonday);
+      start = new Date(thisWeekStart);
+      start.setDate(start.getDate() - 7);
+      end = getEndOfDay(thisWeekStart);
+      end.setDate(end.getDate() - 1);
+      break;
+    }
+    case "thisMonth":
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      end = now;
+      break;
+    case "lastMonth":
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      break;
+    case "ytd":
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      end = now;
+      break;
+    default:
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      end = now;
+  }
+
+  return {
+    fromDateTime: start.toISOString(),
+    toDateTime: end.toISOString(),
+  };
+};
+
 export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
   const tCust = useTranslations("customers");
@@ -67,12 +157,10 @@ export default function DashboardPage() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [counterSales, setCounterSales] = useState(0);
   const [counterExpenses, setCounterExpenses] = useState(0);
-  const [counterSalesRange, setCounterSalesRange] = useState<
-    "today" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "ytd"
-  >("today");
-  const [counterExpensesRange, setCounterExpensesRange] = useState<
-    "today" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "ytd"
-  >("today");
+  const [counterSalesRange, setCounterSalesRange] =
+    useState<CounterRange>("today");
+  const [counterExpensesRange, setCounterExpensesRange] =
+    useState<CounterRange>("today");
   const [importOpen, setImportOpen] = useState(false);
 
   const [salesRows, setSalesRows] = useState<
@@ -230,71 +318,15 @@ export default function DashboardPage() {
     fetchTabData();
   }, [activeDashboardTab, currentPage, pageSize, locale]);
 
-  // Helper to get date range strings (YYYY-MM-DD) for dropdown ranges
-  const getRangeDates = (rangeKey: string) => {
-    const now = new Date();
-    const fmt = (d: Date) => {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    };
-    let start: Date;
-    let end: Date;
-
-    switch (rangeKey) {
-      case "today":
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        end = start;
-        break;
-      case "thisWeek": {
-        const day = now.getDay();
-        // ISO week start Monday: compute diff to Monday
-        const diffToMonday = (day + 6) % 7;
-        start = new Date(now);
-        start.setDate(now.getDate() - diffToMonday);
-        end = now;
-        break;
-      }
-      case "lastWeek": {
-        const day = now.getDay();
-        const diffToMonday = (day + 6) % 7;
-        const thisWeekStart = new Date(now);
-        thisWeekStart.setDate(now.getDate() - diffToMonday);
-        start = new Date(thisWeekStart);
-        start.setDate(thisWeekStart.getDate() - 7);
-        end = new Date(thisWeekStart);
-        end.setDate(thisWeekStart.getDate() - 1);
-        break;
-      }
-      case "thisMonth":
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        break;
-      case "lastMonth":
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        end = new Date(now.getFullYear(), now.getMonth(), 0);
-        break;
-      case "ytd":
-        start = new Date(now.getFullYear(), 0, 1);
-        end = now;
-        break;
-      default:
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = now;
-    }
-
-    return { fromDate: fmt(start), toDate: fmt(end) };
-  };
-
   // Fetch counter sales total for selected range
   useEffect(() => {
     const fetchSales = async () => {
       try {
-        const { fromDate, toDate } = getRangeDates(counterSalesRange);
-        const res = await fetch(
-          `/api/transactions?all=true&fromDate=${fromDate}&toDate=${toDate}`,
-        );
+        const params = new URLSearchParams({
+          all: "true",
+          ...getRangeTimestamps(counterSalesRange),
+        });
+        const res = await fetch(`/api/transactions?${params.toString()}`);
         if (!res.ok) return;
         const data = await res.json();
         const txs = data.data || [];
@@ -315,10 +347,11 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        const { fromDate, toDate } = getRangeDates(counterExpensesRange);
-        const res = await fetch(
-          `/api/transactions?all=true&fromDate=${fromDate}&toDate=${toDate}`,
-        );
+        const params = new URLSearchParams({
+          all: "true",
+          ...getRangeTimestamps(counterExpensesRange),
+        });
+        const res = await fetch(`/api/transactions?${params.toString()}`);
         if (!res.ok) return;
         const data = await res.json();
         const txs = data.data || [];
