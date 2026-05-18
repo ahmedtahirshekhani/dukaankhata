@@ -102,8 +102,9 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
       thisWeekStart.setDate(thisWeekStart.getDate() - diffToMonday);
       start = new Date(thisWeekStart);
       start.setDate(start.getDate() - 7);
-      end = getEndOfDay(thisWeekStart);
+      end = new Date(thisWeekStart);
       end.setDate(end.getDate() - 1);
+      end = getEndOfDay(end);
       break;
     }
     case "thisMonth":
