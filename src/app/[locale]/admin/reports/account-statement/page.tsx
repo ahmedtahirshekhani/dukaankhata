@@ -221,6 +221,22 @@ export default function AccountStatementLatestPage() {
           },
         })
         .from(reportRef.current)
+        .toPdf()
+        .get("pdf")
+        .then((pdf: any) => {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(148, 163, 184); // #94a3b8
+            pdf.text(
+              "This Document is Generated From dukaankhata.app",
+              297 / 2, // Center of landscape A4 (297mm width)
+              210 - 4, // 4mm from the bottom of A4 (210mm height)
+              { align: "center" }
+            );
+          }
+        })
         .save();
     } catch (error) {
       console.error("PDF export failed:", error);

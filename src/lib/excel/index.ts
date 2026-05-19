@@ -374,3 +374,46 @@ export function exportStockReportToExcel(
   XLSX.writeFile(workbook, filename);
 }
 
+interface ReceivableDebtorItem {
+  name: string;
+  company_name?: string;
+  email?: string;
+  phone?: string;
+  balance: number;
+  status: string;
+}
+
+/**
+ * Exports Receivable Summary debtors to an Excel file
+ */
+export function exportReceivableSummaryToExcel(
+  items: ReceivableDebtorItem[],
+  filename: string = "receivable-summary.xlsx"
+): void {
+  const excelData = items.map((item) => ({
+    "Party Name": item.name || "-",
+    "Company Name": item.company_name || "-",
+    Email: item.email || "-",
+    Phone: item.phone || "-",
+    "Outstanding Balance (Rs.)": Math.floor(item.balance),
+    Status: item.status || "active",
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  const columnWidths = [
+    { wch: 25 }, // Party Name
+    { wch: 22 }, // Company Name
+    { wch: 30 }, // Email
+    { wch: 20 }, // Phone
+    { wch: 25 }, // Outstanding Balance (Rs.)
+    { wch: 12 }, // Status
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Receivable Summary");
+  XLSX.writeFile(workbook, filename);
+}
+
+

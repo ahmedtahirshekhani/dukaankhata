@@ -33,7 +33,6 @@ export default function ReportsModulePage() {
       href: `/${locale}/admin/reports/receivable-summary`,
       icon: Users,
       color: "bg-amber-500/10 text-amber-500 dark:bg-amber-500/20",
-      isComingSoon: true,
     },
     {
       title: tNav("profitability"),
