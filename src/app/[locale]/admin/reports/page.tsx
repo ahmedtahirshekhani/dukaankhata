@@ -16,7 +16,7 @@ export default function ReportsModulePage() {
     {
       title: tNav("accountStatement"),
       description: tNav("accountStatementDescription") || "View party account statements",
-      href: `/${locale}/admin/account-statement`,
+      href: `/${locale}/admin/reports/account-statement`,
       icon: FileText,
       color: "bg-blue-500/10 text-blue-500 dark:bg-blue-500/20",
     },
@@ -78,13 +78,15 @@ export default function ReportsModulePage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="pt-2">
-                <Button asChild variant={report.isComingSoon ? "outline" : "default"} className="group-hover:translate-x-1 transition-transform duration-200">
-                  <Link href={report.href}>
-                    {tReports("openModule")}
-                  </Link>
-                </Button>
-              </CardContent>
+              {!report.isComingSoon && (
+                <CardContent className="pt-2">
+                  <Button asChild className="group-hover:translate-x-1 transition-transform duration-200">
+                    <Link href={report.href}>
+                      {tReports("openModule")}
+                    </Link>
+                  </Button>
+                </CardContent>
+              )}
             </Card>
           );
         })}

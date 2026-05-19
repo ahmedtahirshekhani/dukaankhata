@@ -1446,7 +1446,7 @@ export default function NewInvoicePage() {
             </Button>
             <Button onClick={() => {
               setShowOrderCreatedDialog(false);
-              router.push(`/${locale}/admin/invoice`);
+              router.push(`/${locale}/admin/sales/invoice`);
             }}>
               {t("ok")}
             </Button>

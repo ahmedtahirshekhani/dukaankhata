@@ -39,7 +39,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   Loader2,
-  DollarSign,
   Info,
   Printer,
   ChevronLeft,
@@ -306,7 +305,6 @@ export default function StockReportPage() {
     }
   }, [handleScroll, summary]);
 
-  // Card summary object mapping
   const summaryCards = useMemo(() => [
     {
       title: tStock("totalStockItems"),
@@ -319,25 +317,25 @@ export default function StockReportPage() {
     },
     {
       title: tStock("costValuation"),
-      value: formatCurrency(summary.totalCostValue),
+      value: `PKR ${formatCurrency(summary.totalCostValue)}`,
       subValue: tStock("totalCostValuation"),
-      icon: DollarSign,
+      icon: TrendingDown,
       bgClass: "bg-blue-50/50 dark:bg-blue-950/20",
       iconClass: "text-blue-500",
       borderClass: "hover:border-blue-500/20"
     },
     {
       title: tStock("retailValuation"),
-      value: formatCurrency(summary.totalSellValue),
+      value: `PKR ${formatCurrency(summary.totalSellValue)}`,
       subValue: tStock("totalRetailValuation"),
-      icon: DollarSign,
+      icon: TrendingUp,
       bgClass: "bg-amber-50/50 dark:bg-amber-950/20",
       iconClass: "text-amber-500",
       borderClass: "hover:border-amber-500/20"
     },
     {
       title: tStock("profitPotential"),
-      value: formatCurrency(summary.totalProfitPotential),
+      value: `PKR ${formatCurrency(summary.totalProfitPotential)}`,
       subValue: tStock("profit"),
       icon: TrendingUp,
       bgClass: "bg-violet-50/50 dark:bg-violet-950/20",
@@ -690,15 +688,15 @@ export default function StockReportPage() {
                   <tr>
                     <td style={{ padding: "12px", textAlign: "center", borderRight: "1px solid #e2e8f0" }}>
                       <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("costValuation")}</div>
-                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0f172a", marginTop: "4px" }}>{formatCurrency(summary.totalCostValue)}</div>
+                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0f172a", marginTop: "4px" }}>PKR {formatCurrency(summary.totalCostValue)}</div>
                     </td>
                     <td style={{ padding: "12px", textAlign: "center", borderRight: "1px solid #e2e8f0" }}>
                       <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("retailValuation")}</div>
-                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0f172a", marginTop: "4px" }}>{formatCurrency(summary.totalSellValue)}</div>
+                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0f172a", marginTop: "4px" }}>PKR {formatCurrency(summary.totalSellValue)}</div>
                     </td>
                     <td style={{ padding: "12px", textAlign: "center" }}>
                       <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("profitPotential")}</div>
-                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#8b5cf6", marginTop: "4px" }}>{formatCurrency(summary.totalProfitPotential)}</div>
+                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#8b5cf6", marginTop: "4px" }}>PKR {formatCurrency(summary.totalProfitPotential)}</div>
                     </td>
                   </tr>
                 </tbody>

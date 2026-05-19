@@ -417,7 +417,7 @@ function AddPurchaseBillPageInner() {
             // Reset form after success
             setTimeout(() => {
                 // Navigate back to listing page
-                router.push(`/${locale}/admin/purchase-bill`);
+                router.push(`/${locale}/admin/purchase/purchase-bill`);
             }, 1500);
         } catch (error) {
             setErrorDialog({
