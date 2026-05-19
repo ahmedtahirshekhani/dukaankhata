@@ -18,6 +18,77 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Helper to check if product is goods (not service)
+function isGoodsProduct(productDoc: any): boolean {
+  const type = productDoc?.type;
+  return !type || type === "goods" || type === "good";
+}
+
+// Increment stock for purchase bill items
+async function applyPurchaseBillStock(
+  productsCollection: any,
+  items: any[]
+): Promise<void> {
+  if (!items || !Array.isArray(items)) return;
+
+  for (const item of items) {
+    if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
+      continue;
+    }
+    const productDoc = await productsCollection.findOne({ _id: toObjectId(item.product_id.toString()) });
+    if (!productDoc) continue;
+    if (!isGoodsProduct(productDoc)) continue;
+
+    const qty = Number(item.quantity) || 0;
+    if (qty <= 0) continue;
+
+    const stockField =
+      productDoc.quantity !== undefined && productDoc.quantity !== null
+        ? "quantity"
+        : productDoc.in_stock !== undefined && productDoc.in_stock !== null
+          ? "in_stock"
+          : "quantity";
+
+    await productsCollection.updateOne(
+      { _id: toObjectId(item.product_id.toString()) },
+      { $inc: { [stockField]: qty } }
+    );
+  }
+}
+
+// Revert/Deduct stock for purchase bill items (reversing purchase)
+async function reversePurchaseBillStock(
+  productsCollection: any,
+  items: any[]
+): Promise<void> {
+  if (!items || !Array.isArray(items)) return;
+
+  for (const item of items) {
+    if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
+      continue;
+    }
+    const productDoc = await productsCollection.findOne({ _id: toObjectId(item.product_id.toString()) });
+    if (!productDoc) continue;
+    if (!isGoodsProduct(productDoc)) continue;
+
+    const qty = Number(item.quantity) || 0;
+    if (qty <= 0) continue;
+
+    const stockField =
+      productDoc.quantity !== undefined && productDoc.quantity !== null
+        ? "quantity"
+        : productDoc.in_stock !== undefined && productDoc.in_stock !== null
+          ? "in_stock"
+          : "quantity";
+
+    await productsCollection.updateOne(
+      { _id: toObjectId(item.product_id.toString()) },
+      { $inc: { [stockField]: -qty } }
+    );
+  }
+}
+
+
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
 
@@ -249,6 +320,9 @@ export async function POST(request: Request) {
       updated_at: now,
     });
 
+    // Apply stock increment for purchase
+    await applyPurchaseBillStock(productsCollection, enrichedItems);
+
     // Record ledger entry
     if (totalAmount !== 0) {
       try {
@@ -301,6 +375,9 @@ export async function PUT(request: Request) {
 
   const {
     id,
+    party_id: partyId,
+    party_name: partyName,
+    items,
     discount,
     discount_type: discountType,
     tax,
@@ -329,6 +406,59 @@ export async function PUT(request: Request) {
     const billObjId = toObjectId(id);
     const filter = { _id: billObjId, user_id: userObjId };
 
+    // Fetch existing bill to revert old stock
+    const oldBill = await purchaseBillsCollection.findOne(filter);
+    if (!oldBill) {
+      return NextResponse.json(
+        { error: "Purchase bill not found" },
+        { status: 404 }
+      );
+    }
+
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+
+    // Revert stock of old items
+    if (oldBill.items && Array.isArray(oldBill.items)) {
+      await reversePurchaseBillStock(productsCollection, oldBill.items);
+    }
+
+    // Process new items if provided in request
+    let enrichedItems = oldBill.items;
+    if (Array.isArray(items)) {
+      enrichedItems = await Promise.all(
+        items.map(async (item: any) => {
+          let productName = item.product_name;
+          let productDescription = item.product_description || "";
+
+          if (item.product_id && isValidObjectId(item.product_id)) {
+            const productObjId = toObjectId(item.product_id);
+            const product = await productsCollection.findOne(
+              { _id: productObjId },
+              { projection: { name: 1, description: 1 } }
+            );
+            if (product) {
+              productName = productName || product.name;
+              productDescription = productDescription || product.description;
+            }
+          }
+
+          const productId = item.product_id && isValidObjectId(item.product_id) ? toObjectId(item.product_id) : null;
+
+          return {
+            product_id: productId,
+            product_name: productName,
+            product_description: productDescription,
+            quantity: Number(item.quantity) || 0,
+            cost_price: Number(item.cost_price) || 0,
+            amount: Number(item.amount) || 0,
+          };
+        })
+      );
+    }
+
+    // Apply new stock
+    await applyPurchaseBillStock(productsCollection, enrichedItems);
+
     const finalPaidAmount = Number(paidAmount) || 0;
     if (finalPaidAmount > totalAmount) {
       return NextResponse.json(
@@ -340,7 +470,7 @@ export async function PUT(request: Request) {
     const finalIsPaid = finalBalanceDue === 0;
 
     // Prepare update fields (without updated_at, helper will add it)
-    const updateData = {
+    const updateData: any = {
       discount: Number(discount),
       discount_type: discountType || "fixed",
       tax: Number(tax),
@@ -353,6 +483,16 @@ export async function PUT(request: Request) {
       payment_method_name: paymentMethodName || null,
       description: description || null,
     };
+
+    if (partyId && isValidObjectId(partyId)) {
+      updateData.party_id = toObjectId(partyId);
+    }
+    if (partyName) {
+      updateData.party_name = partyName;
+    }
+    if (Array.isArray(items)) {
+      updateData.items = enrichedItems;
+    }
 
     // ✅ Use setLastUpdated helper
     const updateResult = await setLastUpdated(
@@ -409,6 +549,26 @@ export async function DELETE(request: Request) {
 
     const userObjId = toObjectId(user.id);
     const billObjId = toObjectId(id);
+
+    // Fetch existing bill to reverse stock before deletion
+    const oldBill = await purchaseBillsCollection.findOne({
+      _id: billObjId,
+      user_id: userObjId,
+    });
+
+    if (!oldBill) {
+      return NextResponse.json(
+        { error: "Purchase bill not found" },
+        { status: 404 }
+      );
+    }
+
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+
+    // Reverse stock of all items
+    if (oldBill.items && Array.isArray(oldBill.items)) {
+      await reversePurchaseBillStock(productsCollection, oldBill.items);
+    }
 
     const result = await purchaseBillsCollection.deleteOne({
       _id: billObjId,

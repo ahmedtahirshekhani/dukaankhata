@@ -309,3 +309,68 @@ export function exportCustomersTemplate(
   // Write the file
   XLSX.writeFile(workbook, filename);
 }
+
+interface StockReportItem {
+  sku?: string;
+  name: string;
+  category?: string;
+  branch?: string;
+  quantity?: number;
+  cost_price?: number;
+  sell_price?: number;
+  damaged_quantity?: number;
+}
+
+/**
+ * Exports Stock Report items to an Excel file with detailed valuations
+ */
+export function exportStockReportToExcel(
+  items: StockReportItem[],
+  filename: string = "stock-report.xlsx"
+): void {
+  const excelData = items.map((item) => {
+    const qty = item.quantity || 0;
+    const cost = item.cost_price || 0;
+    const sell = item.sell_price || 0;
+    const damagedQty = item.damaged_quantity || 0;
+    const totalCostVal = qty * cost;
+    const totalRetailVal = qty * sell;
+    const profitPotential = totalRetailVal - totalCostVal;
+
+    return {
+      "Product Name": item.name || "-",
+      Category: item.category || "-",
+      Branch: item.branch || "-",
+      Quantity: qty,
+      "Cost Price (Rs.)": Math.floor(cost),
+      "Sell Price (Rs.)": Math.floor(sell),
+      "Total Cost Valuation (Rs.)": Math.floor(totalCostVal),
+      "Total Retail Valuation (Rs.)": Math.floor(totalRetailVal),
+      "Profit Potential (Rs.)": Math.floor(profitPotential),
+      "Damaged Quantity": damagedQty,
+      "Damaged Valuation (Rs.)": Math.floor(damagedQty * cost),
+    };
+  });
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  const columnWidths = [
+    { wch: 25 }, // Product Name
+    { wch: 18 }, // Category
+    { wch: 18 }, // Branch
+    { wch: 12 }, // Quantity
+    { wch: 18 }, // Cost Price
+    { wch: 18 }, // Sell Price
+    { wch: 25 }, // Total Cost Valuation
+    { wch: 25 }, // Total Retail Valuation
+    { wch: 22 }, // Profit Potential
+    { wch: 18 }, // Damaged Quantity
+    { wch: 22 }, // Damaged Valuation
+  ];
+  worksheet["!cols"] = columnWidths;
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Stock Report");
+  XLSX.writeFile(workbook, filename);
+}
+

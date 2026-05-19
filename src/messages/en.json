@@ -38,7 +38,8 @@
     "totalCountLabel": "Total {count} records",
     "rowsPerPage": "Rows per page",
     "noResults": "No results found for your search",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "clearFilters": "Clear Filters"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -81,6 +82,13 @@
     "configuration": "Configuration",
     "configurationDescription": "Upload company logo and signature",
     "reports": "Reports",
+    "reportsDescription": "View business and financial reports",
+    "stockReport": "Stock Report",
+    "stockReportDescription": "View current stock levels, valuation, and inventory details",
+    "receivableSummary": "Receivable Summary",
+    "receivableSummaryDescription": "Summary of outstanding receivables from all parties",
+    "profitability": "Profitability",
+    "profitabilityDescription": "Track business revenue, expenses, and net profit margins",
     "admin": "Admin",
     "expenses": "Expenses",
     "expensesDescription": "Record and track business expenses",
@@ -391,6 +399,38 @@
   },
   "purchaseModule": {
     "openModule": "Open"
+  },
+  "reportsModule": {
+    "openModule": "Open"
+  },
+  "stockReportPage": {
+    "title": "Stock Report",
+    "description": "Real-time overview of current inventory levels, valuation, and potential profit margins.",
+    "totalStockItems": "Total Stock Items",
+    "costValuation": "Cost Valuation",
+    "retailValuation": "Retail Valuation",
+    "profitPotential": "Profit Potential",
+    "damagedQuantity": "Damaged Qty",
+    "damagedValuation": "Damaged Valuation",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock",
+    "productName": "Product Name",
+    "quantity": "Quantity",
+    "costPrice": "Cost Price",
+    "sellPrice": "Sell Price",
+    "totalCostValuation": "Total Cost Valuation",
+    "totalRetailValuation": "Total Retail Valuation",
+    "lowStockWarning": "Quantity is low! Please restock soon.",
+    "exportExcel": "Export Excel",
+    "downloadPdf": "Download PDF",
+    "searchProducts": "Search products by name...",
+    "category": "Category",
+    "branch": "Branch",
+    "type": "Type",
+    "all": "All",
+    "products": "Products",
+    "profit": "Profit",
+    "noData": "No data found"
   },
   "saleReturn": {
     "title": "Sale Return",

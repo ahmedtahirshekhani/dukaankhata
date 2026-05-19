@@ -30,6 +30,7 @@ import {
   ChevronRight,
   Home,
   Sparkles,
+  BarChart,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -47,6 +48,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [salesExpanded, setSalesExpanded] = useState(false); // Changed to false
   const [purchaseExpanded, setPurchaseExpanded] = useState(false); // Changed to false
+  const [reportsExpanded, setReportsExpanded] = useState(false);
   const [companyName, setCompanyName] = useState<string>("");
 
   // Fetch company name from localStorage or session
@@ -94,10 +96,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/purchase-bill",
     "/admin/payment-out",
   ];
+  const reportsSubRoutes = [
+    "/admin/account-statement",
+    "/admin/reports/stock",
+    "/admin/reports/receivable-summary",
+    "/admin/reports/profitability",
+  ];
   const isSalesSectionActive =
     pathWithoutLocale === "/admin/sales" || salesSubRoutes.includes(pathWithoutLocale);
   const isPurchaseSectionActive =
     pathWithoutLocale === "/admin/purchase" || purchaseSubRoutes.includes(pathWithoutLocale);
+  const isReportsSectionActive =
+    pathWithoutLocale === "/admin/reports" || reportsSubRoutes.includes(pathWithoutLocale);
 
   useEffect(() => {
     if (isSalesSectionActive) {
@@ -110,6 +120,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       setPurchaseExpanded(true);
     }
   }, [isPurchaseSectionActive]);
+
+  useEffect(() => {
+    if (isReportsSectionActive) {
+      setReportsExpanded(true);
+    }
+  }, [isReportsSectionActive]);
 
   const pageNames: { [key: string]: string } = {
     "/admin": tNav("dashboard"),
@@ -127,6 +143,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/counter-sale": tNav("counterSale"),
     "/admin/quotations": tNav("quotations"),
     "/admin/account-statement": tNav("accountStatement"),
+    "/admin/reports/stock": tNav("stockReport"),
+    "/admin/reports/receivable-summary": tNav("receivableSummary"),
+    "/admin/reports/profitability": tNav("profitability"),
     "/admin/ai-chat": tNav("aiChat"),
   };
 
@@ -537,27 +556,97 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
-            {/* Cash & Bank / Account Statement */}
+            {/* Reports Section */}
             <div>
-              <Link
-                href={`/${locale}/admin/account-statement`}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${pathWithoutLocale === "/admin/account-statement" ? navItemActive : navItemInactive
-                  } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("accountStatement") : ""}
-              >
-                <FileText className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+              <div className="flex items-stretch gap-1">
+                <Link
+                  href={`/${locale}/admin/reports`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} flex-1 ${isReportsSectionActive ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? tNav("reports") : ""}
                 >
-                  <span className="font-medium leading-none">
+                  <BarChart className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("reports")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("reportsDescription")}
+                    </span>
+                  </div>
+                </Link>
+
+                {!sidebarMinimized && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`h-auto px-2 rounded-xl border border-transparent ${isReportsSectionActive
+                        ? "text-primary hover:bg-primary/10"
+                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                      }`}
+                    aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
+                    aria-expanded={reportsExpanded}
+                    onClick={() => setReportsExpanded((prev) => !prev)}
+                  >
+                    <ChevronRight
+                      className={`h-4 w-4 transition-transform ${reportsExpanded ? "rotate-90" : ""}`}
+                    />
+                  </Button>
+                )}
+              </div>
+
+              {!sidebarMinimized && reportsExpanded && (
+                <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
+                  <Link
+                    href={`/${locale}/admin/account-statement`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/account-statement" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/account-statement"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                  >
                     {tNav("accountStatement")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("accountStatementDescription")}
-                  </span>
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/reports/stock`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/stock"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                  >
+                    {tNav("stockReport")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/reports/receivable-summary`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                  >
+                    {tNav("receivableSummary")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/reports/profitability`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
+                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/profitability"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                  >
+                    {tNav("profitability")}
+                  </Link>
                 </div>
-              </Link>
+              )}
             </div>
 
             {/* Reports - You may need to add a Reports link if needed */}

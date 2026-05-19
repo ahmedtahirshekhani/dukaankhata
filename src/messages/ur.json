@@ -38,7 +38,8 @@
     "totalCountLabel": "کل {count} ریکارڈز",
     "rowsPerPage": "قطاریں فی صفحہ",
     "noResults": "آپ کی تلاش کے کوئی نتائج نہیں ملے",
-    "clearSearch": "تلاش ختم کریں"
+    "clearSearch": "تلاش ختم کریں",
+    "clearFilters": "فلٹرز ختم کریں"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -81,6 +82,13 @@
     "configuration": "سیٹنگز",
     "configurationDescription": "لوگو اور دستخط",
     "reports": "رپورٹس",
+    "reportsDescription": "کاروباری اور مالیاتی رپورٹیں دیکھیں",
+    "stockReport": "اسٹاک رپورٹ",
+    "stockReportDescription": "موجودہ اسٹاک کی سطح، قیمت، اور انوینٹری کی تفصیلات دیکھیں",
+    "receivableSummary": "قابل وصول خلاصہ",
+    "receivableSummaryDescription": "تمام پارٹیوں سے بقایا وصولی کا خلاصہ",
+    "profitability": "منافع بخشش",
+    "profitabilityDescription": "کاروباری آمدنی، اخراجات، اور خالص منافع کا مارجن ٹریک کریں",
     "admin": "ایڈمن",
     "expenses": "اخراجات",
     "expensesDescription": "کاروباری اخراجات",
@@ -390,6 +398,38 @@
   },
   "purchaseModule": {
     "openModule": "کھولیں"
+  },
+  "reportsModule": {
+    "openModule": "کھولیں"
+  },
+  "stockReportPage": {
+    "title": "اسٹاک رپورٹ",
+    "description": "موجودہ انوینٹری کی سطح، مالیت، اور متوقع منافع کے مارجن کا حقیقی وقت میں جائزہ۔",
+    "totalStockItems": "کل اسٹاک اشیاء",
+    "costValuation": "لاگت کی مالیت",
+    "retailValuation": "خردہ مالیت",
+    "profitPotential": "متوقع منافع",
+    "damagedQuantity": "خراب اشیاء",
+    "damagedValuation": "خراب اشیاء کی مالیت",
+    "lowStock": "کم اسٹاک",
+    "outOfStock": "اسٹاک ختم",
+    "productName": "پروڈکٹ کا نام",
+    "quantity": "مقدار",
+    "costPrice": "خریداری کی قیمت",
+    "sellPrice": "فروخت کی قیمت",
+    "totalCostValuation": "کل لاگت مالیت",
+    "totalRetailValuation": "کل خردہ مالیت",
+    "lowStockWarning": "مقدار کم ہے! براہ کرم جلد ہی اسٹاک دوبارہ بھریں۔",
+    "exportExcel": "ایکسل ایکسپورٹ",
+    "downloadPdf": "پی ڈی ایف ڈاؤن لوڈ کریں",
+    "searchProducts": "پروڈکٹ کا نام تلاش کریں...",
+    "category": "کیٹیگری",
+    "branch": "برانچ",
+    "type": "قسم",
+    "all": "تمام",
+    "products": "پروڈکٹس",
+    "profit": "منافع",
+    "noData": "کوئی ڈیٹا نہیں ملا"
   },
   "saleReturn": {
     "title": "سیل ریٹرن",
