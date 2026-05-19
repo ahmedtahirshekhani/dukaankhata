@@ -225,7 +225,7 @@ export default function QuotationListPage() {
           <p className="text-sm text-muted-foreground">{tNav("quotationsDescription")}</p>
         </div>
         <Button asChild className="shrink-0">
-          <Link href={`/${locale}/admin/quotations/new`}>{t("common.add")}</Link>
+          <Link href={`/${locale}/admin/sales/quotations/new`}>{t("common.add")}</Link>
         </Button>
       </div>
 
@@ -310,12 +310,12 @@ export default function QuotationListPage() {
                           <TableCell>
                             <div className="flex gap-1 justify-end">
                               <Button size="icon" variant="ghost" asChild title="View">
-                                <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
+                                <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
                                   <EyeIcon className="h-4 w-4" />
                                 </Link>
                               </Button>
                               <Button size="icon" variant="ghost" asChild title="Edit">
-                                <Link href={`/${locale}/admin/quotations/${quotId}/edit`}>
+                                <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
                                   <Edit className="h-4 w-4" />
                                 </Link>
                               </Button>
@@ -504,13 +504,13 @@ function QuotationCard({
       <div className="flex flex-wrap justify-end gap-2 mt-4 pt-3 border-t">
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" asChild title="View" className="h-8 w-8">
-            <Link href={`/${locale}/admin/quotations/${quotId}/view`}>
+            <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
               <EyeIcon className="h-4 w-4" />
               <span className="sr-only">{t("common.view") || "View"}</span>
             </Link>
           </Button>
           <Button size="icon" variant="ghost" asChild title="Edit" className="h-8 w-8">
-            <Link href={`/${locale}/admin/quotations/${quotId}/edit`}>
+            <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
               <Edit className="h-4 w-4" />
               <span className="sr-only">{t("common.edit") || "Edit"}</span>
             </Link>

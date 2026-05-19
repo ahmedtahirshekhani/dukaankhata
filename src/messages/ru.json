@@ -38,7 +38,8 @@
     "totalCountLabel": "Total {count} records",
     "rowsPerPage": "Rows per page",
     "noResults": "Aap ki talash ke mutabiq koi nataij nahi mile",
-    "clearSearch": "Talash khatam karain"
+    "clearSearch": "Talash khatam karain",
+    "clearFilters": "Filters khatam karain"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -81,6 +82,13 @@
     "configuration": "Settings",
     "configurationDescription": "Company logo aur signature upload karain",
     "reports": "Reports",
+    "reportsDescription": "Karobar aur financial reports dekhein",
+    "stockReport": "Stock Report",
+    "stockReportDescription": "Maujuda stock levels, valuation, aur inventory ki details dekhein",
+    "receivableSummary": "Receivable Summary",
+    "receivableSummaryDescription": "Tamam parties se outstanding receivables ka khulasa",
+    "profitability": "Profitability",
+    "profitabilityDescription": "Business revenue, expenses, aur net profit margins ko track karein",
     "admin": "Admin",
     "expenses": "Expenses",
     "expensesDescription": "Business kharchon ko record aur track karain",
@@ -390,6 +398,38 @@
   },
   "purchaseModule": {
     "openModule": "Open"
+  },
+  "reportsModule": {
+    "openModule": "Open"
+  },
+  "stockReportPage": {
+    "title": "Stock Report",
+    "description": "Maujuda stock levels, valuation, aur expected profit margins ka real-time overview.",
+    "totalStockItems": "Total Stock Items",
+    "costValuation": "Cost Valuation",
+    "retailValuation": "Retail Valuation",
+    "profitPotential": "Profit Potential",
+    "damagedQuantity": "Damaged Qty",
+    "damagedValuation": "Damaged Valuation",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock",
+    "productName": "Product Name",
+    "quantity": "Quantity",
+    "costPrice": "Cost Price",
+    "sellPrice": "Sell Price",
+    "totalCostValuation": "Total Cost Valuation",
+    "totalRetailValuation": "Total Retail Valuation",
+    "lowStockWarning": "Quantity kam hai! Please jald restock karein.",
+    "exportExcel": "Export Excel",
+    "downloadPdf": "Download PDF",
+    "searchProducts": "Product name se search karein...",
+    "category": "Category",
+    "branch": "Branch",
+    "type": "Type",
+    "all": "All",
+    "products": "Products",
+    "profit": "Profit",
+    "noData": "No data found"
   },
   "saleReturn": {
     "title": "Sale Return",

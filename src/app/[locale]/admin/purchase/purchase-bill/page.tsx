@@ -209,7 +209,7 @@ export default function PurchaseBillPage() {
           )}
         </div>
         <Button
-          onClick={() => router.push(`/${locale}/admin/purchase-bill/new`)}
+          onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new`)}
           className="gap-2 shrink-0"
         >
           <Plus className="h-4 w-4" />
@@ -279,7 +279,7 @@ export default function PurchaseBillPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
+                              onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new?id=${bill.id}`)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -307,7 +307,7 @@ export default function PurchaseBillPage() {
                   <PurchaseBillCard
                     key={bill.id}
                     bill={bill}
-                    onEdit={() => router.push(`/${locale}/admin/purchase-bill/new?id=${bill.id}`)}
+                    onEdit={() => router.push(`/${locale}/admin/purchase/purchase-bill/new?id=${bill.id}`)}
                     onDelete={() => setDeleteConfirmDialog({ open: true, billId: bill.id })}
                     t={t}
                     tCommon={tCommon}

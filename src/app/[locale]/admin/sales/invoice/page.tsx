@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useDebounce } from "../../../../hooks/use-debounce";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Card,
   CardContent,
@@ -787,7 +787,7 @@ export default function OrdersPage() {
               </DropdownMenu>
             </div>
             <Button asChild className="gap-2 self-start">
-              <Link href={`/${locale}/admin/invoice/new`}>
+              <Link href={`/${locale}/admin/sales/invoice/new`}>
                 <PlusCircle className="w-4 h-4" />
                 {t("createOrder")}
               </Link>

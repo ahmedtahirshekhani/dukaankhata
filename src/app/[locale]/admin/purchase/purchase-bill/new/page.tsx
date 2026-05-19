@@ -165,7 +165,11 @@ function AddPurchaseBillPageInner() {
                             setEditingBillId(bill.id);
                             setSelectedPartyId(bill.party_id);
                             setSelectedPartyName(bill.party_name);
-                            setBillItems(bill.items || []);
+                            const loadedItems = (bill.items || []).map((item: any, idx: number) => ({
+                                ...item,
+                                id: item.id || `item-${idx}-${Date.now()}`
+                            }));
+                            setBillItems(loadedItems);
                             setDiscount(bill.discount?.toString() || "0");
                             setDiscountType(bill.discount_type || "fixed");
                             setTax(bill.tax?.toString() || "0");
@@ -413,7 +417,7 @@ function AddPurchaseBillPageInner() {
             // Reset form after success
             setTimeout(() => {
                 // Navigate back to listing page
-                router.push(`/${locale}/admin/purchase-bill`);
+                router.push(`/${locale}/admin/purchase/purchase-bill`);
             }, 1500);
         } catch (error) {
             setErrorDialog({
