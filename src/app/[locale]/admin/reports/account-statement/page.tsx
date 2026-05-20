@@ -83,6 +83,7 @@ interface ReportMeta {
 
 export default function AccountStatementLatestPage() {
   const t = useTranslations("accountStatement");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
@@ -221,6 +222,22 @@ export default function AccountStatementLatestPage() {
           },
         })
         .from(reportRef.current)
+        .toPdf()
+        .get("pdf")
+        .then((pdf: any) => {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(148, 163, 184); // #94a3b8
+            pdf.text(
+              tCommon("pdfWatermarkText"),
+              297 / 2, // Center of landscape A4 (297mm width)
+              210 - 4, // 4mm from the bottom of A4 (210mm height)
+              { align: "center" }
+            );
+          }
+        })
         .save();
     } catch (error) {
       console.error("PDF export failed:", error);
@@ -229,7 +246,7 @@ export default function AccountStatementLatestPage() {
       if (reportRef.current) reportRef.current.classList.remove("is-exporting");
       setExportingPdf(false);
     }
-  }, [reportMeta, fromDate, toDate]);
+  }, [tCommon, reportMeta, fromDate, toDate]);
 
   const getBalanceColor = (balance: number) => {
     if (balance > 0) return "text-red-600";
