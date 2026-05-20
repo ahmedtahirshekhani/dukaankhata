@@ -27,6 +27,7 @@
     "download": "Download",
     "downloadPdf": "Download PDF",
     "exportExcel": "Export Excel",
+    "pdfWatermarkText": "This Document is Generated From dukaankhata.app",
     "share": "Share",
     "convertToSale": "Convert to Sale",
     "searchProduct": "Search Product...",
@@ -451,8 +452,8 @@
     "contactInformation": "Contact Information",
     "outstandingBalance": "Outstanding Balance",
     "status": "Status",
-    "active": "active",
-    "inactive": "inactive",
+    "active": "Active",
+    "inactive": "Inactive",
     "noData": "No outstanding debtors found.",
     "searchMatch": "Search Match",
     "exportDate": "Export Date"

@@ -9,10 +9,8 @@ import Image from "next/image";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +52,6 @@ export default function ReceivableSummaryPage() {
   const tNav = useTranslations("navigation");
   const tCommon = useTranslations("common");
   const tRec = useTranslations("receivableSummaryPage");
-  const tInvoice = useTranslations("invoice");
 
   // Localized title & descriptions with custom fallbacks
   const titleStr = tRec("title") || tNav("receivableSummary") || "Receivable Summary";
@@ -235,7 +232,7 @@ export default function ReceivableSummaryPage() {
             pdf.setFontSize(8);
             pdf.setTextColor(148, 163, 184); // #94a3b8
             pdf.text(
-              "This Document is Generated From dukaankhata.app",
+              tCommon("pdfWatermarkText"),
               297 / 2, // Center of landscape A4 (297mm width)
               210 - 4, // 4mm from the bottom of A4 (210mm height)
               { align: "center" }
@@ -250,7 +247,7 @@ export default function ReceivableSummaryPage() {
       if (reportRef.current) reportRef.current.classList.remove("is-exporting");
       setIsExportingPdf(false);
     }
-  }, []);
+  }, [tCommon]);
 
   const handleClearFilters = () => {
     setSearchTerm("");

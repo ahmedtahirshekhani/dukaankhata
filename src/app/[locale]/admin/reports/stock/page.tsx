@@ -53,7 +53,6 @@ export default function StockReportPage() {
   const tNav = useTranslations("navigation");
   const tCommon = useTranslations("common");
   const tStock = useTranslations("stockReportPage");
-  const tInvoice = useTranslations("invoice");
 
   // Search and Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -258,7 +257,7 @@ export default function StockReportPage() {
             pdf.setFontSize(8);
             pdf.setTextColor(148, 163, 184); // #94a3b8
             pdf.text(
-              "This Document is Generated From dukaankhata.app",
+              tCommon("pdfWatermarkText"),
               297 / 2, // Center of landscape A4 (297mm width)
               210 - 4, // 4mm from the bottom of A4 (210mm height)
               { align: "center" }
@@ -273,7 +272,7 @@ export default function StockReportPage() {
       if (reportRef.current) reportRef.current.classList.remove("is-exporting");
       setIsExportingPdf(false);
     }
-  }, []);
+  }, [tCommon]);
 
   const handleClearFilters = () => {
     setSearchTerm("");

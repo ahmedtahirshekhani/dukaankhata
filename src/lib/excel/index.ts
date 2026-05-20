@@ -396,7 +396,7 @@ export function exportReceivableSummaryToExcel(
     Email: item.email || "-",
     Phone: item.phone || "-",
     "Outstanding Balance (Rs.)": Math.floor(item.balance),
-    Status: item.status || "active",
+    Status: (item.status || "active").charAt(0).toUpperCase() + (item.status || "active").slice(1),
   }));
 
   const workbook = XLSX.utils.book_new();

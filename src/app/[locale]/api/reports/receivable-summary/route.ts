@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     
-    // Query condition: only active/non-deleted customers with outstanding positive balances (> 0)
+    // Query condition: only non-deleted customers with outstanding positive balances (> 0)
     const baseQuery: any = {
       user_id: toObjectId(user.id),
       is_delete: { $ne: 1 },
@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // 1. Calculate overall summary statistics using aggregation over all matching debtors
+    // 1. Calculate summary statistics for the same filtered result set used by the list/pagination
     const statsPipeline = [
-      { $match: baseQuery },
+      { $match: listQuery },
       {
         $group: {
           _id: null,
