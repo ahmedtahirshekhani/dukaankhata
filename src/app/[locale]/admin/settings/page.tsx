@@ -32,7 +32,6 @@ export default function SettingsPage({
 }) {
   const router = useRouter();
   const t = useTranslations("settingsPage");
-  const tAuth = useTranslations("auth");
   const { user, refreshSession } = useUserProfile();
 
   const [formData, setFormData] = useState({
@@ -215,7 +214,14 @@ export default function SettingsPage({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || t("accountDeleteFailed"));
+        // Map error messages to translations
+        let errorKey = "accountDeleteFailed";
+        if (data?.error?.includes("password")) {
+          errorKey = "invalidPassword";
+        } else if (data?.error?.includes("Unauthorized")) {
+          errorKey = "unauthorized";
+        }
+        throw new Error(t(errorKey));
       }
 
       // Account deleted successfully - clear session and localStorage
@@ -420,7 +426,19 @@ export default function SettingsPage({
       </div>
 
       {/* Delete Account Modal */}
-      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+      <Dialog
+        open={showDeleteModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteForm({
+              reason: "",
+              password: "",
+            });
+            setDeleteError("");
+          }
+          setShowDeleteModal(open);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">

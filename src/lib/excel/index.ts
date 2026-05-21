@@ -12,6 +12,39 @@ interface Transaction {
   customerNumber?: string;
 }
 
+interface ProfitabilitySummary {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  profitMargin: number;
+  totalOrders: number;
+  totalExpenseItems: number;
+  avgOrderValue?: number;
+  avgExpenseValue?: number;
+}
+
+interface ProfitabilityBreakdown {
+  category: string;
+  revenue: number;
+  orders: number;
+}
+
+interface ProfitabilityExpense {
+  _id?: string;
+  id?: string;
+  category: string;
+  description: string;
+  amount: number;
+  date: string;
+  paymentMethod?: string;
+}
+
+interface ProfitabilityReportData {
+  summary: ProfitabilitySummary;
+  breakdown: ProfitabilityBreakdown[];
+  expenses: ProfitabilityExpense[];
+}
+
 /**
  * Exports transactions to an Excel file
  * @param transactions Array of transactions to export
@@ -420,7 +453,7 @@ export function exportReceivableSummaryToExcel(
  * Exports Profitability Report to an Excel file
  */
 export function exportProfitabilityToExcel(
-  data: { summary: any; breakdown: any[]; expenses: any[] },
+  data: ProfitabilityReportData,
   filename: string = "profitability-report.xlsx"
 ): void {
   const workbook = XLSX.utils.book_new();

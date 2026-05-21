@@ -177,6 +177,13 @@ export default function ProfitabilityReportPage() {
     setTimeout(() => fetchReport(), 100);
   };
 
+  // Refetch report when currentPage changes
+  useEffect(() => {
+    if (hasSearched && currentPage > 1) {
+      fetchReport();
+    }
+  }, [currentPage, hasSearched, fetchReport]);
+
   const isFormValid = useMemo(() => fromDate && toDate, [fromDate, toDate]);
 
   // Format currency
@@ -432,6 +439,8 @@ export default function ProfitabilityReportPage() {
             {showLeftArrow && (
               <button
                 onClick={scrollLeft}
+                type="button"
+                aria-label="Scroll summary cards left"
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all lg:hidden"
               >
                 <ChevronLeft className="h-5 w-5 text-muted-foreground" />
@@ -442,6 +451,8 @@ export default function ProfitabilityReportPage() {
             {showRightArrow && (
               <button
                 onClick={scrollRight}
+                type="button"
+                aria-label="Scroll summary cards right"
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all lg:hidden"
               >
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />

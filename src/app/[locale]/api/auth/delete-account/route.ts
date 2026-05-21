@@ -1,7 +1,9 @@
-import { getServerSession } from "next-auth";
 import { auth } from "@/auth";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import bcrypt from "bcryptjs";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
