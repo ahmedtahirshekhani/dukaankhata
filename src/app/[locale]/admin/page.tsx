@@ -405,7 +405,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const slider = sliderRef.current;
     if (slider) {
-      slider.addEventListener("scroll", handleScroll);
+      slider.addEventListener("scroll", handleScroll, { passive: true });
       handleScroll();
       return () => slider.removeEventListener("scroll", handleScroll);
     }
@@ -622,6 +622,12 @@ export default function DashboardPage() {
 
   return (
     <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
+      <style jsx>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">
@@ -727,7 +733,10 @@ export default function DashboardPage() {
 
         <div className="flex justify-center gap-1.5 mt-3">
           {summaryCards.map((_, idx) => {
-            const currentIndex = Math.round(scrollPosition / mobileCardStep);
+            const currentIndex = Math.min(
+              summaryCards.length - 1,
+              Math.max(0, Math.round(scrollPosition / mobileCardStep)),
+            );
             const isActive = currentIndex === idx;
 
             return (
