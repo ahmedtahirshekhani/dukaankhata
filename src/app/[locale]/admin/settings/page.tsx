@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -14,13 +16,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function SettingsPage({
   params,
 }: {
   params: { locale: string };
 }) {
+  const router = useRouter();
   const t = useTranslations("settingsPage");
+  const tAuth = useTranslations("auth");
   const { user, refreshSession } = useUserProfile();
 
   const [formData, setFormData] = useState({
@@ -29,6 +41,15 @@ export default function SettingsPage({
     company: "",
   });
   const [formDirty, setFormDirty] = useState(false);
+
+  // Delete Account Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteForm, setDeleteForm] = useState({
+    reason: "",
+    password: "",
+  });
+  const [deleteError, setDeleteError] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Initialize form data when user or cached company name is available
   useEffect(() => {
@@ -162,6 +183,57 @@ export default function SettingsPage({
       setTimeout(() => setMessage(""), 3000);
     } catch (err: any) {
       setPasswordError(err?.message || t("passwordChangeFailed"));
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
+
+    // Validation
+    if (!deleteForm.reason.trim()) {
+      setDeleteError(t("whyDeleteAccountRequired"));
+      return;
+    }
+    if (!deleteForm.password) {
+      setDeleteError(t("passwordRequired"));
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      const res = await fetch(`/${params.locale}/api/auth/delete-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: deleteForm.password,
+          reason: deleteForm.reason,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || t("accountDeleteFailed"));
+      }
+
+      // Account deleted successfully - clear session and localStorage
+      // Clear localStorage
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+      }
+
+      // Sign out and clear NextAuth session/cookie
+      await signOut({ redirect: false });
+
+      // Redirect to home
+      setShowDeleteModal(false);
+      router.push(`/${params.locale}`);
+    } catch (err: any) {
+      setDeleteError(err?.message || t("accountDeleteFailed"));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -329,8 +401,107 @@ export default function SettingsPage({
               )}
             </CardContent>
           </Card>
+
+          <Card className="mt-8 border-red-200 bg-red-50/50">
+            <CardHeader>
+              <CardTitle className="text-red-600">{t("dangerZone")}</CardTitle>
+              <CardDescription>{t("deleteAccountDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => setShowDeleteModal(true)}
+                className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
+              >
+                {t("deleteAccountButton")}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              {t("deleteAccountTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("deleteAccountWarning")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleDeleteAccount} className="space-y-4">
+            {deleteError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="delete-reason">
+                {t("whyDeleteAccount")} <span className="text-red-600">*</span>
+              </Label>
+              <textarea
+                id="delete-reason"
+                value={deleteForm.reason}
+                onChange={(e) =>
+                  setDeleteForm((p) => ({ ...p, reason: e.target.value }))
+                }
+                placeholder={t("whyDeleteAccountPlaceholder")}
+                className="w-full min-h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                disabled={isDeleting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="delete-password">
+                {t("enterPassword")} <span className="text-red-600">*</span>
+              </Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deleteForm.password}
+                onChange={(e) =>
+                  setDeleteForm((p) => ({ ...p, password: e.target.value }))
+                }
+                placeholder={t("enterPasswordDescription")}
+                disabled={isDeleting}
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteForm({ reason: "", password: "" });
+                  setDeleteError("");
+                }}
+                disabled={isDeleting}
+              >
+                {t("cancelDeletion")}
+              </Button>
+              <Button
+                type="submit"
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t("deleteAccountButton")}
+                  </>
+                ) : (
+                  t("confirmDeletion")
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   );
 }

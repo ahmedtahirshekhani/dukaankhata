@@ -34,6 +34,10 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
 
     const err = rawError.toLowerCase();
 
+    if (err.includes("account_deleted")) {
+      return t("accountDeleted");
+    }
+
     if (
       err === "credentialssignin" ||
       err.includes("credential") ||

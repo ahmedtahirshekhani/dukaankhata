@@ -416,4 +416,76 @@ export function exportReceivableSummaryToExcel(
   XLSX.writeFile(workbook, filename);
 }
 
+/**
+ * Exports Profitability Report to an Excel file
+ */
+export function exportProfitabilityToExcel(
+  data: { summary: any; breakdown: any[]; expenses: any[] },
+  filename: string = "profitability-report.xlsx"
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // Summary Sheet
+  const summaryData = [
+    ["Profitability Summary"],
+    [],
+    ["Metric", "Value"],
+    ["Total Revenue", Math.floor(data.summary.totalRevenue || 0)],
+    ["Total Expenses", Math.floor(data.summary.totalExpenses || 0)],
+    ["Net Profit", Math.floor(data.summary.netProfit || 0)],
+    ["Profit Margin (%)", (data.summary.profitMargin || 0).toFixed(2)],
+    ["Total Orders", data.summary.totalOrders || 0],
+    ["Total Expense Items", data.summary.totalExpenseItems || 0],
+    ["Avg Order Value", Math.floor(data.summary.avgOrderValue || 0)],
+    ["Avg Expense Value", Math.floor(data.summary.avgExpenseValue || 0)],
+  ];
+
+  const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+  summaryWorksheet["!cols"] = [{ wch: 25 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Summary");
+
+  // Breakdown Sheet
+  const breakdownExcelData = data.breakdown.map((item) => ({
+    Category: item.category || "-",
+    Revenue: Math.floor(item.revenue || 0),
+    Orders: item.orders || 0,
+    "Avg Value": Math.floor((item.revenue || 0) / (item.orders || 1)),
+  }));
+
+  if (breakdownExcelData.length > 0) {
+    const breakdownWorksheet = XLSX.utils.json_to_sheet(breakdownExcelData);
+    breakdownWorksheet["!cols"] = [
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 15 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, breakdownWorksheet, "Revenue Breakdown");
+  }
+
+  // Expenses Sheet
+  const expensesExcelData = data.expenses.map((item) => ({
+    Category: item.category || "-",
+    Description: item.description || "-",
+    Amount: Math.floor(item.amount || 0),
+    Date: new Date(item.date).toLocaleDateString(),
+    "Payment Method": item.paymentMethod || "-",
+  }));
+
+  if (expensesExcelData.length > 0) {
+    const expensesWorksheet = XLSX.utils.json_to_sheet(expensesExcelData);
+    expensesWorksheet["!cols"] = [
+      { wch: 20 },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 18 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, expensesWorksheet, "Expenses");
+  }
+
+  XLSX.writeFile(workbook, filename);
+}
+
+
 

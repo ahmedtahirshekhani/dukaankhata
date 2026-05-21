@@ -210,7 +210,8 @@
     "welcomeCardSalesDesc": "اپنی پہلی ٹرانزیکشن ریکارڈ کریں اور اپنی کاروباری ذہانت کو دیکھیں۔",
     "welcomeProTip": "💡 ٹپ: اپنے حسابات کو منظم کرنے کا بہترین وقت کل تھا۔ دوسرا بہترین وقت ابھی ہے!",
     "welcomeButtonText": "دوبارہ لاگ ان کریں",
-    "welcomeFooter": "آپ کا کاروبار اب محفوظ ہاتھوں میں ہے۔ آئیے آپ کی بک کپنگ کو شاندار بنائیں! 🚀"
+    "welcomeFooter": "آپ کا کاروبار اب محفوظ ہاتھوں میں ہے۔ آئیے آپ کی بک کپنگ کو شاندار بنائیں! 🚀",
+    "accountDeleted": "یہ اکاؤنٹ پہلے سے ہی حذف ہے۔ اکاؤنٹ بحال کرنے کے لیے منتظم سے رابطہ کریں"
   },
   "products": {
     "title": "مصنوعات",
@@ -456,6 +457,32 @@
     "noData": "کوئی بقایا مقروض نہیں ملا۔",
     "searchMatch": "تلاش کا مماثلت",
     "exportDate": "برآمد کی تاریخ"
+  },
+  "profitabilityPage": {
+    "title": "منافع کی رپورٹ",
+    "description": "کاروباری آمدنی، اخراجات، اور منافع کے مارجن کو ٹریک کریں",
+    "totalRevenue": "کل آمدنی",
+    "totalExpenses": "کل اخراجات",
+    "netProfit": "خالص منافع",
+    "profitMargin": "منافع کا مارجن",
+    "marginDescription": "آمدنی کے فیصد میں منافع",
+    "fromDate": "تاریخ سے",
+    "toDate": "تاریخ تک",
+    "generate": "رپورٹ بنائیں",
+    "orders": "آرڈرز",
+    "expenses": "اخراجات",
+    "margin": "مارجن",
+    "revenueBreakdown": "زمرہ کے لحاظ سے آمدنی",
+    "category": "زمرہ",
+    "revenue": "آمدنی",
+    "avgValue": "اوسط قدر",
+    "topExpenses": "اہم اخراجات",
+    "expenseDescription": "تفصیل",
+    "amount": "رقم",
+    "date": "تاریخ",
+    "period": "مدت",
+    "generatedOn": "پر تیار",
+    "noData": "منتخب مدت کے لیے کوئی منافع کا ڈیٹا نہیں ملا۔"
   },
   "saleReturn": {
     "title": "سیل ریٹرن",
@@ -1289,6 +1316,23 @@
     "profileUpdateFailed": "پروفائل اپ ڈیٹ کرنے میں ناکام",
     "passwordChangedSuccess": "پاس ورڈ کامیابی سے تبدیل ہو گیا",
     "passwordChangeFailed": "پاس ورڈ تبدیل کرنے میں ناکام",
-    "manageAccountSettings": "اپنی اکاؤنٹ کی ترتیبات اور ترجیحات کا انتظام کریں"
+    "manageAccountSettings": "اپنی اکاؤنٹ کی ترتیبات اور ترجیحات کا انتظام کریں",
+    "dangerZone": "خطرناک زون",
+    "deleteAccount": "اکاؤنٹ حذف کریں",
+    "deleteAccountDescription": "اپنی اکاؤنٹ اور تمام متعلقہ ڈیٹا کو مستقل طور پر حذف کریں",
+    "deleteAccountButton": "میری اکاؤنٹ حذف کریں",
+    "deleteAccountTitle": "اکاؤنٹ حذف کریں",
+    "deleteAccountWarning": "یہ عمل واپس نہیں ہو سکتا۔ براہ کرم غور سے پڑھیں۔",
+    "whyDeleteAccount": "آپ اپنی اکاؤنٹ کو حذف کرنا کیوں چاہتے ہیں؟",
+    "whyDeleteAccountPlaceholder": "ہمیں بتائیں کہ آپ اپنی اکاؤنٹ کو کیوں حذف کر رہے ہیں...",
+    "whyDeleteAccountRequired": "براہ کرم بتائیں کہ آپ اپنی اکاؤنٹ کو کیوں حذف کرنا چاہتے ہیں",
+    "enterPassword": "اپنا پاس ورڈ درج کریں",
+    "enterPasswordDescription": "حذف کرنے کی تصدیق کے لیے یہ ضروری ہے",
+    "passwordRequired": "پاس ورڈ ضروری ہے",
+    "confirmDeletion": "حذف کرنے کی تصدیق",
+    "cancelDeletion": "منسوخ",
+    "accountDeletedSuccess": "آپ کی اکاؤنٹ کامیابی سے حذف ہو گئی",
+    "accountDeleteFailed": "اکاؤنٹ حذف کرنے میں ناکام",
+    "invalidPassword": "پاس ورڈ غلط ہے"
   }
 }

@@ -210,7 +210,8 @@
     "welcomeCardSalesDesc": "Apni pehli transaction record karain aur apni karobar ki zehanaanat ko dekhen.",
     "welcomeProTip": "💡 Tip: Apne hisaabat ko munazzam karne ka behtar waqt kal tha. Doosra behtar waqt abhi hai!",
     "welcomeButtonText": "Dobara Login Karain",
-    "welcomeFooter": "Aapka karobar ab mehfooz hatho mein hai. Aayiye aapki bookkeeping ko shandar banain! 🚀"
+    "welcomeFooter": "Aapka karobar ab mehfooz hatho mein hai. Aayiye aapki bookkeeping ko shandar banain! 🚀",
+    "accountDeleted": "Yeh Account Pehle se Hi Delete Hai. Admin se Rabta Karain Account Restore Karne Ke Liye"
   },
   "products": {
     "title": "Mausoolaat",
@@ -456,6 +457,32 @@
     "noData": "Koi outstanding debtors nahi mile.",
     "searchMatch": "Search Match",
     "exportDate": "Export Date"
+  },
+  "profitabilityPage": {
+    "title": "Profitability Report",
+    "description": "Track business revenue, expenses, aur profit margins over time",
+    "totalRevenue": "Total Revenue",
+    "totalExpenses": "Total Expenses",
+    "netProfit": "Net Profit",
+    "profitMargin": "Profit Margin",
+    "marginDescription": "Profit as % of revenue",
+    "fromDate": "From Date",
+    "toDate": "To Date",
+    "generate": "Generate Report",
+    "orders": "orders",
+    "expenses": "expenses",
+    "margin": "margin",
+    "revenueBreakdown": "Revenue by Category",
+    "category": "Category",
+    "revenue": "Revenue",
+    "avgValue": "Avg Value",
+    "topExpenses": "Top Expenses",
+    "expenseDescription": "Description",
+    "amount": "Amount",
+    "date": "Date",
+    "period": "Period",
+    "generatedOn": "Generated On",
+    "noData": "Koi profitability data nahi mile selected period ke liye."
   },
   "saleReturn": {
     "title": "Sale Return",
@@ -1289,6 +1316,23 @@
     "profileUpdateFailed": "Profile update karne mein nakaami",
     "passwordChangedSuccess": "Password kamyabi se badal gaya",
     "passwordChangeFailed": "Password badalne mein nakaami",
-    "manageAccountSettings": "Apne account ki settings aur pasandeedon ka intezaam karain"
+    "manageAccountSettings": "Apne account ki settings aur pasandeedon ka intezaam karain",
+    "dangerZone": "Danger Zone",
+    "deleteAccount": "Account Delete",
+    "deleteAccountDescription": "Apne account aur tamam related data ko permanently delete karain",
+    "deleteAccountButton": "Mera Account Delete Karain",
+    "deleteAccountTitle": "Account Delete",
+    "deleteAccountWarning": "Yeh action wapas nahi ho sakta. Isko dhyan se padh lain.",
+    "whyDeleteAccount": "Aap apna account kyun delete karna chahte hain?",
+    "whyDeleteAccountPlaceholder": "Btaain ke aap account kyun delete kar rahe hain...",
+    "whyDeleteAccountRequired": "Btaain ke aap account kyun delete karna chahte hain",
+    "enterPassword": "Apna Password Likhen",
+    "enterPasswordDescription": "Yeh deletion ko confirm karne ke liye zaroori hai",
+    "passwordRequired": "Password zaroori hai",
+    "confirmDeletion": "Deletion ka Confirmation",
+    "cancelDeletion": "Cancel",
+    "accountDeletedSuccess": "Aapka account kamyabi se delete ho gaya",
+    "accountDeleteFailed": "Account delete karne mein nakaami",
+    "invalidPassword": "Password galat hai"
   }
 }

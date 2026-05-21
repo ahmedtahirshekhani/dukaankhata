@@ -210,7 +210,8 @@
     "welcomeCardSalesDesc": "Record your first transaction and watch your business intelligence unfold.",
     "welcomeProTip": "💡 Pro Tip: The best time to organize your accounts was yesterday. The second best time is right now!",
     "welcomeButtonText": "Login Again",
-    "welcomeFooter": "Your business is now in safe hands. Let's make your accounting amazing! 🚀"
+    "welcomeFooter": "Your business is now in safe hands. Let's make your accounting amazing! 🚀",
+    "accountDeleted": "This Account Is Already Deleted. Contact Admin to Restore Your Account"
   },
   "products": {
     "title": "Items",
@@ -457,6 +458,32 @@
     "noData": "No outstanding debtors found.",
     "searchMatch": "Search Match",
     "exportDate": "Export Date"
+  },
+  "profitabilityPage": {
+    "title": "Profitability Report",
+    "description": "Track business revenue, expenses, and profit margins over time",
+    "totalRevenue": "Total Revenue",
+    "totalExpenses": "Total Expenses",
+    "netProfit": "Net Profit",
+    "profitMargin": "Profit Margin",
+    "marginDescription": "Profit as % of revenue",
+    "fromDate": "From Date",
+    "toDate": "To Date",
+    "generate": "Generate Report",
+    "orders": "orders",
+    "expenses": "expenses",
+    "margin": "margin",
+    "revenueBreakdown": "Revenue by Category",
+    "category": "Category",
+    "revenue": "Revenue",
+    "avgValue": "Avg Value",
+    "topExpenses": "Top Expenses",
+    "expenseDescription": "Description",
+    "amount": "Amount",
+    "date": "Date",
+    "period": "Period",
+    "generatedOn": "Generated On",
+    "noData": "No profitability data found for the selected period."
   },
   "saleReturn": {
     "title": "Sale Return",
@@ -1360,6 +1387,23 @@
     "profileUpdateFailed": "Failed to update profile",
     "passwordChangedSuccess": "Password changed successfully",
     "passwordChangeFailed": "Failed to change password",
-    "manageAccountSettings": "Manage your account settings and preferences"
+    "manageAccountSettings": "Manage your account settings and preferences",
+    "dangerZone": "Danger Zone",
+    "deleteAccount": "Delete Account",
+    "deleteAccountDescription": "Permanently delete your account and all associated data",
+    "deleteAccountButton": "Delete My Account",
+    "deleteAccountTitle": "Delete Account",
+    "deleteAccountWarning": "This action cannot be undone. Please read this carefully.",
+    "whyDeleteAccount": "Why do you want to delete your account?",
+    "whyDeleteAccountPlaceholder": "Tell us why you're deleting your account...",
+    "whyDeleteAccountRequired": "Please tell us why you want to delete your account",
+    "enterPassword": "Enter Your Password",
+    "enterPasswordDescription": "This is required to confirm the deletion",
+    "passwordRequired": "Password is required",
+    "confirmDeletion": "Confirm Deletion",
+    "cancelDeletion": "Cancel",
+    "accountDeletedSuccess": "Your account has been successfully deleted",
+    "accountDeleteFailed": "Failed to delete account",
+    "invalidPassword": "Invalid password"
   }
 }
