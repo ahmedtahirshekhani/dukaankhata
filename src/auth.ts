@@ -27,6 +27,11 @@ export const authOptions = {
             return null;
           }
 
+          // Check if account is deleted
+          if (userData.isDeleted) {
+            throw new Error("ACCOUNT_DELETED");
+          }
+
           const passwordMatch = await bcrypt.compare(
             credentials.password,
             userData.password_hash
@@ -43,7 +48,10 @@ export const authOptions = {
             company: userData.company_name,
           };
           return user;
-        } catch (error) {
+        } catch (error: any) {
+          if (error.message === "ACCOUNT_DELETED") {
+            throw error;
+          }
           console.error("Auth error:", error);
           return null;
         }

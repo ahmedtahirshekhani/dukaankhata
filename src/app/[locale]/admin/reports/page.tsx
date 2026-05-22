@@ -19,6 +19,7 @@ export default function ReportsModulePage() {
       href: `/${locale}/admin/reports/account-statement`,
       icon: FileText,
       color: "bg-blue-500/10 text-blue-500 dark:bg-blue-500/20",
+      isComingSoon: false,
     },
     {
       title: tNav("stockReport"),
@@ -26,6 +27,7 @@ export default function ReportsModulePage() {
       href: `/${locale}/admin/reports/stock`,
       icon: Package,
       color: "bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20",
+      isComingSoon: false,
     },
     {
       title: tNav("receivableSummary"),
@@ -33,6 +35,7 @@ export default function ReportsModulePage() {
       href: `/${locale}/admin/reports/receivable-summary`,
       icon: Users,
       color: "bg-amber-500/10 text-amber-500 dark:bg-amber-500/20",
+      isComingSoon: false,
     },
     {
       title: tNav("profitability"),
@@ -40,7 +43,7 @@ export default function ReportsModulePage() {
       href: `/${locale}/admin/reports/profitability`,
       icon: TrendingUp,
       color: "bg-violet-500/10 text-violet-500 dark:bg-violet-500/20",
-      isComingSoon: true,
+      isComingSoon: false,
     },
   ];
 
