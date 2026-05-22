@@ -11,6 +11,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { LandingContact } from "@/components/landing/landing-contact";
+import { LandingPricing } from "@/components/landing/landing-pricing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePWA } from "@/components/pwa/pwa-context";
@@ -172,25 +173,7 @@ export function LandingHero() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="w-full py-12 md:py-20 border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
-              {t("ctaTitle")}
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl">
-              {t("ctaDescription")}
-            </p>
-            <Link href={`/${locale}/admin`}>
-              <Button size="lg" className="gap-2">
-                {t("ctaButton")}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      <LandingPricing />
 
       {/* Contact Section */}
       <LandingContact />

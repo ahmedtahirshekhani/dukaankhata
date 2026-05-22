@@ -1,3 +1,5 @@
+import { supportContactInfo } from "./contact-info";
+
 export const products = [
   {
     id: 1,
@@ -172,6 +174,5 @@ export const paymentMethods = [
 
 // Support contact details for quick access across the app
 export const supportContact = {
-  // Update these to your real support contacts
-  phone: "+92 3352575725",
+  phone: supportContactInfo.phoneDisplay,
 };

@@ -19,6 +19,7 @@ export function LandingHeader() {
   const navigationLinks = [
     { href: "#features", label: t("features") },
     { href: "#benefits", label: t("benefits") },
+    { href: "#pricing", label: t("pricing") },
     { href: "#contact", label: t("contact") },
   ];
 

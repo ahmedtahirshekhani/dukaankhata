@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { supportContactInfo } from "@/lib/contact-info";
 
 // Locale-aware error boundary page for routes under /[locale]
 export default function LocaleError({
@@ -20,14 +21,18 @@ export default function LocaleError({
       <div className="max-w-xl w-full rounded-lg border border-gray-200 shadow-sm p-6">
         <h1 className="text-2xl font-semibold mb-2">Something went wrong</h1>
         <p className="text-sm text-gray-600 mb-4">
-          An unexpected error occurred. If this keeps happening, please contact the owner.
+          An unexpected error occurred. If this keeps happening, please contact
+          the owner.
         </p>
 
         <div className="space-y-2 mb-6">
           <div>
             <span className="font-medium">Phone (Pakistan): </span>
-            <a href="tel:+923352575725" className="text-blue-600 hover:underline">
-              +92 335 2575725
+            <a
+              href={`tel:+${supportContactInfo.phoneDigits}`}
+              className="text-blue-600 hover:underline"
+            >
+              {supportContactInfo.phoneDisplay}
             </a>
           </div>
         </div>
