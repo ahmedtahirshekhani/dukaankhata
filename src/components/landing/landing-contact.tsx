@@ -3,12 +3,13 @@
 import { Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
+import { supportContactInfo } from "@/lib/contact-info";
 
 // Same contact details as error page (src/app/error.tsx) for consistency
 const CONTACT_LINKS = {
   phone: {
-    href: "https://wa.me/923352575725",
-    label: "+92 335 2575725",
+    href: supportContactInfo.whatsappHref,
+    label: supportContactInfo.phoneDisplay,
   },
 } as const;
 
@@ -45,7 +46,10 @@ export function LandingContact() {
                 {items.map(({ key, icon: Icon, labelKey }) => {
                   const { href, label } = CONTACT_LINKS[key];
                   return (
-                    <li key={key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <li
+                      key={key}
+                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
+                    >
                       <span className="font-medium text-foreground flex items-center gap-2 min-w-[140px]">
                         <Icon className="h-4 w-4 text-primary flex-shrink-0" />
                         {t(labelKey)}

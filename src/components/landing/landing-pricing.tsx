@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { proAccessPaymentInfo } from "@/lib/contact-info";
 
 const BASIC_FEATURES_COUNT = 4;
 const PRO_FEATURES_COUNT = 6;
@@ -32,7 +33,7 @@ export function LandingPricing() {
   const proFeatures = Array.from({ length: PRO_FEATURES_COUNT }, (_, i) =>
     t(`proFeature${i + 1}`),
   );
-  const whatsappLink = `https://wa.me/923212575665?text=${encodeURIComponent(
+  const whatsappLink = `${proAccessPaymentInfo.proofWhatsappHref}?text=${encodeURIComponent(
     t("dialogWhatsappMessage"),
   )}`;
   const proPrice =
@@ -107,8 +108,11 @@ export function LandingPricing() {
               </p>
 
               <ul className="mt-6 flex-1 space-y-3">
-                {basicFeatures.map((feature) => (
-                  <li key={feature} className="flex gap-3 text-sm">
+                {basicFeatures.map((feature, index) => (
+                  <li
+                    key={`basicFeature${index + 1}`}
+                    className="flex gap-3 text-sm"
+                  >
                     <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600 mt-0.5" />
                     <span>{feature}</span>
                   </li>
@@ -149,7 +153,7 @@ export function LandingPricing() {
                 </li>
                 {proFeatures.map((feature, index) => (
                   <li
-                    key={feature}
+                    key={`proFeature${index + 1}`}
                     className={`flex gap-3 text-sm ${index >= 2 ? "pt-2" : ""}`}
                   >
                     <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600 mt-0.5" />
@@ -180,14 +184,18 @@ export function LandingPricing() {
           <div className="space-y-4 text-sm">
             <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
               <p className="font-semibold text-foreground">
-                {t("dialogAccountTitle")}
-              </p>
-              <p className="text-muted-foreground">{t("dialogAccountName")}</p>
-              <p className="font-medium text-foreground">
-                {t("dialogAccountNumber")}
+                {t("dialogAccountTitle", {
+                  provider: proAccessPaymentInfo.provider,
+                })}
               </p>
               <p className="text-muted-foreground">
-                {t("dialogAccountHolder")}
+                {proAccessPaymentInfo.provider}
+              </p>
+              <p className="font-medium text-foreground">
+                {proAccessPaymentInfo.accountNumber}
+              </p>
+              <p className="text-muted-foreground">
+                {proAccessPaymentInfo.accountHolder}
               </p>
             </div>
 
@@ -196,7 +204,9 @@ export function LandingPricing() {
                 {t("dialogWhatsappTitle")}
               </p>
               <p className="text-muted-foreground">
-                {t("dialogWhatsappDescription")}
+                {t("dialogWhatsappDescription", {
+                  number: proAccessPaymentInfo.proofWhatsappDisplay,
+                })}
               </p>
             </div>
           </div>
