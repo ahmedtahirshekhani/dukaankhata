@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -34,6 +34,8 @@ import {
   TrendingUp,
   Activity,
   File,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
@@ -56,15 +58,7 @@ type CounterRange =
   | "ytd";
 
 const getStartOfDay = (date: Date) =>
-  new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    0,
-    0,
-    0,
-    0,
-  );
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
 
 const getEndOfDay = (date: Date) =>
   new Date(
@@ -117,15 +111,7 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
       break;
     case "lastMonth":
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-      end = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        0,
-        23,
-        59,
-        59,
-        999,
-      );
+      end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
       break;
     case "ytd":
       start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
@@ -159,6 +145,9 @@ export default function DashboardPage() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [counterSales, setCounterSales] = useState(0);
   const [counterExpenses, setCounterExpenses] = useState(0);
+  const [isCounterSalesLoading, setIsCounterSalesLoading] = useState(false);
+  const [isCounterExpensesLoading, setIsCounterExpensesLoading] =
+    useState(false);
   const [counterSalesRange, setCounterSalesRange] =
     useState<CounterRange>("today");
   const [counterExpensesRange, setCounterExpensesRange] =
@@ -211,6 +200,11 @@ export default function DashboardPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(false);
+
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
@@ -323,6 +317,7 @@ export default function DashboardPage() {
   // Fetch counter sales total for selected range
   useEffect(() => {
     const fetchSales = async () => {
+      setIsCounterSalesLoading(true);
       try {
         const params = new URLSearchParams({
           all: "true",
@@ -340,6 +335,8 @@ export default function DashboardPage() {
         setCounterSales(Math.round(incomeTotal * 100) / 100);
       } catch (err) {
         console.error("Error fetching counter sales:", err);
+      } finally {
+        setIsCounterSalesLoading(false);
       }
     };
     fetchSales();
@@ -348,6 +345,7 @@ export default function DashboardPage() {
   // Fetch counter expenses total for selected range
   useEffect(() => {
     const fetchExpenses = async () => {
+      setIsCounterExpensesLoading(true);
       try {
         const params = new URLSearchParams({
           all: "true",
@@ -365,6 +363,8 @@ export default function DashboardPage() {
         setCounterExpenses(Math.round(expenseTotal * 100) / 100);
       } catch (err) {
         console.error("Error fetching counter expenses:", err);
+      } finally {
+        setIsCounterExpensesLoading(false);
       }
     };
     fetchExpenses();
@@ -374,6 +374,243 @@ export default function DashboardPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeDashboardTab]);
+
+  const handleScroll = useCallback(() => {
+    if (sliderRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
+      setScrollPosition(scrollLeft);
+      setShowLeftArrow(scrollLeft > 4);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 4);
+    }
+  }, []);
+
+  const mobileCardWidth = 284;
+  const mobileCardStep = 300;
+  const mobileCardHeight = 116;
+
+  const scrollLeft = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: -mobileCardStep, behavior: "smooth" });
+      window.requestAnimationFrame(handleScroll);
+    }
+  };
+
+  const scrollRight = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: mobileCardStep, behavior: "smooth" });
+      window.requestAnimationFrame(handleScroll);
+    }
+  };
+
+  useEffect(() => {
+    const slider = sliderRef.current;
+    if (slider) {
+      slider.addEventListener("scroll", handleScroll, { passive: true });
+      handleScroll();
+      return () => slider.removeEventListener("scroll", handleScroll);
+    }
+  }, [handleScroll]);
+
+  useEffect(() => {
+    window.addEventListener("resize", handleScroll);
+    window.addEventListener("orientationchange", handleScroll);
+
+    return () => {
+      window.removeEventListener("resize", handleScroll);
+      window.removeEventListener("orientationchange", handleScroll);
+    };
+  }, [handleScroll]);
+
+  useEffect(() => {
+    window.requestAnimationFrame(handleScroll);
+  }, [handleScroll]);
+
+  const summaryCards = useMemo(
+    () => [
+      {
+        key: "balance",
+        node: (
+          <StatCard
+            title={
+              tDash("totalBalanceYoullGet") || "Total Balance (You'll get)"
+            }
+            value={totalBalance}
+            icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+          />
+        ),
+      },
+      {
+        key: "sales",
+        node: (
+          <StatCard
+            title={`${tDash("sales") || "Sales"} (${currentMonthName})`}
+            value={totalRevenue}
+            icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+          />
+        ),
+      },
+      {
+        key: "expenses",
+        node: (
+          <StatCard
+            title={`${tDash("totalExpenses") || "Total Expense"} (${currentMonthName})`}
+            value={totalExpenses}
+            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isExpense
+          />
+        ),
+      },
+      {
+        key: "counter-sales",
+        node: (
+          <StatCard
+            title={tDash("counterSales") || "Counter Sales"}
+            value={counterSales}
+            icon={
+              <Select
+                value={counterSalesRange}
+                onValueChange={(v) => {
+                  setIsCounterSalesLoading(true);
+                  setCounterSalesRange(v as CounterRange);
+                }}
+              >
+                <SelectTrigger className="w-28 h-7 text-[12px] bg-transparent shadow-none lg:w-22 lg:h-7 lg:text-[10px] xl:w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="min-w-[7.5rem] lg:min-w-[6.75rem]">
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="today"
+                  >
+                    Today
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="thisWeek"
+                  >
+                    This Week
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="lastWeek"
+                  >
+                    Last Week
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="thisMonth"
+                  >
+                    This Month
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="lastMonth"
+                  >
+                    Last Month
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="ytd"
+                  >
+                    Year to date
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            }
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isLoading={isCounterSalesLoading}
+            noIconBg
+          />
+        ),
+      },
+      {
+        key: "counter-expenses",
+        node: (
+          <StatCard
+            title={tDash("counterExpenses") || "Counter Expenses"}
+            value={counterExpenses}
+            icon={
+              <Select
+                value={counterExpensesRange}
+                onValueChange={(v) => {
+                  setIsCounterExpensesLoading(true);
+                  setCounterExpensesRange(v as CounterRange);
+                }}
+              >
+                <SelectTrigger className="w-28 h-7 text-[12px] bg-transparent shadow-none lg:w-22 lg:h-7 lg:text-[10px] xl:w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="min-w-[7.5rem] lg:min-w-[6.75rem]">
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="today"
+                  >
+                    Today
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="thisWeek"
+                  >
+                    This Week
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="lastWeek"
+                  >
+                    Last Week
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="thisMonth"
+                  >
+                    This Month
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="lastMonth"
+                  >
+                    Last Month
+                  </SelectItem>
+                  <SelectItem
+                    className="text-[11px] py-1 px-2 lg:text-[10px]"
+                    value="ytd"
+                  >
+                    Year to date
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            }
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isExpense
+            isLoading={isCounterExpensesLoading}
+            noIconBg
+          />
+        ),
+      },
+    ],
+    [
+      counterExpenses,
+      counterExpensesRange,
+      counterSales,
+      counterSalesRange,
+      currentMonthName,
+      isCounterExpensesLoading,
+      isCounterSalesLoading,
+      isPrivacyMode,
+      tDash,
+      totalExpenses,
+      totalRevenue,
+      totalBalance,
+    ],
+  );
 
   if (loading) {
     return (
@@ -385,6 +622,12 @@ export default function DashboardPage() {
 
   return (
     <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
+      <style jsx>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">
@@ -443,82 +686,77 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard
-          title={tDash("totalBalanceYoullGet") || "Total Balance (You'll get)"}
-          value={totalBalance}
-          icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
-          isPrivacy={isPrivacyMode}
-          currency="PKR"
-        />
+      <div className="relative overflow-hidden md:hidden">
+        {showLeftArrow && (
+          <button
+            onClick={scrollLeft}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all"
+            style={{ transform: "translateY(-50%)" }}
+            aria-label="Scroll cards left"
+          >
+            <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+          </button>
+        )}
 
-        <StatCard
-          title={`${tDash("sales") || "Sales"} (${currentMonthName})`}
-          value={totalRevenue}
-          icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
-          isPrivacy={isPrivacyMode}
-          currency="PKR"
-        />
+        {showRightArrow && (
+          <button
+            onClick={scrollRight}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all"
+            style={{ transform: "translateY(-50%)" }}
+            aria-label="Scroll cards right"
+          >
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+        )}
 
-        <StatCard
-          title={`${tDash("totalExpenses") || "Total Expense"} (${currentMonthName})`}
-          value={totalExpenses}
-          icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
-          isPrivacy={isPrivacyMode}
-          currency="PKR"
-          isExpense
-        />
-
-        <StatCard
-          title={tDash("counterSales") || "Counter Sales"}
-          value={counterSales}
-          icon={
-            <Select
-              value={counterSalesRange}
-              onValueChange={(v) => setCounterSalesRange(v as any)}
+        <div
+          ref={sliderRef}
+          className="flex overflow-x-auto scroll-smooth gap-4 pb-2 px-9 hide-scrollbar"
+          style={{
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          {summaryCards.map((card) => (
+            <div
+              key={card.key}
+              className="flex-shrink-0"
+              style={{
+                width: `${mobileCardWidth}px`,
+                height: `${mobileCardHeight}px`,
+              }}
             >
-              <SelectTrigger className="w-36 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="thisWeek">This Week</SelectItem>
-                <SelectItem value="lastWeek">Last Week</SelectItem>
-                <SelectItem value="thisMonth">This Month</SelectItem>
-                <SelectItem value="lastMonth">Last Month</SelectItem>
-                <SelectItem value="ytd">Year to date</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-          isPrivacy={isPrivacyMode}
-          currency="PKR"
-        />
+              {card.node}
+            </div>
+          ))}
+        </div>
 
-        <StatCard
-          title={tDash("counterExpenses") || "Counter Expenses"}
-          value={counterExpenses}
-          icon={
-            <Select
-              value={counterExpensesRange}
-              onValueChange={(v) => setCounterExpensesRange(v as any)}
-            >
-              <SelectTrigger className="w-36 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="thisWeek">This Week</SelectItem>
-                <SelectItem value="lastWeek">Last Week</SelectItem>
-                <SelectItem value="thisMonth">This Month</SelectItem>
-                <SelectItem value="lastMonth">Last Month</SelectItem>
-                <SelectItem value="ytd">Year to date</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-          isPrivacy={isPrivacyMode}
-          currency="PKR"
-          isExpense
-        />
+        <div className="flex justify-center gap-1.5 mt-3">
+          {summaryCards.map((_, idx) => {
+            const currentIndex = Math.min(
+              summaryCards.length - 1,
+              Math.max(0, Math.round(scrollPosition / mobileCardStep)),
+            );
+            const isActive = currentIndex === idx;
+
+            return (
+              <div
+                key={idx}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  isActive
+                    ? "w-6 bg-[#7CD2F1]"
+                    : "w-1.5 bg-zinc-300 dark:bg-zinc-700"
+                }`}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="hidden md:grid auto-rows-max items-stretch gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        {summaryCards.map((card) => (
+          <div key={card.key}>{card.node}</div>
+        ))}
       </div>
 
       <div className="mt-2">
@@ -871,6 +1109,8 @@ function StatCard({
   isPrivacy,
   currency,
   isExpense,
+  noIconBg,
+  isLoading,
 }: {
   title: string;
   value: number;
@@ -878,19 +1118,32 @@ function StatCard({
   isPrivacy: boolean;
   currency?: string;
   isExpense?: boolean;
+  noIconBg?: boolean;
+  isLoading?: boolean;
 }) {
-  const bgColor = isExpense ? "bg-red-500/10" : "bg-blue-500/10";
+  const bgColor = noIconBg
+    ? ""
+    : isExpense
+      ? "bg-red-500/10"
+      : "bg-blue-500/10";
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
-        <CardTitle className="text-xs sm:text-sm font-medium">
+    <Card className="flex h-full flex-col">
+      <CardHeader className="flex min-h-[3.5rem] flex-row items-center justify-between pb-2 p-3 sm:p-4">
+        <CardTitle className="truncate text-xs sm:text-sm font-medium">
           {title}
         </CardTitle>
-        <div className={`p-2 rounded-lg ${bgColor}`}>{icon}</div>
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-center",
+            noIconBg ? "p-0" : `p-2 rounded-lg ${bgColor}`,
+          )}
+        >
+          {icon}
+        </div>
       </CardHeader>
-      <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
-        <div className="text-2xl sm:text-3xl font-bold">
+      <CardContent className="flex min-h-[3.75rem] flex-1 flex-col justify-between p-3 pt-0 sm:p-4">
+        <div className="flex items-center gap-2 text-2xl sm:text-3xl font-bold">
           {isPrivacy ? (
             <span className="text-muted-foreground">•••••</span>
           ) : (
@@ -900,6 +1153,9 @@ function StatCard({
               )}
               {Math.floor(value).toLocaleString()}
             </>
+          )}
+          {isLoading && (
+            <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground sm:h-5 sm:w-5" />
           )}
         </div>
       </CardContent>
