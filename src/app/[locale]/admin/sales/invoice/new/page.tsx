@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useRef, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
@@ -43,6 +45,7 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
+import { XIcon } from "lucide-react";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -74,6 +77,7 @@ type Customer = {
 
 interface POSProduct extends Product {
   quantity: number;
+  quantityInput?: string;
   quantityType?: "prime" | "damaged";
   discount?: number;
   discountType?: "value" | "percentage";
@@ -165,6 +169,10 @@ export default function NewInvoicePage() {
     if (!desc) return "";
     return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
   };
+  const normalizeQuantity = (value: number, fallback = 1) => {
+    if (Number.isNaN(value)) return fallback;
+    return Math.max(1, Math.trunc(value));
+  };
 
   useEffect(() => {
     generateInvoiceNo();
@@ -189,7 +197,13 @@ export default function NewInvoicePage() {
     if (selectedProducts.some((p) => p.id === productId)) {
       setSelectedProducts(
         selectedProducts.map((p) =>
-          p.id === productId ? { ...p, quantity: p.quantity + 1 } : p,
+          p.id === productId
+            ? {
+                ...p,
+                quantity: p.quantity + 1,
+                quantityInput: String(p.quantity + 1),
+              }
+            : p,
         ),
       );
     } else {
@@ -198,7 +212,9 @@ export default function NewInvoicePage() {
         {
           ...product,
           quantity: 1,
+          quantityInput: "1",
           quantityType: "prime",
+          sell_price: product.sell_price ?? 0,
           discount: 0,
           discountType: "value",
           discountInput: "0",
@@ -217,15 +233,35 @@ export default function NewInvoicePage() {
 
   const handleQuantityChange = (
     productId: number | string,
-    newQuantity: number,
+    rawQuantity: string,
   ) => {
-    const safeQty =
-      Number.isNaN(newQuantity) || newQuantity < 0
-        ? (selectedProducts.find((p) => p.id === productId)?.quantity ?? 1)
-        : newQuantity;
     setSelectedProducts(
       selectedProducts.map((p) =>
-        p.id === productId ? { ...p, quantity: safeQty } : p,
+        p.id === productId
+          ? {
+              ...p,
+              quantityInput: rawQuantity,
+              quantity:
+                rawQuantity.trim() === ""
+                  ? p.quantity
+                  : normalizeQuantity(Number.parseInt(rawQuantity, 10), p.quantity),
+            }
+          : p,
+      ),
+    );
+  };
+
+  const handleQuantityBlur = (productId: number | string) => {
+    setSelectedProducts((current) =>
+      current.map((p) =>
+        p.id === productId
+          ? {
+              ...p,
+              quantityInput: p.quantityInput?.trim()
+                ? String(normalizeQuantity(Number.parseInt(p.quantityInput, 10), p.quantity))
+                : String(p.quantity),
+            }
+          : p,
       ),
     );
   };
@@ -281,6 +317,14 @@ export default function NewInvoicePage() {
   };
 
   const handleRemoveProduct = (productId: number | string) => {
+    const target = selectedProducts.find((p) => p.id === productId);
+    if (!target) return;
+
+    if (target.quantity > 1) {
+      handleQuantityChange(productId, String(target.quantity - 1));
+      return;
+    }
+
     setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
     setSaveError("");
   };
@@ -621,12 +665,11 @@ export default function NewInvoicePage() {
       </div>
       <Card className="mb-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">{t("saleDetails")}</CardTitle>
+          <CardTitle className="text-lg">{t("invoiceDetails")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-            {/* Invoice No & Generate Button */}
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
               <Label htmlFor="invoice-no" className="text-xs font-medium">
                 {t("invoiceNo")}
               </Label>
@@ -639,14 +682,15 @@ export default function NewInvoicePage() {
               />
             </div>
 
-            {/* Customer Selection */}
-            <div className="md:col-span-3">
+            <div>
               <Label htmlFor="customer" className="text-xs font-medium">
                 {t("customer")}
               </Label>
               <PartyDropdown
                 value={selectedCustomer?.id ? String(selectedCustomer.id) : ""}
-                onValueChange={(val, customer) => handleSelectCustomer(val, customer as Customer | undefined)}
+                onValueChange={(val, customer) =>
+                  handleSelectCustomer(val, customer as Customer | undefined)
+                }
                 placeholder={t("selectCustomer")}
                 className="w-full"
                 filterActiveOnly={true}
@@ -655,8 +699,7 @@ export default function NewInvoicePage() {
               />
             </div>
 
-            {/* Sale Date */}
-            <div className="md:col-span-2">
+            <div>
               <Label htmlFor="sale-date" className="text-xs font-medium">
                 {t("saleDate")}
               </Label>
@@ -670,8 +713,7 @@ export default function NewInvoicePage() {
               />
             </div>
 
-            {/* Add Due Date Switch & Due Date */}
-            <div className="md:col-span-2 flex items-center gap-2">
+            <div className="flex flex-col gap-2">
               <input
                 type="checkbox"
                 id="add-due-date"
@@ -685,11 +727,7 @@ export default function NewInvoicePage() {
               >
                 Add Due Date
               </Label>
-            </div>
-
-            {/* Due Date Input - Conditional */}
-            {addDueDate && (
-              <div className="md:col-span-2">
+              {addDueDate && (
                 <Input
                   id="due-date"
                   type="date"
@@ -698,8 +736,8 @@ export default function NewInvoicePage() {
                   min={todayIso || undefined}
                   className="h-8 text-sm"
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -759,15 +797,12 @@ export default function NewInvoicePage() {
                     <TableCell>
                       <input
                         type="number"
-                        min="0"
-                        step="0.01"
-                        value={product.quantity ?? 1}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          if (!Number.isNaN(val)) {
-                            handleQuantityChange(product.id, val);
-                          }
-                        }}
+                        min="1"
+                        step="1"
+                        inputMode="numeric"
+                        value={product.quantityInput ?? String(product.quantity ?? 1)}
+                        onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                        onBlur={() => handleQuantityBlur(product.id)}
                         className="w-16 p-1 border rounded"
                       />
                     </TableCell>
@@ -835,10 +870,11 @@ export default function NewInvoicePage() {
                     <TableCell>
                       <Button
                         variant="danger"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleRemoveProduct(product.id)}
+                        className="h-6 w-6"
                       >
-                        {t("remove")}
+                        <XIcon className="w-4 h-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -902,15 +938,14 @@ export default function NewInvoicePage() {
                       <div className="flex gap-1">
                         <input
                           type="number"
-                          min="0"
-                          step="0.01"
-                          value={product.quantity ?? 1}
+                          min="1"
+                          step="1"
+                          inputMode="numeric"
+                          value={product.quantityInput ?? String(product.quantity ?? 1)}
                           onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (!Number.isNaN(val)) {
-                              handleQuantityChange(product.id, val);
-                            }
+                            handleQuantityChange(product.id, e.target.value);
                           }}
+                          onBlur={() => handleQuantityBlur(product.id)}
                           className="w-12 h-7 p-1 border rounded text-xs"
                         />
                         <span className="text-xs text-muted-foreground pt-1">
@@ -1008,7 +1043,7 @@ export default function NewInvoicePage() {
                         if (!product) return;
                         handleSelectProduct(product as Product);
                       }}
-                      placeholder={t("addItem")}
+                      placeholder="Add new item"
                       enableSearch={true}
                       searchPlaceholder={tCommon("searchProduct") || "Search product..."}
                     />
@@ -1028,7 +1063,7 @@ export default function NewInvoicePage() {
                 if (!product) return;
                 handleSelectProduct(product as Product);
               }}
-              placeholder={t("selectProductToAdd")}
+              placeholder="Add new item"
               enableSearch={true}
               searchPlaceholder={t("searchProduct") || "Search product..."}
             />

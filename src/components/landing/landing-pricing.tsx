@@ -205,7 +205,7 @@ export function LandingPricing() {
               </p>
               <p className="text-muted-foreground">
                 {t("dialogWhatsappDescription", {
-                  number: proAccessPaymentInfo.proofWhatsappDisplay,
+                  whatsapp: proAccessPaymentInfo.proofWhatsappDisplay,
                 })}
               </p>
             </div>

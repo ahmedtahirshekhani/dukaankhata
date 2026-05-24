@@ -38,7 +38,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     {
       value,
       onValueChange,
-      placeholder = "Select Product",
+      placeholder = "Add new item",
       disabled = false,
       className = "",
       enableSearch = true,
@@ -65,6 +65,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const [isOpen, setIsOpen] = useState(false);
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [selectedProductForDialog, setSelectedProductForDialog] = useState<Product | null>(null);
+    const [selectResetKey, setSelectResetKey] = useState(0);
     
     const [page, setPage] = useState(1);
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -118,6 +119,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       onValueChange(newValue, selected);
       setIsOpen(false);
       setSearchTerm("");
+      setSelectResetKey((current) => current + 1);
     };
 
     const handleOpenChange = (open: boolean) => {
@@ -153,7 +155,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
           onClick={openAddProductDialog}
         >
           <PlusCircle className="h-4 w-4" />
-          {t("addNewItem") || "Add New Product"}
+          Add new item
         </Button>
       </div>
     );
@@ -167,7 +169,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
           onClick={openAddProductDialog}
         >
           <PlusCircle className="h-4 w-4" />
-          {t("addNewItem") || "Add New Product"}
+          Add new item
         </Button>
       </div>
     );
@@ -176,6 +178,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       <>
         <div className="relative">
           <Select
+            key={selectResetKey}
             value={value ? String(value) : undefined}
             onValueChange={handleValueChange}
             disabled={disabled}

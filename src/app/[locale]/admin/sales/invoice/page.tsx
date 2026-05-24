@@ -71,6 +71,7 @@ type OrderProduct = {
   name: string;
   description?: string;
   quantity: number;
+  quantityInput?: string;
   quantityType: "prime" | "damaged";
   sell_price: number;
   discount: number;
@@ -113,6 +114,11 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const normalizeQuantity = (value: number, fallback = 1) => {
+    if (Number.isNaN(value)) return fallback;
+    return Math.max(1, Math.trunc(value));
+  };
+
   useEffect(() => {
     if (order && open) {
       setCustomerId(order.customer_id?.toString() || "");
@@ -123,7 +129,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
         id: item.product_id || item.id,
         name: item.name,
         description: item.description,
-        quantity: item.quantity,
+        quantity: normalizeQuantity(item.quantity ?? 1),
+        quantityInput: String(normalizeQuantity(item.quantity ?? 1)),
         quantityType: item.quantityType || "prime",
         sell_price: item.price,
         discount: item.discount || 0,
@@ -151,15 +158,16 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
   const handleAddProduct = (productId: string, product: any) => {
     if (products.some(p => p.id === productId)) {
-      setProducts(products.map(p => p.id === productId ? { ...p, quantity: p.quantity + 1 } : p));
+      setProducts(products.map(p => p.id === productId ? { ...p, quantity: p.quantity + 1, quantityInput: String(p.quantity + 1) } : p));
     } else {
       setProducts([...products, {
         id: productId,
         name: product.name,
         description: product.description,
         quantity: 1,
+        quantityInput: "1",
         quantityType: "prime",
-        sell_price: product.sell_price,
+        sell_price: product.sell_price ?? product.price ?? 0,
         discount: 0,
         discountType: "value",
         unit_of_measurement: product.unit_of_measurement,
@@ -169,11 +177,60 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
   const handleUpdateProduct = (idx: number, field: string, value: any) => {
     const updated = [...products];
-    updated[idx] = { ...updated[idx], [field]: value };
+    updated[idx] = {
+      ...updated[idx],
+      [field]: field === "quantity"
+        ? normalizeQuantity(Number(value), updated[idx].quantity)
+        : value,
+    };
+    setProducts(updated);
+  };
+
+  const handleQuantityChange = (idx: number, rawQuantity: string) => {
+    const updated = [...products];
+    const current = updated[idx];
+    if (!current) return;
+
+    updated[idx] = {
+      ...current,
+      quantityInput: rawQuantity,
+      quantity:
+        rawQuantity.trim() === ""
+          ? current.quantity
+          : normalizeQuantity(Number.parseInt(rawQuantity, 10), current.quantity),
+    };
+    setProducts(updated);
+  };
+
+  const handleQuantityBlur = (idx: number) => {
+    const updated = [...products];
+    const current = updated[idx];
+    if (!current) return;
+
+    updated[idx] = {
+      ...current,
+      quantityInput: current.quantityInput?.trim()
+        ? String(normalizeQuantity(Number.parseInt(current.quantityInput, 10), current.quantity))
+        : String(current.quantity),
+    };
     setProducts(updated);
   };
 
   const handleRemoveProduct = (idx: number) => {
+    const target = products[idx];
+    if (!target) return;
+
+    if (target.quantity > 1) {
+      handleUpdateProduct(idx, "quantity", target.quantity - 1);
+      const updated = [...products];
+      updated[idx] = {
+        ...updated[idx],
+        quantityInput: String(target.quantity - 1),
+      };
+      setProducts(updated);
+      return;
+    }
+
     setProducts(products.filter((_, i) => i !== idx));
   };
 
@@ -305,10 +362,10 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
+                        <Input type="number" min="0" step="0.01" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={p.quantity} onChange={(e) => handleUpdateProduct(idx, "quantity", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
+                        <Input type="number" min="1" step="1" inputMode="numeric" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
                         <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
@@ -335,10 +392,10 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                           variant="danger" 
                           size="icon" 
                           onClick={() => handleRemoveProduct(idx)}
-                          disabled={products.length <= 1}
+                          disabled={products.length <= 1 && p.quantity <= 1}
                           className="h-8 w-8"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <XIcon className="w-4 h-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -366,7 +423,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         variant="ghost" 
                         size="icon" 
                         onClick={() => handleRemoveProduct(idx)}
-                        disabled={products.length <= 1}
+                        disabled={products.length <= 1 && p.quantity <= 1}
                         className="h-6 w-6 p-0 text-red-500"
                       >
                         <XIcon className="w-4 h-4" />
@@ -378,6 +435,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("price")}</Label>
                         <Input 
                           type="number" 
+                          min="0"
+                          step="0.01"
                           value={p.sell_price} 
                           onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} 
                           className="h-8 text-xs" 
@@ -387,8 +446,12 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("quantity")}</Label>
                         <Input 
                           type="number" 
-                          value={p.quantity} 
-                          onChange={(e) => handleUpdateProduct(idx, "quantity", parseFloat(e.target.value) || 0)} 
+                          min="1"
+                          step="1"
+                          inputMode="numeric"
+                          value={p.quantityInput ?? String(p.quantity)} 
+                          onChange={(e) => handleQuantityChange(idx, e.target.value)} 
+                          onBlur={() => handleQuantityBlur(idx)}
                           className="h-8 text-xs" 
                         />
                       </div>
