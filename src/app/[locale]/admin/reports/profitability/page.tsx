@@ -75,6 +75,7 @@ export default function ProfitabilityReportPage() {
   });
 
   // Slider State
+  const [scrollPosition, setScrollPosition] = useState(0);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
 
@@ -255,11 +256,16 @@ export default function ProfitabilityReportPage() {
     }).format(val || 0);
   };
 
-  // Slider handlers
+  // Slider scroll handler - DONO ARROWS KE LIYE FIX
   const handleScroll = useCallback(() => {
     if (sliderRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
+      setScrollPosition(scrollLeft);
+      
+      // Left arrow show karo agar scroll left > 0 hai
       setShowLeftArrow(scrollLeft > 20);
+      
+      // Right arrow show karo agar end tak nahi pahunchay
       setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 20);
     }
   }, []);
@@ -280,17 +286,21 @@ export default function ProfitabilityReportPage() {
     const slider = sliderRef.current;
     if (slider) {
       slider.addEventListener("scroll", handleScroll);
+      // Initial check for arrows
       handleScroll();
       return () => slider.removeEventListener("scroll", handleScroll);
     }
-  }, [handleScroll, summary]);
+  }, [handleScroll]);
 
   // PDF Export
   const handleExportPdf = useCallback(async () => {
     if (!reportRef.current) return;
     setIsExportingPdf(true);
     
+    // Hide slider arrows for PDF
+    const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
     try {
+      if (pdfHeader) pdfHeader.style.display = "block";
       reportRef.current.classList.add("is-exporting");
 
       const mod = await import("html2pdf.js");
@@ -310,7 +320,7 @@ export default function ProfitabilityReportPage() {
           jsPDF: {
             unit: "mm",
             format: "a4",
-            orientation: "landscape", // Landscape for better width
+            orientation: "landscape",
           },
         })
         .from(reportRef.current)
@@ -334,6 +344,7 @@ export default function ProfitabilityReportPage() {
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {
+      if (pdfHeader) pdfHeader.style.display = "none";
       if (reportRef.current) reportRef.current.classList.remove("is-exporting");
       setIsExportingPdf(false);
     }
@@ -357,7 +368,7 @@ export default function ProfitabilityReportPage() {
     }
   };
 
-  // Summary cards data - Fixed height and consistent layout
+  // Summary cards data
   const summaryCards = useMemo(() => [
     {
       title: tProfit("totalRevenue"),
@@ -365,8 +376,9 @@ export default function ProfitabilityReportPage() {
       currency: "PKR",
       subValue: `${summary.totalOrders || 0} ${tProfit("orders")}`,
       icon: TrendingUp,
-      bgClass: "bg-green-50/50 dark:bg-green-950/20",
-      iconClass: "text-green-500",
+      bgClass: "bg-emerald-50/50 dark:bg-emerald-950/20",
+      iconClass: "text-emerald-500",
+      borderClass: "hover:border-emerald-500/20"
     },
     {
       title: tProfit("totalExpenses"),
@@ -374,8 +386,9 @@ export default function ProfitabilityReportPage() {
       currency: "PKR",
       subValue: `${summary.totalExpenseItems || 0} ${tProfit("expenses")}`,
       icon: TrendingDown,
-      bgClass: "bg-red-50/50 dark:bg-red-950/20",
-      iconClass: "text-red-500",
+      bgClass: "bg-rose-50/50 dark:bg-rose-950/20",
+      iconClass: "text-rose-500",
+      borderClass: "hover:border-rose-500/20"
     },
     {
       title: tProfit("netProfit"),
@@ -385,6 +398,7 @@ export default function ProfitabilityReportPage() {
       icon: DollarSign,
       bgClass: "bg-blue-50/50 dark:bg-blue-950/20",
       iconClass: "text-blue-500",
+      borderClass: "hover:border-blue-500/20"
     },
     {
       title: tProfit("profitMargin"),
@@ -393,6 +407,7 @@ export default function ProfitabilityReportPage() {
       icon: Percent,
       bgClass: "bg-violet-50/50 dark:bg-violet-950/20",
       iconClass: "text-violet-500",
+      borderClass: "hover:border-violet-500/20"
     },
   ], [summary, tProfit]);
 
@@ -517,173 +532,212 @@ export default function ProfitabilityReportPage() {
 
       {/* Report Content */}
       {hasSearched && !loading && (
-        <div ref={reportRef} className="mt-2 sm:mt-4">
-          <style dangerouslySetInnerHTML={{
-            __html: `
-              .is-exporting {
-                font-family: Arial, Helvetica, sans-serif !important;
-                background-color: white !important;
-                color: black !important;
-              }
-              .is-exporting .summary-card {
-                break-inside: avoid;
-                page-break-inside: avoid;
-                margin-bottom: 16px;
-                height: auto !important;
-              }
-              .is-exporting .summary-cards-grid {
-                display: grid !important;
-                grid-template-columns: repeat(4, 1fr) !important;
-                gap: 16px !important;
-                overflow: visible !important;
-              }
-              .is-exporting .slider-arrows {
-                display: none !important;
-              }
-              .is-exporting .hide-scrollbar {
-                overflow: visible !important;
-              }
-              .is-exporting .report-header {
-                margin-bottom: 20px !important;
-              }
-              @media print {
-                .no-print {
-                  display: none !important;
-                }
-                .summary-card {
-                  break-inside: avoid;
-                  page-break-inside: avoid;
-                }
-              }
-            `
-          }} />
+        <div ref={reportRef}>
+          <style dangerouslySetInnerHTML={{ __html: `
+            .is-exporting table {
+              font-size: 10px !important;
+            }
+            .is-exporting th, .is-exporting td {
+              padding: 6px 8px !important;
+            }
+            .is-exporting .slider-arrows {
+              display: none !important;
+            }
+            .is-exporting .hide-scrollbar {
+              overflow: visible !important;
+            }
+          `}} />
           
-          {/* Report Header - Shows in both UI and PDF */}
-          <div className="report-header mb-6 p-4 sm:p-6 bg-white rounded-lg border border-border/50 shadow-sm">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              {/* Left: Logo */}
-              <div className="flex-shrink-0">
-                {branding.logo && (
-                  <Image
-                    src={branding.logo}
-                    alt="Company Logo"
-                    width={100}
-                    height={50}
-                    className="h-12 sm:h-14 w-auto object-contain"
-                    unoptimized
-                  />
-                )}
-              </div>
-              
-              {/* Center: Company Details */}
-              <div className="text-center flex-1">
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground uppercase tracking-tight">
-                  {branding.name || tCommon("appName")}
-                </h2>
-                <div className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  {branding.address && <p>{branding.address}</p>}
-                  {branding.phone && <p className="mt-0.5">📞 {branding.phone}</p>}
-                </div>
-              </div>
-              
-              {/* Right: Report Title */}
-              <div className="text-right flex-shrink-0">
-                <h3 className="text-lg sm:text-xl font-bold text-foreground">{tProfit("title")}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Basis: Accrual</p>
-              </div>
+          {/* PDF Header (Hidden in UI, appears only in PDF) */}
+          <div className="pdf-header" style={{ display: "none", backgroundColor: "white", color: "black" }}>
+            <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <tbody>
+                  <tr>
+                    <td style={{ width: "25%", verticalAlign: "top" }}>
+                      {branding.logo && (
+                        <Image
+                          src={branding.logo}
+                          alt="Company Logo"
+                          width={150}
+                          height={64}
+                          unoptimized
+                          style={{
+                            height: "64px",
+                            width: "auto",
+                            objectFit: "contain",
+                            display: "block",
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td style={{ width: "50%", textAlign: "center", verticalAlign: "top" }}>
+                      <div style={{
+                        fontWeight: 900,
+                        fontSize: "22px",
+                        color: "#0f172a",
+                        textTransform: "uppercase",
+                        letterSpacing: "-0.5px",
+                        lineHeight: 1.2,
+                      }}>
+                        {branding.name}
+                      </div>
+                      <div style={{
+                        fontSize: "11px",
+                        color: "#64748b",
+                        marginTop: "4px",
+                        lineHeight: 1.5,
+                        whiteSpace: "pre-line",
+                      }}>
+                        {branding.address}
+                      </div>
+                      {(branding.phone || branding.email) && (
+                        <table style={{ margin: "6px auto 0", borderCollapse: "collapse" }}>
+                          <tbody>
+                            <tr>
+                              {branding.phone && (
+                                <td style={{
+                                  paddingRight: branding.email ? "20px" : "0",
+                                  fontSize: "11px",
+                                  color: "#64748b",
+                                  verticalAlign: "middle",
+                                  whiteSpace: "nowrap",
+                                }}>
+                                  <span style={{ fontSize: "12px", marginRight: "4px" }}>☎</span>
+                                  <span>{branding.phone}</span>
+                                </td>
+                              )}
+                              {branding.email && (
+                                <td style={{
+                                  fontSize: "11px",
+                                  color: "#64748b",
+                                  verticalAlign: "middle",
+                                  whiteSpace: "nowrap",
+                                }}>
+                                  <span style={{ fontSize: "12px", marginRight: "4px" }}>✉</span>
+                                  <span style={{ textTransform: "lowercase" }}>{branding.email}</span>
+                                </td>
+                              )}
+                            </tr>
+                          </tbody>
+                        </table>
+                      )}
+                    </td>
+                    <td style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
+                      <div style={{
+                        fontWeight: 900,
+                        fontSize: "22px",
+                        color: "#0f172a",
+                        textTransform: "uppercase",
+                        letterSpacing: "-0.5px",
+                      }}>
+                        {tProfit("title")}
+                      </div>
+                      <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px" }}>
+                        Basis: Accrual
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            
-            {/* Date Range Info - From and To in separate columns, no Status */}
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
-                <div className="flex justify-between items-center sm:justify-start sm:gap-4">
-                  <span className="text-muted-foreground font-medium">{tProfit("fromDate")}:</span>
-                  <span className="font-semibold">{new Date(fromDate).toLocaleDateString(locale)}</span>
+
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[11px]">
+                <div className="flex justify-between border-b border-gray-100 pb-1">
+                  <span className="text-gray-500 font-medium">{tProfit("fromDate")}:</span>
+                  <span className="font-bold">{new Date(fromDate).toLocaleDateString(locale)}</span>
                 </div>
-                <div className="flex justify-between items-center sm:justify-start sm:gap-4">
-                  <span className="text-muted-foreground font-medium">{tProfit("toDate")}:</span>
-                  <span className="font-semibold">{new Date(toDate).toLocaleDateString(locale)}</span>
+                <div className="flex justify-between border-b border-gray-100 pb-1">
+                  <span className="text-gray-500 font-medium">{tProfit("toDate")}:</span>
+                  <span className="font-bold">{new Date(toDate).toLocaleDateString(locale)}</span>
                 </div>
-                <div className="flex justify-between items-center sm:justify-start sm:gap-4">
-                  <span className="text-muted-foreground font-medium">Generated On:</span>
-                  <span className="font-medium">{new Date().toLocaleDateString(locale)} at {new Date().toLocaleTimeString(locale)}</span>
+                <div className="flex justify-between border-b border-gray-100 pb-1">
+                  <span className="text-gray-500 font-medium">Generated On:</span>
+                  <span className="font-medium text-gray-700">{new Date().toLocaleDateString(locale)} at {new Date().toLocaleTimeString(locale)}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Summary Cards - Equal height and consistent alignment */}
+          {/* Summary Cards with Slider Layout - DONO ARROWS AB SHOW HONGE */}
           <div className="relative mb-6">
-            {/* Left Arrow - Hide in PDF */}
+            {/* Left Arrow - Jab scroll ho ga tab show hoga */}
             {showLeftArrow && (
               <button
                 onClick={scrollLeft}
-                type="button"
-                aria-label="Scroll summary cards left"
                 className="slider-arrows absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all lg:hidden"
+                style={{ transform: "translateY(-50%)" }}
               >
                 <ChevronLeft className="h-5 w-5 text-muted-foreground" />
               </button>
             )}
 
-            {/* Right Arrow - Hide in PDF */}
+            {/* Right Arrow - Jab end nahi aya tab show hoga */}
             {showRightArrow && (
               <button
                 onClick={scrollRight}
-                type="button"
-                aria-label="Scroll summary cards right"
                 className="slider-arrows absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all lg:hidden"
+                style={{ transform: "translateY(-50%)" }}
               >
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </button>
             )}
 
-            {/* Slider Track - Fixed height cards */}
+            {/* Horizontal Slider Track */}
             <div
               ref={sliderRef}
-              className="summary-cards-grid flex overflow-x-auto scroll-smooth gap-3 sm:gap-4 pb-2 hide-scrollbar lg:grid lg:grid-cols-4 lg:overflow-visible"
+              className="flex overflow-x-auto scroll-smooth gap-4 pb-2 hide-scrollbar lg:grid lg:grid-cols-4 lg:overflow-visible"
               style={{
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
               }}
             >
               {summaryCards.map((card, index) => (
-                <div
-                  key={index}
-                  className="summary-card flex-shrink-0 w-[260px] sm:w-[280px] lg:w-full"
+                <div 
+                  key={index} 
+                  className="flex-shrink-0 w-[280px] lg:w-auto"
                 >
-                  <Card className="border-border/50 shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300 h-full min-h-[140px]">
-                    <CardContent className="p-4 sm:p-5 h-full flex flex-col">
-                      <div className="flex items-start justify-between mb-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">
-                          {card.title}
-                        </p>
-                        <div className={`p-2 sm:p-2.5 ${card.bgClass} rounded-xl flex-shrink-0 ml-2`}>
-                          <card.icon className={`h-4 w-4 sm:h-4 sm:w-4 ${card.iconClass}`} />
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-baseline gap-1 flex-wrap">
-                          {card.currency && (
-                            <span className="text-xs sm:text-xs font-normal text-muted-foreground">
-                              {card.currency}
-                            </span>
-                          )}
-                          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground break-words leading-tight">
-                            {card.value}
-                          </span>
-                        </div>
-                        {card.subValue && (
-                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 leading-relaxed">
+                  <Card className={`border-border/50 shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300 ${card.borderClass}`}>
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{card.title}</p>
+                          <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2 group-hover:scale-[1.01] transition-transform duration-300 flex items-baseline gap-1">
+                            {card.currency && (
+                              <span className="text-xs sm:text-sm font-normal text-muted-foreground mr-0.5">{card.currency}</span>
+                            )}
+                            <span>{card.value}</span>
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
                             {card.subValue}
                           </p>
-                        )}
+                        </div>
+                        <div className={`p-3 ${card.bgClass} rounded-xl`}>
+                          <card.icon className={`h-5 w-5 ${card.iconClass}`} />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               ))}
+            </div>
+
+            {/* Slider Indicator Dots for Mobile Viewports */}
+            <div className="flex justify-center gap-1.5 mt-3 lg:hidden">
+              {summaryCards.map((_, idx) => {
+                const cardWidth = 280;
+                const currentIndex = Math.round(scrollPosition / cardWidth);
+                const isActive = currentIndex === idx;
+                return (
+                  <div
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      isActive ? "w-6 bg-[#7CD2F1]" : "w-1.5 bg-zinc-300 dark:bg-zinc-700"
+                    }`}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -722,9 +776,9 @@ export default function ProfitabilityReportPage() {
                     </tr>
 
                     {/* Gross Profit */}
-                    <tr className="border-b-2 border-b-gray-300 bg-green-50/30">
-                       <td className="font-bold py-4 px-4 sm:px-6 text-sm sm:text-base">{tProfit("grossProfit")}</td>
-                       <td className="text-right font-bold py-4 px-4 sm:px-6 text-sm sm:text-base">{formatCurrency(summary.grossProfit)}</td>
+                    <tr className="border-b-2 border-b-gray-300 bg-emerald-50/30">
+                      <td className="font-bold py-4 px-4 sm:px-6 text-sm sm:text-base">{tProfit("grossProfit")}</td>
+                      <td className="text-right font-bold py-4 px-4 sm:px-6 text-sm sm:text-base">{formatCurrency(summary.grossProfit)}</td>
                     </tr>
 
                     {/* Operating Expense */}
