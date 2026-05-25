@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       user_id: userId,
     };
 
-    // Calculate Revenue from Orders
+    // Calculate Revenue and COGS from Orders
     const revenueQuery: any = {
       ...baseQuery,
       status: { $ne: "cancelled" },
@@ -60,10 +60,41 @@ export async function GET(request: NextRequest) {
 
     const revenuePipeline = [
       { $match: revenueQuery },
+      { $unwind: { path: "$items", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: "$_id",
+          total_amount: { $first: "$total_amount" },
+          total_cost: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ["$items.quantity", 0] },
+                {
+                  $ifNull: [
+                    "$items.cost_price",
+                    {
+                      $ifNull: [
+                        "$items.purchase_price",
+                        {
+                          $ifNull: [
+                            "$items.costPrice",
+                            { $ifNull: ["$items.purchasePrice", 0] }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
       {
         $group: {
           _id: null,
           totalRevenue: { $sum: "$total_amount" },
+          totalCOGS: { $sum: "$total_cost" },
           totalOrders: { $sum: 1 },
           avgOrderValue: { $avg: "$total_amount" },
         },
@@ -88,14 +119,28 @@ export async function GET(request: NextRequest) {
       },
     ];
 
-    // Fetch both in parallel
-    const [revenueResult, expensesResult] = await Promise.all([
+    // Expenses grouped by Category
+    const expensesByCategoryPipeline = [
+      { $match: expensesQuery },
+      {
+        $group: {
+          _id: { $ifNull: ["$category", "Uncategorized"] },
+          totalAmount: { $sum: "$amount" }
+        }
+      },
+      { $sort: { totalAmount: -1 } }
+    ];
+
+    // Fetch in parallel
+    const [revenueResult, expensesResult, expensesByCategoryResult] = await Promise.all([
       ordersCollection.aggregate(revenuePipeline).toArray(),
       expensesCollection.aggregate(expensePipeline).toArray(),
+      expensesCollection.aggregate(expensesByCategoryPipeline).toArray(),
     ]);
 
     const revenueData = revenueResult[0] || {
       totalRevenue: 0,
+      totalCOGS: 0,
       totalOrders: 0,
       avgOrderValue: 0,
     };
@@ -108,10 +153,20 @@ export async function GET(request: NextRequest) {
 
     // Calculate Profit & Margins
     const totalRevenue = Number(revenueData.totalRevenue) || 0;
+    const totalCOGS = Number(revenueData.totalCOGS) || 0;
+    const grossProfit = totalRevenue - totalCOGS;
+    
     const totalExpenses = Number(expensesData.totalExpenses) || 0;
-    const netProfit = totalRevenue - totalExpenses;
+    const operatingProfit = grossProfit - totalExpenses;
+    
     const profitMargin =
-      totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100 * 100) / 100 : 0;
+      totalRevenue > 0 ? Math.round((operatingProfit / totalRevenue) * 100 * 100) / 100 : 0;
+
+    // Expenses by Category formatting
+    const expensesByCategory = expensesByCategoryResult.map((item: any) => ({
+      category: item._id,
+      amount: item.totalAmount || 0
+    }));
 
     // Get detailed breakdown by category
     const categoryBreakdownPipeline = [
@@ -170,8 +225,10 @@ export async function GET(request: NextRequest) {
 
     const summary = {
       totalRevenue,
+      totalCOGS,
+      grossProfit,
       totalExpenses,
-      netProfit,
+      operatingProfit,
       profitMargin,
       totalOrders: revenueData.totalOrders || 0,
       totalExpenseItems: expensesData.totalExpenseItems || 0,
@@ -185,6 +242,7 @@ export async function GET(request: NextRequest) {
       summary,
       breakdown,
       expenses,
+      expensesByCategory,
       pagination: {
         currentPage: page,
         pageSize: limit > 0 ? limit : totalExpenseCount,
