@@ -36,6 +36,7 @@ import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -198,6 +199,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <SubscriptionStatusBadge />
           <LanguageSwitcher />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -139,6 +139,32 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create default party for user", err);
     }
 
+    // Create trial subscription
+    try {
+      const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
+      const trialDays = parseInt(process.env.TRIAL_NUMBER_OF_DAYS || "14", 10);
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + trialDays);
+
+      await subscriptionsCollection.insertOne({
+        user_id: newUser?._id,
+        email: email,
+        plan: "trial",
+        status: "active", // Trial is active by default
+        amount: 0,
+        trial_days: trialDays,
+        created_at: new Date(),
+        expiry_date: expiryDate,
+        activated_date: new Date(),
+        billing_cycle_start: new Date(),
+        billing_cycle_end: expiryDate,
+        next_billing_date: expiryDate,
+      });
+    } catch (err) {
+      // Log but don't block signup
+      console.error("Failed to create trial subscription for user", err);
+    }
+
     return NextResponse.json(
       {
         message: "User created successfully",
