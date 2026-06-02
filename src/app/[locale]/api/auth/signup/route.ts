@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     // Create trial subscription
     try {
       const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
-      const trialDays = parseInt(process.env.TRIAL_NUMBER_OF_DAYS || "14", 10);
+      const trialDays = parseInt(process.env.NEXT_PUBLIC_TRIAL_NUMBER_OF_DAYS || "14", 10);
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + trialDays);
 
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         user_id: newUser?._id,
         email: email,
         plan: "trial",
-        status: "active", // Trial is active by default
+        status: "in_trial",
         amount: 0,
         trial_days: trialDays,
         created_at: new Date(),

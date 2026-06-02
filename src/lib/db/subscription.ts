@@ -92,9 +92,9 @@ export async function getSubscriptionStatus(userId: string | ObjectId): Promise<
   );
 
   return {
-    isActive: subscription.status === "active" && subscription.expiry_date > now,
+    isActive: ["active", "in_trial", "trial"].includes(subscription.status) && subscription.expiry_date > now,
     isPending: subscription.status === "pending",
-    isExpired: subscription.status === "expired" || subscription.expiry_date <= now,
+    isExpired: ["expired", "payment_expire", "login_blocked"].includes(subscription.status) || subscription.expiry_date <= now,
     plan: subscription.plan,
     daysRemaining: Math.max(0, daysRemaining),
     expiryDate: subscription.expiry_date,
@@ -154,7 +154,7 @@ export function getPlanLimits(plan: string): {
   price: number;
   features: string[];
 } {
-  const planPrice = parseInt(process.env.PLAN_PRICE || "1000", 10);
+  const planPrice = parseInt(process.env.NEXT_PUBLIC_PLAN_PRICE || "1000", 10);
 
   const plans: Record<
     string,

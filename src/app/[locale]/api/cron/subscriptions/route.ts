@@ -1,213 +1,101 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
+import nodemailer from "nodemailer";
 
-/**
- * Cron Job - Runs daily at 12 PM Pakistan time (UTC+5)
- * 
- * Tasks:
- * 1. Find subscriptions where trial/paid period has ended (expiry_date <= now)
- * 2. Mark them as "expired"
- * 3. Create new 30-day "pending" subscription for renewal
- * 
- * Usage: Set up a cron job at cron-job.org or similar service
- * URL: https://yourdomain.com/en/api/cron/subscriptions?token=YOUR_CRON_SECRET_TOKEN
- * Schedule: Every day at 12:00 PM (Pakistan time = UTC+5, so 7:00 AM UTC)
- * 
- * Cron expression: 0 7 * * * (7 AM UTC = 12 PM Pakistan)
- * 
- * TESTING:
- * - Localhost: http://localhost:3000/en/api/cron/subscriptions?token=super-secret-cron-token-change-this-in-production
- * - Production: https://yourdomain.com/en/api/cron/subscriptions?token=YOUR_CRON_SECRET_TOKEN
- */
+const MAIL_HOST = process.env.MAIL_HOST || "smtp.gmail.com";
+const MAIL_PORT = Number(process.env.MAIL_PORT || 465);
+const MAIL_USER = process.env.MAIL_USER || "";
+const MAIL_PASSWORD = (process.env.MAIL_PASSWORD || process.env.MAIL_PASS || "").replace(/\s+/g, "");
+const MAIL_TLS_SERVERNAME = process.env.MAIL_TLS_SERVERNAME || "smtp.gmail.com";
+const MAIL_FROM = process.env.MAIL_FROM || "no-reply@example.com";
 
-export async function GET(request: NextRequest) {
-  try {
-    // Verify the request is from a trusted cron service using query parameter
-    const token = request.nextUrl.searchParams.get("token");
-    const expectedToken = process.env.CRON_SECRET_TOKEN || "default-secret-token";
-
-    if (token !== expectedToken) {
-      return NextResponse.json(
-        { error: "Unauthorized - Invalid or missing token" },
-        { status: 401 }
-      );
-    }
-
-    const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
-    const now = new Date();
-
-    // 1. Find all subscriptions that have expired
-    const expiredSubscriptions = await subscriptionsCollection
-      .find({
-        expiry_date: { $lte: now },
-        status: { $in: ["active", "trial"] }, // Only process active/trial subscriptions
-      })
-      .toArray();
-
-    console.log(`Found ${expiredSubscriptions.length} expired subscriptions`);
-
-    let processedCount = 0;
-    let createdCount = 0;
-
-    // 2. Process each expired subscription
-    for (const subscription of expiredSubscriptions) {
-      try {
-        // Mark as expired
-        await subscriptionsCollection.updateOne(
-          { _id: subscription._id },
-          {
-            $set: {
-              status: "expired",
-              updated_at: new Date(),
-            },
-          }
-        );
-
-        processedCount++;
-
-        // 3. Check if a pending subscription already exists for this user
-        // This prevents creating duplicate pending subscriptions
-        const existingPending = await subscriptionsCollection.findOne({
-          user_id: subscription.user_id,
-          status: "pending",
-        });
-
-        if (existingPending) {
-          console.log(
-            `Pending subscription already exists for user ${subscription.user_id}. Skipping creation.`
-          );
-          continue;
-        }
-
-        // 4. Create new 30-day pending subscription for renewal
-        const newExpiryDate = new Date();
-        newExpiryDate.setDate(newExpiryDate.getDate() + 30);
-
-        // All subscriptions use "starter" plan (only one plan available)
-        const newPlan = "starter";
-
-        // Get pricing from environment variable
-        const planPrice = parseInt(process.env.PLAN_PRICE || "1000", 10);
-        const newAmount = planPrice;
-
-        await subscriptionsCollection.insertOne({
-          user_id: subscription.user_id,
-          email: subscription.email,
-          plan: newPlan,
-          status: "pending", // New subscription is pending payment
-          amount: newAmount,
-          created_at: new Date(),
-          expiry_date: newExpiryDate,
-          activated_date: null, // Will be set when admin activates
-          billing_cycle_start: null,
-          billing_cycle_end: newExpiryDate,
-          next_billing_date: newExpiryDate,
-          previous_subscription_id: subscription._id, // Track relationship
-          is_renewal: true, // Mark as renewal (not first-time trial)
-        });
-
-        createdCount++;
-      } catch (err) {
-        console.error(`Error processing subscription ${subscription._id}:`, err);
-      }
-    }
-
-    return NextResponse.json(
-      {
-        message: "Cron job completed successfully",
-        processedSubscriptions: processedCount,
-        newSubscriptionsCreated: createdCount,
-        timestamp: new Date().toISOString(),
-        pakistanTime: new Date().toLocaleString("en-US", {
-          timeZone: "Asia/Karachi",
-        }),
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Cron job error:", error);
-    return NextResponse.json(
-      {
-        error: "Cron job failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
+function createTransporter(port: number) {
+  return nodemailer.createTransport({
+    host: MAIL_HOST,
+    port,
+    secure: port === 465,
+    requireTLS: port !== 465,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    auth: {
+      user: MAIL_USER,
+      pass: MAIL_PASSWORD,
+    },
+    tls: {
+      servername: MAIL_TLS_SERVERNAME,
+      minVersion: "TLSv1.2",
+    },
+  });
 }
 
-/**
- * Manual POST endpoint to test the cron job
- */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const testToken = body.token || process.env.CRON_SECRET_TOKEN;
+async function sendMailWithFallback(options: nodemailer.SendMailOptions) {
+  const orderedPorts = Array.from(new Set([MAIL_PORT, 465, 587]));
+  let lastError: unknown;
 
-    if (testToken !== process.env.CRON_SECRET_TOKEN) {
-      return NextResponse.json(
-        { error: "Invalid token" },
-        { status: 401 }
-      );
+  for (const port of orderedPorts) {
+    try {
+      const transporter = createTransporter(port);
+      await transporter.sendMail(options);
+      return { usedPort: port };
+    } catch (err) {
+      lastError = err;
     }
+  }
+  throw lastError;
+}
 
-    // Run same logic as GET
-    const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
-    const now = new Date();
+async function runCronJob() {
+  const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
+  const now = new Date();
 
-    const expiredSubscriptions = await subscriptionsCollection
-      .find({
-        expiry_date: { $lte: now },
-        status: { $in: ["active", "trial"] },
-      })
-      .toArray();
+  // 1. Find subscriptions where trial/paid period has ended
+  const expiredSubscriptions = await subscriptionsCollection
+    .find({
+      expiry_date: { $lte: now },
+      status: { $in: ["active", "in_trial", "trial"] },
+    })
+    .toArray();
 
-    let processedCount = 0;
-    let createdCount = 0;
+  let processedCount = 0;
+  let createdCount = 0;
+  let emailsSent = 0;
+  let blockedCount = 0;
 
-    for (const subscription of expiredSubscriptions) {
-      try {
-        await subscriptionsCollection.updateOne(
-          { _id: subscription._id },
-          {
-            $set: {
-              status: "expired",
-              updated_at: new Date(),
-            },
-          }
-        );
-
-        processedCount++;
-
-        // Check if a pending subscription already exists for this user
-        const existingPending = await subscriptionsCollection.findOne({
-          user_id: subscription.user_id,
-          status: "pending",
-        });
-
-        if (existingPending) {
-          console.log(
-            `Pending subscription already exists for user ${subscription.user_id}. Skipping creation.`
-          );
-          continue;
+  for (const subscription of expiredSubscriptions) {
+    try {
+      // Mark as payment_expire
+      await subscriptionsCollection.updateOne(
+        { _id: subscription._id },
+        {
+          $set: {
+            status: "payment_expire",
+            updated_at: new Date(),
+          },
         }
+      );
 
+      processedCount++;
+
+      // Create new 30-day pending subscription for renewal
+      const existingPending = await subscriptionsCollection.findOne({
+        user_id: subscription.user_id,
+        status: "pending",
+      });
+
+      if (!existingPending) {
         const newExpiryDate = new Date();
         newExpiryDate.setDate(newExpiryDate.getDate() + 30);
+        const planPrice = parseInt(process.env.NEXT_PUBLIC_PLAN_PRICE || "1000", 10);
 
-        // All subscriptions use "starter" plan (only one plan available)
-        const newPlan = "starter";
-
-        // Get pricing from environment variable
-        const planPrice = parseInt(process.env.PLAN_PRICE || "1000", 10);
-        const newAmount = planPrice;
+        const planName = process.env.NEXT_PUBLIC_PLAN_NAME || "starter";
 
         await subscriptionsCollection.insertOne({
           user_id: subscription.user_id,
           email: subscription.email,
-          plan: newPlan,
+          plan: planName,
           status: "pending",
-          amount: newAmount,
+          amount: planPrice,
           created_at: new Date(),
           expiry_date: newExpiryDate,
           activated_date: null,
@@ -219,28 +107,121 @@ export async function POST(request: NextRequest) {
         });
 
         createdCount++;
-      } catch (err) {
-        console.error(`Error processing subscription ${subscription._id}:`, err);
       }
+    } catch (err) {
+      console.error(`Error processing expired subscription ${subscription._id}:`, err);
+    }
+  }
+
+  // 2. Process pending subscriptions for Grace Period logic
+  const pendingSubscriptions = await subscriptionsCollection
+    .find({ status: "pending" })
+    .toArray();
+
+  const gracePeriodDays = parseInt(process.env.GRACE_PERIOD_DAYS || "12", 10);
+  const emailSubjectTemplate = process.env.GRACE_PERIOD_EMAIL_SUBJECT || "Action Required: Subscription Payment Reminder";
+  const emailMsgTemplate = process.env.GRACE_PERIOD_EMAIL_MSG || "Dear user, your subscription expired on {{EXPIRY_DATE}}. Please renew.";
+
+  for (const pendingSub of pendingSubscriptions) {
+    try {
+      // Get the old expiry date for the email message
+      const oldSub = pendingSub.previous_subscription_id 
+        ? await subscriptionsCollection.findOne({ _id: pendingSub.previous_subscription_id })
+        : null;
+      
+      const expiryDateStr = oldSub && oldSub.expiry_date 
+        ? new Date(oldSub.expiry_date).toLocaleDateString()
+        : new Date(pendingSub.created_at).toLocaleDateString();
+
+      // Days passed since pending subscription was created
+      const daysPassed = Math.floor((now.getTime() - new Date(pendingSub.created_at).getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysPassed > gracePeriodDays) {
+        // Block the login
+        await subscriptionsCollection.updateOne(
+          { _id: pendingSub._id },
+          {
+            $set: {
+              status: "login_blocked",
+              updated_at: new Date(),
+            },
+          }
+        );
+        blockedCount++;
+      } else {
+        // Send reminder email
+        const msg = emailMsgTemplate.replace("{{EXPIRY_DATE}}", expiryDateStr);
+        if (pendingSub.email && MAIL_USER) {
+          try {
+             await sendMailWithFallback({
+                from: MAIL_FROM,
+                to: pendingSub.email,
+                subject: emailSubjectTemplate,
+                html: `<div style="font-family: sans-serif;"><p>${msg}</p></div>`,
+             });
+             emailsSent++;
+          } catch(emailErr) {
+             console.error(`Failed to send grace period email for ${pendingSub.email}:`, emailErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Error processing pending subscription ${pendingSub._id}:`, err);
+    }
+  }
+
+  return { processedCount, createdCount, emailsSent, blockedCount };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const token = request.nextUrl.searchParams.get("token");
+    const expectedToken = process.env.CRON_SECRET_TOKEN || "default-secret-token";
+
+    if (token !== expectedToken) {
+      return NextResponse.json({ error: "Unauthorized - Invalid or missing token" }, { status: 401 });
     }
 
-    return NextResponse.json(
-      {
-        message: "Manual cron job test completed",
-        processedSubscriptions: processedCount,
-        newSubscriptionsCreated: createdCount,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 200 }
-    );
+    const result = await runCronJob();
+
+    return NextResponse.json({
+      message: "Cron job completed successfully",
+      ...result,
+      timestamp: new Date().toISOString(),
+      pakistanTime: new Date().toLocaleString("en-US", { timeZone: "Asia/Karachi" }),
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error("Cron job error:", error);
+    return NextResponse.json({
+      error: "Cron job failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const testToken = body.token || process.env.CRON_SECRET_TOKEN;
+
+    if (testToken !== process.env.CRON_SECRET_TOKEN) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const result = await runCronJob();
+
+    return NextResponse.json({
+      message: "Manual cron job test completed",
+      ...result,
+      timestamp: new Date().toISOString(),
+    }, { status: 200 });
+
   } catch (error) {
     console.error("Manual cron job error:", error);
-    return NextResponse.json(
-      {
-        error: "Manual cron job failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: "Manual cron job failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    }, { status: 500 });
   }
 }

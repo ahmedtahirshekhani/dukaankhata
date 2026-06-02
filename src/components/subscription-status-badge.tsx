@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { signOut } from "next-auth/react";
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +44,10 @@ export function SubscriptionStatusBadge() {
         if (response.ok) {
           const data = await response.json();
           setSubscriptionStatus(data);
+          
+          if (data.status === "login_blocked") {
+            signOut({ callbackUrl: `/${locale}/login?error=login_blocked` });
+          }
         }
       } catch (error) {
         console.error("Failed to fetch subscription status:", error);
@@ -66,6 +71,9 @@ export function SubscriptionStatusBadge() {
       return "bg-green-100 text-green-800 border-green-300";
     }
     if (subscriptionStatus.isExpired) {
+      if (subscriptionStatus.status === "payment_expire") {
+        return "bg-orange-100 text-orange-800 border-orange-300";
+      }
       return "bg-red-100 text-red-800 border-red-300";
     }
     return "bg-gray-100 text-gray-800 border-gray-300";
@@ -89,9 +97,11 @@ export function SubscriptionStatusBadge() {
       return "Pending";
     }
     if (subscriptionStatus.isActive) {
-      return `${subscriptionStatus.plan === "trial" ? "Trial" : "Active"}`;
+      return `${["trial", "in_trial"].includes(subscriptionStatus.status) ? "Trial" : "Active"}`;
     }
     if (subscriptionStatus.isExpired) {
+      if (subscriptionStatus.status === "payment_expire") return "Grace Period";
+      if (subscriptionStatus.status === "login_blocked") return "Blocked";
       return "Expired";
     }
     return "No Subscription";

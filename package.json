@@ -10,6 +10,7 @@
     "seed:mongodb": "tsx --env-file=.env.local scripts/seed-mongodb.ts",
     "migrate:party-name": "tsx --env-file=.env.local scripts/migrate-party-name.ts",
     "backfill:customer-ledger": "tsx --env-file=.env.local scripts/backfill-customer-ledger.ts",
+    "migrate:add-trials": "tsx --env-file=.env.local scripts/add-trials.ts",
     "generate:logo-icons": "node scripts/generate-logo-icons.js",
     "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view"
   },
