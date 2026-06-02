@@ -10,21 +10,25 @@ import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
  * 3. Create new 30-day "pending" subscription for renewal
  * 
  * Usage: Set up a cron job at cron-job.org or similar service
- * URL: https://yourdomain.com/api/cron/subscriptions
+ * URL: https://yourdomain.com/en/api/cron/subscriptions?token=YOUR_CRON_SECRET_TOKEN
  * Schedule: Every day at 12:00 PM (Pakistan time = UTC+5, so 7:00 AM UTC)
  * 
  * Cron expression: 0 7 * * * (7 AM UTC = 12 PM Pakistan)
+ * 
+ * TESTING:
+ * - Localhost: http://localhost:3000/en/api/cron/subscriptions?token=super-secret-cron-token-change-this-in-production
+ * - Production: https://yourdomain.com/en/api/cron/subscriptions?token=YOUR_CRON_SECRET_TOKEN
  */
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify the request is from a trusted cron service
-    const authHeader = request.headers.get("authorization");
+    // Verify the request is from a trusted cron service using query parameter
+    const token = request.nextUrl.searchParams.get("token");
     const expectedToken = process.env.CRON_SECRET_TOKEN || "default-secret-token";
 
-    if (authHeader !== `Bearer ${expectedToken}`) {
+    if (token !== expectedToken) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - Invalid or missing token" },
         { status: 401 }
       );
     }
