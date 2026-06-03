@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
@@ -35,6 +36,7 @@ interface SubscriptionStatus {
 export function SubscriptionStatusBadge() {
   const locale = useLocale();
   const t = useTranslations("landing.pricing");
+  const pathname = usePathname();
   const { user } = useUserProfile();
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionStatus | null>(null);
@@ -69,7 +71,7 @@ export function SubscriptionStatusBadge() {
     };
 
     fetchSubscriptionStatus();
-  }, [user?.id, locale]);
+  }, [user?.id, locale, pathname]);
 
   if (loading || !subscriptionStatus) {
     return null;
