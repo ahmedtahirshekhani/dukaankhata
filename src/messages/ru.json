@@ -181,7 +181,7 @@
     "signingIn": "Sign in ho rahe hain...",
     "creatingAccount": "Account banya ja raha hai...",
     "signUpSuccess": "Account kamyabi se bnya gya! Baraye Mehrbani sign in karain.",
-    "loginBlockedError": "Aap ki subscription khatam ho chuki hai aur aap ka portal block kar diya gaya hai. Renew ke liye support se rabta karein.",
+    "loginBlockedError": "Aap ki subscription khatam ho chuki hai aur aap ka portal block kar diya gaya hai. Renew ke liye {number} par rabta karein.",
     "loginError": "Sign in mein nakam. Baraye Mehrbani dobara koshish karain.",
     "signUpError": "Account banne mein nakam. Baraye Mehrbani dobara koshish karain.",
     "networkError": "Network kharabi. Baraye Mehrbani apna connection check karain aur dobara koshish karain.",
