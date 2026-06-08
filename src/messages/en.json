@@ -181,7 +181,7 @@
     "signingIn": "Signing in...",
     "creatingAccount": "Creating account...",
     "signUpSuccess": "Account created successfully! Please sign in.",
-    "loginBlockedError": "Your subscription has expired and your portal is blocked. Please contact support.",
+    "loginBlockedError": "Your subscription has expired and your portal is blocked. Please contact {number} for renewal.",
     "loginError": "Failed to log in. Please try again.",
     "signUpError": "Failed to create account. Please try again.",
     "networkError": "Network error. Please check your connection and try again.",

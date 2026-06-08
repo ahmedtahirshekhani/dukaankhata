@@ -70,6 +70,7 @@ export const COLLECTIONS = {
   EXPENSES: "expenses",
   TRANSACTIONS: "transactions",
   PASSWORD_RESETS: "password_resets",
+  EMAIL_VERIFICATION_CODES: "email_verification_codes",
   CATEGORIES: "categories",
   BRANCHES: "branches",
   WAITLIST: "waitlist",
@@ -265,6 +266,14 @@ export async function createIndexes() {
     await db.collection(COLLECTIONS.PASSWORD_RESETS).createIndex({ email: 1 });
     await db
       .collection(COLLECTIONS.PASSWORD_RESETS)
+      .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+    // Email verification codes collection indexes
+    await db
+      .collection(COLLECTIONS.EMAIL_VERIFICATION_CODES)
+      .createIndex({ email: 1 });
+    await db
+      .collection(COLLECTIONS.EMAIL_VERIFICATION_CODES)
       .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
 

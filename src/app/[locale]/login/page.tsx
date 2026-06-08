@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { supportContact } from "@/lib/constants";
+import { proAccessPaymentInfo } from "@/lib/contact-info";
 
 export default function LoginPage({ params }: { params: { locale: string } }) {
   const t = useTranslations("auth");
@@ -39,7 +40,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
     }
 
     if (err.includes("login_blocked")) {
-      return t("loginBlockedError");
+      return t("loginBlockedError", { number: proAccessPaymentInfo.proofWhatsappDisplay });
     }
 
     if (
