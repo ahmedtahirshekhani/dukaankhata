@@ -41,6 +41,16 @@ export const authOptions = {
             return null;
           }
 
+          const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
+          const subscription = await subscriptionsCollection.findOne(
+            { user_id: userData._id },
+            { sort: { created_at: -1 } }
+          );
+
+          if (subscription && subscription.status === "login_blocked") {
+            throw new Error("LOGIN_BLOCKED");
+          }
+
           const user = {
             id: userData._id.toString(),
             email: userData.email,
@@ -49,7 +59,7 @@ export const authOptions = {
           };
           return user;
         } catch (error: any) {
-          if (error.message === "ACCOUNT_DELETED") {
+          if (error.message === "ACCOUNT_DELETED" || error.message === "LOGIN_BLOCKED") {
             throw error;
           }
           console.error("Auth error:", error);

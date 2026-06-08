@@ -38,6 +38,10 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
       return t("accountDeleted");
     }
 
+    if (err.includes("login_blocked")) {
+      return t("loginBlockedError");
+    }
+
     if (
       err === "credentialssignin" ||
       err.includes("credential") ||

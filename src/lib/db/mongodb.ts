@@ -74,6 +74,7 @@ export const COLLECTIONS = {
   BRANCHES: "branches",
   WAITLIST: "waitlist",
   QUOTATIONS: "quotations",
+  SUBSCRIPTIONS: "subscriptions",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -280,6 +281,19 @@ export async function createIndexes() {
       .collection(COLLECTIONS.WAITLIST)
       .createIndex({ whatsapp_number: 1 });
     await db.collection(COLLECTIONS.WAITLIST).createIndex({ created_at: -1 });
+
+    // Subscriptions collection indexes
+    await db.collection(COLLECTIONS.SUBSCRIPTIONS).createIndex({ user_id: 1 });
+    await db.collection(COLLECTIONS.SUBSCRIPTIONS).createIndex({ email: 1 });
+    await db
+      .collection(COLLECTIONS.SUBSCRIPTIONS)
+      .createIndex({ status: 1 });
+    await db
+      .collection(COLLECTIONS.SUBSCRIPTIONS)
+      .createIndex({ expiry_date: 1 });
+    await db
+      .collection(COLLECTIONS.SUBSCRIPTIONS)
+      .createIndex({ created_at: -1 });
 
     console.log("MongoDB indexes created successfully");
   } catch (error) {
