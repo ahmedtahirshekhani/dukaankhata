@@ -1,8 +1,8 @@
-# POS and Inventory Management System
+# Finance and Inventory Management System
 
 This is an Account and Inventory Management System built with Next.js, React, and MongoDB. It provides a comprehensive solution for managing products, customers, orders, and transactions in a retail or small business setting.
 
-As a developer with extensive experience in creating similar applications, this project represents the culmination of years of expertise in building POS systems. Of course, in the beginning the project seem a little raw, but with time and hopefully with the help of the community, it will become a robust and feature-rich solution for businesses of all sizes.
+As a developer with extensive experience in creating similar applications, this project represents the culmination of years of expertise in building Finance systems. Of course, in the beginning the project seem a little raw, but with time and hopefully with the help of the community, it will become a robust and feature-rich solution for businesses of all sizes.
 
 This particular iteration embraces the spirit of open-source development, making it freely available for the community to use, modify, and improve upon.
 
@@ -12,7 +12,7 @@ This particular iteration embraces the spirit of open-source development, making
 - **Products Management**: Add, edit, delete, and view products
 - **Customer Management**: Manage customer information and status
 - **Order Management**: Create and manage orders
-- **Point of Sale (POS)**: Quick and easy sales processing
+- **Point of Sale (Finance)**: Quick and easy sales processing
 - **User Authentication**: Secure login system
 
 ## Tech Stack
@@ -26,7 +26,7 @@ This particular iteration embraces the spirit of open-source development, making
 
 ## Getting Started
 
-1. Clone the repository
+1. Clone the reFinanceitory
 2. Install dependencies:
    ```
    npm install
@@ -45,12 +45,12 @@ This particular iteration embraces the spirit of open-source development, making
      NEXT_PUBLIC_GTM_ID=GTM-XXXXXXXXXX
      ```
    - Replace `your_mongodb_connection_string` with your actual MongoDB Atlas connection string
-   - (Optional) Enable PostHog analytics by adding
+   - (Optional) Enable FinancetHog analytics by adding
      ```
-     NEXT_PUBLIC_POSTHOG_KEY=<POSTHOG_PROJECT_API_KEY>
-     NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+     NEXT_PUBLIC_FinanceTHOG_KEY=<FinanceTHOG_PROJECT_API_KEY>
+     NEXT_PUBLIC_FinanceTHOG_HOST=https://us.i.Financethog.com
      ```
-     Use your project API key from PostHog and set `NEXT_PUBLIC_POSTHOG_HOST` to your chosen PostHog host (US default shown above).
+     Use your project API key from FinancetHog and set `NEXT_PUBLIC_FinanceTHOG_HOST` to your chosen FinancetHog host (US default shown above).
 4. Seed the database with sample data:
    ```
    npm run seed:mongodb
@@ -122,7 +122,7 @@ pushEvent({
 });
 ```
 
-#### Business Events (Recommended for POS)
+#### Business Events (Recommended for Finance)
 
 Use [src/lib/gtm-events.ts](src/lib/gtm-events.ts) for high-level business logic tracking. This layer provides semantic helpers that integrate with both GA4 and GTM:
 
@@ -162,13 +162,13 @@ trackOrderCreated({
 
 ### Architecture
 
-| Component                                                        | Purpose                                       |
+| Component                                                        | PurFinancee                                       |
 | ---------------------------------------------------------------- | --------------------------------------------- |
 | [src/lib/gtag.ts](src/lib/gtag.ts)                               | GA4 utilities for direct measurement tracking |
 | [src/components/ga-tracker.tsx](src/components/ga-tracker.tsx)   | GA4 client-side page view and route tracking  |
 | [src/lib/gtm.ts](src/lib/gtm.ts)                                 | GTM utilities for dataLayer event pushing     |
 | [src/components/gtm-tracker.tsx](src/components/gtm-tracker.tsx) | GTM client-side page view and user tracking   |
-| [src/lib/gtm-events.ts](src/lib/gtm-events.ts)                   | High-level business event helpers for POS     |
+| [src/lib/gtm-events.ts](src/lib/gtm-events.ts)                   | High-level business event helpers for Finance     |
 
 ### Best Practices
 
