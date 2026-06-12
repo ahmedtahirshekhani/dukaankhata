@@ -7,15 +7,7 @@ const MONGODB_URL = process.env.MONGODB_URL;
 const DB_NAME = process.env.MONGODB_DB_NAME || "dukaankhata";
 
 const TARGET_USER_IDS = [
-  "69e86eed27509862f40a68ca",
-  "69e9110c4399bfcb4c4f474d",
-  "6a0e07a50b2bd3afc05346f0",
-  "6a21b1dedadde9dd074e6660",
-  "6a22cd3bdadde9dd074e6663",
-  "6a22d031dadde9dd074e6666",
-  "6a22da2bdadde9dd074e6669",
-  "6a22e124dadde9dd074e666c",
-  "6a22e5861e7bba76fbe6f886",
+  "TEST_USER_ID_1",
 ];
 
 if (!MONGODB_URL) {

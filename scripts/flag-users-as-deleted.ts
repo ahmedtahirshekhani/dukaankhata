@@ -5,7 +5,7 @@ const MONGODB_URL = process.env.MONGODB_URL;
 const DB_NAME = process.env.MONGODB_DB_NAME || "dukaankhata";
 
 const TARGET_USER_IDS = [
-  "694d87171bda8cd5322b631c"
+  "TEST_USER_ID_1",
 ];
 
 if (!MONGODB_URL) {
@@ -30,7 +30,7 @@ function asObjectIds(ids: string[]): ObjectId[] {
 
 async function main() {
   const { dryRun } = parseArgs();
-  const client = new MongoClient(MONGODB_URL);
+  const client = new MongoClient(MONGODB_URL!);
 
   await client.connect();
   console.log("Connected to MongoDB.");
@@ -58,7 +58,13 @@ async function main() {
 
     const updateResult = await usersCollection.updateMany(
       { _id: { $in: targetObjectIds } },
-      { $set: { isDeleted: true } }
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletionReason: "inactivity",
+        },
+      }
     );
 
     console.log(`Matched ${updateResult.matchedCount} users.`);
