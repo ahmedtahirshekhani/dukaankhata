@@ -220,7 +220,7 @@
     "welcomeProTip": "💡 Tip: Apne hisaabat ko munazzam karne ka behtar waqt kal tha. Doosra behtar waqt abhi hai!",
     "welcomeButtonText": "Dobara Login Karain",
     "welcomeFooter": "Aapka karobar ab mehfooz hatho mein hai. Aayiye aapki bookkeeping ko shandar banain! 🚀",
-    "accountDeleted": "Yeh Account Pehle se Hi Delete Hai. Admin se Rabta Karain Account Restore Karne Ke Liye"
+    "accountDeleted": "Yeh account ghair faal rehne ki wajah se delete kiya gaya hai. Account restore karne ke liye {phone} par admin se rabta karain"
   },
   "products": {
     "title": "Mausoolaat",

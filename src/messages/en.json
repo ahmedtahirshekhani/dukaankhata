@@ -220,7 +220,7 @@
     "welcomeProTip": "💡 Pro Tip: The best time to organize your accounts was yesterday. The second best time is right now!",
     "welcomeButtonText": "Login Again",
     "welcomeFooter": "Your business is now in safe hands. Let's make your accounting amazing! 🚀",
-    "accountDeleted": "This account has already been deleted. Contact an admin to restore your account."
+    "accountDeleted": "This account has been deleted because of inactivity. Contact an admin at {phone} to restore your account."
   },
   "products": {
     "title": "Items",
