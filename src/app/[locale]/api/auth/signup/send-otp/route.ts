@@ -3,8 +3,9 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 
+const APP_NAME = "Dukaan Khata";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
-const MAIL_FROM = process.env.MAIL_FROM || "no-reply@example.com";
+const MAIL_FROM = process.env.MAIL_FROM || process.env.MAIL_USER || "";
 
 const MAIL_HOST = process.env.MAIL_HOST || "smtp.gmail.com";
 const MAIL_PORT = Number(process.env.MAIL_PORT || 465);
@@ -67,6 +68,12 @@ function hashOtp(otp: string) {
 function getCooldownSeconds() {
   const parsedValue = Number(process.env.NEXT_PUBLIC_OTP_TIME || 30);
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 30;
+}
+
+function getMailAddress(value: string) {
+  const trimmedValue = value.trim();
+  const angleMatch = trimmedValue.match(/<([^>]+)>/);
+  return (angleMatch?.[1] || trimmedValue).trim();
 }
 
 export async function POST(req: Request) {
@@ -132,23 +139,42 @@ export async function POST(req: Request) {
       throw new Error("Missing MAIL_USER or MAIL_PASSWORD env values");
     }
 
+    if (!MAIL_FROM) {
+      throw new Error("Missing MAIL_FROM env value");
+    }
+
+    const fromAddress = getMailAddress(MAIL_FROM);
+
     const verificationLink = `${APP_URL}/en/signup`;
+    const plainText = [
+      `${APP_NAME} email verification code`,
+      "",
+      `Your verification code is: ${otp}`,
+      "",
+      "This code expires in 10 minutes.",
+      "If you did not request this, you can ignore this email.",
+      "",
+      `Continue on ${verificationLink}`,
+    ].join("\n");
 
     const html = `
-      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.5;color:#111827;">
-        <h2>Email Verification Code</h2>
-        <p>Use the code below to verify your email address and continue creating your account.</p>
-        <div style="font-size:28px;font-weight:700;letter-spacing:6px;padding:16px 20px;border:1px solid #e5e7eb;border-radius:10px;display:inline-block;margin:12px 0;background:#f9fafb;">${otp}</div>
-        <p>This code expires in 10 minutes.</p>
-        <p>If you did not request this, you can ignore this email.</p>
-        <p style="margin-top:16px;font-size:12px;color:#6b7280;">Continue on ${verificationLink}</p>
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px;">
+        <p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${APP_NAME}</p>
+        <h2 style="margin:0 0 12px;font-size:24px;line-height:1.2;">Verify your email address</h2>
+        <p style="margin:0 0 16px;">Use the code below to continue creating your account.</p>
+        <div style="font-size:30px;font-weight:700;letter-spacing:8px;padding:18px 20px;border:1px solid #e5e7eb;border-radius:12px;display:inline-block;margin:0 0 16px;background:#f9fafb;">${otp}</div>
+        <p style="margin:0 0 12px;">This code expires in 10 minutes.</p>
+        <p style="margin:0 0 12px;">If you did not request this, you can ignore this email.</p>
+        <p style="margin:18px 0 0;font-size:12px;color:#6b7280;">Continue on ${verificationLink}</p>
       </div>
     `;
 
     const result = await sendMailWithFallback({
-      from: MAIL_FROM,
+      from: { name: APP_NAME, address: fromAddress },
+      replyTo: fromAddress,
       to: email,
-      subject: "Verify your email",
+      subject: `${APP_NAME} sign-up code`,
+      text: plainText,
       html,
     });
 
