@@ -58,20 +58,20 @@ export default async function LocalizedRootLayout({
       <AuthProvider>
         <GTMUserTracker />
         <AnalyticsProvider>
-          <LocaleManager />
-          <LanguageInitializer />
-          <PWAInstallPrompt />
-          <PWAInstallBanner />
-          <IOSInstallPromptWrapper />
-          <MacChromeInstallPromptWrapper />
-          <OfflineIndicator />
-          <CustomersProvider>
-            <ProductsProvider>
-              <NextIntlClientProvider locale={locale} messages={messages}>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <LocaleManager />
+            <LanguageInitializer />
+            <PWAInstallPrompt />
+            <PWAInstallBanner />
+            <IOSInstallPromptWrapper />
+            <MacChromeInstallPromptWrapper />
+            <OfflineIndicator />
+            <CustomersProvider>
+              <ProductsProvider>
                 {children}
-              </NextIntlClientProvider>
-            </ProductsProvider>
-          </CustomersProvider>
+              </ProductsProvider>
+            </CustomersProvider>
+          </NextIntlClientProvider>
         </AnalyticsProvider>
       </AuthProvider>
     </PWAProvider>

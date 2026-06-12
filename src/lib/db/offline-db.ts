@@ -27,8 +27,8 @@ export class DukanKhataDB extends Dexie {
   payment_methods!: Table<any, string>;
   syncQueue!: Table<SyncOperation, number>;
 
-  constructor() {
-    super('DukanKhataOfflineDB');
+  constructor(dbName: string = 'DukanKhataOfflineDB') {
+    super(dbName);
     this.version(1).stores({
       products: 'id, name, sku, category',
       parties: 'id, name, phone, company_name, type, is_delete',
@@ -47,4 +47,20 @@ export class DukanKhataDB extends Dexie {
   }
 }
 
-export const db = new DukanKhataDB();
+const getDynamicDbName = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      const infoStr = localStorage.getItem('tenant_info');
+      if (infoStr) {
+        const info = JSON.parse(infoStr);
+        if (info.company && info.userId) {
+          const safeCompany = info.company.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+          return `dukaankhata_${safeCompany}_${info.userId}`;
+        }
+      }
+    } catch(e) {}
+  }
+  return 'DukanKhataOfflineDB';
+}
+
+export const db = new DukanKhataDB(getDynamicDbName());

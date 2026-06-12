@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true);
   const [showIndicator, setShowIndicator] = useState(false);
+  const tCommon = useTranslations("common");
 
   useEffect(() => {
     // Set initial state
@@ -61,7 +63,7 @@ export function OfflineIndicator() {
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-medium">Back online</span>
+            <span className="font-medium">{tCommon("backOnline")}</span>
           </>
         ) : (
           <>
@@ -78,7 +80,7 @@ export function OfflineIndicator() {
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-medium">You are offline</span>
+            <span className="font-medium">{tCommon("youAreOffline")}</span>
           </>
         )}
       </div>

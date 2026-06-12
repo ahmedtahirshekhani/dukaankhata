@@ -31,26 +31,103 @@ import {
   Home,
   Sparkles,
   BarChart,
+  WifiOff,
+  CheckCircle,
+  RefreshCw,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db/offline-db";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations();
+  const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
-  const [salesExpanded, setSalesExpanded] = useState(false); // Changed to false
-  const [purchaseExpanded, setPurchaseExpanded] = useState(false); // Changed to false
+  const [salesExpanded, setSalesExpanded] = useState(false);
+  const [purchaseExpanded, setPurchaseExpanded] = useState(false);
   const [reportsExpanded, setReportsExpanded] = useState(false);
   const [companyName, setCompanyName] = useState<string>("");
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  
+  // Offline and Syncing state tracking
+  const syncStatus = useLiveQuery(
+    async () => {
+      const queue = await db.syncQueue.toArray();
+      const pending = queue.filter(q => q.status === "pending" || q.status === "processing").length;
+      const failed = queue.filter(q => q.status === "failed").length;
+      return { pending, failed };
+    },
+    []
+  );
+  
+  const pendingSyncCount = syncStatus?.pending || 0;
+  const failedSyncCount = syncStatus?.failed || 0;
+  
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    // Initial check
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Active Heartbeat for Realtime Internet Detection
+    const pingInternet = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 sec timeout
+        
+        // Ping our own health API. If backend can't reach MongoDB, it returns 503
+        const res = await fetch('/api/health?_=' + new Date().getTime(), { 
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        setIsOnline(res.ok); // Returns false if status is 503 (Offline / Backend down)
+      } catch (e) {
+        setIsOnline(false); // Throws if fetch completely fails (Network off)
+      }
+    };
+
+    // Ping every 15 seconds
+    const interval = setInterval(pingInternet, 15000);
+    pingInternet(); // Run once immediately
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Auto-sync pending operations when connection is restored
+  useEffect(() => {
+    if (isOnline) {
+      const autoSync = async () => {
+        // Revert any failed operations back to pending so SyncEngine can retry them
+        await db.syncQueue.where('status').equals('failed').modify({ status: 'pending' });
+        await SyncEngine.pushQueue();
+      };
+      autoSync();
+    }
+  }, [isOnline]);
 
   // Fetch company name from localStorage or session
   useEffect(() => {
@@ -59,6 +136,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       setCompanyName(savedCompanyName);
     } else if (user?.company) {
       setCompanyName(user.company);
+    }
+  }, [user]);
+
+  // Set Tenant Info for Offline Database Isolation
+  useEffect(() => {
+    if (user?.id && user?.company) {
+      const currentInfoStr = localStorage.getItem("tenant_info");
+      const newInfo = JSON.stringify({ userId: user.id, company: user.company });
+      if (currentInfoStr !== newInfo) {
+        localStorage.setItem("tenant_info", newInfo);
+        // Reload to let offline-db.ts pick up the new dynamic database name
+        window.location.reload();
+      }
     }
   }, [user]);
 
@@ -150,7 +240,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     "/admin/ai-chat": tNav("aiChat"),
   };
 
-  const handleLogout = async () => {
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (pendingSyncCount > 0) {
+      setShowLogoutWarning(true);
+      return;
+    }
     await signOut({
       redirect: true,
       callbackUrl: `/${locale}/login`,
@@ -198,7 +293,33 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          
+          {/* Offline / Sync Indicator Badge */}
+          <div className="flex items-center">
+            {!isOnline ? (
+               <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("offlineTooltip")}>
+                 <WifiOff className="w-4 h-4 sm:mr-1.5" />
+                 <span className="hidden sm:inline">{tCommon("offline")}</span>
+               </div>
+            ) : failedSyncCount > 0 ? (
+               <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
+                 <WifiOff className="w-4 h-4 sm:mr-1.5" />
+                 <span className="hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
+               </div>
+            ) : pendingSyncCount > 0 ? (
+               <div className="flex items-center text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
+                 <RefreshCw className="w-4 h-4 sm:mr-1.5 animate-spin" />
+                 <span className="hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
+               </div>
+            ) : (
+               <div className="flex items-center text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncedTooltip")}>
+                 <CheckCircle className="w-4 h-4 sm:mr-1.5" />
+                 <span className="hidden sm:inline">{tCommon("synced")}</span>
+               </div>
+            )}
+          </div>
+
           <SubscriptionStatusBadge />
           <LanguageSwitcher />
           <DropdownMenu>
@@ -711,6 +832,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      <ConfirmDialog
+        open={showLogoutWarning}
+        onOpenChange={setShowLogoutWarning}
+        title={tCommon("logoutWarningTitle")}
+        description={tCommon("logoutWarningDesc")}
+        confirmLabel={tCommon("understood")}
+        onConfirm={() => setShowLogoutWarning(false)}
+        variant="warning"
+      />
     </div>
   );
 }

@@ -50,13 +50,20 @@ export class SyncEngine {
       try {
         await db.syncQueue.update(op.id!, { status: 'processing' });
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         const response = await fetch(op.url, {
           method: op.method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(op.data)
+          body: JSON.stringify(op.data),
+          signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
+          if (typeof window !== 'undefined') window.dispatchEvent(new Event('online'));
           const result = await response.json().catch(() => ({})); // Parse JSON safely
           
           // If this was a POST and the server returned a new ID, update the local record
@@ -78,6 +85,12 @@ export class SyncEngine {
           await db.syncQueue.update(op.id!, { status: 'failed', error: await response.text() });
         }
       } catch (error: any) {
+        if (error.name === 'AbortError' || error.message.includes('fetch')) {
+           if (typeof window !== 'undefined') window.dispatchEvent(new Event('offline'));
+        }
+        // Change status back to pending if it's just a network error, so it automatically retries later
+        // or keep as failed so user sees it. Let's keep it 'failed' and provide a way to retry, or change to pending so pushQueue retries.
+        // Actually, if we mark it pending it will loop endlessly if called. So failed is fine.
         await db.syncQueue.update(op.id!, { status: 'failed', error: error.message });
       }
     }
