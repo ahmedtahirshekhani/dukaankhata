@@ -53,9 +53,8 @@ const getDynamicDbName = () => {
       const infoStr = localStorage.getItem('tenant_info');
       if (infoStr) {
         const info = JSON.parse(infoStr);
-        if (info.company && info.userId) {
-          const safeCompany = info.company.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-          return `dukaankhata_${safeCompany}_${info.userId}`;
+        if (info.userId) {
+          return `dukaankhata_${info.userId}`;
         }
       }
     } catch(e) {}
