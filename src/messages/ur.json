@@ -949,7 +949,6 @@
     "delete_quotation_description": "کیا آپ واقعی {party} کی کوٹیشن حذف کرنا چاہتے ہیں؟",
     "deleting": "حذف ہو رہا ہے...",
     "party": "پارٹی",
-    "date": "تاریخ",
     "validity": "میعاد",
     "quotation_converted_success": "کوٹیشن کامیابی کے ساتھ سیل میں تبدیل ہو گئی! انوائس نمبر: {invoiceNo}",
     "failed_to_convert": "کوٹیشن تبدیل کرنے میں ناکامی",
@@ -1427,5 +1426,12 @@
     "accountDeletedSuccess": "آپ کی اکاؤنٹ کامیابی سے حذف ہو گئی",
     "accountDeleteFailed": "اکاؤنٹ حذف کرنے میں ناکام",
     "invalidPassword": "پاس ورڈ غلط ہے"
+  },
+  "aiChat": {
+    "aiChatTitle": "اے آئی اسسٹنٹ",
+    "aiChatDescription": "اپنے کاروبار کے بارے میں کچھ بھی پوچھیں یا کسٹمرز کو میسج کریں۔",
+    "aiChatInputPlaceholder": "کسی بھی زبان میں میسج لکھیں...",
+    "aiChatSend": "بھیجیں",
+    "aiChatEmptyState": "ہیلو! میں آپ کا دکان کھاتہ اے آئی اسسٹنٹ ہوں۔ آپ مجھے کسٹمرز کو میسج کرنے کے لیے کہہ سکتے ہیں۔"
   }
 }

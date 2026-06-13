@@ -1020,7 +1020,6 @@
     "delete_quotation_description": "Are you sure you want to delete quotation for {party}?",
     "deleting": "Deleting...",
     "party": "Party",
-    "date": "Date",
     "validity": "Validity",
     "quotation_converted_success": "Quotation converted to Sale successfully! Invoice No: {invoiceNo}",
     "failed_to_convert": "Failed to convert quotation",
@@ -1498,5 +1497,12 @@
     "accountDeletedSuccess": "Your account has been successfully deleted",
     "accountDeleteFailed": "Failed to delete account",
     "invalidPassword": "Invalid password"
+  },
+  "aiChat": {
+    "aiChatTitle": "AI Assistant",
+    "aiChatDescription": "Ask me anything about your business or manage your customers.",
+    "aiChatInputPlaceholder": "Type a message in any language...",
+    "aiChatSend": "Send",
+    "aiChatEmptyState": "Hello! I am your DukaanKhata AI Assistant. You can ask me to manage your customers."
   }
 }

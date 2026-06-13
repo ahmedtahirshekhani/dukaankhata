@@ -484,7 +484,7 @@
     "revenueBreakdown": "Revenue by Category",
     "category": "Category",
     "revenue": "Revenue",
-        "sales": "Sales",
+    "sales": "Sales",
     "avgValue": "Avg Value",
     "topExpenses": "Top Expenses",
     "expenseDescription": "Description",
@@ -897,7 +897,7 @@
     "easypaisa": "Easypaisa",
     "jazzCash": "JazzCash",
     "nayapay": "Nayapay",
-    "date": "Tareekh",
+    "date": "Date",
     "cancel": "Cancel",
     "confirmPayment": "Confirm Payment",
     "paymentMethodRequired": "Adaigi ka tareeqa zaroori hai.",
@@ -949,7 +949,6 @@
     "delete_quotation_description": "Kya aap waqai {party} ki quotation delete karna chahte hain?",
     "deleting": "Delete ho raha hai...",
     "party": "Party",
-    "date": "Date",
     "validity": "Validity",
     "quotation_converted_success": "Quotation kamyabi se sale mein tabdeel ho gayi! Invoice No: {invoiceNo}",
     "failed_to_convert": "Quotation convert karne mein nakami",
@@ -1427,5 +1426,12 @@
     "accountDeletedSuccess": "Aapka account kamyabi se delete ho gaya",
     "accountDeleteFailed": "Account delete karne mein nakaami",
     "invalidPassword": "Password galat hai"
+  },
+  "aiChat": {
+    "aiChatTitle": "AI Assistant",
+    "aiChatDescription": "Apne karobar ke bare mein kuch bhi puchein ya customers ko manage karein.",
+    "aiChatInputPlaceholder": "Koi bhi language mein message likhein...",
+    "aiChatSend": "Bhejein",
+    "aiChatEmptyState": "Hello! Main aapka DukaanKhata AI Assistant hoon. Aap mujhe customers manage karne ka keh sakte hain."
   }
 }
