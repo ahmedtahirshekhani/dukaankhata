@@ -1,7 +1,7 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToModelMessages, generateId } from 'ai';
 import { getCurrentUser } from '@/lib/auth/utils';
-import { customerTools } from '@/lib/ai/tools';
+import { appTools } from '@/lib/ai/tools';
 import { NextResponse } from 'next/server';
 
 export const maxDuration = 30;
@@ -31,13 +31,14 @@ export async function POST(req: Request) {
     const modelMessages = await convertToModelMessages(safeMessages);
 
     const result = await streamText({
-      model: google('gemini-2.5-flash', { structuredOutputs: false }),
+      model: google(process.env.GEMINI_MODEL || 'gemini-2.5-flash', { structuredOutputs: false }),
       messages: modelMessages,
-      system: `You are DukaanKhata AI Assistant. You help shop owners manage their customers. 
+      system: `You are DukaanKhata AI Assistant. You help shop owners manage their customers, transactions, and products. 
 You can understand and speak any language the user speaks (including Roman Urdu, English, Urdu, etc.). Always reply in the same language the user uses.
-You have tools to get, create, and delete customers. Use them when requested. Do not make up customer data.
+You have tools to get, create, update, and delete customers, tools to get, create, and delete customer transactions (payments), and tools to get, create, update, and delete products (goods/services). Use them when requested to fetch or modify data.
+If a user asks for transactions of a specific customer, use getCustomers to find their ID/Name first if needed, then use getCustomerTransactions. Do not make up data.
 Always be polite and keep answers concise.`,
-      tools: customerTools(user.id),
+      tools: appTools(user.id),
       maxSteps: 5,
     });
 

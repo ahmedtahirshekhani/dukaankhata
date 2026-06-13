@@ -47,7 +47,7 @@ export function AiChatInterface() {
   }, [messages]);
 
   return (
-    <Card className="flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] w-full max-w-4xl mx-auto shadow-md border-border/50">
+    <Card className="flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] w-full max-w-2xl md:max-w-4xl lg:max-w-6xl xl:max-w-7xl mx-auto shadow-md border-border/50">
       <CardHeader className="border-b bg-muted/20 pb-4">
         <div className="flex items-center gap-2">
           <div className="bg-primary/10 p-2 rounded-full">
