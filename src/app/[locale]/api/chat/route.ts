@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const modelMessages = await convertToModelMessages(safeMessages);
 
     const result = await streamText({
-      model: google(process.env.GEMINI_MODEL || 'gemini-2.5-flash', { structuredOutputs: false }),
+      model: google(process.env.GEMINI_MODEL || 'gemini-2.5-flash'),
       messages: modelMessages,
       system: `You are DukaanKhata AI Assistant. You help shop owners manage their customers, transactions, and products. 
 You can understand and speak any language the user speaks (including Roman Urdu, English, Urdu, etc.). Always reply in the same language the user uses.
