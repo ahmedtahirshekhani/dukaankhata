@@ -60,7 +60,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [reportsExpanded, setReportsExpanded] = useState(false);
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
-  
+
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
     async () => {
@@ -71,11 +71,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     },
     []
   );
-  
+
   const pendingSyncCount = syncStatus?.pending || 0;
   const failedSyncCount = syncStatus?.failed || 0;
-  
-  const [isOnline, setIsOnline] = useState(true);
+
+  const [isOnline, setIsOnlineState] = useState(true);
+
+  const setIsOnline = (value: boolean) => {
+    setIsOnlineState(value);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('appNetworkStatus', { detail: { isOnline: value } }));
+    }
+  };
 
   useEffect(() => {
     // Initial check
@@ -92,13 +99,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 sec timeout
-        
+
         // Ping our own health API. If backend can't reach MongoDB, it returns 503
-        const res = await fetch('/api/health?_=' + new Date().getTime(), { 
+        const res = await fetch('/api/health?_=' + new Date().getTime(), {
           cache: 'no-store',
           signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
         setIsOnline(res.ok); // Returns false if status is 503 (Offline / Backend down)
       } catch (e) {
@@ -106,8 +113,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Ping every 15 seconds
-    const interval = setInterval(pingInternet, 15000);
+    // Ping every 5 seconds for faster offline detection
+    const interval = setInterval(pingInternet, 5000);
     pingInternet(); // Run once immediately
 
     return () => {
@@ -242,7 +249,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (pendingSyncCount > 0) {
+    if (pendingSyncCount > 0 || failedSyncCount > 0) {
       setShowLogoutWarning(true);
       return;
     }
@@ -294,29 +301,29 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          
+
           {/* Offline / Sync Indicator Badge */}
           <div className="flex items-center">
             {!isOnline ? (
-               <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("offlineTooltip")}>
-                 <WifiOff className="w-4 h-4 sm:mr-1.5" />
-                 <span className="hidden sm:inline">{tCommon("offline")}</span>
-               </div>
+              <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("offlineTooltip")}>
+                <WifiOff className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">{tCommon("offline")}</span>
+              </div>
             ) : failedSyncCount > 0 ? (
-               <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
-                 <WifiOff className="w-4 h-4 sm:mr-1.5" />
-                 <span className="hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
-               </div>
+              <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
+                <WifiOff className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
+              </div>
             ) : pendingSyncCount > 0 ? (
-               <div className="flex items-center text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
-                 <RefreshCw className="w-4 h-4 sm:mr-1.5 animate-spin" />
-                 <span className="hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
-               </div>
+              <div className="flex items-center text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
+                <RefreshCw className="w-4 h-4 sm:mr-1.5 animate-spin" />
+                <span className="hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
+              </div>
             ) : (
-               <div className="flex items-center text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncedTooltip")}>
-                 <CheckCircle className="w-4 h-4 sm:mr-1.5" />
-                 <span className="hidden sm:inline">{tCommon("synced")}</span>
-               </div>
+              <div className="flex items-center text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncedTooltip")}>
+                <CheckCircle className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">{tCommon("synced")}</span>
+              </div>
             )}
           </div>
 
@@ -394,6 +401,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href={`/${locale}/admin/welcome`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`${navItemBase} ${pathWithoutLocale === "/admin/welcome" ? navItemActive : navItemInactive
                   } ${navItemCompact}`}
@@ -413,6 +421,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href={`/${locale}/admin`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`${navItemBase} ${pathWithoutLocale === "/admin" ? navItemActive : navItemInactive
                   } ${navItemCompact}`}
@@ -436,6 +445,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href={`/${locale}/admin/customers`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`${navItemBase} ${pathWithoutLocale === "/admin/customers" ? navItemActive : navItemInactive
                   } ${navItemCompact}`}
@@ -459,6 +469,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href={`/${locale}/admin/products`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`${navItemBase} ${pathWithoutLocale === "/admin/products" ? navItemActive : navItemInactive
                   } ${navItemCompact}`}
@@ -483,6 +494,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-stretch gap-1">
                 <Link
                   href={`/${locale}/admin/sales`}
+                  prefetch={false}
                   onClick={() => setSidebarOpen(false)}
                   aria-current={pathWithoutLocale === "/admin/sales" ? "page" : undefined}
                   className={`${navItemBase} flex-1 ${isSalesSectionActive ? navItemActive : navItemInactive
@@ -508,8 +520,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     size="icon"
                     className={`h-auto px-2 rounded-xl border border-transparent ${isSalesSectionActive
-                        ? "text-primary hover:bg-primary/10"
-                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                      ? "text-primary hover:bg-primary/10"
+                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                       }`}
                     aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
                     aria-expanded={salesExpanded}
@@ -526,22 +538,24 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
                   <Link
                     href={`/${locale}/admin/sales/quotations`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/sales/quotations" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/quotations"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("quotations")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/sales/invoice`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/sales/invoice" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/invoice"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("invoice")}
@@ -549,33 +563,36 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
                   <Link
                     href={`/${locale}/admin/sales/payment-in`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/sales/payment-in" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/payment-in"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("paymentIn")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/sales/sale-return`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/sales/sale-return" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/sale-return"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("saleReturn")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/sales/counter-sale`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("counterSale")}
@@ -589,6 +606,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-stretch gap-1">
                 <Link
                   href={`/${locale}/admin/purchase`}
+                  prefetch={false}
                   onClick={() => setSidebarOpen(false)}
                   aria-current={pathWithoutLocale === "/admin/purchase" ? "page" : undefined}
                   className={`${navItemBase} flex-1 ${isPurchaseSectionActive ? navItemActive : navItemInactive
@@ -614,8 +632,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     size="icon"
                     className={`h-auto px-2 rounded-xl border border-transparent ${isPurchaseSectionActive
-                        ? "text-primary hover:bg-primary/10"
-                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                      ? "text-primary hover:bg-primary/10"
+                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                       }`}
                     aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
                     aria-expanded={purchaseExpanded}
@@ -632,22 +650,24 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
                   <Link
                     href={`/${locale}/admin/purchase/purchase-bill`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/purchase/purchase-bill" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/purchase-bill"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("purchaseBill")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/purchase/payment-out`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/purchase/payment-out" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/payment-out"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("paymentOut")}
@@ -660,6 +680,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href={`/${locale}/admin/expenses`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`${navItemBase} ${pathWithoutLocale === "/admin/expenses" ? navItemActive : navItemInactive
                   } ${navItemCompact}`}
@@ -684,6 +705,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-stretch gap-1">
                 <Link
                   href={`/${locale}/admin/reports`}
+                  prefetch={false}
                   onClick={() => setSidebarOpen(false)}
                   className={`${navItemBase} flex-1 ${isReportsSectionActive ? navItemActive : navItemInactive
                     } ${navItemCompact}`}
@@ -708,8 +730,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     size="icon"
                     className={`h-auto px-2 rounded-xl border border-transparent ${isReportsSectionActive
-                        ? "text-primary hover:bg-primary/10"
-                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                      ? "text-primary hover:bg-primary/10"
+                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                       }`}
                     aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
                     aria-expanded={reportsExpanded}
@@ -726,44 +748,48 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
                   <Link
                     href={`/${locale}/admin/reports/account-statement`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/reports/account-statement" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/account-statement"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("accountStatement")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/reports/stock`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/stock"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("stockReport")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/reports/receivable-summary`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("receivableSummary")}
                   </Link>
                   <Link
                     href={`/${locale}/admin/reports/profitability`}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
                     className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/profitability"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      ? "bg-accent/80 font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                   >
                     {tNav("profitability")}
@@ -780,6 +806,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href={`/${locale}/admin/ai-chat`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
                   } ${navItemCompact}`}
@@ -803,10 +830,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <div className="mt-auto">
               <Link
                 href={`/${locale}/admin/configuration`}
+                prefetch={false}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${pathWithoutLocale === "/admin/configuration"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
                   } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
                 title={sidebarMinimized ? tNav("configuration") : ""}
               >

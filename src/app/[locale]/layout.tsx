@@ -14,6 +14,7 @@ import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import GTMUserTracker from "@/components/analytics/gtm-user-tracker";
 import { CustomersProvider } from "@/components/dropdown/customers-context";
 import { ProductsProvider } from "@/components/dropdown/products-context";
+import { Toaster } from "@/components/ui/sonner";
 import "../globals.css";
 
 const locales = ["en", "ur", "ru"] as const;
@@ -69,6 +70,7 @@ export default async function LocalizedRootLayout({
             <CustomersProvider>
               <ProductsProvider>
                 {children}
+                <Toaster position="top-right" />
               </ProductsProvider>
             </CustomersProvider>
           </NextIntlClientProvider>

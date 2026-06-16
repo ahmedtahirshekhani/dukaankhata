@@ -11,13 +11,17 @@ export function OfflineIndicator() {
   useEffect(() => {
     // Set initial state
     setIsOnline(navigator.onLine);
+    
+    let timeoutId: NodeJS.Timeout;
 
     const handleOnline = () => {
       setIsOnline(true);
       setShowIndicator(true);
       
+      if (timeoutId) clearTimeout(timeoutId);
+      
       // Hide the indicator after 3 seconds
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         setShowIndicator(false);
       }, 3000);
     };
@@ -25,16 +29,29 @@ export function OfflineIndicator() {
     const handleOffline = () => {
       setIsOnline(false);
       setShowIndicator(true);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
+    const handleCustomStatus = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.isOnline) {
+        if (!isOnline) handleOnline();
+      } else {
+        if (isOnline) handleOffline();
+      }
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('appNetworkStatus', handleCustomStatus);
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('appNetworkStatus', handleCustomStatus);
     };
-  }, []);
+  }, [isOnline]);
 
   if (!showIndicator) return null;
 

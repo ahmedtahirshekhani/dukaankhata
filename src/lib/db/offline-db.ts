@@ -25,6 +25,12 @@ export class DukanKhataDB extends Dexie {
   quotations!: Table<any, string>;
   categories!: Table<any, string>;
   payment_methods!: Table<any, string>;
+  payment_method!: Table<any, string>;
+  vendor_transactions!: Table<any, string>;
+  sale_return_transactions!: Table<any, string>;
+  transactions!: Table<any, string>;
+  branches!: Table<any, string>;
+  subscriptions!: Table<any, string>;
   syncQueue!: Table<SyncOperation, number>;
 
   constructor(dbName: string = 'DukanKhataOfflineDB') {
@@ -42,6 +48,12 @@ export class DukanKhataDB extends Dexie {
       quotations: 'id, party_id, created_at, status',
       categories: 'id, name',
       payment_methods: 'id, name',
+      payment_method: 'id',
+      vendor_transactions: 'id, party_id, date, type',
+      sale_return_transactions: 'id, party_id, date',
+      transactions: 'id, order_id, type',
+      branches: 'id, name',
+      subscriptions: 'id, status, expiry_date',
       syncQueue: '++id, status, timestamp, collection'
     });
   }

@@ -33,6 +33,12 @@ export async function GET(request: Request) {
       { name: 'quotations', key: COLLECTIONS.QUOTATIONS },
       { name: 'categories', key: COLLECTIONS.CATEGORIES },
       { name: 'payment_methods', key: COLLECTIONS.PAYMENT_METHODS },
+      { name: 'payment_method', key: COLLECTIONS.PAYMENT_METHOD },
+      { name: 'vendor_transactions', key: COLLECTIONS.VENDOR_TRANSACTIONS },
+      { name: 'sale_return_transactions', key: COLLECTIONS.SALE_RETURN_TRANSACTIONS },
+      { name: 'transactions', key: COLLECTIONS.TRANSACTIONS },
+      { name: 'branches', key: COLLECTIONS.BRANCHES },
+      { name: 'subscriptions', key: COLLECTIONS.SUBSCRIPTIONS },
     ];
 
     const result: Record<string, any[]> = {};
