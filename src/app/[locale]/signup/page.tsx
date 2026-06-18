@@ -71,6 +71,8 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const signupInputClassName =
+    "border-2 border-foreground/55 bg-muted/40 text-foreground shadow-sm focus-visible:border-foreground/70 focus-visible:ring-1 focus-visible:ring-foreground/35";
 
   useEffect(() => {
     if (!otpSent || resendCooldown <= 0) {
@@ -603,6 +605,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
+              className={signupInputClassName}
             />
           </div>
 
@@ -618,6 +621,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
+              className={signupInputClassName}
             />
           </div>
         </div>
@@ -640,6 +644,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
+              className={signupInputClassName}
             />
           </div>
 
@@ -657,6 +662,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
+              className={signupInputClassName}
             />
           </div>
         </div>
@@ -669,6 +675,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-foreground space-y-3">
             <div>
               We will send a verification code to <span className="font-medium">{formData.email}</span>.
+            </div>
+            <div className="text-xs text-muted-foreground">
+              If you do not see it in your inbox, please check your Spam or Junk folder as well.
             </div>
             <Button
               type="button"
@@ -708,7 +717,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   onChange={(e) => handleOtpBoxChange(index, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
                   disabled={isLoading || otpLoading || emailVerified}
-                  className="w-12 h-12 text-center text-lg"
+                  className={`${signupInputClassName} w-12 h-12 bg-muted/95 text-center text-lg`}
                 />
               ))}
             </div>
@@ -740,7 +749,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
-              className={showPasswordMismatch ? "pr-20" : "pr-10"}
+              className={`${signupInputClassName} ${showPasswordMismatch ? "pr-20" : "pr-10"}`}
             />
             {showPasswordMismatch && (
               <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
@@ -772,7 +781,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
-              className={showPasswordMismatch ? "pr-20" : "pr-10"}
+              className={`${signupInputClassName} ${showPasswordMismatch ? "pr-20" : "pr-10"}`}
             />
             {showPasswordMismatch && (
               <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
@@ -830,7 +839,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl overflow-hidden border-border shadow-2xl shadow-foreground/5">
+        <Card className="w-full max-w-2xl overflow-hidden border-2 border-foreground/15 shadow-2xl shadow-foreground/5 ring-1 ring-foreground/5">
           <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-accent" />
           {isCreatingBusiness ? (
             <CardContent className="flex flex-col items-center justify-center py-24 space-y-6">
@@ -861,13 +870,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                <div className="p-3 bg-red-50 border-2 border-red-300 rounded text-red-700 text-sm">
                   {error}
                 </div>
               )}
 
               {success && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                <div className="p-3 bg-green-50 border-2 border-green-300 rounded text-green-700 text-sm">
                   {success}
                 </div>
               )}

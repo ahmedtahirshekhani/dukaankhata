@@ -36,7 +36,7 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
     const err = rawError.toLowerCase();
 
     if (err.includes("account_deleted")) {
-      return t("accountDeleted");
+      return t("accountDeleted", { phone: supportContact.phone });
     }
 
     if (err.includes("login_blocked")) {
