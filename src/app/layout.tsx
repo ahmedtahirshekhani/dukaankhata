@@ -143,8 +143,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         {GTM_ID ? <GTMTracker gtmId={GTM_ID} /> : null}
         {/* Meta Pixel client-side tracker */}
         <MetaPixelTracker pixelId="1465101935058460" />
-      </body>
       <SpeedInsights />
+      </body>
     </html>
   );
 }
