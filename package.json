@@ -11,6 +11,9 @@
     "migrate:party-name": "tsx --env-file=.env.local scripts/migrate-party-name.ts",
     "backfill:customer-ledger": "tsx --env-file=.env.local scripts/backfill-customer-ledger.ts",
     "migrate:add-trials": "tsx --env-file=.env.local scripts/add-trials.ts",
+    "export:collection-activity": "tsx --env-file=.env.local scripts/export-collection-activity.ts",
+    "delete:user-data": "tsx --env-file=.env.local scripts/delete-user-data.ts",
+    "flag:users-deleted": "tsx --env-file=.env.local scripts/flag-users-as-deleted.ts",
     "generate:logo-icons": "node scripts/generate-logo-icons.js",
     "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view"
   },
@@ -39,6 +42,8 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "dexie": "^4.4.4",
+    "dexie-react-hooks": "^4.4.0",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.12.1",
     "input-otp": "^1.4.2",

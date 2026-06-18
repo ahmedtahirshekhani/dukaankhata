@@ -65,6 +65,9 @@ import { cn } from "@/lib/utils";
 import { useDebounce } from "../../../../hooks/use-debounce";
 import { exportCustomersToExcel, exportCustomersTemplate } from "@/lib/excel";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
 
 type Customer = {
   id: string;
@@ -135,36 +138,22 @@ export default function PartiesPage() {
     message: "",
   });
 
-  const fetchCustomers = useCallback(async (page: number, search: string) => {
-    setIsPageLoading(true);
-    try {
-      const response = await fetch(`/api/customers?page=${page}&limit=${pageSize}&search=${encodeURIComponent(search)}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch customers");
-      }
-      const data = await response.json();
-      setCustomers(data.customers || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.totalCount || 0);
-    } catch (error) {
-      setError((error as Error).message);
-    } finally {
-      setIsPageLoading(false);
-      setLoading(false);
-    }
-  }, [pageSize]);
+  const allOfflineCustomers = useOfflineCustomers(debouncedSearchTerm) || [];
 
-  // Fetch when current page or search term changes
   useEffect(() => {
-    fetchCustomers(currentPage, debouncedSearchTerm);
-  }, [currentPage, debouncedSearchTerm, fetchCustomers]);
+    setTotalCount(allOfflineCustomers.length);
+    setTotalPages(Math.ceil(allOfflineCustomers.length / pageSize) || 1);
+    setLoading(false);
+  }, [allOfflineCustomers.length, pageSize]);
 
-  // Reset to first page when search or page size changes
+  const filteredCustomers = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return allOfflineCustomers.slice(startIndex, startIndex + pageSize);
+  }, [allOfflineCustomers, currentPage, pageSize]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearchTerm, pageSize]);
-
-  const filteredCustomers = customers;
 
   const resetSelectedCustomer = () => {
     setSelectedCustomerId(null);
@@ -202,29 +191,12 @@ export default function PartiesPage() {
           : 0,
         status: newCustomerStatus,
       };
-      const response = await fetch("/api/customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newCustomer),
-      });
+      
+      const customerId = crypto.randomUUID();
+      const finalCustomer = { ...newCustomer, id: customerId, is_delete: 0, type: "customer" };
+      await db.parties.add(finalCustomer);
+      await SyncEngine.queueOperation("parties", "POST", "/api/customers", newCustomer, customerId);
 
-      const text = await response.text();
-      let createdCustomer;
-      try {
-        createdCustomer = JSON.parse(text);
-      } catch (e) {
-        throw new Error(
-          `Server response error: ${text || response.statusText}`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(createdCustomer.error || "Error creating customer");
-      }
-
-      fetchCustomers(currentPage, debouncedSearchTerm);
       setShowNewCustomerDialog(false);
       resetSelectedCustomer();
 
@@ -254,9 +226,8 @@ export default function PartiesPage() {
     newCustomerOpeningBalance,
     newCustomerOpeningBalanceType,
     newCustomerStatus,
-    customers,
+    newCustomerStatus,
     t,
-    fetchCustomers,
     currentPage,
     debouncedSearchTerm,
     resetSelectedCustomer,
@@ -289,21 +260,9 @@ export default function PartiesPage() {
         status: newCustomerStatus,
       };
 
-      const response = await fetch(`/api/customers/${selectedCustomerId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedCustomer),
-      });
+      await db.parties.update(selectedCustomerId, updatedCustomer);
+      await SyncEngine.queueOperation("parties", "PUT", `/api/customers/${selectedCustomerId}`, updatedCustomer);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error updating customer");
-      }
-
-      const updatedCustomerData = await response.json();
-      fetchCustomers(currentPage, debouncedSearchTerm);
       setIsEditCustomerDialogOpen(false);
       resetSelectedCustomer();
 
@@ -334,8 +293,7 @@ export default function PartiesPage() {
     newCustomerOpeningBalance,
     newCustomerOpeningBalanceType,
     newCustomerStatus,
-    customers,
-    fetchCustomers,
+    newCustomerStatus,
     currentPage,
     debouncedSearchTerm,
     resetSelectedCustomer,
@@ -363,20 +321,9 @@ export default function PartiesPage() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/customers/${customerToDelete.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ is_delete: 1 }),
-      });
+      await db.parties.delete(customerToDelete.id);
+      await SyncEngine.queueOperation("parties", "DELETE", `/api/customers/${customerToDelete.id}`, {});
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error deleting customer");
-      }
-
-      fetchCustomers(currentPage, debouncedSearchTerm);
       setIsDeleteConfirmationOpen(false);
       setCustomerToDelete(null);
 
@@ -397,7 +344,7 @@ export default function PartiesPage() {
     } finally {
       setIsDeleting(false);
     }
-  }, [customerToDelete, customers, t]);
+  }, [customerToDelete, t]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -484,13 +431,10 @@ export default function PartiesPage() {
           message: message,
           isSuccess: result.errorCount === 0,
         });
-        const refreshResponse = await fetch(`/api/customers?page=${currentPage}&limit=${pageSize}`);
-        if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          setCustomers(data.customers || []);
-          setTotalPages(data.totalPages || 1);
-          setTotalCount(data.totalCount || 0);
-        }
+        
+        // After import, pull updates to refresh IndexedDB
+        await SyncEngine.pullInitialData();
+        
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
