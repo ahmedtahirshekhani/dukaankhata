@@ -596,14 +596,14 @@ export async function POST(req: NextRequest) {
     // bulk-update final balance state and party balance
     if (balanceCache.size > 0) {
       const now = new Date();
-      const balanceOps = [...balanceCache.entries()].map(([key, balance]) => ({
+      const balanceOps = Array.from(balanceCache.entries()).map(([key, balance]) => ({
         updateOne: {
           filter: { user_id: userId, party_id: partyIdMap.get(key)! },
           update: { $set: { balance, updated_at: now } },
           upsert: true
         }
       }));
-      const partyBalanceOps = [...balanceCache.entries()].map(([key, balance]) => ({
+      const partyBalanceOps = Array.from(balanceCache.entries()).map(([key, balance]) => ({
         updateOne: {
           filter: { _id: partyIdMap.get(key)! },
           update: { $set: { balance, updated_at: now } }
