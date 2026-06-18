@@ -42,7 +42,7 @@ CRITICAL RULE: DO NOT ASK FOR PERMISSION BEFORE USING TOOLS. If you need data to
 If a user asks for transactions of a specific customer, use getCustomers to find their ID/Name first if needed, then use getCustomerTransactions. Do not make up data.
 Always be polite and keep answers concise.`,
       tools: appTools(user.id),
-      maxSteps: 5,
+      // maxSteps: 5,
     });
 
     return result.toUIMessageStreamResponse({
