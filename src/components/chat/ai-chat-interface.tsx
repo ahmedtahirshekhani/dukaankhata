@@ -84,28 +84,46 @@ export function AiChatInterface() {
                   }`}
               >
                 {m.parts && m.parts.length > 0 ? (
-                  m.parts.map((part: any, index: number) => {
-                    if (part.type === 'text') {
-                      return <div key={index} className="whitespace-pre-wrap">{part.text}</div>;
-                    }
-                    if (part.type.startsWith('tool-') && part.state !== 'result') {
-                      return (
-                        <div key={index} className="flex items-center gap-2 text-muted-foreground italic">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span className="text-xs font-medium opacity-80">Working on it...</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })
+                  <>
+                    {m.parts.map((part: any, index: number) => {
+                      if (part.type === 'text') {
+                        return <div key={index} className="whitespace-pre-wrap">{part.text}</div>;
+                      }
+                      return null;
+                    })}
+                    {m.toolInvocations && m.toolInvocations.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {m.toolInvocations.map((t: any, index: number) => (
+                          t.state !== 'result' ? (
+                            <div key={`tool-${index}`} className="flex items-center gap-2 text-muted-foreground italic">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span className="text-xs font-medium opacity-80">Working on it...</span>
+                            </div>
+                          ) : (
+                            <div key={`tool-${index}`} className="flex items-center gap-2 text-muted-foreground italic opacity-70">
+                              <Bot className="w-3 h-3" />
+                              <span className="text-xs font-medium">Internal action completed</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : m.content ? (
                   <div className="whitespace-pre-wrap">{m.content}</div>
                 ) : (
                   m.toolInvocations ? (
-                    <div className="flex items-center gap-2 text-muted-foreground italic">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span className="text-xs font-medium opacity-80">Working on it...</span>
-                    </div>
+                    m.toolInvocations.some(t => t.state !== 'result') ? (
+                      <div className="flex items-center gap-2 text-muted-foreground italic">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span className="text-xs font-medium opacity-80">Working on it...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground italic opacity-70">
+                        <Bot className="w-3 h-3" />
+                        <span className="text-xs font-medium">Internal action completed</span>
+                      </div>
+                    )
                   ) : null
                 )}
               </div>

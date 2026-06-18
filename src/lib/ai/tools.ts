@@ -4,11 +4,11 @@ import { NextRequest } from "next/server";
 
 // Import the REST API handlers directly
 import { GET as getCustomersApi, POST as createCustomerApi } from "@/app/[locale]/api/customers/route";
-import { PUT as updateCustomerApi, DELETE as deleteCustomerApi } from "@/app/[locale]/api/customers/[customerId]/route";
+import { GET as getCustomerByIdApi, PUT as updateCustomerApi, DELETE as deleteCustomerApi } from "@/app/[locale]/api/customers/[customerId]/route";
 import { GET as getTransactionsApi, POST as createTransactionApi } from "@/app/[locale]/api/customer-transactions/route";
 import { DELETE as deleteTransactionApi } from "@/app/[locale]/api/customer-transactions/[id]/route";
 import { GET as getProductsApi, POST as createProductApi } from "@/app/[locale]/api/products/route";
-import { PUT as updateProductApi, DELETE as deleteProductApi } from "@/app/[locale]/api/products/[productId]/route";
+import { GET as getProductByIdApi, PUT as updateProductApi, DELETE as deleteProductApi } from "@/app/[locale]/api/products/[productId]/route";
 
 // Helper function to allow using relative URLs like frontend
 const apiRequest = (path: string, options?: RequestInit) => {
@@ -21,15 +21,37 @@ export const appTools = (userId: string) => ({
       description: "Get a list of all customers/parties for the user.",
       parameters: z.object({
         search: z.string().optional().describe("Optional search query to filter customers by name, phone, or company."),
+        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all records. Default is 10."),
+        page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
-      execute: async ({ search }: { search?: string }) => {
+      execute: async ({ search, limit, page }) => {
         try {
-          let path = `/api/customers`;
-          if (search) path += `?search=${encodeURIComponent(search)}`;
+          let path = `/api/customers?`;
+          if (search) path += `search=${encodeURIComponent(search)}&`;
+          if (limit !== undefined) path += `limit=${limit}&`;
+          if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
           const res = await getCustomersApi(req);
           return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getCustomerById: tool({
+      description: "Get a specific customer by their ID.",
+      parameters: z.object({
+        customerId: z.string().describe("The exact ID of the customer"),
+      }),
+      execute: async ({ customerId }) => {
+        try {
+          const req = apiRequest(`/api/customers/${customerId}`);
+          const res = await getCustomerByIdApi(req, { params: { customerId } });
+          const data = await res.json();
+          if (!res.ok) return { error: data.error || "Customer not found" };
+          return data;
         } catch (error: any) {
           return { error: error.message };
         }
@@ -201,16 +223,39 @@ export const appTools = (userId: string) => ({
       parameters: z.object({
         search: z.string().optional().describe("Search term for product name or SKU"),
         type: z.enum(['goods', 'services', 'all']).optional().describe("Filter by product type"),
+        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all. Default is 50."),
+        page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
-      execute: async ({ search, type }) => {
+      execute: async ({ search, type, limit, page }) => {
         try {
-          let path = `/api/products?limit=50`;
-          if (search) path += `&search=${encodeURIComponent(search)}`;
-          if (type && type !== 'all') path += `&type=${type}`;
+          let path = `/api/products?`;
+          if (search) path += `search=${encodeURIComponent(search)}&`;
+          if (type && type !== 'all') path += `type=${type}&`;
+          path += `limit=${limit !== undefined ? limit : 50}&`;
+          if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
           const res = await getProductsApi(req);
-          return await res.json();
+          const data = await res.json();
+          return data;
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getProductById: tool({
+      description: "Get a specific product by its ID.",
+      parameters: z.object({
+        productId: z.string().describe("The exact ID of the product"),
+      }),
+      execute: async ({ productId }) => {
+        try {
+          const req = apiRequest(`/api/products/${productId}`);
+          const res = await getProductByIdApi(req, { params: { productId } });
+          const data = await res.json();
+          if (!res.ok) return { error: data.error || "Product not found" };
+          return data;
         } catch (error: any) {
           return { error: error.message };
         }
