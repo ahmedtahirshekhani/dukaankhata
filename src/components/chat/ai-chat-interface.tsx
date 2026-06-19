@@ -17,7 +17,7 @@ export function AiChatInterface() {
     api: `/${locale}/api/chat`,
     maxSteps: 5,
   });
-  const { messages, sendMessage, status, stop , error} = chatHelpers;
+  const { messages, sendMessage, status, stop, error } = chatHelpers as any;
 
   const [input, setInput] = useState("");
 

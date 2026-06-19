@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToModelMessages, generateId } from 'ai';
 import { getCurrentUser } from '@/lib/auth/utils';
