@@ -75,3 +75,10 @@ const getDynamicDbName = () => {
 }
 
 export const db = new DukanKhataDB(getDynamicDbName());
+
+export async function clearUserDatabase(): Promise<void> {
+  await db.delete();
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('last_sync_timestamp');
+  }
+}

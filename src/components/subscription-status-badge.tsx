@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
+import { clearUserDatabase } from "@/lib/db/offline-db";
 import {
   Tooltip,
   TooltipContent,
@@ -60,7 +61,9 @@ export function SubscriptionStatusBadge() {
           setSubscriptionStatus(data);
           
           if (data.status === "login_blocked") {
-            signOut({ callbackUrl: `/${locale}/login?error=login_blocked` });
+            clearUserDatabase().then(() =>
+              signOut({ callbackUrl: `/${locale}/login?error=login_blocked` })
+            );
           }
         }
       } catch (error) {

@@ -43,6 +43,10 @@ export class SyncEngine {
     } catch (error) {
       console.error('Initial sync failed:', error);
       return false;
+    } finally {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('initialSyncComplete'));
+      }
     }
   }
 

@@ -723,7 +723,6 @@
     "selectMethod": "ادائیگی کا طریقہ منتخب کریں",
     "selectPaymentMethod": "ادائیگی کا طریقہ منتخب کریں",
     "product": "مصنوعات",
-    "uom": "پیمائش کی اکائی",
     "paidAmountExceedsTotal": "ادا شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی۔",
     "noOrdersFound": "کوئی آرڈر نہیں ملا"
   },
@@ -950,7 +949,6 @@
     "edit_quotation_item": "کوٹیشن آئٹم میں ایڈٹ",
     "quotationNumberExists": "کوٹیشن نمبر پہلے سے موجود ہے",
     "delete_quotation_item": "کوٹیشن آئٹم حذف کریں",
-    "add_quotation_item": "کوٹیشن آئٹم شامل کریں",
     "error": "براہ کرم ایک پارٹی منتخب کریں اور کم از کم ایک آئٹم شامل کریں۔",
     "editInvoice": "انوائس میں ایڈٹ",
     "updateOrder": "آرڈر اپ ڈیٹ کریں",
@@ -1037,7 +1035,6 @@
   },
   "reports": {
     "totalRevenue": "کل آمدنی",
-    "saleCurrentMonth": "سیل (موجودہ مہینہ)",
     "totalExpenses": "کل اخراجات",
     "netProfit": "خالص منافع",
     "profitMargin": "منافع کا مارجن",
