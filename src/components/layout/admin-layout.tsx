@@ -41,7 +41,7 @@ import { signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db/offline-db";
+import { db, clearUserDatabase } from "@/lib/db/offline-db";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 
@@ -253,6 +253,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       setShowLogoutWarning(true);
       return;
     }
+    await clearUserDatabase();
     await signOut({
       redirect: true,
       callbackUrl: `/${locale}/login`,

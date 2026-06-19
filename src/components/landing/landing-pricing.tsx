@@ -34,8 +34,8 @@ export function LandingPricing() {
     t(`proFeature${i + 1}`),
   );
   // Dynamic values from env
-  const envPlanName = process.env.NEXT_PUBLIC_PLAN_NAME || t("proName");
-  const envPlanPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || "1000";
+  const envPlanName = process.env.NEXT_PUBLIC_PRO_PLAN_NAME || t("proName");
+  const envPlanPrice = process.env.NEXT_PUBLIC_PRO_PLAN_PRICE || "1000";
   const trialDays = process.env.NEXT_PUBLIC_TRIAL_NUMBER_OF_DAYS || "14";
 
   const whatsappLink = `${proAccessPaymentInfo.proofWhatsappHref}?text=${encodeURIComponent(

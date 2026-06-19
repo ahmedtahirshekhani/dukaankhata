@@ -140,11 +140,23 @@ export default function PartiesPage() {
 
   const allOfflineCustomers = useOfflineCustomers(debouncedSearchTerm) || [];
 
+  const [isSyncReady, setIsSyncReady] = useState(() =>
+    typeof window !== 'undefined' && !!localStorage.getItem('last_sync_timestamp')
+  );
+
+  useEffect(() => {
+    const handleSyncComplete = () => setIsSyncReady(true);
+    window.addEventListener('initialSyncComplete', handleSyncComplete);
+    return () => window.removeEventListener('initialSyncComplete', handleSyncComplete);
+  }, []);
+
   useEffect(() => {
     setTotalCount(allOfflineCustomers.length);
     setTotalPages(Math.ceil(allOfflineCustomers.length / pageSize) || 1);
-    setLoading(false);
-  }, [allOfflineCustomers.length, pageSize]);
+    if (allOfflineCustomers.length > 0 || isSyncReady) {
+      setLoading(false);
+    }
+  }, [allOfflineCustomers.length, pageSize, isSyncReady]);
 
   const filteredCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;

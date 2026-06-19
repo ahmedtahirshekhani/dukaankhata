@@ -5,7 +5,7 @@ export interface Subscription {
   _id?: ObjectId;
   user_id: ObjectId;
   email: string;
-  plan: "trial" | "starter" | "pro" | "premium";
+  plan: "trial" | "pro";
   status: "pending" | "active" | "expired" | "cancelled";
   amount: number;
   trial_days?: number;
@@ -154,7 +154,7 @@ export function getPlanLimits(plan: string): {
   price: number;
   features: string[];
 } {
-  const planPrice = parseInt(process.env.NEXT_PUBLIC_PLAN_PRICE || "1000", 10);
+  const planPrice = parseInt(process.env.NEXT_PUBLIC_PRO_PLAN_PRICE || "1000", 10);
 
   const plans: Record<
     string,

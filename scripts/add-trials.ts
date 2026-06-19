@@ -24,9 +24,7 @@ async function main() {
     let addedCount = 0;
     let skippedCount = 0;
 
-    const trialDays = parseInt(process.env.NEXT_PUBLIC_TRIAL_NUMBER_OF_DAYS || "14", 10);
-    const planPrice = parseInt(process.env.NEXT_PUBLIC_PLAN_PRICE || "1000", 10);
-    const planName = process.env.NEXT_PUBLIC_PLAN_NAME || "starter";
+    const trialDays = parseInt(process.env.NEXT_PUBLIC_TRIAL_NUMBER_OF_DAYS || "30", 10);
 
     for (const user of users) {
       // Check if user already has any subscription
