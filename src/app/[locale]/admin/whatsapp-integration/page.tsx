@@ -292,7 +292,7 @@ export default function WhatsappIntegrationPage() {
 
                 <div className="text-center space-y-2 mt-4">
                   <div className="text-sm text-muted-foreground">
-                    Didn't receive code?{" "}
+                    {"Didn't receive code? "}
                     {countdown > 0 ? (
                       <span className="font-medium text-muted-foreground">
                         Resend in {countdown}s

@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
       { upsert: true }
     );
 
-    const phoneId = process.env.PHONE_ID;
-    const bearerToken = process.env.BEARER_TOKEN;
+    const phoneId = process.env.WHATSAPP_API_PHONE_ID;
+    const bearerToken = process.env.WHATSAPP_API_BEARER_TOKEN;
 
     if (!phoneId || !bearerToken) {
       console.error("WhatsApp configuration missing in env");
