@@ -206,9 +206,6 @@ export default function DashboardPage() {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   const sliderRef = useRef<HTMLDivElement>(null);
-  const mobileCardWidth = 284;
-  const mobileCardGap = 16;
-  const mobileCardStep = mobileCardWidth + mobileCardGap;
 
   useEffect(() => {
     const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
@@ -250,12 +247,14 @@ export default function DashboardPage() {
         let endpoint = "";
         if (activeDashboardTab === "sales") endpoint = "/api/orders";
         else if (activeDashboardTab === "customers")
-          endpoint = "/api/customers";
+          endpoint = "/api/customers/top10";
         else if (activeDashboardTab === "items") endpoint = "/api/products";
 
         const url = new URL(endpoint, window.location.origin);
-        url.searchParams.append("page", currentPage.toString());
-        url.searchParams.append("limit", pageSize.toString());
+        if (activeDashboardTab !== "customers") {
+          url.searchParams.append("page", currentPage.toString());
+          url.searchParams.append("limit", pageSize.toString());
+        }
 
         const res = await fetch(url.toString());
         if (!res.ok) throw new Error("Failed to fetch data");
@@ -390,13 +389,15 @@ export default function DashboardPage() {
 
   const scrollLeftCards = () => {
     if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: -mobileCardStep, behavior: "smooth" });
+      const childWidth = sliderRef.current.children[0]?.clientWidth || 284;
+      sliderRef.current.scrollBy({ left: -(childWidth + 16), behavior: "smooth" });
     }
   };
 
   const scrollRightCards = () => {
     if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: mobileCardStep, behavior: "smooth" });
+      const childWidth = sliderRef.current.children[0]?.clientWidth || 284;
+      sliderRef.current.scrollBy({ left: (childWidth + 16), behavior: "smooth" });
     }
   };
 
@@ -418,7 +419,15 @@ export default function DashboardPage() {
     };
   }, [handleScroll]);
 
-  // Summary Cards
+  // Auto-rotate carousel every 5 seconds
+useEffect(() => {
+  const interval = setInterval(() => {
+    scrollRightCards();
+  }, 5000);
+  return () => clearInterval(interval);
+}, [scrollRightCards]);
+
+// Summary Cards
   const summaryCards = useMemo(
     () => [
       {
@@ -610,8 +619,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Cards Slider Section - Mobile */}
-      <div className="relative overflow-hidden md:hidden">
+      {/* Cards Slider Section - All Screens */}
+      <div className="relative overflow-hidden w-full">
         {/* Left Arrow */}
         {showLeftArrow && (
           <button
@@ -635,13 +644,12 @@ export default function DashboardPage() {
         {/* Cards Slider Track */}
         <div
           ref={sliderRef}
-          className="flex overflow-x-auto scroll-smooth gap-4 pb-2 px-9 hide-scrollbar"
+          className="flex overflow-x-auto scroll-smooth gap-4 pb-2 px-1 hide-scrollbar"
         >
           {summaryCards.map((card) => (
             <div
               key={card.key}
-              className="flex-shrink-0"
-              style={{ width: `${mobileCardWidth}px` }}
+              className="flex-shrink-0 min-w-[284px] md:min-w-[320px] lg:min-w-[380px] flex-1 max-w-full"
             >
               {card.node}
             </div>
@@ -651,9 +659,11 @@ export default function DashboardPage() {
         {/* Indicator Dots */}
         <div className="flex justify-center gap-1.5 mt-4">
           {summaryCards.map((_, idx) => {
+            const childWidth = sliderRef.current?.children[0]?.clientWidth || 284;
+            const step = childWidth + 16;
             const currentIndex = Math.min(
               summaryCards.length - 1,
-              Math.max(0, Math.round(scrollPosition / mobileCardStep))
+              Math.max(0, Math.round(scrollPosition / step))
             );
             const isActive = currentIndex === idx;
 
@@ -663,7 +673,7 @@ export default function DashboardPage() {
                 onClick={() => {
                   if (sliderRef.current) {
                     sliderRef.current.scrollTo({
-                      left: idx * mobileCardStep,
+                      left: idx * step,
                       behavior: "smooth",
                     });
                   }
@@ -677,13 +687,6 @@ export default function DashboardPage() {
             );
           })}
         </div>
-      </div>
-
-      {/* Cards Grid Section - Desktop */}
-      <div className="hidden md:grid auto-rows-max items-stretch gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        {summaryCards.map((card) => (
-          <div key={card.key}>{card.node}</div>
-        ))}
       </div>
 
       {/* Dashboard Tabs Section */}
@@ -933,31 +936,37 @@ export default function DashboardPage() {
               {totalCount} Total
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Rows per page</span>
-              <Select
-                value={pageSize.toString()}
-                onValueChange={(value) => {
-                  setPageSize(parseInt(value));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 20, 50, 100].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {activeDashboardTab !== "customers" && (
+                <>
+                  <span className="text-sm text-muted-foreground">Rows per page</span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => {
+                      setPageSize(parseInt(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 20, 50, 100].map((size) => (
+                        <SelectItem key={size} value={size.toString()}> {size} </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
             </div>
           </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            isLoading={isDataLoading}
-          />
+          {activeDashboardTab !== "customers" && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isLoading={isDataLoading}
+            />
+          )}
         </CardFooter>
       </Card>
 
