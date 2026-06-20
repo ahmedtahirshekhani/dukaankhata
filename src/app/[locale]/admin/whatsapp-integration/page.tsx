@@ -57,15 +57,27 @@ export default function WhatsappIntegrationPage() {
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  const handleVerify = () => {
-    if (!phoneNumber) return;
+  const handleVerify = async () => {
+    if (!phoneNumber || phoneNumber.length !== 11) return;
     setIsVerifying(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsVerifying(false);
+    try {
+      const res = await fetch(`/${locale}/api/users/whatsapp/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whatsapp_number: phoneNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send OTP");
+      }
       setShowOtp(true);
       setCountdown(otpTime);
-    }, 1000);
+      toast.success("OTP has been sent to your WhatsApp!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send OTP. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -85,33 +97,43 @@ export default function WhatsappIntegrationPage() {
     if (otp.some((digit) => digit === "")) return;
     
     const code = otp.join("");
-    if (code !== "123456") {
-      toast.error("Invalid OTP code");
-      return;
-    }
-
     setIsVerifyingOtp(true);
     
     try {
-      const res = await fetch(`/${locale}/api/users/whatsapp`, {
+      const res = await fetch(`/${locale}/api/users/whatsapp/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ whatsapp_number: phoneNumber }),
+        body: JSON.stringify({ whatsapp_number: phoneNumber, otp: code }),
       });
-      if (!res.ok) throw new Error("Failed to save");
-      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid OTP code");
+      }
       setIsSuccess(true);
       toast.success("Successfully Verified!");
-    } catch (e) {
-      toast.error("Failed to save whatsapp number.");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to verify OTP.");
     } finally {
       setIsVerifyingOtp(false);
     }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     setCountdown(otpTime);
-    toast.success(`A new OTP code has been sent to your whatsapp number ${phoneNumber}`);
+    try {
+      const res = await fetch(`/${locale}/api/users/whatsapp/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whatsapp_number: phoneNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to resend OTP");
+      }
+      toast.success(`A new OTP code has been sent to your WhatsApp number ${phoneNumber}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to resend OTP. Please try again.");
+    }
   };
 
   const handleKeyDown = (

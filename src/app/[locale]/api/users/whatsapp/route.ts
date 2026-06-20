@@ -21,45 +21,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await req.json();
-    const whatsapp_number = typeof body?.whatsapp_number === "string" ? body.whatsapp_number.trim() : "";
-
-    if (!whatsapp_number) {
-      return NextResponse.json(
-        { error: "WhatsApp number is required" },
-        { status: 400 },
-      );
-    }
-
-    const users = await getCollection(COLLECTIONS.USERS);
-    const userId = (session.user as any).id as string;
-
-    const update: Record<string, any> = {
-      whatsapp_number,
-    };
-
-    const result = await setLastUpdated(
-      users,
-      { _id: toObjectId(userId) },
-      update
-    );
-
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    await updateUserLastActivity();
-    return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error("whatsapp number update error", err?.message || err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
+  return NextResponse.json({ error: "Method not allowed. Use verify-otp endpoint." }, { status: 405 });
 }
 
 export const runtime = "nodejs";
