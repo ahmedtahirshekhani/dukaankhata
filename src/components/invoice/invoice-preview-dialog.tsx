@@ -567,25 +567,26 @@ export function InvoicePreviewDialog({
                   />
                 </div>
                 
+                {/* UPDATED: Smaller buttons with consistent sizing */}
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     onClick={handlePrintInvoice}
                     variant="outline"
                     size="sm"
-                    className="w-full text-xs sm:text-sm"
+                    className="w-full text-[11px] h-8"
                     disabled={isActionDisabled}
                   >
-                    <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
+                    <Printer className="h-3 w-3 mr-1.5" />
                     {tCommon("print")}
                   </Button>
                   <Button
                     onClick={handleDownloadPdf}
                     variant="default"
                     size="sm"
-                    className="w-full text-xs sm:text-sm"
+                    className="w-full text-[11px] h-8"
                     disabled={isActionDisabled}
                   >
-                    <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
+                    <Download className="h-3 w-3 mr-1.5" />
                     {t("downloadInvoice")}
                   </Button>
                 </div>
@@ -754,24 +755,27 @@ export function InvoicePreviewDialog({
                         </label>
                       </div>
                     </div>
+                    
+                    {/* UPDATED: Smaller buttons with consistent sizing */}
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         onClick={handlePrintInvoice}
                         variant="outline"
                         size="sm"
-                        className="w-full text-xs"
+                        className="w-24 text-[11px] h-8"
                         disabled={isActionDisabled}
                       >
-                        <Printer className="h-3.5 w-3.5 mr-1.5" />
+                        <Printer className="h-3 w-3 mr-1.5" />
                         {tCommon("print")}
                       </Button>
                       <Button
                         onClick={handleDownloadPdf}
                         variant="outline"
                         size="sm"
-                        className="w-full text-xs"
+                        className="w-24 text-[11px] h-8"
                         disabled={isActionDisabled}
                       >
+                        <Download className="h-3 w-3 mr-1.5" />
                         {t("downloadInvoice")}
                       </Button>
                     </div>
