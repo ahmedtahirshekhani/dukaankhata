@@ -68,7 +68,10 @@
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
     "subtitle": "Aap kamyabi se login ho gaye hain.",
-    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein."
+    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein.",
+    "videoTutorials": "Video Tutorials",
+    "viewAll": "Sab Dekhein",
+    "desktop": "Desktop"
   },
   "navigation": {
     "dashboard": "Dashboard",
