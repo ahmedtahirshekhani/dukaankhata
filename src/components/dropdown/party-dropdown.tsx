@@ -1,7 +1,7 @@
 // components/dropdown/party-dropdown.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, forwardRef, useRef } from "react";
+import React, { useState, useEffect, useCallback, forwardRef, useRef, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Select,
@@ -23,7 +23,9 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Loader2Icon, SearchIcon, X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useCustomers } from "@/hooks/use-customers";
+import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
 import { cn } from "@/lib/utils";
 
 type Party = {
@@ -75,18 +77,16 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const t = useTranslations("customers");
     const tCommon = useTranslations("common");
 
-    // Use custom hook to manage customers data with caching
-    const { customers: parties, loading, loadingMore, hasMore, fetchCustomers, revalidate } = useCustomers();
-
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const debouncedSearchTerm = useDebounce(searchTerm, 500);
+    
+    // Reduced debounce to 100ms for instant local search feel
+    const debouncedSearchTerm = useDebounce(searchTerm, 100);
     const [isOpen, setIsOpen] = useState(false);
     
     const [page, setPage] = useState(1);
     const observerTarget = useRef<HTMLDivElement>(null);
-    const [initialPartyLoaded, setInitialPartyLoaded] = useState(false);
 
     const [newPartyName, setNewPartyName] = useState("");
     const [newPartyEmail, setNewPartyEmail] = useState("");
@@ -102,28 +102,33 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       isSuccess?: boolean;
     }>({ open: false, message: "" });
 
+    // Offline data hook
+    const allOfflineCustomers = useOfflineCustomers(debouncedSearchTerm) || [];
+    
+    // Filter active only if needed
+    const filteredCustomers = useMemo(() => {
+      let filtered = allOfflineCustomers;
+      if (filterActiveOnly) {
+        filtered = filtered.filter(p => p.status !== "inactive");
+      }
+      return filtered;
+    }, [allOfflineCustomers, filterActiveOnly]);
+
     const getPartyId = (p: Party) => String(p.id || p._id);
 
-    // Fetch parties when dropdown opens or search term changes
-    useEffect(() => {
-      if (isOpen) {
-        setPage(1);
-        fetchCustomers({ page: 1, limit: 20, search: debouncedSearchTerm, filterActiveOnly, append: false });
-      }
-    }, [debouncedSearchTerm, isOpen, fetchCustomers, filterActiveOnly]);
+    // Fallback: Fetch the selected party if it's not in the offline list yet
+    const [fetchedParty, setFetchedParty] = useState<Party | null>(null);
 
-    // Load selected party if not in cache
     useEffect(() => {
-      if (value && value !== "all" && !initialPartyLoaded) {
-        const exists = parties.find(p => getPartyId(p) === value);
-        if (!exists) {
-          // Fetch specific party to add to cache
+      if (value && value !== "all") {
+        const existsInOffline = allOfflineCustomers.find(p => getPartyId(p) === value);
+        if (!existsInOffline && !fetchedParty) {
           const fetchParty = async () => {
             try {
               const res = await fetch(`/api/customers/${value}`);
               if (res.ok) {
                 const party = await res.json();
-                fetchCustomers({ page: 1, limit: 20, append: false });
+                setFetchedParty(party);
               }
             } catch (error) {
               console.error("Error fetching selected party:", error);
@@ -131,9 +136,36 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           };
           fetchParty();
         }
-        setInitialPartyLoaded(true);
       }
-    }, [value, parties, initialPartyLoaded, fetchCustomers]);
+    }, [value, allOfflineCustomers, fetchedParty]);
+
+    // Pagination
+    const parties = useMemo(() => {
+      let paginated = filteredCustomers.slice(0, page * 20);
+      
+      if (value && value !== "all") {
+        const isSelectedInPaginated = paginated.some(p => getPartyId(p) === value);
+        if (!isSelectedInPaginated) {
+          const selectedParty = filteredCustomers.find(p => getPartyId(p) === value) || fetchedParty;
+          if (selectedParty) {
+            paginated = [selectedParty, ...paginated];
+          }
+        }
+      }
+      
+      return paginated;
+    }, [filteredCustomers, page, value, fetchedParty]);
+
+    const hasMore = parties.length < filteredCustomers.length;
+    const loading = false; // Local DB is fast
+    const loadingMore = false;
+
+    // Reset page when search or dropdown open state changes
+    useEffect(() => {
+      if (isOpen) {
+        setPage(1);
+      }
+    }, [debouncedSearchTerm, isOpen]);
 
     // Infinite scroll pagination
     useEffect(() => {
@@ -142,9 +174,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       const observer = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            fetchCustomers({ page: nextPage, limit: 20, search: debouncedSearchTerm, filterActiveOnly, append: true });
+            setPage(prev => prev + 1);
           }
         },
         { threshold: 0.1 }
@@ -155,7 +185,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       }
 
       return () => observer.disconnect();
-    }, [hasMore, loading, loadingMore, page, debouncedSearchTerm, fetchCustomers, isOpen, filterActiveOnly]);
+    }, [hasMore, loading, loadingMore, isOpen]);
 
     const resetForm = () => {
       setNewPartyName("");
@@ -191,20 +221,14 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           status: "active" as const,
         };
 
-        const response = await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newParty),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Error creating party");
-
-        // Invalidate cache and revalidate to fetch fresh data
-        await revalidate();
+        const customerId = crypto.randomUUID();
+        const finalCustomer = { ...newParty, id: customerId, is_delete: 0, type: "customer" };
         
-        onValueChange(String(data.id || data._id), data);
-        if (onPartyAdded) onPartyAdded(data);
+        await db.parties.add(finalCustomer);
+        await SyncEngine.queueOperation("parties", "POST", "/api/customers", newParty, customerId);
+
+        onValueChange(customerId, finalCustomer);
+        if (onPartyAdded) onPartyAdded(finalCustomer);
 
         setShowAddDialog(false);
         resetForm();
@@ -229,7 +253,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     };
 
     const handleValueChange = (newValue: string) => {
-      const selectedParty = parties.find((p) => getPartyId(p) === newValue);
+      const selectedParty = allOfflineCustomers.find((p) => getPartyId(p) === newValue);
       onValueChange(newValue, selectedParty);
       setIsOpen(false);
       setSearchTerm("");
