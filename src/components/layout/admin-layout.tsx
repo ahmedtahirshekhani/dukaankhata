@@ -25,6 +25,7 @@ import {
   Menu,
   X,
   MessageSquare,
+  MessageCircle,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -822,6 +823,29 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="text-xs opacity-70 hidden md:block mt-0.5">
                     {tNav("aiChatDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+
+            {/* WhatsApp Integration */}
+            <div>
+              <Link
+                href={`/${locale}/admin/whatsapp-integration`}
+                onClick={() => setSidebarOpen(false)}
+                className={`${navItemBase} ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                title={sidebarMinimized ? "WhatsApp" : ""}
+              >
+                <MessageCircle className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium leading-none">
+                    WhatsApp
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                    Connect WhatsApp
                   </span>
                 </div>
               </Link>
