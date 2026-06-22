@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { clearUserDatabase } from "@/lib/db/offline-db";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -225,12 +226,10 @@ export default function SettingsPage({
       }
 
       // Account deleted successfully - clear session and localStorage
-      // Clear localStorage
       if (typeof window !== "undefined") {
         localStorage.clear();
       }
-
-      // Sign out and clear NextAuth session/cookie
+      await clearUserDatabase();
       await signOut({ redirect: false });
 
       // Redirect to home

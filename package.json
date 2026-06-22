@@ -14,6 +14,7 @@
     "export:collection-activity": "tsx --env-file=.env.local scripts/export-collection-activity.ts",
     "delete:user-data": "tsx --env-file=.env.local scripts/delete-user-data.ts",
     "flag:users-deleted": "tsx --env-file=.env.local scripts/flag-users-as-deleted.ts",
+    "activate:pro-users": "tsx --env-file=.env.local scripts/activate-pro-users.ts",
     "generate:logo-icons": "node scripts/generate-logo-icons.js",
     "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view"
   },

@@ -7,7 +7,7 @@ const MONGODB_URL = process.env.MONGODB_URL;
 const DB_NAME = process.env.MONGODB_DB_NAME || "dukaankhata";
 
 const TARGET_USER_IDS = [
-  "TEST_USER_ID_1",
+  "694d8021f699de69cddf34b5",
 ];
 
 if (!MONGODB_URL) {
@@ -66,6 +66,7 @@ async function deleteUserData(db: Db, userId: string, dryRun: boolean): Promise<
   await deleteCollection("products", COLLECTIONS.PRODUCTS);
   await deleteCollection("parties", COLLECTIONS.PARTIES);
   await deleteCollection("payment_method", COLLECTIONS.PAYMENT_METHOD);
+  await deleteCollection("orders", COLLECTIONS.ORDERS);
   await deleteCollection("party_transaction", COLLECTIONS.PARTY_TRANSACTIONS);
   await deleteCollection("vendor_transaction", COLLECTIONS.VENDOR_TRANSACTIONS);
   await deleteCollection("sale_return_transaction", COLLECTIONS.SALE_RETURN_TRANSACTIONS);
@@ -78,6 +79,7 @@ async function deleteUserData(db: Db, userId: string, dryRun: boolean): Promise<
   await deleteCollection("subscriptions", COLLECTIONS.SUBSCRIPTIONS);
   await deleteCollection("categories", COLLECTIONS.CATEGORIES);
   await deleteCollection("branches", COLLECTIONS.BRANCHES);
+  await deleteCollection("chathistories", "chathistories");
 
   if (userEmail) {
     const passwordResetsCount = dryRun
@@ -114,7 +116,7 @@ async function deleteUserData(db: Db, userId: string, dryRun: boolean): Promise<
         { _id: userObjectId },
         {
           $set: {
-            isDeleted: true,
+            isDeleted: false,
             deletedAt: new Date(),
           },
         }

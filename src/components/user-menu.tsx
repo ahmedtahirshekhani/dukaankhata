@@ -1,6 +1,7 @@
 'use client';
 
 import { signOut } from 'next-auth/react';
+import { clearUserDatabase } from '@/lib/db/offline-db';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ export function UserMenu({ userName, userEmail, locale }: UserMenuProps) {
   const tAuth = useTranslations('auth');
 
   const handleLogout = async () => {
+    await clearUserDatabase();
     await signOut({
       redirect: true,
       callbackUrl: `/${locale}/login`,

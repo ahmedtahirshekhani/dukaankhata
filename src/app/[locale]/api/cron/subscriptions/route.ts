@@ -86,9 +86,9 @@ async function runCronJob() {
       if (!existingPending) {
         const newExpiryDate = new Date();
         newExpiryDate.setDate(newExpiryDate.getDate() + 30);
-        const planPrice = parseInt(process.env.NEXT_PUBLIC_PLAN_PRICE || "1000", 10);
+        const planPrice = parseInt(process.env.NEXT_PUBLIC_PRO_PLAN_PRICE || "1000", 10);
 
-        const planName = process.env.NEXT_PUBLIC_PLAN_NAME || "starter";
+        const planName = (process.env.NEXT_PUBLIC_PRO_PLAN_NAME || "pro").toLowerCase();
 
         await subscriptionsCollection.insertOne({
           user_id: subscription.user_id,
