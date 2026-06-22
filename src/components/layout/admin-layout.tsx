@@ -44,6 +44,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, clearUserDatabase } from "@/lib/db/offline-db";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { toast } from "sonner";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -60,6 +61,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [reportsExpanded, setReportsExpanded] = useState(false);
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
 
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
@@ -328,6 +331,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowClearCacheDialog(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 text-amber-700 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+          >
+            <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline text-xs sm:text-sm">{tCommon("clearCache")}</span>
+          </Button>
           <SubscriptionStatusBadge />
           <LanguageSwitcher />
           <DropdownMenu>
@@ -827,6 +839,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
+
             {/* Settings / Configuration - moved to bottom */}
             <div className="mt-auto">
               <Link
@@ -870,6 +883,28 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         confirmLabel={tCommon("understood")}
         onConfirm={() => setShowLogoutWarning(false)}
         variant="warning"
+      />
+
+      <ConfirmDialog
+        open={showClearCacheDialog}
+        onOpenChange={setShowClearCacheDialog}
+        title={tCommon("clearCache")}
+        description={tCommon("clearCacheWarning")}
+        confirmLabel={isClearingCache ? tCommon("clearingCache") : tCommon("confirm")}
+        onConfirm={async () => {
+          setIsClearingCache(true);
+          try {
+            await SyncEngine.clearCacheAndResync();
+            if (typeof window !== 'undefined') {
+              toast.success(tCommon("cacheClearedSuccess"));
+            }
+            setShowClearCacheDialog(false);
+            window.location.reload();
+          } finally {
+            setIsClearingCache(false);
+          }
+        }}
+        variant="destructive"
       />
     </div>
   );

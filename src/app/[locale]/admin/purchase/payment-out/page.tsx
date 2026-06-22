@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Card,
@@ -52,6 +52,7 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Pagination } from "@/components/ui/pagination";
+import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
 
 type Party = {
   id: string;
@@ -83,7 +84,6 @@ export default function PaymentOutPage() {
   const tCommon = useTranslations("common");
 
   const [transactions, setTransactions] = useState<PartyTransaction[]>([]);
-  const [parties, setParties] = useState<Party[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,18 +118,18 @@ export default function PaymentOutPage() {
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Fetch vendors (not customers for payment out)
-  const fetchParties = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/customers?limit=-1`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const customers = data.customers || [];
-      setParties(customers.filter((p: Party & { is_delete?: number }) => p.is_delete !== 1));
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  // Replace API fetching with offline hook for the filter dropdown
+  const offlineParties = useOfflineCustomers() || [];
+  const parties = useMemo(() => {
+    return offlineParties.filter((p) => p.is_delete !== 1);
+  }, [offlineParties]);
+
+  // Infinite scroll for Filter Dropdown
+  const [filterPartyPage, setFilterPartyPage] = useState(1);
+  const displayParties = useMemo(() => {
+    return parties.slice(0, filterPartyPage * 50);
+  }, [parties, filterPartyPage]);
+  const hasMoreFilterParties = displayParties.length < parties.length;
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -171,10 +171,9 @@ export default function PaymentOutPage() {
   }, [locale]);
 
   useEffect(() => {
-    fetchParties(); // Fetch parties first
     fetchPaymentMethods();
     fetchTransactions();
-  }, [fetchParties, fetchPaymentMethods, fetchTransactions]);
+  }, [fetchPaymentMethods, fetchTransactions]);
 
   const resetForm = useCallback(() => {
     setFormPartyId("");
@@ -373,7 +372,9 @@ export default function PaymentOutPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => {
+                if (open) setFilterPartyPage(1);
+              }}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -386,7 +387,15 @@ export default function PaymentOutPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-56 max-h-[70vh] overflow-y-auto"
+                  className="w-56 max-h-80 overflow-y-auto"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                      if (hasMoreFilterParties) {
+                        setFilterPartyPage(prev => prev + 1);
+                      }
+                    }
+                  }}
                 >
                   <DropdownMenuLabel>
                     {t("filterByPaymentMethod")}
@@ -422,17 +431,24 @@ export default function PaymentOutPage() {
                   >
                     {t("allParties")}
                   </DropdownMenuCheckboxItem>
-                  {parties.map((p) => (
-                    <DropdownMenuCheckboxItem
-                      key={p.id}
-                      checked={filters.party === p.id}
-                      onCheckedChange={(checked) =>
-                        checked && handleFilterParty(p.id)
-                      }
-                    >
-                      {p.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                  {displayParties.map((p) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={p.id}
+                        checked={filters.party === p.id}
+                        onCheckedChange={(checked) =>
+                          checked && handleFilterParty(p.id)
+                        }
+                      >
+                        {p.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  {hasMoreFilterParties && (
+                    <div className="flex justify-center p-2">
+                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

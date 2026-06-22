@@ -63,7 +63,11 @@
     "logoutWarningDesc": "Please wait! Some offline data is still syncing to the server. Logging out now might result in data loss. Connect to internet or wait for sync to complete.",
     "understood": "I Understand",
     "youAreOffline": "You are offline",
-    "backOnline": "Back online"
+    "backOnline": "Back online",
+    "clearCache": "Clear Cache",
+    "clearCacheWarning": "Are you sure you want to clear the local cache? This will delete the offline database and re-sync all data from the server.",
+    "clearingCache": "Clearing...",
+    "cacheClearedSuccess": "Cache cleared successfully"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",

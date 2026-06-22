@@ -4,9 +4,8 @@ import { db } from '../db/offline-db';
 export function useOfflineCustomers(searchQuery: string = '') {
   return useLiveQuery(() => {
     return db.parties.filter(party => {
-      // Filter out deleted and non-customer parties
+      // Filter out deleted parties
       if (party.is_delete === 1) return false;
-      if (party.type && party.type !== 'customer') return false; // In case type is present, it must be customer
       
       if (searchQuery) {
         const lowerSearch = searchQuery.toLowerCase();
@@ -18,6 +17,7 @@ export function useOfflineCustomers(searchQuery: string = '') {
     }).toArray();
   }, [searchQuery]);
 }
+
 
 export function useOfflineProducts(searchQuery: string = '', type: string = 'all') {
   return useLiveQuery(() => {

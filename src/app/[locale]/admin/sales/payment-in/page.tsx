@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Card,
@@ -52,6 +52,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Pagination } from "@/components/ui/pagination";
+import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
 
 type Customer = {
   id: string;
@@ -82,7 +83,6 @@ export default function PaymentInPage() {
   const tCommon = useTranslations("common");
 
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,17 +134,18 @@ export default function PaymentInPage() {
     }
   }, [locale, t, currentPage, pageSize]);
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/customers?limit=-1`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const customersList = data.customers || [];
-      setCustomers(customersList.filter((c: Customer & { is_delete?: number }) => c.is_delete !== 1));
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  // Replace API fetching with offline hook for the filter dropdown
+  const offlineCustomers = useOfflineCustomers() || [];
+  const customers = useMemo(() => {
+    return offlineCustomers.filter((c) => c.is_delete !== 1);
+  }, [offlineCustomers]);
+
+  // Infinite scroll for Filter Dropdown
+  const [filterCustomerPage, setFilterCustomerPage] = useState(1);
+  const displayCustomers = useMemo(() => {
+    return customers.slice(0, filterCustomerPage * 50);
+  }, [customers, filterCustomerPage]);
+  const hasMoreFilterCustomers = displayCustomers.length < customers.length;
 
   const fetchPaymentMethods = useCallback(async () => {
     try {
@@ -170,9 +171,8 @@ export default function PaymentInPage() {
 
   useEffect(() => {
     fetchTransactions();
-    fetchCustomers();
     fetchPaymentMethods();
-  }, [fetchTransactions, fetchCustomers, fetchPaymentMethods]);
+  }, [fetchTransactions, fetchPaymentMethods]);
 
   const resetForm = useCallback(() => {
     setFormCustomerId("");
@@ -362,7 +362,9 @@ export default function PaymentInPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => {
+                if (open) setFilterCustomerPage(1);
+              }}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -375,7 +377,15 @@ export default function PaymentInPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-56 max-h-[70vh] overflow-y-auto"
+                  className="w-56 max-h-80 overflow-y-auto"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                      if (hasMoreFilterCustomers) {
+                        setFilterCustomerPage(prev => prev + 1);
+                      }
+                    }
+                  }}
                 >
                   <DropdownMenuLabel>
                     {t("filterByPaymentMethod")}
@@ -411,17 +421,24 @@ export default function PaymentInPage() {
                   >
                     {t("allCustomers")}
                   </DropdownMenuCheckboxItem>
-                  {customers.map((c) => (
-                    <DropdownMenuCheckboxItem
-                      key={c.id}
-                      checked={filters.customer === c.id}
-                      onCheckedChange={(checked) =>
-                        checked && handleFilterCustomer(c.id)
-                      }
-                    >
-                      {c.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                  {displayCustomers.map((c) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={c.id}
+                        checked={filters.customer === c.id}
+                        onCheckedChange={(checked) =>
+                          checked && handleFilterCustomer(c.id)
+                        }
+                      >
+                        {c.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  {hasMoreFilterCustomers && (
+                    <div className="flex justify-center p-2">
+                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

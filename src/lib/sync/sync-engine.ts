@@ -49,6 +49,16 @@ export class SyncEngine {
       }
     }
   }
+  static async clearCacheAndResync() {
+    try {
+      await Promise.all(db.tables.map(table => table.clear()));
+      localStorage.removeItem('last_sync_timestamp');
+      return await this.pullInitialData();
+    } catch (error) {
+      console.error('Failed to clear cache and resync:', error);
+      return false;
+    }
+  }
 
   private static isSyncing = false;
 
