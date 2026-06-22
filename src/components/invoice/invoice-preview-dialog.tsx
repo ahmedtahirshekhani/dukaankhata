@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Loader2, Printer } from "lucide-react";
+import { ChevronDown, Loader2, Printer, Receipt, Download } from "lucide-react";
 import {
   InvoicePreview,
   type InvoiceCharge,
@@ -445,13 +445,16 @@ export function InvoicePreviewDialog({
     date: paidDate || todayStr || saleDate || "",
   };
 
+  // Common disabled condition for all action buttons
+  const isActionDisabled = !(isPaymentMade || noPaymentAtAll) || isCreatingOrder;
+
   return (
     <React.Fragment>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className={`max-h-[90vh] overflow-y-auto overflow-x-hidden w-[95vw] sm:w-full ${
-            printFormat === "thermal" ? "max-w-md" : "max-w-4xl"
-          } p-3 sm:p-6`}
+            printFormat === "thermal" ? "max-w-3xl" : "max-w-4xl"
+          } p-3 sm:p-6 transition-all duration-300`}
         >
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">
@@ -473,7 +476,7 @@ export function InvoicePreviewDialog({
                   : "lg:col-span-2 overflow-x-auto overflow-y-hidden pb-4 custom-scrollbar max-w-full"
               }
             >
-              <div className="md:min-w-0 inline-block w-full">
+              <div className={`md:min-w-0 inline-block w-full transition-all duration-300 ${printFormat === 'thermal' ? 'max-w-[320px] mx-auto block' : ''}`}>
                 <InvoicePreview
                   ref={invoiceRef}
                   invoiceNo={invoiceNo}
@@ -563,20 +566,27 @@ export function InvoicePreviewDialog({
                     onCheckedChange={setRequestCustomerSignature}
                   />
                 </div>
+                
+                {/* UPDATED: Smaller buttons with consistent sizing */}
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     onClick={handlePrintInvoice}
                     variant="outline"
-                    className="w-full text-sm"
+                    size="sm"
+                    className="w-full text-[11px] h-8"
+                    disabled={isActionDisabled}
                   >
-                    <Printer className="h-4 w-4 mr-2" />
+                    <Printer className="h-3 w-3 mr-1.5" />
                     {tCommon("print")}
                   </Button>
                   <Button
                     onClick={handleDownloadPdf}
                     variant="default"
-                    className="w-full text-sm"
+                    size="sm"
+                    className="w-full text-[11px] h-8"
+                    disabled={isActionDisabled}
                   >
+                    <Download className="h-3 w-3 mr-1.5" />
                     {t("downloadInvoice")}
                   </Button>
                 </div>
@@ -584,57 +594,6 @@ export function InvoicePreviewDialog({
             ) : (
               <div className="lg:col-span-1">
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="space-y-2">
-                    {!noPaymentAtAll && (
-                      isPaymentMade ? (
-                        <Button
-                          onClick={() => {
-                            setPaymentSeed(editPaymentSeed);
-                            setPaymentDialogOpen(true);
-                          }}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          {t("editPayment")}
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={() => {
-                            setPaymentSeed(newPaymentSeed);
-                            setNoPaymentAtAll(false);
-                            setPaymentDialogOpen(true);
-                          }}
-                          className="w-full"
-                          variant="default"
-                        >
-                          Make Payment
-                        </Button>
-                      )
-                    )}
-                    <div className="flex items-center gap-2 px-2">
-                      <input
-                        type="checkbox"
-                        id="no-payment"
-                        checked={noPaymentAtAll}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setNoPaymentAtAll(checked);
-                          if (checked) {
-                            setPaidAmount(0);
-                            setPaidDate(null);
-                          }
-                        }}
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded"
-                      />
-                      <label
-                        htmlFor="no-payment"
-                        className="text-xs sm:text-sm cursor-pointer"
-                      >
-                        {t("noPaymentAtAll")}
-                      </label>
-                    </div>
-                  </div>
-
                   <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
                     <Label className="text-xs sm:text-sm">
                       {t("includeSignatureInInvoice")}
@@ -669,6 +628,58 @@ export function InvoicePreviewDialog({
                     </button>
                   </div>
 
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label className="text-xs font-medium text-slate-500 mb-1 block">Payment Details</Label>
+                    {!noPaymentAtAll && (
+                      isPaymentMade ? (
+                        <Button
+                          onClick={() => {
+                            setPaymentSeed(editPaymentSeed);
+                            setPaymentDialogOpen(true);
+                          }}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          {t("editPayment")}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            setPaymentSeed(newPaymentSeed);
+                            setNoPaymentAtAll(false);
+                            setPaymentDialogOpen(true);
+                          }}
+                          className="w-full"
+                          variant="default"
+                        >
+                          Make Payment
+                        </Button>
+                      )
+                    )}
+                    <div className="flex items-center gap-2 px-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="no-payment"
+                        checked={noPaymentAtAll}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setNoPaymentAtAll(checked);
+                          if (checked) {
+                            setPaidAmount(0);
+                            setPaidDate(null);
+                          }
+                        }}
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded"
+                      />
+                      <label
+                        htmlFor="no-payment"
+                        className="text-xs sm:text-sm cursor-pointer"
+                      >
+                        {t("noPaymentAtAll")}
+                      </label>
+                    </div>
+                  </div>
+
                   <div>
                     <Button
                       onClick={async () => {
@@ -685,11 +696,9 @@ export function InvoicePreviewDialog({
                           isCreatingRef.current = false;
                         }
                       }}
-                      variant="outline"
-                      className="w-full"
-                      disabled={
-                        !(isPaymentMade || noPaymentAtAll) || isCreatingOrder
-                      }
+                      variant="default"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      disabled={isActionDisabled}
                     >
                       {isCreatingOrder ? (
                         <>
@@ -717,7 +726,7 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("a4")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">{t("a4Size")}</span>
+                          <span className="text-xs flex items-center gap-1.5">{t("a4Size")}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -728,7 +737,10 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("thermal")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">{t("thermalReceipt")}</span>
+                          <span className="text-xs flex items-center gap-1.5">
+                            <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
+                            {t("thermalReceipt")}
+                          </span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -739,24 +751,31 @@ export function InvoicePreviewDialog({
                             onChange={(e) => setPrintFormat("letter")}
                             className="w-3 h-3"
                           />
-                          <span className="text-xs">{t("letterSize")}</span>
+                          <span className="text-xs flex items-center gap-1.5">{t("letterSize")}</span>
                         </label>
                       </div>
                     </div>
+                    
+                    {/* UPDATED: Smaller buttons with consistent sizing */}
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         onClick={handlePrintInvoice}
                         variant="outline"
-                        className="w-full"
+                        size="sm"
+                        className="w-24 text-[11px] h-8"
+                        disabled={isActionDisabled}
                       >
-                        <Printer className="h-4 w-4 mr-2" />
+                        <Printer className="h-3 w-3 mr-1.5" />
                         {tCommon("print")}
                       </Button>
                       <Button
                         onClick={handleDownloadPdf}
                         variant="outline"
-                        className="w-full"
+                        size="sm"
+                        className="w-24 text-[11px] h-8"
+                        disabled={isActionDisabled}
                       >
+                        <Download className="h-3 w-3 mr-1.5" />
                         {t("downloadInvoice")}
                       </Button>
                     </div>

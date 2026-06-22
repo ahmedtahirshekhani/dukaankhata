@@ -877,7 +877,7 @@
     "a4Size": "A4 سائز",
     "thermalReceipt": "تھرمل رسید",
     "letterSize": "لیٹر سائز",
-    "downloadInvoice": "انوائس ڈاؤن لوڈ کریں",
+    "downloadInvoice": " ڈاؤن لوڈ ",
     "editPayment": "ادائیگی میں ایڈٹ",
     "makePayment": "ادائیگی کریں",
     "noPaymentAtAll": "بالکل ادائیگی نہیں",
@@ -1436,5 +1436,12 @@
     "accountDeletedSuccess": "آپ کی اکاؤنٹ کامیابی سے حذف ہو گئی",
     "accountDeleteFailed": "اکاؤنٹ حذف کرنے میں ناکام",
     "invalidPassword": "پاس ورڈ غلط ہے"
+  },
+  "aiChat": {
+    "aiChatTitle": "اے آئی اسسٹنٹ",
+    "aiChatDescription": "اپنے کاروبار کے بارے میں کچھ بھی پوچھیں یا کسٹمرز کو میسج کریں۔",
+    "aiChatInputPlaceholder": "کسی بھی زبان میں میسج لکھیں...",
+    "aiChatSend": "بھیجیں",
+    "aiChatEmptyState": "ہیلو! میں آپ کا دکان کھاتہ اے آئی اسسٹنٹ ہوں۔ آپ مجھے کسٹمرز کو میسج کرنے کے لیے کہہ سکتے ہیں۔"
   }
 }

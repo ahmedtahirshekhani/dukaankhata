@@ -877,7 +877,7 @@
     "a4Size": "A4 Size",
     "thermalReceipt": "Thermal Receipt",
     "letterSize": "Letter Size",
-    "downloadInvoice": "Download Invoice",
+    "downloadInvoice": "Download",
     "editPayment": "Edit Payment",
     "makePayment": "Make Payment",
     "noPaymentAtAll": "Bilkul Adaigi Nahi",
@@ -1436,5 +1436,12 @@
     "accountDeletedSuccess": "Aapka account kamyabi se delete ho gaya",
     "accountDeleteFailed": "Account delete karne mein nakaami",
     "invalidPassword": "Password galat hai"
+  },
+  "aiChat": {
+    "aiChatTitle": "AI Assistant",
+    "aiChatDescription": "Apne karobar ke bare mein kuch bhi puchein ya customers ko manage karein.",
+    "aiChatInputPlaceholder": "Koi bhi language mein message likhein...",
+    "aiChatSend": "Bhejein",
+    "aiChatEmptyState": "Hello! Main aapka DukaanKhata AI Assistant hoon. Aap mujhe customers manage karne ka keh sakte hain."
   }
 }

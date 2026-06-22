@@ -13,6 +13,8 @@ import Link from "next/link";
 import { LandingContact } from "@/components/landing/landing-contact";
 import { LandingPricing } from "@/components/landing/landing-pricing";
 import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePWA } from "@/components/pwa/pwa-context";
 
@@ -20,6 +22,8 @@ export function LandingHero() {
   const locale = useLocale();
   const t = useTranslations("landing.hero");
   const { canInstall, triggerInstall } = usePWA();
+  const { data: session } = useSession();
+  const router = useRouter();
 
   const features = [
     {
@@ -58,12 +62,20 @@ export function LandingHero() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href={`/${locale}/admin/welcome`}>
-                  <Button size="lg" className="gap-2">
-                    {t("dashboardButton")}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button
+                  size="lg"
+                  className="gap-2"
+                  onClick={() => {
+                    if (session?.user) {
+                      router.push(`/${locale}/admin/welcome`);
+                    } else {
+                      router.push(`/${locale}/signup`);
+                    }
+                  }}
+                >
+                  {t("dashboardButton")}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
                 <Button
                   size="lg"
                   variant="outline"
