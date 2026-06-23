@@ -18,6 +18,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
+import { db } from "@/lib/db/offline-db";
 import { createSampleProductsExcel } from "@/lib/excel/sample-products";
 import { useDebounce } from "../../../../hooks/use-debounce";
 import { Pagination } from "@/components/ui/pagination";
@@ -62,6 +63,7 @@ import { FilterIcon, ChevronDownIcon } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
 import * as XLSX from "xlsx";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -145,10 +147,10 @@ export default function Products() {
   }, [debouncedSearchTerm, pageSize]);
 
   const handleProductDialogSuccess = (product: Product, isEdit: boolean) => {
-    if (isEdit) {
-      setProducts(products.map((p) => (p.id === product.id ? product : p)));
-    } else {
-      setProducts([...products, product]);
+    // Optimistic updates are handled automatically by useLiveQuery in useProductsData
+    // We just need to make sure we're on the first page to see the new item
+    if (!isEdit) {
+      setCurrentPage(1);
     }
   };
 
@@ -156,22 +158,10 @@ export default function Products() {
     if (!productToDelete) return;
     try {
       setIsDeleting(true);
-      const response = await fetch(`/api/products/${productToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        // Optimistic update
-        setProducts(products.filter((p) => p.id !== productToDelete.id));
-        
-        // Refresh all data from server to update pagination and totals
-        await refetchData();
-        
-        setIsDeleteConfirmationOpen(false);
-        setProductToDelete(null);
-      } else {
-        console.error("Failed to delete product");
-      }
+      await db.products.delete(productToDelete.id);
+      await SyncEngine.queueOperation("products", "DELETE", `/api/products/${productToDelete.id}`, {}, String(productToDelete.id));
+      setIsDeleteConfirmationOpen(false);
+      setProductToDelete(null);
     } catch (error) {
       console.error("Error deleting product:", error);
     } finally {
@@ -275,15 +265,8 @@ export default function Products() {
     try {
       setIsDownloading(true);
       
-      // Fetch all products for export
-      const url = new URL("/api/products", window.location.origin);
-      url.searchParams.append("limit", "-1");
-      
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error("Failed to fetch products for export");
-      
-      const data = await response.json();
-      const allProducts = data.products;
+      // Fetch all products for export from db
+      const allProducts = await db.products.toArray();
 
       if (!allProducts || allProducts.length === 0) {
         throw new Error("No products to export");

@@ -14,6 +14,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
+import { db } from "@/lib/db/offline-db";
+import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
@@ -144,7 +146,18 @@ export default function SaleReturnPage() {
 
   const [transactions, setTransactions] = useState<SaleReturnTransaction[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const rawProducts = useOfflineProducts() || [];
+  const products = useMemo(() => {
+    return rawProducts.map(item => ({
+      id: String(item.id ?? item._id ?? ""),
+      name: String(item.name ?? ""),
+      sellPrice: item.sell_price || item.salePrice || item.price || 0,
+      sell_price: item.sell_price || item.salePrice || item.price || 0,
+      salePrice: item.salePrice || item.sell_price || 0,
+      price: item.price || item.sell_price || 0,
+      retailPrice: item.retailPrice || 0,
+    }));
+  }, [rawProducts]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPageLoading, setIsPageLoading] = useState(false);
@@ -241,51 +254,12 @@ export default function SaleReturnPage() {
 
   const fetchCustomers = useCallback(async () => {
     try {
-      const res = await fetch(`/${locale}/api/customers?limit=-1`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setCustomers(data.customers || []);
+      const allCustomers = await db.parties.toArray();
+      setCustomers(allCustomers);
     } catch {
       setCustomers([]);
     }
-  }, [locale]);
-
-  const fetchProducts = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/products?limit=-1`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = Array.isArray(data.products)
-        ? data.products.map((item: Record<string, unknown>) => ({
-          id: String(item.id ?? ""),
-          name: String(
-            item.name ?? item.productName ?? item.itemName ?? item.title ?? "",
-          ),
-          sellPrice:
-            typeof item.sell_price === "number"
-              ? item.sell_price
-              : Number(item.sell_price ?? 0),
-          sell_price:
-            typeof item.sell_price === "number"
-              ? item.sell_price
-              : Number(item.sell_price ?? 0),
-          salePrice:
-            typeof item.salePrice === "number"
-              ? item.salePrice
-              : Number(item.salePrice ?? 0),
-          price:
-            typeof item.price === "number" ? item.price : Number(item.price ?? 0),
-          retailPrice:
-            typeof item.retailPrice === "number"
-              ? item.retailPrice
-              : Number(item.retailPrice ?? 0),
-        }))
-        : [];
-      setProducts(list.filter((product: Product) => product.id && product.name));
-    } catch {
-      setProducts([]);
-    }
-  }, [locale]);
+  }, []);
 
   const fetchPaymentMethods = useCallback(async () => {
     try {
@@ -328,9 +302,8 @@ export default function SaleReturnPage() {
 
   useEffect(() => {
     fetchCustomers();
-    fetchProducts();
     fetchPaymentMethods();
-  }, [fetchCustomers, fetchProducts, fetchPaymentMethods]);
+  }, [fetchCustomers, fetchPaymentMethods]);
 
   const resetForm = useCallback(() => {
     setFormReturnNumber(generateReturnNumber());

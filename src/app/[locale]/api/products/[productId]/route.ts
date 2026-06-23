@@ -46,12 +46,17 @@ export async function PUT(
   try {
     updatedProduct = await request.json()
   } catch (parseErr) {
-    console.error('[PUT /api/products/:productId] Failed to parse request body', {
-      requestId,
-      userId: user.id,
-      params,
-      error: parseErr instanceof Error ? parseErr.message : String(parseErr),
-    })
+    const errorMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    if (errorMsg === 'aborted' || errorMsg.includes('aborted')) {
+      console.warn(`[PUT /api/products/:productId] Request aborted by client (${requestId})`);
+    } else {
+      console.error('[PUT /api/products/:productId] Failed to parse request body', {
+        requestId,
+        userId: user.id,
+        params,
+        error: errorMsg,
+      });
+    }
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 

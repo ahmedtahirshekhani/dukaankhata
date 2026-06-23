@@ -80,11 +80,11 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
-    
+
     // Reduced debounce to 100ms for instant local search feel
     const debouncedSearchTerm = useDebounce(searchTerm, 100);
     const [isOpen, setIsOpen] = useState(false);
-    
+
     const [page, setPage] = useState(1);
     const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -104,7 +104,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
     // Offline data hook
     const allOfflineCustomers = useOfflineCustomers(debouncedSearchTerm) || [];
-    
+
     // Filter active only if needed
     const filteredCustomers = useMemo(() => {
       let filtered = allOfflineCustomers;
@@ -116,45 +116,24 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
     const getPartyId = (p: Party) => String(p.id || p._id);
 
-    // Fallback: Fetch the selected party if it's not in the offline list yet
-    const [fetchedParty, setFetchedParty] = useState<Party | null>(null);
 
-    useEffect(() => {
-      if (value && value !== "all") {
-        const existsInOffline = allOfflineCustomers.find(p => getPartyId(p) === value);
-        if (!existsInOffline && !fetchedParty) {
-          const fetchParty = async () => {
-            try {
-              const res = await fetch(`/api/customers/${value}`);
-              if (res.ok) {
-                const party = await res.json();
-                setFetchedParty(party);
-              }
-            } catch (error) {
-              console.error("Error fetching selected party:", error);
-            }
-          };
-          fetchParty();
-        }
-      }
-    }, [value, allOfflineCustomers, fetchedParty]);
 
     // Pagination
     const parties = useMemo(() => {
       let paginated = filteredCustomers.slice(0, page * 20);
-      
+
       if (value && value !== "all") {
         const isSelectedInPaginated = paginated.some(p => getPartyId(p) === value);
         if (!isSelectedInPaginated) {
-          const selectedParty = filteredCustomers.find(p => getPartyId(p) === value) || fetchedParty;
+          const selectedParty = filteredCustomers.find(p => getPartyId(p) === value);
           if (selectedParty) {
             paginated = [selectedParty, ...paginated];
           }
         }
       }
-      
+
       return paginated;
-    }, [filteredCustomers, page, value, fetchedParty]);
+    }, [filteredCustomers, page, value]);
 
     const hasMore = parties.length < filteredCustomers.length;
     const loading = false; // Local DB is fast
@@ -215,15 +194,15 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           phone: newPartyPhone,
           company_name: newPartyCompanyName,
           company_address: newPartyCompanyAddress,
-          balance: newPartyOpeningBalance 
-            ? parseFloat(newPartyOpeningBalance) * (newPartyOpeningBalanceType === "pay" ? -1 : 1) 
+          balance: newPartyOpeningBalance
+            ? parseFloat(newPartyOpeningBalance) * (newPartyOpeningBalanceType === "pay" ? -1 : 1)
             : 0,
           status: "active" as const,
         };
 
         const customerId = crypto.randomUUID();
         const finalCustomer = { ...newParty, id: customerId, is_delete: 0, type: "customer" };
-        
+
         await db.parties.add(finalCustomer);
         await SyncEngine.queueOperation("parties", "POST", "/api/customers", newParty, customerId);
 
@@ -277,9 +256,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
             <SelectTrigger className={cn("w-full [&>span]:flex-1 [&>span]:flex [&>span]:items-center [&>span]:justify-between gap-2", className)} ref={ref}>
               <SelectValue placeholder={loading ? "Loading..." : placeholder} />
             </SelectTrigger>
-            <SelectContent 
-              position="popper" 
-              sideOffset={5} 
+            <SelectContent
+              position="popper"
+              sideOffset={5}
               className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden"
               collisionPadding={10}
             >
@@ -310,7 +289,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                   </div>
                 </div>
               )}
-              
+
               <div className="max-h-[min(300px,var(--radix-select-content-available-height)-100px)] overflow-y-auto custom-scrollbar">
                 <div className="flex flex-col sticky top-0 z-[5] bg-popover border-b">
                   {/* Dropdown Legend */}
@@ -336,19 +315,19 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                     {allOptionLabel}
                   </SelectItem>
                 )}
-                
+
                 {parties.length === 0 && !loading && (
                   <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                     {searchTerm ? noResultsText : "No parties found"}
                   </div>
                 )}
-                
+
                 {parties.map((party) => {
                   const partyId = getPartyId(party);
                   const balance = party.balance || 0;
                   return (
-                    <SelectItem 
-                      key={partyId} 
+                    <SelectItem
+                      key={partyId}
                       value={partyId}
                       className={cn(
                         "w-full [&>span]:w-full [&>span]:flex [&>span]:items-center",
@@ -403,7 +382,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                   ) : null}
                 </div>
               </div>
-              
+
               <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
                 <Button
                   type="button"
@@ -420,7 +399,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
               </div>
             </SelectContent>
           </Select>
-          
+
           {loading && (
             <div className="absolute right-8 top-1/2 -translate-y-1/2">
               <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />

@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Plus, Edit2, Trash2, Loader2 } from "lucide-react";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
+import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { formatCurrencyString } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +57,13 @@ function QuotationFormPageInner({
     const searchParams = useSearchParams();
     const quotationIdFromUrl = searchParams.get("id") || quotationId;
 
-    const [products, setProducts] = useState<any[]>([]);
+    const rawProducts = useOfflineProducts() || [];
+    const products = useMemo(() => {
+        return rawProducts.map(item => ({
+            ...item,
+            id: String(item.id ?? item._id ?? ""),
+        }));
+    }, [rawProducts]);
     const [loading, setLoading] = useState(true);
     const [editingQuotationId, setEditingQuotationId] = useState<string | null>(
         null
@@ -90,12 +97,6 @@ function QuotationFormPageInner({
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const productsRes = await fetch(`/${locale}/api/products`);
-                if (productsRes.ok) {
-                    const data = await productsRes.json();
-                    setProducts(Array.isArray(data) ? data : []);
-                }
-
                 if (quotationIdFromUrl) {
                     const quotRes = await fetch(
                         `/${locale}/api/quotations/${quotationIdFromUrl}`

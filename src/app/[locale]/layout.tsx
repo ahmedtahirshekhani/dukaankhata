@@ -12,8 +12,7 @@ import { MacChromeInstallPromptWrapper } from "@/components/pwa/mac-chrome-insta
 import { PWAProvider } from "@/components/pwa/pwa-context";
 import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import GTMUserTracker from "@/components/analytics/gtm-user-tracker";
-import { CustomersProvider } from "@/components/dropdown/customers-context";
-import { ProductsProvider } from "@/components/dropdown/products-context";
+
 import { Toaster } from "@/components/ui/sonner";
 import "../globals.css";
 
@@ -67,12 +66,8 @@ export default async function LocalizedRootLayout({
             <IOSInstallPromptWrapper />
             <MacChromeInstallPromptWrapper />
             <OfflineIndicator />
-            <CustomersProvider>
-              <ProductsProvider>
-                {children}
-                <Toaster position="top-right" />
-              </ProductsProvider>
-            </CustomersProvider>
+              {children}
+              <Toaster position="top-right" />
           </NextIntlClientProvider>
         </AnalyticsProvider>
       </AuthProvider>

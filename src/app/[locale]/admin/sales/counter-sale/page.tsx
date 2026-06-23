@@ -10,6 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -113,8 +115,26 @@ interface PaginatedResponse {
 export default function CounterSale() {
   const t = useTranslations("counterSale");
   const tCommon = useTranslations("common");
+  const [searchTerm, setSearchTerm] = useState("");
+  const rawProducts = useOfflineProducts();
+  const products = useMemo(() => {
+    const productsData = (rawProducts || []).map(item => ({
+      id: String(item.id ?? item._id ?? ""),
+      name: String(item.name ?? ""),
+      sellPrice: item.sell_price || item.salePrice || item.price || 0,
+      description: item.description || "",
+    }));
+    return [
+      ...productsData,
+      {
+        id: "0",
+        name: t("others"),
+        description: t("addCustomItemTitle"),
+      } as unknown as Product,
+    ];
+  }, [rawProducts, t]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [transactionToDelete, setTransactionToDelete] =
@@ -138,7 +158,6 @@ export default function CounterSale() {
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
 
   // Filter states
-  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     type: "all",
   });
@@ -1137,26 +1156,6 @@ export default function CounterSale() {
     html2pdf().set(options).from(htmlContent).save();
   };
 
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch("/api/products?limit=-1");
-      if (!response.ok) throw new Error("Failed to fetch products");
-      const data = await response.json();
-      const productsData = data.products || [];
-      // Add "Others" option at the end
-      const productsWithOthers: Product[] = [
-        ...productsData,
-        {
-          id: 0, // Special ID for "Others"
-          name: t("others"),
-          description: t("addCustomItemTitle"),
-        },
-      ];
-      setProducts(productsWithOthers);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    }
-  };
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -1193,7 +1192,6 @@ export default function CounterSale() {
     };
 
     fetchTransactions();
-    fetchProducts();
   }, [currentPage, pageSize, sortColumn, sortDirection, selectedYear]);
 
   // Reset to first page when search or filters change or page size changes

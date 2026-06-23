@@ -14,7 +14,11 @@ export function useOfflineCustomers(searchQuery: string = '') {
          party.company_name?.toLowerCase().includes(lowerSearch));
       }
       return true;
-    }).toArray();
+    }).toArray().then(arr => arr.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }));
   }, [searchQuery]);
 }
 
@@ -40,8 +44,12 @@ export function useOfflineProducts(searchQuery: string = '', type: string = 'all
         matchesType = product.type === type;
       }
       
-      return matchesSearch && matchesType;
-    }).toArray();
+      return matchesSearch && matchesType && product.is_delete !== 1;
+    }).toArray().then(arr => arr.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }));
   }, [searchQuery, type]);
 }
 

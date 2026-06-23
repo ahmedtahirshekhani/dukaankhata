@@ -78,7 +78,7 @@ export class SyncEngine {
         await db.syncQueue.update(op.id!, { status: 'processing' });
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
         const response = await fetch(op.url, {
           method: op.method,
@@ -89,12 +89,16 @@ export class SyncEngine {
         
         clearTimeout(timeoutId);
         
-        if (response.ok) {
+        if (response.ok || (response.status === 404 && op.method === 'DELETE')) {
           // Dispatch a custom event instead of native 'online' to avoid unwanted reloads/refetches from external libs
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('syncComplete', { detail: { collection: op.collection } }));
           }
-          const result = await response.json().catch(() => ({})); // Parse JSON safely
+          
+          let result: any = {};
+          if (response.ok) {
+            result = await response.json().catch(() => ({})); // Parse JSON safely
+          }
           
           // If this was a POST and the server returned a new ID, update the local record
           if (op.method === 'POST' && result.id && op.localId && result.id !== op.localId) {
@@ -106,6 +110,29 @@ export class SyncEngine {
               item.id = result.id;
               await table.put(item);
               await table.delete(op.localId);
+            }
+
+            // Fix foreign keys in other pending operations
+            const otherPendingOps = await db.syncQueue.where('status').equals('pending').toArray();
+            for (const otherOp of otherPendingOps) {
+              let modified = false;
+              
+              if (otherOp.data) {
+                const dataStr = JSON.stringify(otherOp.data);
+                if (dataStr.includes(op.localId)) {
+                  otherOp.data = JSON.parse(dataStr.replaceAll(op.localId, result.id));
+                  modified = true;
+                }
+              }
+              
+              if (otherOp.url && otherOp.url.includes(op.localId)) {
+                otherOp.url = otherOp.url.replaceAll(op.localId, result.id);
+                modified = true;
+              }
+              
+              if (modified) {
+                await db.syncQueue.put(otherOp);
+              }
             }
           }
           

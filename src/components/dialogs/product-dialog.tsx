@@ -21,6 +21,9 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { ErrorDialog } from "./error-dialog";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 import { Info } from "lucide-react";
 import { CategorySelector } from "@/components/selectors/category-selector";
 import { BranchSelector } from "@/components/selectors/branch-selector";
@@ -226,23 +229,16 @@ export function ProductDialog({
         ...(itemType === "services" && {
           sell_price: sellPrice === "" ? 0 : sellPrice,
         }),
+        created_at: new Date().toISOString(),
       };
-      const response = await fetch("/api/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newProduct),
-      });
-
-      if (response.ok) {
-        const addedProduct = await response.json();
-        onSuccess(addedProduct, false);
-        onOpenChange(false);
-        resetForm();
-      } else {
-        console.error("Failed to add product");
-      }
+      const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      const addedProduct = { ...newProduct, id: tempId, _id: tempId, is_delete: 0 };
+      await db.products.add(addedProduct);
+      await SyncEngine.queueOperation("products", "POST", "/api/products", newProduct, tempId);
+      
+      onSuccess(addedProduct as any, false);
+      onOpenChange(false);
+      resetForm();
     } catch (error) {
       console.error("Error adding product:", error);
     } finally {
@@ -285,22 +281,13 @@ export function ProductDialog({
           sell_price: sellPrice === "" ? 0 : sellPrice,
         }),
       };
-      const response = await fetch(`/api/products/${selectedProduct.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedProduct),
-      });
-
-      if (response.ok) {
-        const updatedProductFromServer = await response.json();
-        onSuccess(updatedProductFromServer, true);
-        onOpenChange(false);
-        resetForm();
-      } else {
-        console.error("Failed to update product");
-      }
+      const updatedProductFromServer = { ...selectedProduct, ...updatedProduct };
+      await db.products.update(selectedProduct.id, updatedProduct);
+      await SyncEngine.queueOperation("products", "PUT", `/api/products/${selectedProduct.id}`, updatedProduct, String(selectedProduct.id));
+      
+      onSuccess(updatedProductFromServer as any, true);
+      onOpenChange(false);
+      resetForm();
     } catch (error) {
       console.error("Error updating product:", error);
     } finally {

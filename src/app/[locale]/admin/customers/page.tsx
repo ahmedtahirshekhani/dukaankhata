@@ -119,14 +119,14 @@ export default function PartiesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
-  
+
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -202,9 +202,10 @@ export default function PartiesPage() {
           ? parseFloat(newCustomerOpeningBalance) * (newCustomerOpeningBalanceType === "pay" ? -1 : 1)
           : 0,
         status: newCustomerStatus,
+        created_at: new Date().toISOString(),
       };
-      
-      const customerId = crypto.randomUUID();
+
+      const customerId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const finalCustomer = { ...newCustomer, id: customerId, is_delete: 0, type: "customer" };
       await db.parties.add(finalCustomer);
       await SyncEngine.queueOperation("parties", "POST", "/api/customers", newCustomer, customerId);
@@ -365,12 +366,7 @@ export default function PartiesPage() {
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      const response = await fetch("/api/customers?limit=-1");
-      if (!response.ok) {
-        throw new Error("Failed to fetch customers");
-      }
-      const data = await response.json();
-      const allCustomers = data.customers || [];
+      const allCustomers = await db.parties.toArray();
 
       const filename = `customers.xlsx`;
 
@@ -425,17 +421,14 @@ export default function PartiesPage() {
         }
 
         const result = await response.json();
-        const message = `${t("importSuccess")}: ${
-          result.successCount
-        } customer(s) imported.${
-          result.errorCount > 0
+        const message = `${t("importSuccess")}: ${result.successCount
+          } customer(s) imported.${result.errorCount > 0
             ? `\n\n${result.errorCount} error(s) occurred.`
             : ""
-        }${
-          result.errors && result.errors.length > 0
+          }${result.errors && result.errors.length > 0
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
-        }`;
+          }`;
 
         setErrorDialog({
           open: true,
@@ -443,10 +436,10 @@ export default function PartiesPage() {
           message: message,
           isSuccess: result.errorCount === 0,
         });
-        
+
         // After import, pull updates to refresh IndexedDB
         await SyncEngine.pullInitialData();
-        
+
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -686,74 +679,74 @@ export default function PartiesPage() {
                     </TableRow>
                   ) : (
                     filteredCustomers.map((customer) => (
-                    <TableRow 
-                      key={customer.id}
-                      className={cn(
-                        customer.balance !== undefined && customer.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
-                        customer.balance !== undefined && customer.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
-                      )}
-                    >
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>{customer.phone}</TableCell>
-                      <TableCell>{customer.company_name || "-"}</TableCell>
-                      <TableCell>
-                        Rs.{" "}
-                        {customer.balance ? Math.round(customer.balance) : "0"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setViewCustomer(customer);
-                              setIsViewCustomerDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span className="sr-only">{t("view")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              const balance = customer.balance || 0;
-                              setSelectedCustomerId(customer.id);
-                              setNewCustomerName(customer.name);
-                              setNewCustomerEmail(customer.email);
-                              setNewCustomerPhone(customer.phone);
-                              setNewCustomerCompanyName(
-                                customer.company_name || "",
-                              );
-                              setNewCustomerCompanyAddress(
-                                customer.company_address || "",
-                              );
-                              setNewCustomerOpeningBalance(
-                                Math.abs(balance).toString(),
-                              );
-                              setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
-                              setNewCustomerStatus(customer.status);
-                              setIsEditCustomerDialogOpen(true);
-                            }}
-                          >
-                            <FilePenIcon className="w-4 h-4" />
-                            <span className="sr-only">{t("edit")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setCustomerToDelete(customer);
-                              setIsDeleteConfirmationOpen(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span className="sr-only">{t("deleteAction")}</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      <TableRow
+                        key={customer.id}
+                        className={cn(
+                          customer.balance !== undefined && customer.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
+                          customer.balance !== undefined && customer.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
+                        )}
+                      >
+                        <TableCell>{customer.name}</TableCell>
+                        <TableCell>{customer.phone}</TableCell>
+                        <TableCell>{customer.company_name || "-"}</TableCell>
+                        <TableCell>
+                          Rs.{" "}
+                          {customer.balance ? Math.round(customer.balance) : "0"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setViewCustomer(customer);
+                                setIsViewCustomerDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="sr-only">{t("view")}</span>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                const balance = customer.balance || 0;
+                                setSelectedCustomerId(customer.id);
+                                setNewCustomerName(customer.name);
+                                setNewCustomerEmail(customer.email);
+                                setNewCustomerPhone(customer.phone);
+                                setNewCustomerCompanyName(
+                                  customer.company_name || "",
+                                );
+                                setNewCustomerCompanyAddress(
+                                  customer.company_address || "",
+                                );
+                                setNewCustomerOpeningBalance(
+                                  Math.abs(balance).toString(),
+                                );
+                                setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
+                                setNewCustomerStatus(customer.status);
+                                setIsEditCustomerDialogOpen(true);
+                              }}
+                            >
+                              <FilePenIcon className="w-4 h-4" />
+                              <span className="sr-only">{t("edit")}</span>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setCustomerToDelete(customer);
+                                setIsDeleteConfirmationOpen(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">{t("deleteAction")}</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
                 </TableBody>
@@ -768,9 +761,9 @@ export default function PartiesPage() {
                 key={customer.id}
                 className={cn(
                   "p-4 border shadow-sm",
-                  customer.balance !== undefined && customer.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" : 
-                  customer.balance !== undefined && customer.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
-                  "bg-card border-border"
+                  customer.balance !== undefined && customer.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" :
+                    customer.balance !== undefined && customer.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
+                      "bg-card border-border"
                 )}
               >
                 <div className="space-y-3">
@@ -896,7 +889,7 @@ export default function PartiesPage() {
             <div className="text-sm text-muted-foreground whitespace-nowrap">
               {tCommon("totalCountLabel", { count: totalCount })}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground whitespace-nowrap">
                 {tCommon("rowsPerPage")}
