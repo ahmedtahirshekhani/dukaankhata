@@ -304,29 +304,29 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-1 sm:gap-3 flex-shrink-0">
 
           {/* Offline / Sync Indicator Badge */}
           <div className="flex items-center">
             {!isOnline ? (
-              <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("offlineTooltip")}>
-                <WifiOff className="w-4 h-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">{tCommon("offline")}</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("offlineTooltip")}>
+                <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("youAreOffline")}</span>
               </div>
             ) : failedSyncCount > 0 ? (
-              <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
-                <WifiOff className="w-4 h-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
+                <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("syncFailed")} ({failedSyncCount})</span>
               </div>
             ) : pendingSyncCount > 0 ? (
-              <div className="flex items-center text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
-                <RefreshCw className="w-4 h-4 sm:mr-1.5 animate-spin" />
-                <span className="hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("syncing")} ({pendingSyncCount})</span>
               </div>
             ) : (
-              <div className="flex items-center text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncedTooltip")}>
-                <CheckCircle className="w-4 h-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">{tCommon("synced")}</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncedTooltip")}>
+                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("youAreOnline")}</span>
               </div>
             )}
           </div>

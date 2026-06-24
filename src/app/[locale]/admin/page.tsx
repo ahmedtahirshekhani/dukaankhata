@@ -294,18 +294,15 @@ export default function DashboardPage() {
         }
 
         const url = new URL(endpoint, window.location.origin);
-        if (activeDashboardTab !== "customers") {
-          url.searchParams.append("page", currentPage.toString());
-          url.searchParams.append("limit", pageSize.toString());
-        }
+        url.searchParams.append("page", currentPage.toString());
+        url.searchParams.append("limit", pageSize.toString());
 
         const res = await fetch(url.toString());
         if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
 
-        if (activeDashboardTab === "sales") {
-          const orders = data.orders || [];
-          const orderRows = orders.map((order: any, index: number) => {
+        const orders = data.orders || [];
+        const orderRows = orders.map((order: any, index: number) => {
             const total = Number(order?.total_amount || 0);
             const paid = Number(order?.payment?.paid_amount || 0);
             return {
@@ -324,10 +321,10 @@ export default function DashboardPage() {
             };
           });
           setSalesRows(orderRows);
-        }
-
-        setTotalCount(data.totalCount || 0);
-        setTotalPages(data.totalPages || 1);
+          setTotalCount(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+        
+        setIsDataLoading(false);
       } catch (error) {
         console.error("Error fetching tab data:", error);
       } finally {

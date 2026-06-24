@@ -73,8 +73,12 @@ export class SyncEngine {
 
     let successCount = 0;
     
-    for (const op of pendingOps) {
+    for (const originalOp of pendingOps) {
       try {
+        // Re-fetch to ensure we have latest data (e.g. ID replacements from earlier ops in this sync loop)
+        const op = await db.syncQueue.get(originalOp.id!);
+        if (!op) continue;
+
         await db.syncQueue.update(op.id!, { status: 'processing' });
         
         const controller = new AbortController();

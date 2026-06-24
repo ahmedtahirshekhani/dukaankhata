@@ -63,6 +63,7 @@
     "logoutWarningDesc": "Please wait! Kuch offline data abhi server par sync ho raha hai. Agar aap abhi logout karain ge to data zaya ho sakta hai. Internet se connect karain ya sync pora hone ka wait karain.",
     "understood": "Theek Hai",
     "youAreOffline": "Aap offline hain",
+    "youAreOnline": "Aap online hain",
     "backOnline": "Internet connect ho gaya",
     "clearCache": "Cache Clear Karein",
     "clearCacheWarning": "Kya aap waqai local cache clear karna chahte hain? Is se offline data delete ho kar dobara server se sync hoga.",

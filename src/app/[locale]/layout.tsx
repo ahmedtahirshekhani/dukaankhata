@@ -65,7 +65,7 @@ export default async function LocalizedRootLayout({
             <PWAInstallBanner />
             <IOSInstallPromptWrapper />
             <MacChromeInstallPromptWrapper />
-            <OfflineIndicator />
+            {/* <OfflineIndicator /> */}
               {children}
               <Toaster position="top-right" />
           </NextIntlClientProvider>
