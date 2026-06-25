@@ -82,6 +82,7 @@ interface POSProduct extends Product {
   discount?: number;
   discountType?: "value" | "percentage";
   discountInput?: string;
+  sellPriceInput?: string;
 }
 
 export default function NewInvoicePage() {
@@ -215,6 +216,7 @@ export default function NewInvoicePage() {
           quantityInput: "1",
           quantityType: "prime",
           sell_price: product.sell_price ?? 0,
+          sellPriceInput: String(product.sell_price ?? 0),
           discount: 0,
           discountType: "value",
           discountInput: "0",
@@ -304,14 +306,34 @@ export default function NewInvoicePage() {
 
   const handleSellPriceChange = (
     productId: number | string,
-    newSellPrice: number,
+    rawSellPrice: string,
   ) => {
-    const safePrice = Number.isNaN(newSellPrice)
+    const parsedPrice = parseFloat(rawSellPrice);
+    const safePrice = Number.isNaN(parsedPrice)
       ? 0
-      : Math.max(0, newSellPrice);
+      : Math.max(0, parsedPrice);
     setSelectedProducts(
       selectedProducts.map((p) =>
-        p.id === productId ? { ...p, sell_price: safePrice } : p,
+        p.id === productId
+          ? {
+              ...p,
+              sell_price: safePrice,
+              sellPriceInput: rawSellPrice,
+            }
+          : p,
+      ),
+    );
+  };
+
+  const handleSellPriceBlur = (productId: number | string) => {
+    setSelectedProducts((current) =>
+      current.map((p) =>
+        p.id === productId
+          ? {
+              ...p,
+              sellPriceInput: String(p.sell_price),
+            }
+          : p,
       ),
     );
   };
@@ -783,13 +805,16 @@ export default function NewInvoicePage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={getSalePrice(product)}
+                          value={product.sellPriceInput ?? String(product.sell_price)}
                           onChange={(e) =>
-                            handleSellPriceChange(
-                              product.id,
-                              parseFloat(e.target.value) || 0,
-                            )
+                            handleSellPriceChange(product.id, e.target.value)
                           }
+                          onBlur={() => handleSellPriceBlur(product.id)}
+                          onFocus={(e) => {
+                            if (e.target.value === "0") {
+                              e.target.select();
+                            }
+                          }}
                           className="w-24 p-1 h-8 text-sm"
                         />
                       </div>
@@ -920,13 +945,16 @@ export default function NewInvoicePage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={getSalePrice(product)}
+                          value={product.sellPriceInput ?? String(product.sell_price)}
                           onChange={(e) =>
-                            handleSellPriceChange(
-                              product.id,
-                              parseFloat(e.target.value) || 0,
-                            )
+                            handleSellPriceChange(product.id, e.target.value)
                           }
+                          onBlur={() => handleSellPriceBlur(product.id)}
+                          onFocus={(e) => {
+                            if (e.target.value === "0") {
+                              e.target.select();
+                            }
+                          }}
                           className="w-20 h-7 p-1 text-xs"
                         />
                       </div>
