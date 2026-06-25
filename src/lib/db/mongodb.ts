@@ -76,6 +76,7 @@ export const COLLECTIONS = {
   WAITLIST: "waitlist",
   QUOTATIONS: "quotations",
   SUBSCRIPTIONS: "subscriptions",
+  WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -303,6 +304,14 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.SUBSCRIPTIONS)
       .createIndex({ created_at: -1 });
+
+    // WhatsApp verification codes collection indexes
+    await db
+      .collection(COLLECTIONS.WHATSAPP_VERIFICATION_CODES)
+      .createIndex({ user_id: 1, whatsapp_number: 1 });
+    await db
+      .collection(COLLECTIONS.WHATSAPP_VERIFICATION_CODES)
+      .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
     console.log("MongoDB indexes created successfully");
   } catch (error) {
