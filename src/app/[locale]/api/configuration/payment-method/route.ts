@@ -77,10 +77,15 @@ export async function POST(req: NextRequest) {
       bank_name: { $regex: new RegExp(`^${escapeRegex(bankName)}$`, 'i') },
     });
     if (existing) {
-      return NextResponse.json(
-        { error: 'A payment method with this bank name already exists' },
-        { status: 409 }
-      );
+      // Return existing method to allow SyncEngine to replace local ID with real DB ID
+      return NextResponse.json({
+        id: (existing._id as { toString: () => string }).toString(),
+        bankName: existing.bank_name,
+        bankDetails: existing.bank_details,
+        createdAt: existing.created_at,
+        updatedAt: existing.updated_at,
+        message: 'Payment method already exists, returning existing'
+      }, { status: 200 });
     }
 
     const now = new Date();

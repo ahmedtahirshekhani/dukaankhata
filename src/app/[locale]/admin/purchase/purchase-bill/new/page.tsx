@@ -91,8 +91,6 @@ function AddPurchaseBillPageInner() {
     const searchParams = useSearchParams();
     const billIdFromUrl = searchParams.get("id");
 
-    const [parties, setParties] = useState<Party[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingBillId, setEditingBillId] = useState<string | null>(null);
@@ -134,22 +132,7 @@ function AddPurchaseBillPageInner() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [partiesRes, productsRes, paymentMethodsRes] = await Promise.all([
-                    fetch(`/${locale}/api/customers`),
-                    fetch(`/${locale}/api/products`),
-                    fetch(`/${locale}/api/configuration/payment-method`)
-                ]);
-
-                if (partiesRes.ok) {
-                    const data = await partiesRes.json();
-                    setParties(Array.isArray(data) ? data : []);
-                }
-
-                if (productsRes.ok) {
-                    const data = await productsRes.json();
-                    setProducts(Array.isArray(data) ? data : []);
-                }
-
+                const paymentMethodsRes = await fetch(`/${locale}/api/configuration/payment-method`);
                 if (paymentMethodsRes.ok) {
                     const data = await paymentMethodsRes.json();
                     setPaymentMethods(Array.isArray(data) ? data : []);
@@ -195,13 +178,6 @@ function AddPurchaseBillPageInner() {
 
         fetchData();
     }, [locale, t, billIdFromUrl]);
-
-    const handlePartySelect = (id: number | string) => {
-        const partyId = id.toString();
-        setSelectedPartyId(partyId);
-        const party = parties.find((p) => p.id === partyId);
-        setSelectedPartyName(party?.name || "");
-    };
 
     const calculations = useMemo(() => {
         const subtotal = billItems.reduce((sum, item) => sum + item.amount, 0);

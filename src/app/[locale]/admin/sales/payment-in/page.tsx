@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Card,
@@ -52,6 +52,10 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Pagination } from "@/components/ui/pagination";
+import { useOfflineCustomers, useOfflineCustomerTransactions, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 
 type Customer = {
   id: string;
@@ -82,9 +86,6 @@ export default function PaymentInPage() {
   const tCommon = useTranslations("common");
 
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -107,8 +108,6 @@ export default function PaymentInPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
@@ -117,62 +116,54 @@ export default function PaymentInPage() {
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  const fetchTransactions = useCallback(async () => {
-    try {
-      setIsPageLoading(true);
-      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-in&page=${currentPage}&limit=${pageSize}`);
-      if (!res.ok) throw new Error(t("failedToFetch"));
-      const data = await res.json();
-      setTransactions(data.transactions || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.totalCount || 0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("failedToFetch"));
-    } finally {
-      setIsPageLoading(false);
-      setLoading(false);
-    }
-  }, [locale, t, currentPage, pageSize]);
+  // Replace API fetching with offline hook
+  const offlineTransactions = useOfflineCustomerTransactions("payment-in", searchTerm, filters.paymentMethod, filters.customer);
+  const loading = offlineTransactions === undefined;
+  const allOfflineTransactions = offlineTransactions || [];
+  
+  const totalCount = allOfflineTransactions.length;
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/customers?limit=-1`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const customersList = data.customers || [];
-      setCustomers(customersList.filter((c: Customer & { is_delete?: number }) => c.is_delete !== 1));
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  const filteredTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return allOfflineTransactions.slice(startIndex, startIndex + pageSize);
+  }, [allOfflineTransactions, currentPage, pageSize]);
 
-  const fetchPaymentMethods = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/configuration/payment-method`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = Array.isArray(data)
-        ? data.map((item: { id?: string; bankName?: string; bankDetails?: string }) => ({
-          id: item.id ?? "",
-          name: item.bankName ?? "",
-          bankDetails: item.bankDetails ?? "",
-        })).filter((item) => item.id && item.name)
-        : [];
-      setPaymentMethods([
-        { id: "cash", name: "Cash" },
-        { id: "cheque", name: "Cheque" },
-        ...list,
-      ]);
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  // Replace API fetching with offline hook for the filter dropdown
+  const offlineCustomers = useOfflineCustomers() || [];
+  const customers = useMemo(() => {
+    return offlineCustomers.filter((c) => c.is_delete !== 1);
+  }, [offlineCustomers]);
 
-  useEffect(() => {
-    fetchTransactions();
-    fetchCustomers();
-    fetchPaymentMethods();
-  }, [fetchTransactions, fetchCustomers, fetchPaymentMethods]);
+  // Infinite scroll for Filter Dropdown
+  const [filterCustomerPage, setFilterCustomerPage] = useState(1);
+  const displayCustomers = useMemo(() => {
+    return customers.slice(0, filterCustomerPage * 50);
+  }, [customers, filterCustomerPage]);
+  const hasMoreFilterCustomers = displayCustomers.length < customers.length;
+
+  const offlinePaymentMethods = useOfflinePaymentMethods() || [];
+  
+  const paymentMethods = useMemo(() => {
+    const list = offlinePaymentMethods.map((item: any) => ({
+      id: item.id || item._id,
+      name: item.bankName || item.name,
+      bankDetails: item.bankDetails,
+    })).filter((item) => item.id && item.name);
+
+    const allMethods = [
+      { id: "cash", name: "Cash" },
+      { id: "cheque", name: "Cheque" },
+      ...list,
+    ];
+
+    // Remove duplicates
+    const uniqueMap = new Map();
+    allMethods.forEach(m => uniqueMap.set(m.id, m));
+    return Array.from(uniqueMap.values());
+  }, [offlinePaymentMethods]);
+
+
 
   const resetForm = useCallback(() => {
     setFormCustomerId("");
@@ -181,27 +172,6 @@ export default function PaymentInPage() {
     setFormDate(new Date().toISOString().split("T")[0]);
     setSelectedId(null);
   }, []);
-
-  const filteredTransactions = useMemo(() => {
-    let result = transactions;
-    if (filters.paymentMethod !== "all") {
-      result = result.filter((item) => item.paymentMethodId === filters.paymentMethod);
-    }
-    if (filters.customer !== "all") {
-      result = result.filter((item) => item.customerId === filters.customer);
-    }
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.customerName?.toLowerCase().includes(term) ||
-          item.paymentMethodName?.toLowerCase().includes(term) ||
-          item.paymentAmount?.toString().includes(term) ||
-          item.date?.includes(term)
-      );
-    }
-    return result;
-  }, [transactions, searchTerm, filters]);
 
   const handleAdd = useCallback(async () => {
     if (!formCustomerId || !formPaymentMethodId) {
@@ -216,29 +186,41 @@ export default function PaymentInPage() {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: formCustomerId,
-          paymentAmount: amount,
-          paymentMethodId: formPaymentMethodId,
-          date: formDate,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || t("failedToCreate"));
+      const customer = customers.find(c => c.id === formCustomerId || c._id === formCustomerId);
+      const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
 
-      await fetchTransactions();
+      const payload = {
+        customerId: formCustomerId,
+        paymentAmount: amount,
+        paymentMethodId: formPaymentMethodId,
+        date: formDate,
+        type: "payment-in"
+      };
+
+      const transactionId = crypto.randomUUID();
+      const localTransaction = {
+        id: transactionId,
+        ...payload,
+        customerName: customer?.name || "",
+        paymentMethodName: paymentMethod?.name || formPaymentMethodId,
+        created_at: new Date().toISOString()
+      };
+
+      await db.party_transactions.add(localTransaction);
+      // Payment In reduces receivable balance (amountDelta is negative)
+      await updateOfflinePartyBalance(formCustomerId, -amount);
+      await SyncEngine.queueOperation("party_transactions", "POST", "/api/customer-transactions", payload, transactionId);
+
       setShowAddDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("createdSuccess"), isSuccess: true });
     } catch (err) {
+      console.error(err);
       setErrorDialog({ open: true, title: t("error"), message: err instanceof Error ? err.message : t("failedToCreate") });
     } finally {
       setIsSaving(false);
     }
-  }, [locale, formCustomerId, formPaymentAmount, formPaymentMethodId, formDate, customers, paymentMethods, resetForm, t, tCommon]);
+  }, [formCustomerId, formPaymentAmount, formPaymentMethodId, formDate, customers, paymentMethods, resetForm, t, tCommon]);
 
   const handleEdit = useCallback(async () => {
     if (!selectedId) return;
@@ -254,49 +236,69 @@ export default function PaymentInPage() {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions/${selectedId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: formCustomerId,
-          paymentAmount: amount,
-          paymentMethodId: formPaymentMethodId,
-          date: formDate,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || t("failedToUpdate"));
+      const oldTransaction = await db.party_transactions.get(selectedId);
+      if (oldTransaction) {
+        // Revert old balance change: reverse of negative is positive
+        await updateOfflinePartyBalance(oldTransaction.customerId, oldTransaction.paymentAmount);
+      }
 
-      await fetchTransactions();
+      const customer = customers.find(c => c.id === formCustomerId || c._id === formCustomerId);
+      const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
+
+      const payload = {
+        customerId: formCustomerId,
+        paymentAmount: amount,
+        paymentMethodId: formPaymentMethodId,
+        date: formDate,
+        type: "payment-in"
+      };
+
+      const localTransaction = {
+        id: selectedId,
+        ...payload,
+        customerName: customer?.name || "",
+        paymentMethodName: paymentMethod?.name || formPaymentMethodId,
+      };
+
+      await db.party_transactions.put(localTransaction);
+      // Apply new balance change
+      await updateOfflinePartyBalance(formCustomerId, -amount);
+      await SyncEngine.queueOperation("party_transactions", "PUT", `/api/customer-transactions/${selectedId}`, payload);
+
       setShowEditDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("updatedSuccess"), isSuccess: true });
     } catch (err) {
+      console.error(err);
       setErrorDialog({ open: true, title: t("error"), message: err instanceof Error ? err.message : t("failedToUpdate") });
     } finally {
       setIsSaving(false);
     }
-  }, [locale, selectedId, formCustomerId, formPaymentAmount, formPaymentMethodId, formDate, customers, paymentMethods, resetForm, t, tCommon]);
+  }, [selectedId, formCustomerId, formPaymentAmount, formPaymentMethodId, formDate, customers, paymentMethods, resetForm, t, tCommon]);
 
   const handleDelete = useCallback(async () => {
     if (!transactionToDelete) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions/${transactionToDelete.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || t("failedToDelete"));
+      const oldTransaction = await db.party_transactions.get(transactionToDelete.id);
+      if (oldTransaction) {
+        // Revert balance change
+        await updateOfflinePartyBalance(oldTransaction.customerId, oldTransaction.paymentAmount);
       }
-      await fetchTransactions();
+      
+      await db.party_transactions.delete(transactionToDelete.id);
+      await SyncEngine.queueOperation("party_transactions", "DELETE", `/api/customer-transactions/${transactionToDelete.id}`, null);
+
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
       setErrorDialog({ open: true, title: tCommon("success"), message: t("deletedSuccess"), isSuccess: true });
     } catch (err) {
+      console.error(err);
       setErrorDialog({ open: true, title: t("error"), message: err instanceof Error ? err.message : t("failedToDelete") });
     } finally {
       setIsDeleting(false);
     }
-  }, [locale, transactionToDelete, t, tCommon]);
+  }, [transactionToDelete, t, tCommon]);
 
   const openAddDialog = () => {
     resetForm();
@@ -362,7 +364,9 @@ export default function PaymentInPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => {
+                if (open) setFilterCustomerPage(1);
+              }}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -375,7 +379,15 @@ export default function PaymentInPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-56 max-h-[70vh] overflow-y-auto"
+                  className="w-56 max-h-80 overflow-y-auto"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                      if (hasMoreFilterCustomers) {
+                        setFilterCustomerPage(prev => prev + 1);
+                      }
+                    }
+                  }}
                 >
                   <DropdownMenuLabel>
                     {t("filterByPaymentMethod")}
@@ -411,17 +423,24 @@ export default function PaymentInPage() {
                   >
                     {t("allCustomers")}
                   </DropdownMenuCheckboxItem>
-                  {customers.map((c) => (
-                    <DropdownMenuCheckboxItem
-                      key={c.id}
-                      checked={filters.customer === c.id}
-                      onCheckedChange={(checked) =>
-                        checked && handleFilterCustomer(c.id)
-                      }
-                    >
-                      {c.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                  {displayCustomers.map((c) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={c.id}
+                        checked={filters.customer === c.id}
+                        onCheckedChange={(checked) =>
+                          checked && handleFilterCustomer(c.id)
+                        }
+                      >
+                        {c.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  {hasMoreFilterCustomers && (
+                    <div className="flex justify-center p-2">
+                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -445,7 +464,16 @@ export default function PaymentInPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-8"
+                    >
+                      <Loader2Icon className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -496,7 +524,11 @@ export default function PaymentInPage() {
 
           {/* Mobile Cards View - visible only on mobile */}
           <div className="block md:hidden space-y-3">
-            {filteredTransactions.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredTransactions.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 {t("noRecords")}
               </div>

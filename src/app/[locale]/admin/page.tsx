@@ -48,6 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { db } from "@/lib/db/offline-db";
 
 type CounterRange =
   | "today"
@@ -246,23 +247,62 @@ export default function DashboardPage() {
       try {
         let endpoint = "";
         if (activeDashboardTab === "sales") endpoint = "/api/orders";
-        else if (activeDashboardTab === "customers")
-          endpoint = "/api/customers/top10";
-        else if (activeDashboardTab === "items") endpoint = "/api/products";
+
+        if (activeDashboardTab === "items") {
+            const offset = (currentPage - 1) * pageSize;
+            const products = await db.products.offset(offset).limit(pageSize).toArray();
+            const totalCount = await db.products.count();
+            
+            const pRows = products.map((item: any, index: number) => ({
+                id: item?.id || String(index),
+                name: item?.name || item?.title || "-",
+                category: item?.category || "-",
+                stock: Number(item?.stock || item?.quantity || 0),
+                price: Number(item?.sell_price || item?.price || 0),
+            }));
+            
+            setItemRows(pRows);
+            setTotalCount(totalCount);
+            setTotalPages(Math.ceil(totalCount / pageSize));
+            setIsDataLoading(false);
+            return;
+        }
+
+        if (activeDashboardTab === "customers") {
+            const allCustomers = await db.parties.toArray();
+            
+            // Sort by absolute balance in descending order, then take top 10
+            const sortedCustomers = allCustomers
+                .filter(p => p.status !== "inactive" && p.is_delete !== 1)
+                .sort((a, b) => Math.abs(b.balance || 0) - Math.abs(a.balance || 0))
+                .slice(0, 10);
+                
+            const rows = sortedCustomers.map((item: any, index: number) => ({
+                id: item?.id || String(index),
+                name: item?.name || "-",
+                email: item?.email || "-",
+                phone: item?.phone || "-",
+                balance: Number(item?.balance || 0),
+                status: item?.status || "active",
+            }));
+            
+            setCustomerRows(rows);
+            setTotalCount(rows.length);
+            setTotalPages(1);
+            setIsDataLoading(false);
+            return;
+        }
 
         const url = new URL(endpoint, window.location.origin);
-        if (activeDashboardTab !== "customers") {
-          url.searchParams.append("page", currentPage.toString());
-          url.searchParams.append("limit", pageSize.toString());
-        }
+        url.searchParams.append("page", currentPage.toString());
+        url.searchParams.append("limit", pageSize.toString());
 
         const res = await fetch(url.toString());
         if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
 
-        if (activeDashboardTab === "sales") {
-          const orders = data.orders || [];
-          const orderRows = orders.map((order: any, index: number) => {
+        const orders = data.orders || [];
+        const orderRows = orders.map((order: any, index: number) => {
             const total = Number(order?.total_amount || 0);
             const paid = Number(order?.payment?.paid_amount || 0);
             return {
@@ -281,31 +321,10 @@ export default function DashboardPage() {
             };
           });
           setSalesRows(orderRows);
-        } else if (activeDashboardTab === "customers") {
-          const customers = data.customers || [];
-          const rows = customers.map((item: any, index: number) => ({
-            id: item?.id || String(index),
-            name: item?.name || "-",
-            email: item?.email || "-",
-            phone: item?.phone || "-",
-            balance: Number(item?.balance || 0),
-            status: item?.status || "active",
-          }));
-          setCustomerRows(rows);
-        } else if (activeDashboardTab === "items") {
-          const products = data.products || [];
-          const pRows = products.map((item: any, index: number) => ({
-            id: item?.id || String(index),
-            name: item?.name || item?.title || "-",
-            category: item?.category || "-",
-            stock: Number(item?.stock || item?.quantity || 0),
-            price: Number(item?.sell_price || item?.price || 0),
-          }));
-          setItemRows(pRows);
-        }
-
-        setTotalCount(data.totalCount || 0);
-        setTotalPages(data.totalPages || 1);
+          setTotalCount(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+        
+        setIsDataLoading(false);
       } catch (error) {
         console.error("Error fetching tab data:", error);
       } finally {

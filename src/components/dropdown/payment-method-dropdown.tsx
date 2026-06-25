@@ -24,6 +24,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { cn } from "@/lib/utils";
+import { useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 interface PaymentMethod {
   id: string;
@@ -68,8 +71,6 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     const t = useTranslations("configurationPage");
     const tCommon = useTranslations("common");
 
-    const [methods, setMethods] = useState<PaymentMethod[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isOpen, setIsOpen] = useState(false);
     const [showAddDialog, setShowAddDialog] = useState(false);
@@ -84,44 +85,24 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       isSuccess?: boolean;
     }>({ open: false, message: "" });
 
-    const fetchMethods = useCallback(async () => {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/configuration/payment-method");
-        let apiMethods: PaymentMethod[] = [];
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            apiMethods = data.map((item: any) => ({
-              id: item.id,
-              name: item.bankName || item.name,
-              bankDetails: item.bankDetails,
-            }));
-          }
-        }
-        // Combine default methods + API methods (avoid duplicates by id)
-        let allMethods = includeDefaultMethods ? [...DEFAULT_METHODS] : [];
-        for (const m of apiMethods) {
-          if (!allMethods.some(ex => ex.id === m.id)) {
-            allMethods.push(m);
-          }
-        }
-        setMethods(allMethods);
-      } catch (error) {
-        console.error(error);
-        setErrorDialog({
-          open: true,
-          title: tCommon("error"),
-          message: "Failed to load payment methods",
-        });
-      } finally {
-        setLoading(false);
-      }
-    }, [includeDefaultMethods, tCommon]);
+    const offlineMethods = useOfflinePaymentMethods() || [];
+    
+    const methods = React.useMemo(() => {
+      let allMethods = includeDefaultMethods ? [...DEFAULT_METHODS] : [];
+      
+      const apiMethods = offlineMethods.map((item: any) => ({
+        id: item.id || item._id,
+        name: item.bankName || item.name || item.bank_name,
+        bankDetails: item.bankDetails || item.bank_details,
+      }));
 
-    useEffect(() => {
-      fetchMethods();
-    }, [fetchMethods]);
+      for (const m of apiMethods) {
+        if (!allMethods.some(ex => ex.id === m.id)) {
+          allMethods.push(m);
+        }
+      }
+      return allMethods;
+    }, [offlineMethods, includeDefaultMethods]);
 
     const filteredMethods = React.useMemo(() => {
       if (!searchTerm.trim()) return methods;
@@ -152,34 +133,35 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
 
       setIsSaving(true);
       try {
-        const url = editingId
-          ? `/api/configuration/payment-method/${editingId}`
-          : "/api/configuration/payment-method";
-        const method = editingId ? "PUT" : "POST";
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bankName: name,
-            bankDetails: bankDetails.trim(),
-          }),
-        });
+        const payload = {
+          bankName: name,
+          bankDetails: bankDetails.trim(),
+        };
 
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(
-            res.status === 409
-              ? t("paymentMethodBankNameDuplicate")
-              : data?.error || "Failed to save"
-          );
+        const methodId = editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}`);
+        
+        const localMethod = {
+          id: methodId,
+          ...payload
+        };
+
+        if (editingId) {
+          await db.payment_methods.put(localMethod);
+          await SyncEngine.queueOperation("payment_methods", "PUT", `/api/configuration/payment-method/${editingId}`, payload);
+        } else {
+          // Check for local duplicate
+          const existing = methods.find(m => m.name.toLowerCase() === name.toLowerCase());
+          if (existing) {
+            throw new Error(t("paymentMethodBankNameDuplicate"));
+          }
+
+          await db.payment_methods.add(localMethod);
+          await SyncEngine.queueOperation("payment_methods", "POST", "/api/configuration/payment-method", payload, methodId);
         }
 
-        // Refresh list
-        await fetchMethods();
         // Auto-select newly added/edited method
-        const newId = data.id || editingId;
-        const newMethod = { id: newId, name: data.bankName || name, bankDetails: data.bankDetails || bankDetails.trim() };
-        onValueChange(newId, newMethod);
+        const newMethod = { id: methodId, name: payload.bankName, bankDetails: payload.bankDetails };
+        onValueChange(methodId, newMethod);
 
         setShowAddDialog(false);
         resetForm();
@@ -264,12 +246,12 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
           <Select
             value={value}
             onValueChange={handleValueChange}
-            disabled={disabled || loading}
+            disabled={disabled}
             open={isOpen}
             onOpenChange={handleOpenChange}
           >
             <SelectTrigger className={className} ref={ref}>
-              <SelectValue placeholder={loading ? "Loading..." : placeholder} />
+              <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent className="min-w-[280px] max-w-[90vw] p-0">
               {addButtonPosition === "top" && <AddButtonTop />}
@@ -303,7 +285,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
               )}
 
               <div className="max-h-[300px] overflow-y-auto">
-                {filteredMethods.length === 0 && !loading && (
+                {filteredMethods.length === 0 && (
                   <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                     {searchTerm ? noResultsText : "No payment methods available"}
                   </div>
@@ -325,12 +307,6 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
               {addButtonPosition === "bottom" && <AddButton />}
             </SelectContent>
           </Select>
-
-          {loading && (
-            <div className="absolute right-8 top-1/2 -translate-y-1/2">
-              <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          )}
         </div>
 
         {/* Add/Edit Payment Method Modal */}
