@@ -68,7 +68,10 @@
   "welcome": {
     "title": "Welcome to Dukaan Khata",
     "subtitle": "You have successfully logged in.",
-    "instruction": "Use the sidebar to explore your dashboard features."
+    "instruction": "Use the sidebar to explore your dashboard features.",
+    "videoTutorials": "Video Tutorials",
+    "viewAll": "View All",
+    "desktop": "Desktop"
   },
   "navigation": {
     "dashboard": "Dashboard",
