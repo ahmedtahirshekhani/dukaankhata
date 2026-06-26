@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -34,8 +34,6 @@ import {
   TrendingUp,
   Activity,
   File,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
@@ -202,11 +200,6 @@ export default function DashboardPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(false);
 
-  // Slider States
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(true);
-  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
@@ -396,57 +389,7 @@ export default function DashboardPage() {
     setCurrentPage(1);
   }, [activeDashboardTab]);
 
-  // Scroll handler for cards
-  const handleScroll = useCallback(() => {
-    if (sliderRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
-      setScrollPosition(scrollLeft);
-      setShowLeftArrow(scrollLeft > 20);
-      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 20);
-    }
-  }, []);
-
-  const scrollLeftCards = () => {
-    if (sliderRef.current) {
-      const childWidth = sliderRef.current.children[0]?.clientWidth || 284;
-      sliderRef.current.scrollBy({ left: -(childWidth + 16), behavior: "smooth" });
-    }
-  };
-
-  const scrollRightCards = () => {
-    if (sliderRef.current) {
-      const childWidth = sliderRef.current.children[0]?.clientWidth || 284;
-      sliderRef.current.scrollBy({ left: (childWidth + 16), behavior: "smooth" });
-    }
-  };
-
-  useEffect(() => {
-    const slider = sliderRef.current;
-    if (slider) {
-      slider.addEventListener("scroll", handleScroll);
-      setTimeout(handleScroll, 100);
-      return () => slider.removeEventListener("scroll", handleScroll);
-    }
-  }, [handleScroll]);
-
-  useEffect(() => {
-    window.addEventListener("resize", handleScroll);
-    window.addEventListener("orientationchange", handleScroll);
-    return () => {
-      window.removeEventListener("resize", handleScroll);
-      window.removeEventListener("orientationchange", handleScroll);
-    };
-  }, [handleScroll]);
-
-  // Auto-rotate carousel every 5 seconds
-useEffect(() => {
-  const interval = setInterval(() => {
-    scrollRightCards();
-  }, 5000);
-  return () => clearInterval(interval);
-}, [scrollRightCards]);
-
-// Summary Cards
+  // Summary Cards
   const summaryCards = useMemo(
     () => [
       {
@@ -582,16 +525,6 @@ useEffect(() => {
 
   return (
     <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
-      <style jsx>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
-
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
         <div>
@@ -638,74 +571,11 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Cards Slider Section - All Screens */}
-      <div className="relative overflow-hidden w-full">
-        {/* Left Arrow */}
-        {showLeftArrow && (
-          <button
-            onClick={scrollLeftCards}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all"
-          >
-            <ChevronLeft className="h-5 w-5 text-muted-foreground" />
-          </button>
-        )}
-
-        {/* Right Arrow */}
-        {showRightArrow && (
-          <button
-            onClick={scrollRightCards}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all"
-          >
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </button>
-        )}
-
-        {/* Cards Slider Track */}
-        <div
-          ref={sliderRef}
-          className="flex overflow-x-auto scroll-smooth gap-4 pb-2 px-1 hide-scrollbar"
-        >
-          {summaryCards.map((card) => (
-            <div
-              key={card.key}
-              className="flex-shrink-0 min-w-[284px] md:min-w-[320px] lg:min-w-[380px] flex-1 max-w-full"
-            >
-              {card.node}
-            </div>
-          ))}
-        </div>
-
-        {/* Indicator Dots */}
-        <div className="flex justify-center gap-1.5 mt-4">
-          {summaryCards.map((_, idx) => {
-            const childWidth = sliderRef.current?.children[0]?.clientWidth || 284;
-            const step = childWidth + 16;
-            const currentIndex = Math.min(
-              summaryCards.length - 1,
-              Math.max(0, Math.round(scrollPosition / step))
-            );
-            const isActive = currentIndex === idx;
-
-            return (
-              <div
-                key={idx}
-                onClick={() => {
-                  if (sliderRef.current) {
-                    sliderRef.current.scrollTo({
-                      left: idx * step,
-                      behavior: "smooth",
-                    });
-                  }
-                }}
-                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                  isActive
-                    ? "w-6 bg-[#7CD2F1]"
-                    : "w-1.5 bg-zinc-300 dark:bg-zinc-700"
-                }`}
-              />
-            );
-          })}
-        </div>
+      {/* Summary Cards Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {summaryCards.map((card) => (
+          <div key={card.key}>{card.node}</div>
+        ))}
       </div>
 
       {/* Dashboard Tabs Section */}
@@ -1005,7 +875,7 @@ useEffect(() => {
   );
 }
 
-// StatCard Component
+
 function StatCard({
   title,
   value,
@@ -1042,12 +912,12 @@ function StatCard({
         </div>
       </CardHeader>
       <CardContent className="flex min-h-[3.75rem] flex-1 flex-col justify-between p-3 pt-0 sm:p-4">
-        <div className="flex items-center gap-2 text-2xl sm:text-3xl font-bold">
+        <div className="flex flex-wrap items-center gap-1 font-bold leading-tight" style={{ fontSize: "clamp(0.85rem, 2.5vw, 1.5rem)" }}>
           {isPrivacy ? (
             <span className="text-muted-foreground">•••••</span>
           ) : (
             <>
-              {currency && <span className="text-sm font-normal">{currency} </span>}
+              {currency && <span className="text-xs font-normal">{currency} </span>}
               {Math.floor(value).toLocaleString()}
             </>
           )}
