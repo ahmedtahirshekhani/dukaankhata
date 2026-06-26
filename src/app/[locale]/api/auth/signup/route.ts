@@ -165,6 +165,21 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create trial subscription for user", err);
     }
 
+    // Create default configurations
+    try {
+      const configCollection = await getCollection(COLLECTIONS.CONFIGURATIONS);
+      await configCollection.insertOne({
+        user_id: newUser?._id,
+        is_counterSale_enable: false,
+        is_AI_Chat_Enable: false,
+        is_Whatsapp_enable: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    } catch (err) {
+      console.error("Failed to create configurations for user", err);
+    }
+
     return NextResponse.json(
       {
         message: "User created successfully",

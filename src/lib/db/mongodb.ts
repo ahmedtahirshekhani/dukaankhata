@@ -77,6 +77,7 @@ export const COLLECTIONS = {
   QUOTATIONS: "quotations",
   SUBSCRIPTIONS: "subscriptions",
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
+  CONFIGURATIONS: "configurations",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string

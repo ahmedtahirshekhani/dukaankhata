@@ -16,7 +16,8 @@
     "flag:users-deleted": "tsx --env-file=.env.local scripts/flag-users-as-deleted.ts",
     "activate:pro-users": "tsx --env-file=.env.local scripts/activate-pro-users.ts",
     "generate:logo-icons": "node scripts/generate-logo-icons.js",
-    "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view"
+    "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view",
+    "migrate:configs": "tsx --env-file=.env.local scripts/migrate-configs.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.82",

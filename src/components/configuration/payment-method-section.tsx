@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Eye, Edit } from 'lucide-react';
+import { useOfflinePaymentMethods } from '@/lib/hooks/useOfflineData';
+import { db } from '@/lib/db/offline-db';
+import { SyncEngine } from '@/lib/sync/sync-engine';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,8 +45,17 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
   const t = useTranslations('configurationPage');
   const tCommon = useTranslations('common');
 
-  const [list, setList] = useState<PaymentMethodItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const offlineMethods = useOfflinePaymentMethods();
+  const isLoadingMethods = offlineMethods === undefined;
+  
+  const list: PaymentMethodItem[] = (offlineMethods || []).map((item: any) => ({
+    id: item.id || item._id,
+    bankName: item.bankName || item.name || item.bank_name || '',
+    bankDetails: item.bankDetails || item.bank_details || '',
+    createdAt: item.createdAt || item.created_at,
+    updatedAt: item.updatedAt || item.updated_at
+  }));
+
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageError, setMessageError] = useState(false);
@@ -65,24 +77,6 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
     }, 2500);
   }, []);
 
-  const fetchList = useCallback(async () => {
-    try {
-      const res = await fetch(baseUrl);
-      const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
-        setList(data);
-      }
-    } catch (err) {
-      console.error('Failed to load payment methods', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [baseUrl]);
-
-  useEffect(() => {
-    fetchList();
-  }, [fetchList]);
-
   const resetForm = useCallback(() => {
     setBankName('');
     setBankDetails('');
@@ -98,48 +92,39 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
     setSaving(true);
     setMessage('');
     try {
+      const payload = {
+        bankName: name,
+        bankDetails: bankDetails.trim(),
+      };
+
       if (editingId) {
-        const res = await fetch(`${baseUrl}/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bankName: name, bankDetails: bankDetails.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(res.status === 409 ? t('paymentMethodBankNameDuplicate') : (data?.error || 'Failed to update'));
+        const existing = await db.payment_methods.get(editingId);
+        if (existing) {
+          await db.payment_methods.put({ ...existing, ...payload });
+        } else {
+          await db.payment_methods.put({ id: editingId, ...payload });
         }
-        setList((prev) =>
-          prev.map((item) =>
-            item.id === editingId
-              ? {
-                  ...item,
-                  bankName: data.bankName ?? name,
-                  bankDetails: data.bankDetails ?? bankDetails.trim(),
-                }
-              : item
-          )
-        );
+        await SyncEngine.queueOperation("payment_methods", "PUT", `${baseUrl}/${editingId}`, payload);
         showMessage(t('paymentMethodUpdated'));
       } else {
-        const res = await fetch(baseUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bankName: name, bankDetails: bankDetails.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(res.status === 409 ? t('paymentMethodBankNameDuplicate') : (data?.error || 'Failed to save'));
+        const existing = offlineMethods?.find(
+          (m: any) =>
+            (m.bankName || m.name || m.bank_name)?.toLowerCase() === name.toLowerCase()
+        );
+        if (existing) {
+          throw new Error(t('paymentMethodBankNameDuplicate'));
         }
-        setList((prev) => [
-          {
-            id: data.id,
-            bankName: data.bankName ?? name,
-            bankDetails: data.bankDetails ?? bankDetails.trim(),
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          },
-          ...prev,
-        ]);
+
+        const methodId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}`;
+        const localMethod = {
+          id: methodId,
+          ...payload,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await db.payment_methods.add(localMethod as any);
+        await SyncEngine.queueOperation("payment_methods", "POST", baseUrl, payload, methodId);
         showMessage(t('paymentMethodSaved'));
       }
       resetForm();
@@ -211,7 +196,7 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
 
       <div className="mt-6">
         <h3 className="text-lg font-semibold mb-4">{t('paymentMethodListTitle')}</h3>
-        {loading ? (
+        {isLoadingMethods ? (
           <p className="text-sm text-muted-foreground">{t('loading')}</p>
         ) : list.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('paymentMethodNoItems')}</p>
