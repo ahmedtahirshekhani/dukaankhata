@@ -65,6 +65,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
 
+  // Feature Toggles
+  const [enableCounterSale, setEnableCounterSale] = useState(false);
+  const [enableAiChat, setEnableAiChat] = useState(false);
+  const [enableWhatsApp, setEnableWhatsApp] = useState(false);
+
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
     async () => {
@@ -183,6 +188,27 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         handleCompanyDetailsUpdate as EventListener,
       );
     };
+  }, []);
+
+  // Listen for feature toggle updates
+  useEffect(() => {
+    const loadFeatures = () => {
+      if (typeof window !== "undefined") {
+        const savedCounter = localStorage.getItem("setting_counterSale");
+        if (savedCounter) setEnableCounterSale(savedCounter === "true");
+        
+        const savedAi = localStorage.getItem("setting_aiChat");
+        if (savedAi) setEnableAiChat(savedAi === "true");
+        
+        const savedWa = localStorage.getItem("setting_wa");
+        if (savedWa) setEnableWhatsApp(savedWa === "true");
+      }
+    };
+    
+    loadFeatures();
+
+    window.addEventListener("featureSettingsUpdated", loadFeatures);
+    return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
   // Remove locale and /admin from pathname to get current page
@@ -599,18 +625,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   >
                     {tNav("saleReturn")}
                   </Link>
-                  <Link
-                    href={`/${locale}/admin/sales/counter-sale`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("counterSale")}
-                  </Link>
+                  {enableCounterSale && (
+                    <Link
+                      href={`/${locale}/admin/sales/counter-sale`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("counterSale")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -817,51 +845,55 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {/* Backup/Restore - You may need to add this */}
 
             {/* Utilities - AI Chat */}
-            <div>
-              <Link
-                href={`/${locale}/admin/ai-chat`}
-                prefetch={false}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
-                  } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("aiChat") : ""}
-              >
-                <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+            {enableAiChat && (
+              <div>
+                <Link
+                  href={`/${locale}/admin/ai-chat`}
+                  prefetch={false}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? tNav("aiChat") : ""}
                 >
-                  <span className="font-medium leading-none">
-                    {tNav("aiChat")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("aiChatDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
+                  <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("aiChat")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("aiChatDescription")}
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
 
             {/* WhatsApp Integration */}
-            <div>
-              <Link
-                href={`/${locale}/admin/whatsapp-integration`}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
-                  } ${navItemCompact}`}
-                title={sidebarMinimized ? "WhatsApp" : ""}
-              >
-                <MessageCircle className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+            {enableWhatsApp && (
+              <div>
+                <Link
+                  href={`/${locale}/admin/whatsapp-integration`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? "WhatsApp" : ""}
                 >
-                  <span className="font-medium leading-none">
-                    WhatsApp
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    Connect WhatsApp
-                  </span>
-                </div>
-              </Link>
-            </div>
+                  <MessageCircle className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      WhatsApp
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      Connect WhatsApp
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
 
             {/* Settings / Configuration - moved to bottom */}
             <div className="mt-auto">

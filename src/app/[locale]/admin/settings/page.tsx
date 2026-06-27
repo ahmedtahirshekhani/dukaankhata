@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 export default function SettingsPage({
   params,
@@ -51,6 +52,11 @@ export default function SettingsPage({
   const [deleteError, setDeleteError] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Feature Switches State
+  const [enableCounterSale, setEnableCounterSale] = useState(true);
+  const [enableAiChat, setEnableAiChat] = useState(true);
+  const [enableWhatsApp, setEnableWhatsApp] = useState(true);
+
   // Initialize form data when user or cached company name is available
   useEffect(() => {
     if (!user) return;
@@ -70,6 +76,15 @@ export default function SettingsPage({
       email: user.email || "",
       company: defaultCompanyName,
     });
+
+    if (typeof window !== "undefined") {
+      const savedCounter = localStorage.getItem("setting_counterSale");
+      if (savedCounter) setEnableCounterSale(savedCounter === "true");
+      const savedAi = localStorage.getItem("setting_aiChat");
+      if (savedAi) setEnableAiChat(savedAi === "true");
+      const savedWa = localStorage.getItem("setting_wa");
+      if (savedWa) setEnableWhatsApp(savedWa === "true");
+    }
   }, [user?.id, user?.name, user?.email, user?.company]);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +96,52 @@ export default function SettingsPage({
     confirmPassword: "",
   });
   const [passwordError, setPasswordError] = useState<string>("");
+
+  const syncFeatureSettings = async (updates: any) => {
+    const payload = {
+      is_counterSale_enable: updates.counterSale ?? enableCounterSale,
+      is_AI_Chat_Enable: updates.aiChat ?? enableAiChat,
+      is_Whatsapp_enable: updates.wa ?? enableWhatsApp,
+    };
+    
+    try {
+      const { db } = await import('@/lib/db/offline-db');
+      const { SyncEngine } = await import('@/lib/sync/sync-engine');
+      
+      await db.syncQueue.add({
+        collection: 'configurations',
+        method: 'PUT',
+        url: `/${params.locale}/api/configurations`,
+        data: payload,
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      });
+      SyncEngine.pushQueue();
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleCounter = (val: boolean) => {
+    setEnableCounterSale(val);
+    localStorage.setItem("setting_counterSale", String(val));
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    syncFeatureSettings({ counterSale: val });
+  };
+
+  const handleToggleAi = (val: boolean) => {
+    setEnableAiChat(val);
+    localStorage.setItem("setting_aiChat", String(val));
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    syncFeatureSettings({ aiChat: val });
+  };
+
+  const handleToggleWa = (val: boolean) => {
+    setEnableWhatsApp(val);
+    localStorage.setItem("setting_wa", String(val));
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    syncFeatureSettings({ wa: val });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -311,6 +372,36 @@ export default function SettingsPage({
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Feature Modules</CardTitle>
+              <CardDescription>Enable or disable specific features across the application</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Counter Sale</Label>
+                  <p className="text-sm text-gray-500">Enable counter sale module for quick transactions.</p>
+                </div>
+                <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>AI Chat</Label>
+                  <p className="text-sm text-gray-500">Enable AI chat assistance.</p>
+                </div>
+                <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>WhatsApp Integration</Label>
+                  <p className="text-sm text-gray-500">Enable WhatsApp messaging capabilities.</p>
+                </div>
+                <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
+              </div>
             </CardContent>
           </Card>
 

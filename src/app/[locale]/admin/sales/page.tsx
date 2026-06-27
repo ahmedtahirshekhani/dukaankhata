@@ -5,11 +5,28 @@ import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Receipt, Coins, RotateCcw, Store } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function SalesModulePage() {
   const locale = useLocale();
   const tNav = useTranslations("navigation");
   const tSales = useTranslations("salesModule");
+
+  const [enableCounterSale, setEnableCounterSale] = useState(false);
+
+  useEffect(() => {
+    const loadFeatures = () => {
+      if (typeof window !== "undefined") {
+        const savedCounter = localStorage.getItem("setting_counterSale");
+        if (savedCounter) setEnableCounterSale(savedCounter === "true");
+      }
+    };
+    
+    loadFeatures();
+
+    window.addEventListener("featureSettingsUpdated", loadFeatures);
+    return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
+  }, []);
 
   const salesList = [
     {
@@ -61,7 +78,7 @@ export default function SalesModulePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {salesList.map((item, idx) => {
+        {salesList.filter(item => item.href.includes('counter-sale') ? enableCounterSale : true).map((item, idx) => {
           const Icon = item.icon;
           return (
             <Card key={idx} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-foreground/20">

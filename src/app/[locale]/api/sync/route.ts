@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       { name: 'transactions', key: COLLECTIONS.TRANSACTIONS },
       { name: 'branches', key: COLLECTIONS.BRANCHES },
       { name: 'subscriptions', key: COLLECTIONS.SUBSCRIPTIONS },
+      { name: 'configurations', key: COLLECTIONS.CONFIGURATIONS },
     ];
 
     const result: Record<string, any[]> = {};

@@ -15,7 +15,7 @@ export class SyncEngine {
         db.party_transactions, db.party_ledger_entries, db.party_balance_state,
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.payment_methods,
         db.payment_method, db.vendor_transactions, db.sale_return_transactions,
-        db.transactions, db.branches, db.subscriptions],
+        db.transactions, db.branches, db.subscriptions, db.configurations],
         async () => {
           if (data.products?.length) await db.products.bulkPut(data.products);
           if (data.parties?.length) await db.parties.bulkPut(data.parties);
@@ -35,6 +35,17 @@ export class SyncEngine {
           if (data.transactions?.length) await db.transactions.bulkPut(data.transactions);
           if (data.branches?.length) await db.branches.bulkPut(data.branches);
           if (data.subscriptions?.length) await db.subscriptions.bulkPut(data.subscriptions);
+          if (data.configurations?.length) {
+            await db.configurations.bulkPut(data.configurations);
+            // Also sync to localStorage for immediate UI availability
+            const config = data.configurations[0];
+            if (config) {
+              localStorage.setItem("setting_counterSale", String(config.is_counterSale_enable || false));
+              localStorage.setItem("setting_aiChat", String(config.is_AI_Chat_Enable || false));
+              localStorage.setItem("setting_wa", String(config.is_Whatsapp_enable || false));
+              if (typeof window !== "undefined") window.dispatchEvent(new Event("featureSettingsUpdated"));
+            }
+          }
         }
       );
       

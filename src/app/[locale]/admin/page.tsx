@@ -138,6 +138,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+  const [enableCounterSale, setEnableCounterSale] = useState(false);
 
   const [totalBalance, setTotalBalance] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -190,7 +191,8 @@ export default function DashboardPage() {
     "customers" | "sales" | "items"
   >("customers");
 
-  const currentMonthName = new Date().toLocaleDateString(locale, {
+  const dateLocale = locale === "ru" ? "en" : locale;
+  const currentMonthName = new Date().toLocaleDateString(dateLocale, {
     month: "long",
   });
 
@@ -209,6 +211,16 @@ export default function DashboardPage() {
       setIsPrivacyMode(false);
       localStorage.setItem("dashboardPrivacyMode", JSON.stringify(false));
     }
+
+    const loadFeatures = () => {
+      const savedCounter = localStorage.getItem("setting_counterSale");
+      if (savedCounter) setEnableCounterSale(savedCounter === "true");
+    };
+    
+    loadFeatures();
+
+    window.addEventListener("featureSettingsUpdated", loadFeatures);
+    return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
   // Fetch summary on mount
@@ -509,11 +521,16 @@ export default function DashboardPage() {
       counterExpensesRange,
       currentMonthName,
       isPrivacyMode,
-      isCounterSalesLoading,
       isCounterExpensesLoading,
       tDash,
+      enableCounterSale,
     ],
-  );
+  ).filter(card => {
+    if (!enableCounterSale) {
+      return card.key !== "counter-sales" && card.key !== "counter-expenses";
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -572,7 +589,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className={cn(
+        "grid gap-3",
+        enableCounterSale 
+          ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" 
+          : "grid-cols-1 sm:grid-cols-3 lg:grid-cols-3"
+      )}>
         {summaryCards.map((card) => (
           <div key={card.key}>{card.node}</div>
         ))}
