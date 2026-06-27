@@ -63,12 +63,20 @@
     "logoutWarningDesc": "Please wait! Some offline data is still syncing to the server. Logging out now might result in data loss. Connect to internet or wait for sync to complete.",
     "understood": "I Understand",
     "youAreOffline": "You are offline",
-    "backOnline": "Back online"
+    "youAreOnline": "You are online",
+    "backOnline": "Back online",
+    "clearCache": "Clear Cache",
+    "clearCacheWarning": "Are you sure you want to clear the local cache? This will delete the offline database and re-sync all data from the server.",
+    "clearingCache": "Clearing...",
+    "cacheClearedSuccess": "Cache cleared successfully"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
     "subtitle": "You have successfully logged in.",
-    "instruction": "Use the sidebar to explore your dashboard features."
+    "instruction": "Use the sidebar to explore your dashboard features.",
+    "videoTutorials": "Video Tutorials",
+    "viewAll": "View All",
+    "desktop": "Desktop"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -128,6 +136,14 @@
     "loading": "Loading...",
     "companyDetails": "Company Details",
     "companyDetailsDescription": "Manage your company information including logo, name, and signature",
+    "featureModules": "Feature Modules",
+    "featureModulesDescription": "Enable or disable specific features across the application",
+    "counterSaleTitle": "Counter Sale",
+    "counterSaleDesc": "Enable counter sale module for quick transactions.",
+    "aiChatTitle": "AI Chat",
+    "aiChatDesc": "Enable AI chat assistance.",
+    "whatsappTitle": "WhatsApp Integration",
+    "whatsappDesc": "Enable WhatsApp messaging capabilities.",
     "companyName": "Company Name",
     "enterCompanyName": "Enter your company name",
     "companyAddress": "Company Address",
@@ -647,7 +663,8 @@
     "pay": "You'll Pay",
     "legend": "Legend",
     "legendReceive": "You'll Receive (+ve)",
-    "legendPay": "You'll Pay (-ve)"
+    "legendPay": "You'll Pay (-ve)",
+    "filterAll": "All"
   },
   "orders": {
     "title": "Orders",
@@ -877,7 +894,7 @@
     "a4Size": "A4 Size",
     "thermalReceipt": "Thermal Receipt",
     "letterSize": "Letter Size",
-    "downloadInvoice": "Download Invoice",
+    "downloadInvoice": "Download",
     "editPayment": "Edit Payment",
     "makePayment": "Make Payment",
     "noPaymentAtAll": "No Payment At All",
@@ -1082,6 +1099,8 @@
     "analyticalDashboard": "Analytics Dashboard",
     "dashboardDescription": "Real-time insights and analytics of your business",
     "totalBalanceYoullGet": "Total Balance (You'll get)",
+    "totalPayable": "Total Balance (You'll give)",
+    "purchases": "Purchases",
     "totalRevenue": "Total Revenue",
     "totalExpenses": "Total Expenses",
     "counterSales": "Counter Sales",
@@ -1436,5 +1455,12 @@
     "accountDeletedSuccess": "Your account has been successfully deleted",
     "accountDeleteFailed": "Failed to delete account",
     "invalidPassword": "Invalid password"
+  },
+  "aiChat": {
+    "aiChatTitle": "AI Assistant",
+    "aiChatDescription": "Ask me anything about your business or manage your customers.",
+    "aiChatInputPlaceholder": "Type a message in any language...",
+    "aiChatSend": "Send",
+    "aiChatEmptyState": "Hello! I am your DukaanKhata AI Assistant. You can ask me to manage your customers."
   }
 }

@@ -25,6 +25,7 @@ import {
   Menu,
   X,
   MessageSquare,
+  MessageCircle,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -44,6 +45,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, clearUserDatabase } from "@/lib/db/offline-db";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { toast } from "sonner";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -60,6 +62,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [reportsExpanded, setReportsExpanded] = useState(false);
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+
+  // Feature Toggles
+  const [enableCounterSale, setEnableCounterSale] = useState(false);
+  const [enableAiChat, setEnableAiChat] = useState(false);
+  const [enableWhatsApp, setEnableWhatsApp] = useState(false);
 
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
@@ -179,6 +188,27 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         handleCompanyDetailsUpdate as EventListener,
       );
     };
+  }, []);
+
+  // Listen for feature toggle updates
+  useEffect(() => {
+    const loadFeatures = () => {
+      if (typeof window !== "undefined") {
+        const savedCounter = localStorage.getItem("setting_counterSale");
+        if (savedCounter) setEnableCounterSale(savedCounter === "true");
+        
+        const savedAi = localStorage.getItem("setting_aiChat");
+        if (savedAi) setEnableAiChat(savedAi === "true");
+        
+        const savedWa = localStorage.getItem("setting_wa");
+        if (savedWa) setEnableWhatsApp(savedWa === "true");
+      }
+    };
+    
+    loadFeatures();
+
+    window.addEventListener("featureSettingsUpdated", loadFeatures);
+    return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
   // Remove locale and /admin from pathname to get current page
@@ -301,33 +331,42 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-1 sm:gap-3 flex-shrink-0">
 
           {/* Offline / Sync Indicator Badge */}
           <div className="flex items-center">
             {!isOnline ? (
-              <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("offlineTooltip")}>
-                <WifiOff className="w-4 h-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">{tCommon("offline")}</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("offlineTooltip")}>
+                <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("youAreOffline")}</span>
               </div>
             ) : failedSyncCount > 0 ? (
-              <div className="flex items-center text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
-                <WifiOff className="w-4 h-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
+                <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("syncFailed")} ({failedSyncCount})</span>
               </div>
             ) : pendingSyncCount > 0 ? (
-              <div className="flex items-center text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
-                <RefreshCw className="w-4 h-4 sm:mr-1.5 animate-spin" />
-                <span className="hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("syncing")} ({pendingSyncCount})</span>
               </div>
             ) : (
-              <div className="flex items-center text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 sm:py-1 rounded-md" title={tCommon("syncedTooltip")}>
-                <CheckCircle className="w-4 h-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">{tCommon("synced")}</span>
+              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncedTooltip")}>
+                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("youAreOnline")}</span>
               </div>
             )}
           </div>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowClearCacheDialog(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 text-amber-700 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+          >
+            <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline text-xs sm:text-sm">{tCommon("clearCache")}</span>
+          </Button>
           <SubscriptionStatusBadge />
           <LanguageSwitcher />
           <DropdownMenu>
@@ -586,18 +625,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   >
                     {tNav("saleReturn")}
                   </Link>
-                  <Link
-                    href={`/${locale}/admin/sales/counter-sale`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("counterSale")}
-                  </Link>
+                  {enableCounterSale && (
+                    <Link
+                      href={`/${locale}/admin/sales/counter-sale`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("counterSale")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -804,28 +845,55 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {/* Backup/Restore - You may need to add this */}
 
             {/* Utilities - AI Chat */}
-            <div>
-              <Link
-                href={`/${locale}/admin/ai-chat`}
-                prefetch={false}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
-                  } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("aiChat") : ""}
-              >
-                <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+            {enableAiChat && (
+              <div>
+                <Link
+                  href={`/${locale}/admin/ai-chat`}
+                  prefetch={false}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? tNav("aiChat") : ""}
                 >
-                  <span className="font-medium leading-none">
-                    {tNav("aiChat")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("aiChatDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
+                  <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("aiChat")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("aiChatDescription")}
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
+
+            {/* WhatsApp Integration */}
+            {enableWhatsApp && (
+              <div>
+                <Link
+                  href={`/${locale}/admin/whatsapp-integration`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? "WhatsApp" : ""}
+                >
+                  <MessageCircle className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      WhatsApp
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      Connect WhatsApp
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
 
             {/* Settings / Configuration - moved to bottom */}
             <div className="mt-auto">
@@ -870,6 +938,28 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         confirmLabel={tCommon("understood")}
         onConfirm={() => setShowLogoutWarning(false)}
         variant="warning"
+      />
+
+      <ConfirmDialog
+        open={showClearCacheDialog}
+        onOpenChange={setShowClearCacheDialog}
+        title={tCommon("clearCache")}
+        description={tCommon("clearCacheWarning")}
+        confirmLabel={isClearingCache ? tCommon("clearingCache") : tCommon("confirm")}
+        onConfirm={async () => {
+          setIsClearingCache(true);
+          try {
+            await SyncEngine.clearCacheAndResync();
+            if (typeof window !== 'undefined') {
+              toast.success(tCommon("cacheClearedSuccess"));
+            }
+            setShowClearCacheDialog(false);
+            window.location.reload();
+          } finally {
+            setIsClearingCache(false);
+          }
+        }}
+        variant="destructive"
       />
     </div>
   );

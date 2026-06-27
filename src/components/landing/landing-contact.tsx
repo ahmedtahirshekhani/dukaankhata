@@ -3,26 +3,10 @@
 import { Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
-import { supportContactInfo } from "@/lib/contact-info";
-
-// Same contact details as error page (src/app/error.tsx) for consistency
-const CONTACT_LINKS = {
-  phone: {
-    href: supportContactInfo.whatsappHref,
-    label: supportContactInfo.phoneDisplay,
-  },
-} as const;
+import { supportContacts } from "@/lib/contact-info";
 
 export function LandingContact() {
   const t = useTranslations("landing.contact");
-
-  const items = [
-    {
-      key: "phone" as const,
-      icon: Phone,
-      labelKey: "phoneLabel" as const,
-    },
-  ];
 
   return (
     <section
@@ -43,28 +27,25 @@ export function LandingContact() {
           <Card className="shadow-sm">
             <CardContent className="pt-6">
               <ul className="space-y-4">
-                {items.map(({ key, icon: Icon, labelKey }) => {
-                  const { href, label } = CONTACT_LINKS[key];
-                  return (
-                    <li
-                      key={key}
-                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
+                {supportContacts.map((c) => (
+                  <li
+                    key={c.name}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
+                  >
+                    <span className="font-medium text-foreground flex items-center gap-2 min-w-[160px]">
+                      <Phone className="h-4 w-4 text-primary flex-shrink-0" />
+                      {c.name}
+                    </span>
+                    <a
+                      href={c.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline text-sm sm:text-base"
                     >
-                      <span className="font-medium text-foreground flex items-center gap-2 min-w-[140px]">
-                        <Icon className="h-4 w-4 text-primary flex-shrink-0" />
-                        {t(labelKey)}
-                      </span>
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline text-sm sm:text-base break-all"
-                      >
-                        {label}
-                      </a>
-                    </li>
-                  );
-                })}
+                      {c.display}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </CardContent>
           </Card>

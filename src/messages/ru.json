@@ -63,12 +63,20 @@
     "logoutWarningDesc": "Please wait! Kuch offline data abhi server par sync ho raha hai. Agar aap abhi logout karain ge to data zaya ho sakta hai. Internet se connect karain ya sync pora hone ka wait karain.",
     "understood": "Theek Hai",
     "youAreOffline": "Aap offline hain",
-    "backOnline": "Internet connect ho gaya"
+    "youAreOnline": "Aap online hain",
+    "backOnline": "Internet connect ho gaya",
+    "clearCache": "Cache Clear Karein",
+    "clearCacheWarning": "Kya aap waqai local cache clear karna chahte hain? Is se offline data delete ho kar dobara server se sync hoga.",
+    "clearingCache": "Clear ho raha hai...",
+    "cacheClearedSuccess": "Cache successfully clear ho gaya"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
     "subtitle": "Aap kamyabi se login ho gaye hain.",
-    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein."
+    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein.",
+    "videoTutorials": "Video Tutorials",
+    "viewAll": "Sab Dekhein",
+    "desktop": "Desktop"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -128,6 +136,14 @@
     "loading": "Load ho raha hai...",
     "companyDetails": "Company Ki Tafseel",
     "companyDetailsDescription": "Apni company ki maloomat ka intezaam karain logo, naam aur dastakhat ke sath",
+    "featureModules": "Feature Modules",
+    "featureModulesDescription": "Application mein makhsoos features ko enable ya disable karain",
+    "counterSaleTitle": "Counter Sale",
+    "counterSaleDesc": "Fauran transactions ke liye counter sale module enable karain.",
+    "aiChatTitle": "AI Chat",
+    "aiChatDesc": "AI chat assistant ko enable karain.",
+    "whatsappTitle": "WhatsApp Integration",
+    "whatsappDesc": "WhatsApp messaging ki sahoolat enable karain.",
     "companyName": "Company Ka Naam",
     "enterCompanyName": "Apni company ka naam darj karain",
     "companyAddress": "Company Ka Pata",
@@ -647,7 +663,8 @@
     "pay": "Aap Ada Karain Gey",
     "legend": "Legend",
     "legendReceive": "Aap Wasool Karain Gey (+ve)",
-    "legendPay": "Aap Ada Karain Gey (-ve)"
+    "legendPay": "Aap Ada Karain Gey (-ve)",
+    "filterAll": "Sab"
   },
   "orders": {
     "title": "Orders",
@@ -778,8 +795,8 @@
     "searchItems": "Cheezain talash karain...",
     "typeFilter": "Qisam",
     "all": "Sab",
-    "income": "Aamdan",
-    "expense": "Kharcha",
+    "income": "Income",
+    "expense": "Expense",
     "amountRange": "Raqam ki Range",
     "min": "Kam se Kam",
     "max": "Zyada se Zyada",
@@ -877,7 +894,7 @@
     "a4Size": "A4 Size",
     "thermalReceipt": "Thermal Receipt",
     "letterSize": "Letter Size",
-    "downloadInvoice": "Download Invoice",
+    "downloadInvoice": "Download",
     "editPayment": "Edit Payment",
     "makePayment": "Make Payment",
     "noPaymentAtAll": "Bilkul Adaigi Nahi",
@@ -1082,6 +1099,8 @@
     "analyticalDashboard": "Analytics Dashboard",
     "dashboardDescription": "Apne Karobar ki Real-time Insights aur Analytics",
     "totalBalanceYoullGet": "Total Balance (Aap ko milay ga)",
+    "totalPayable": "Total Balance (Aap ko dena ho ga)",
+    "purchases": "Kharidariyaan",
     "totalRevenue": "Kul Aamidni",
     "totalExpenses": "Kul Kharche",
     "counterSales": "Counter Farokht",
@@ -1436,5 +1455,12 @@
     "accountDeletedSuccess": "Aapka account kamyabi se delete ho gaya",
     "accountDeleteFailed": "Account delete karne mein nakaami",
     "invalidPassword": "Password galat hai"
+  },
+  "aiChat": {
+    "aiChatTitle": "AI Assistant",
+    "aiChatDescription": "Apne karobar ke bare mein kuch bhi puchein ya customers ko manage karein.",
+    "aiChatInputPlaceholder": "Koi bhi language mein message likhein...",
+    "aiChatSend": "Bhejein",
+    "aiChatEmptyState": "Hello! Main aapka DukaanKhata AI Assistant hoon. Aap mujhe customers manage karne ka keh sakte hain."
   }
 }

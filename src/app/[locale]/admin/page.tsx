@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -27,15 +27,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supportContact } from "@/lib/constants";
+import { supportContacts } from "@/lib/contact-info";
 import {
   Loader2Icon,
   TrendingDown,
   TrendingUp,
   Activity,
   File,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
@@ -48,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { db } from "@/lib/db/offline-db";
 
 type CounterRange =
   | "today"
@@ -139,9 +138,12 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+  const [enableCounterSale, setEnableCounterSale] = useState(false);
 
   const [totalBalance, setTotalBalance] = useState(0);
+  const [totalPayable, setTotalPayable] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalPurchases, setTotalPurchases] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [counterSales, setCounterSales] = useState(0);
   const [counterExpenses, setCounterExpenses] = useState(0);
@@ -191,7 +193,8 @@ export default function DashboardPage() {
     "customers" | "sales" | "items"
   >("customers");
 
-  const currentMonthName = new Date().toLocaleDateString(locale, {
+  const dateLocale = locale === "ru" ? "en" : locale;
+  const currentMonthName = new Date().toLocaleDateString(dateLocale, {
     month: "long",
   });
 
@@ -201,14 +204,6 @@ export default function DashboardPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(false);
 
-  // Slider States
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(true);
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const mobileCardWidth = 284;
-  const mobileCardGap = 16;
-  const mobileCardStep = mobileCardWidth + mobileCardGap;
 
   useEffect(() => {
     const savedPrivacyMode = localStorage.getItem("dashboardPrivacyMode");
@@ -218,6 +213,16 @@ export default function DashboardPage() {
       setIsPrivacyMode(false);
       localStorage.setItem("dashboardPrivacyMode", JSON.stringify(false));
     }
+
+    const loadFeatures = () => {
+      const savedCounter = localStorage.getItem("setting_counterSale");
+      if (savedCounter) setEnableCounterSale(savedCounter === "true");
+    };
+    
+    loadFeatures();
+
+    window.addEventListener("featureSettingsUpdated", loadFeatures);
+    return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
   // Fetch summary on mount
@@ -231,7 +236,9 @@ export default function DashboardPage() {
         }
         const dashboardData = await res.json();
         setTotalBalance(dashboardData.totalBalance || 0);
+        setTotalPayable(dashboardData.totalPayable || 0);
         setTotalRevenue(dashboardData.totalRevenue || 0);
+        setTotalPurchases(dashboardData.totalPurchases || 0);
         setTotalExpenses(dashboardData.totalExpenses || 0);
       } catch (error) {
         console.error("Error fetching summary:", error);
@@ -249,9 +256,51 @@ export default function DashboardPage() {
       try {
         let endpoint = "";
         if (activeDashboardTab === "sales") endpoint = "/api/orders";
-        else if (activeDashboardTab === "customers")
-          endpoint = "/api/customers";
-        else if (activeDashboardTab === "items") endpoint = "/api/products";
+
+        if (activeDashboardTab === "items") {
+            const offset = (currentPage - 1) * pageSize;
+            const products = await db.products.offset(offset).limit(pageSize).toArray();
+            const totalCount = await db.products.count();
+            
+            const pRows = products.map((item: any, index: number) => ({
+                id: item?.id || String(index),
+                name: item?.name || item?.title || "-",
+                category: item?.category || "-",
+                stock: Number(item?.stock || item?.quantity || 0),
+                price: Number(item?.sell_price || item?.price || 0),
+            }));
+            
+            setItemRows(pRows);
+            setTotalCount(totalCount);
+            setTotalPages(Math.ceil(totalCount / pageSize));
+            setIsDataLoading(false);
+            return;
+        }
+
+        if (activeDashboardTab === "customers") {
+            const allCustomers = await db.parties.toArray();
+            
+            // Sort by absolute balance in descending order, then take top 10
+            const sortedCustomers = allCustomers
+                .filter(p => p.status !== "inactive" && p.is_delete !== 1)
+                .sort((a, b) => Math.abs(b.balance || 0) - Math.abs(a.balance || 0))
+                .slice(0, 10);
+                
+            const rows = sortedCustomers.map((item: any, index: number) => ({
+                id: item?.id || String(index),
+                name: item?.name || "-",
+                email: item?.email || "-",
+                phone: item?.phone || "-",
+                balance: Number(item?.balance || 0),
+                status: item?.status || "active",
+            }));
+            
+            setCustomerRows(rows);
+            setTotalCount(rows.length);
+            setTotalPages(1);
+            setIsDataLoading(false);
+            return;
+        }
 
         const url = new URL(endpoint, window.location.origin);
         url.searchParams.append("page", currentPage.toString());
@@ -261,9 +310,8 @@ export default function DashboardPage() {
         if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
 
-        if (activeDashboardTab === "sales") {
-          const orders = data.orders || [];
-          const orderRows = orders.map((order: any, index: number) => {
+        const orders = data.orders || [];
+        const orderRows = orders.map((order: any, index: number) => {
             const total = Number(order?.total_amount || 0);
             const paid = Number(order?.payment?.paid_amount || 0);
             return {
@@ -282,31 +330,10 @@ export default function DashboardPage() {
             };
           });
           setSalesRows(orderRows);
-        } else if (activeDashboardTab === "customers") {
-          const customers = data.customers || [];
-          const rows = customers.map((item: any, index: number) => ({
-            id: item?.id || String(index),
-            name: item?.name || "-",
-            email: item?.email || "-",
-            phone: item?.phone || "-",
-            balance: Number(item?.balance || 0),
-            status: item?.status || "active",
-          }));
-          setCustomerRows(rows);
-        } else if (activeDashboardTab === "items") {
-          const products = data.products || [];
-          const pRows = products.map((item: any, index: number) => ({
-            id: item?.id || String(index),
-            name: item?.name || item?.title || "-",
-            category: item?.category || "-",
-            stock: Number(item?.stock || item?.quantity || 0),
-            price: Number(item?.sell_price || item?.price || 0),
-          }));
-          setItemRows(pRows);
-        }
-
-        setTotalCount(data.totalCount || 0);
-        setTotalPages(data.totalPages || 1);
+          setTotalCount(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+        
+        setIsDataLoading(false);
       } catch (error) {
         console.error("Error fetching tab data:", error);
       } finally {
@@ -378,46 +405,6 @@ export default function DashboardPage() {
     setCurrentPage(1);
   }, [activeDashboardTab]);
 
-  // Scroll handler for cards
-  const handleScroll = useCallback(() => {
-    if (sliderRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
-      setScrollPosition(scrollLeft);
-      setShowLeftArrow(scrollLeft > 20);
-      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 20);
-    }
-  }, []);
-
-  const scrollLeftCards = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: -mobileCardStep, behavior: "smooth" });
-    }
-  };
-
-  const scrollRightCards = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: mobileCardStep, behavior: "smooth" });
-    }
-  };
-
-  useEffect(() => {
-    const slider = sliderRef.current;
-    if (slider) {
-      slider.addEventListener("scroll", handleScroll);
-      setTimeout(handleScroll, 100);
-      return () => slider.removeEventListener("scroll", handleScroll);
-    }
-  }, [handleScroll]);
-
-  useEffect(() => {
-    window.addEventListener("resize", handleScroll);
-    window.addEventListener("orientationchange", handleScroll);
-    return () => {
-      window.removeEventListener("resize", handleScroll);
-      window.removeEventListener("orientationchange", handleScroll);
-    };
-  }, [handleScroll]);
-
   // Summary Cards
   const summaryCards = useMemo(
     () => [
@@ -434,6 +421,19 @@ export default function DashboardPage() {
         ),
       },
       {
+        key: "payable",
+        node: (
+          <StatCard
+            title={tDash("totalPayable")}
+            value={totalPayable}
+            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isExpense
+          />
+        ),
+      },
+      {
         key: "sales",
         node: (
           <StatCard
@@ -442,6 +442,19 @@ export default function DashboardPage() {
             icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
             isPrivacy={isPrivacyMode}
             currency="PKR"
+          />
+        ),
+      },
+      {
+        key: "purchases",
+        node: (
+          <StatCard
+            title={`${tDash("purchases")} (${currentMonthName})`}
+            value={totalPurchases}
+            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isExpense
           />
         ),
       },
@@ -472,7 +485,7 @@ export default function DashboardPage() {
                   setCounterSalesRange(v as CounterRange);
                 }}
               >
-                <SelectTrigger className="w-28 h-7 text-[12px] bg-transparent shadow-none">
+                <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -506,7 +519,7 @@ export default function DashboardPage() {
                   setCounterExpensesRange(v as CounterRange);
                 }}
               >
-                <SelectTrigger className="w-28 h-7 text-[12px] bg-transparent shadow-none">
+                <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,7 +543,9 @@ export default function DashboardPage() {
     ],
     [
       totalBalance,
+      totalPayable,
       totalRevenue,
+      totalPurchases,
       totalExpenses,
       counterSales,
       counterExpenses,
@@ -538,11 +553,16 @@ export default function DashboardPage() {
       counterExpensesRange,
       currentMonthName,
       isPrivacyMode,
-      isCounterSalesLoading,
       isCounterExpensesLoading,
       tDash,
+      enableCounterSale,
     ],
-  );
+  ).filter(card => {
+    if (!enableCounterSale) {
+      return card.key !== "counter-sales" && card.key !== "counter-expenses";
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -554,16 +574,6 @@ export default function DashboardPage() {
 
   return (
     <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
-      <style jsx>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
-
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
         <div>
@@ -610,79 +620,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Cards Slider Section - Mobile */}
-      <div className="relative overflow-hidden md:hidden">
-        {/* Left Arrow */}
-        {showLeftArrow && (
-          <button
-            onClick={scrollLeftCards}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all"
-          >
-            <ChevronLeft className="h-5 w-5 text-muted-foreground" />
-          </button>
-        )}
-
-        {/* Right Arrow */}
-        {showRightArrow && (
-          <button
-            onClick={scrollRightCards}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full shadow-md p-1.5 border border-border hover:bg-accent transition-all"
-          >
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </button>
-        )}
-
-        {/* Cards Slider Track */}
-        <div
-          ref={sliderRef}
-          className="flex overflow-x-auto scroll-smooth gap-4 pb-2 px-9 hide-scrollbar"
-        >
-          {summaryCards.map((card) => (
-            <div
-              key={card.key}
-              className="flex-shrink-0"
-              style={{ width: `${mobileCardWidth}px` }}
-            >
-              {card.node}
-            </div>
-          ))}
-        </div>
-
-        {/* Indicator Dots */}
-        <div className="flex justify-center gap-1.5 mt-4">
-          {summaryCards.map((_, idx) => {
-            const currentIndex = Math.min(
-              summaryCards.length - 1,
-              Math.max(0, Math.round(scrollPosition / mobileCardStep))
-            );
-            const isActive = currentIndex === idx;
-
-            return (
-              <div
-                key={idx}
-                onClick={() => {
-                  if (sliderRef.current) {
-                    sliderRef.current.scrollTo({
-                      left: idx * mobileCardStep,
-                      behavior: "smooth",
-                    });
-                  }
-                }}
-                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                  isActive
-                    ? "w-6 bg-[#7CD2F1]"
-                    : "w-1.5 bg-zinc-300 dark:bg-zinc-700"
-                }`}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Cards Grid Section - Desktop */}
-      <div className="hidden md:grid auto-rows-max items-stretch gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Summary Cards Grid */}
+      <div className="flex gap-2 overflow-x-auto pb-0.5">
         {summaryCards.map((card) => (
-          <div key={card.key}>{card.node}</div>
+          <div key={card.key} className="flex-1 min-w-[120px]">{card.node}</div>
         ))}
       </div>
 
@@ -933,42 +874,51 @@ export default function DashboardPage() {
               {totalCount} Total
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Rows per page</span>
-              <Select
-                value={pageSize.toString()}
-                onValueChange={(value) => {
-                  setPageSize(parseInt(value));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 20, 50, 100].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {activeDashboardTab !== "customers" && (
+                <>
+                  <span className="text-sm text-muted-foreground">Rows per page</span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => {
+                      setPageSize(parseInt(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 20, 50, 100].map((size) => (
+                        <SelectItem key={size} value={size.toString()}> {size} </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
             </div>
           </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            isLoading={isDataLoading}
-          />
+          {activeDashboardTab !== "customers" && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isLoading={isDataLoading}
+            />
+          )}
         </CardFooter>
       </Card>
 
       <Card className="mt-10">
         <CardContent className="p-3 sm:p-4">
-          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 items-start sm:items-center text-xs sm:text-sm text-muted-foreground">
-            <span className="font-medium">{tDash("needHelp") || "Need Help?"}</span>
-            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
-              <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline">
-                Call
-              </a>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <span className="font-medium text-muted-foreground shrink-0">{tDash("needHelp") || "Need Help with DukaanKhata? Reach out:"}</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {supportContacts.map((c) => (
+                <span key={c.name} className="flex items-center gap-1">
+                  <span className="text-muted-foreground">{c.name}:</span>
+                  <a href={c.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{c.display}</a>
+                </span>
+              ))}
             </div>
           </div>
         </CardContent>
@@ -977,7 +927,7 @@ export default function DashboardPage() {
   );
 }
 
-// StatCard Component
+
 function StatCard({
   title,
   value,
@@ -1004,28 +954,26 @@ function StatCard({
       : "bg-blue-500/10";
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="flex min-h-[3.5rem] flex-row items-center justify-between pb-2 p-3 sm:p-4">
-        <CardTitle className="truncate text-xs sm:text-sm font-medium">
+    <Card className="flex flex-col p-2.5 sm:p-3 gap-1.5">
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-[11px] sm:text-xs font-medium leading-tight line-clamp-3 text-muted-foreground">
           {title}
-        </CardTitle>
-        <div className={cn("flex shrink-0 items-center justify-center", !noIconBg && `p-2 rounded-lg ${bgColor}`)}>
+        </p>
+        <div className={cn("flex shrink-0 items-center justify-center", !noIconBg && `p-1 rounded-md ${bgColor}`)}>
           {icon}
         </div>
-      </CardHeader>
-      <CardContent className="flex min-h-[3.75rem] flex-1 flex-col justify-between p-3 pt-0 sm:p-4">
-        <div className="flex items-center gap-2 text-2xl sm:text-3xl font-bold">
-          {isPrivacy ? (
-            <span className="text-muted-foreground">•••••</span>
-          ) : (
-            <>
-              {currency && <span className="text-sm font-normal">{currency} </span>}
-              {Math.floor(value).toLocaleString()}
-            </>
-          )}
-          {isLoading && <Loader2Icon className="h-4 w-4 animate-spin" />}
-        </div>
-      </CardContent>
+      </div>
+      <div className="flex items-center gap-1 font-bold text-sm sm:text-base leading-tight">
+        {isPrivacy ? (
+          <span className="text-muted-foreground">•••••</span>
+        ) : (
+          <>
+            {currency && <span className="text-[10px] font-normal text-muted-foreground">{currency} </span>}
+            {Math.floor(value).toLocaleString()}
+          </>
+        )}
+        {isLoading && <Loader2Icon className="h-3 w-3 animate-spin" />}
+      </div>
     </Card>
   );
 }

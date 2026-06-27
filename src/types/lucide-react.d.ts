@@ -216,6 +216,9 @@ declare module 'lucide-react' {
   export const CreditCard: Icon;
   export const Coins: Icon;
   export const Store: Icon;
+  export const Bot: Icon;
+  export const PlayCircle: Icon;
+
 
   // Catch-all for any other icons that might be used
   const lucideReact: {

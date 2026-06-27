@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { PaymentMethodSection } from "@/components/configuration/payment-method-section";
+import { Switch } from "@/components/ui/switch";
 
 export default function ConfigurationPage({
   params,
@@ -40,6 +41,11 @@ export default function ConfigurationPage({
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Feature Switches State
+  const [enableCounterSale, setEnableCounterSale] = useState(true);
+  const [enableAiChat, setEnableAiChat] = useState(true);
+  const [enableWhatsApp, setEnableWhatsApp] = useState(true);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -47,6 +53,16 @@ export default function ConfigurationPage({
           typeof window !== "undefined"
             ? localStorage.getItem("companyName")
             : null;
+            
+        if (typeof window !== "undefined") {
+          const savedCounter = localStorage.getItem("setting_counterSale");
+          if (savedCounter) setEnableCounterSale(savedCounter === "true");
+          const savedAi = localStorage.getItem("setting_aiChat");
+          if (savedAi) setEnableAiChat(savedAi === "true");
+          const savedWa = localStorage.getItem("setting_wa");
+          if (savedWa) setEnableWhatsApp(savedWa === "true");
+        }
+
         const res = await fetch(`/${params.locale}/api/configuration/assets`);
         const data = await res.json();
         if (res.ok) {
@@ -83,6 +99,52 @@ export default function ConfigurationPage({
     };
     load();
   }, [params.locale, session]);
+
+  const syncFeatureSettings = async (updates: any) => {
+    const payload = {
+      is_counterSale_enable: updates.counterSale ?? enableCounterSale,
+      is_AI_Chat_Enable: updates.aiChat ?? enableAiChat,
+      is_Whatsapp_enable: updates.wa ?? enableWhatsApp,
+    };
+    
+    try {
+      const { db } = await import('@/lib/db/offline-db');
+      const { SyncEngine } = await import('@/lib/sync/sync-engine');
+      
+      await db.syncQueue.add({
+        collection: 'configurations',
+        method: 'PUT',
+        url: `/${params.locale}/api/configurations`,
+        data: payload,
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      });
+      SyncEngine.pushQueue();
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleCounter = (val: boolean) => {
+    setEnableCounterSale(val);
+    localStorage.setItem("setting_counterSale", String(val));
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    syncFeatureSettings({ counterSale: val });
+  };
+
+  const handleToggleAi = (val: boolean) => {
+    setEnableAiChat(val);
+    localStorage.setItem("setting_aiChat", String(val));
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    syncFeatureSettings({ aiChat: val });
+  };
+
+  const handleToggleWa = (val: boolean) => {
+    setEnableWhatsApp(val);
+    localStorage.setItem("setting_wa", String(val));
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    syncFeatureSettings({ wa: val });
+  };
 
   const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -222,6 +284,36 @@ export default function ConfigurationPage({
             </p>
             <PaymentMethodSection locale={params.locale} />
           </div>
+
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>{t("featureModules")}</CardTitle>
+              <CardDescription>{t("featureModulesDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t("counterSaleTitle")}</Label>
+                  <p className="text-sm text-gray-500">{t("counterSaleDesc")}</p>
+                </div>
+                <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t("aiChatTitle")}</Label>
+                  <p className="text-sm text-gray-500">{t("aiChatDesc")}</p>
+                </div>
+                <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t("whatsappTitle")}</Label>
+                  <p className="text-sm text-gray-500">{t("whatsappDesc")}</p>
+                </div>
+                <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
+              </div>
+            </CardContent>
+          </Card>
 
           {message && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">

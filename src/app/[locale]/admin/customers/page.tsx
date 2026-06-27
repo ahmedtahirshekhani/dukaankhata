@@ -24,6 +24,9 @@ import {
   Upload,
   MoreVertical,
   Eye,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   Table,
@@ -119,14 +122,17 @@ export default function PartiesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
-  
+
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "receive" | "pay">("all");
+  const [balanceSort, setBalanceSort] = useState<"asc" | "desc" | null>(null);
+
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -150,22 +156,31 @@ export default function PartiesPage() {
     return () => window.removeEventListener('initialSyncComplete', handleSyncComplete);
   }, []);
 
+  const processedCustomers = useMemo(() => {
+    let list = [...allOfflineCustomers];
+    if (balanceFilter === "receive") list = list.filter(c => (c.balance ?? 0) > 0);
+    else if (balanceFilter === "pay") list = list.filter(c => (c.balance ?? 0) < 0);
+    if (balanceSort === "asc") list.sort((a, b) => (a.balance ?? 0) - (b.balance ?? 0));
+    else if (balanceSort === "desc") list.sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+    return list;
+  }, [allOfflineCustomers, balanceFilter, balanceSort]);
+
   useEffect(() => {
-    setTotalCount(allOfflineCustomers.length);
-    setTotalPages(Math.ceil(allOfflineCustomers.length / pageSize) || 1);
+    setTotalCount(processedCustomers.length);
+    setTotalPages(Math.ceil(processedCustomers.length / pageSize) || 1);
     if (allOfflineCustomers.length > 0 || isSyncReady) {
       setLoading(false);
     }
-  }, [allOfflineCustomers.length, pageSize, isSyncReady]);
+  }, [processedCustomers.length, pageSize, allOfflineCustomers.length, isSyncReady]);
 
   const filteredCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return allOfflineCustomers.slice(startIndex, startIndex + pageSize);
-  }, [allOfflineCustomers, currentPage, pageSize]);
+    return processedCustomers.slice(startIndex, startIndex + pageSize);
+  }, [processedCustomers, currentPage, pageSize]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, pageSize]);
+  }, [debouncedSearchTerm, pageSize, balanceFilter, balanceSort]);
 
   const resetSelectedCustomer = () => {
     setSelectedCustomerId(null);
@@ -190,6 +205,20 @@ export default function PartiesPage() {
       return;
     }
 
+    const trimmedName = newCustomerName.trim();
+    const existingOfflineCustomer = allOfflineCustomers.find(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase() && p.is_delete !== 1
+    );
+
+    if (existingOfflineCustomer) {
+      setErrorDialog({
+        open: true,
+        title: t("error"),
+        message: "A party with this name already exists",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const newCustomer = {
@@ -202,9 +231,10 @@ export default function PartiesPage() {
           ? parseFloat(newCustomerOpeningBalance) * (newCustomerOpeningBalanceType === "pay" ? -1 : 1)
           : 0,
         status: newCustomerStatus,
+        created_at: new Date().toISOString(),
       };
-      
-      const customerId = crypto.randomUUID();
+
+      const customerId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const finalCustomer = { ...newCustomer, id: customerId, is_delete: 0, type: "customer" };
       await db.parties.add(finalCustomer);
       await SyncEngine.queueOperation("parties", "POST", "/api/customers", newCustomer, customerId);
@@ -365,12 +395,7 @@ export default function PartiesPage() {
   const handleDownloadExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      const response = await fetch("/api/customers?limit=-1");
-      if (!response.ok) {
-        throw new Error("Failed to fetch customers");
-      }
-      const data = await response.json();
-      const allCustomers = data.customers || [];
+      const allCustomers = await db.parties.toArray();
 
       const filename = `customers.xlsx`;
 
@@ -425,17 +450,14 @@ export default function PartiesPage() {
         }
 
         const result = await response.json();
-        const message = `${t("importSuccess")}: ${
-          result.successCount
-        } customer(s) imported.${
-          result.errorCount > 0
+        const message = `${t("importSuccess")}: ${result.successCount
+          } customer(s) imported.${result.errorCount > 0
             ? `\n\n${result.errorCount} error(s) occurred.`
             : ""
-        }${
-          result.errors && result.errors.length > 0
+          }${result.errors && result.errors.length > 0
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
-        }`;
+          }`;
 
         setErrorDialog({
           open: true,
@@ -443,10 +465,10 @@ export default function PartiesPage() {
           message: message,
           isSuccess: result.errorCount === 0,
         });
-        
+
         // After import, pull updates to refresh IndexedDB
         await SyncEngine.pullInitialData();
-        
+
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -499,7 +521,7 @@ export default function PartiesPage() {
         <CardHeader className="p-0">
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <div className="relative">
                 <Input
                   type="text"
@@ -509,6 +531,22 @@ export default function PartiesPage() {
                   className="pr-8"
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium h-9">
+                {(["all", "receive", "pay"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setBalanceFilter(f)}
+                    className={cn(
+                      "px-3 h-full transition-colors",
+                      balanceFilter === f
+                        ? f === "receive" ? "bg-green-500 text-white" : f === "pay" ? "bg-red-500 text-white" : "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {f === "all" ? t("filterAll") || "All" : f === "receive" ? t("legendReceive") : t("legendPay")}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -587,6 +625,22 @@ export default function PartiesPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
+              <div className="flex items-center rounded-md border overflow-hidden text-[11px] font-medium h-9 flex-shrink-0">
+                {(["all", "receive", "pay"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setBalanceFilter(f)}
+                    className={cn(
+                      "px-2 h-full transition-colors",
+                      balanceFilter === f
+                        ? f === "receive" ? "bg-green-500 text-white" : f === "pay" ? "bg-red-500 text-white" : "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {f === "all" ? "All" : f === "receive" ? "Get" : "Pay"}
+                  </button>
+                ))}
+              </div>
               <Button
                 size="sm"
                 onClick={() => setShowNewCustomerDialog(true)}
@@ -664,7 +718,15 @@ export default function PartiesPage() {
                     <TableHead>{t("name")}</TableHead>
                     <TableHead>{t("phoneLabel")}</TableHead>
                     <TableHead>{t("companyName")}</TableHead>
-                    <TableHead>{t("balance")}</TableHead>
+                    <TableHead>
+                      <button
+                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                        onClick={() => setBalanceSort(s => s === "desc" ? "asc" : s === "asc" ? null : "desc")}
+                      >
+                        {t("balance")}
+                        {balanceSort === "desc" ? <ArrowDown className="w-3.5 h-3.5" /> : balanceSort === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />}
+                      </button>
+                    </TableHead>
                     <TableHead>{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -686,74 +748,74 @@ export default function PartiesPage() {
                     </TableRow>
                   ) : (
                     filteredCustomers.map((customer) => (
-                    <TableRow 
-                      key={customer.id}
-                      className={cn(
-                        customer.balance !== undefined && customer.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
-                        customer.balance !== undefined && customer.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
-                      )}
-                    >
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>{customer.phone}</TableCell>
-                      <TableCell>{customer.company_name || "-"}</TableCell>
-                      <TableCell>
-                        Rs.{" "}
-                        {customer.balance ? Math.round(customer.balance) : "0"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setViewCustomer(customer);
-                              setIsViewCustomerDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span className="sr-only">{t("view")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              const balance = customer.balance || 0;
-                              setSelectedCustomerId(customer.id);
-                              setNewCustomerName(customer.name);
-                              setNewCustomerEmail(customer.email);
-                              setNewCustomerPhone(customer.phone);
-                              setNewCustomerCompanyName(
-                                customer.company_name || "",
-                              );
-                              setNewCustomerCompanyAddress(
-                                customer.company_address || "",
-                              );
-                              setNewCustomerOpeningBalance(
-                                Math.abs(balance).toString(),
-                              );
-                              setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
-                              setNewCustomerStatus(customer.status);
-                              setIsEditCustomerDialogOpen(true);
-                            }}
-                          >
-                            <FilePenIcon className="w-4 h-4" />
-                            <span className="sr-only">{t("edit")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setCustomerToDelete(customer);
-                              setIsDeleteConfirmationOpen(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span className="sr-only">{t("deleteAction")}</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      <TableRow
+                        key={customer.id}
+                        className={cn(
+                          customer.balance !== undefined && customer.balance < 0 && "bg-red-100/70 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/50",
+                          customer.balance !== undefined && customer.balance > 0 && "bg-green-100/70 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/50"
+                        )}
+                      >
+                        <TableCell>{customer.name}</TableCell>
+                        <TableCell>{customer.phone}</TableCell>
+                        <TableCell>{customer.company_name || "-"}</TableCell>
+                        <TableCell>
+                          Rs.{" "}
+                          {customer.balance ? Math.round(customer.balance) : "0"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setViewCustomer(customer);
+                                setIsViewCustomerDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="sr-only">{t("view")}</span>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                const balance = customer.balance || 0;
+                                setSelectedCustomerId(customer.id);
+                                setNewCustomerName(customer.name);
+                                setNewCustomerEmail(customer.email);
+                                setNewCustomerPhone(customer.phone);
+                                setNewCustomerCompanyName(
+                                  customer.company_name || "",
+                                );
+                                setNewCustomerCompanyAddress(
+                                  customer.company_address || "",
+                                );
+                                setNewCustomerOpeningBalance(
+                                  Math.abs(balance).toString(),
+                                );
+                                setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
+                                setNewCustomerStatus(customer.status);
+                                setIsEditCustomerDialogOpen(true);
+                              }}
+                            >
+                              <FilePenIcon className="w-4 h-4" />
+                              <span className="sr-only">{t("edit")}</span>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setCustomerToDelete(customer);
+                                setIsDeleteConfirmationOpen(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">{t("deleteAction")}</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
                 </TableBody>
@@ -768,9 +830,9 @@ export default function PartiesPage() {
                 key={customer.id}
                 className={cn(
                   "p-4 border shadow-sm",
-                  customer.balance !== undefined && customer.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" : 
-                  customer.balance !== undefined && customer.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
-                  "bg-card border-border"
+                  customer.balance !== undefined && customer.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" :
+                    customer.balance !== undefined && customer.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
+                      "bg-card border-border"
                 )}
               >
                 <div className="space-y-3">
@@ -896,7 +958,7 @@ export default function PartiesPage() {
             <div className="text-sm text-muted-foreground whitespace-nowrap">
               {tCommon("totalCountLabel", { count: totalCount })}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground whitespace-nowrap">
                 {tCommon("rowsPerPage")}

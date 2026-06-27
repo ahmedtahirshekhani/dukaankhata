@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Card,
@@ -52,6 +52,10 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Pagination } from "@/components/ui/pagination";
+import { useOfflineCustomers, useOfflineCustomerTransactions, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 
 type Party = {
   id: string;
@@ -83,9 +87,6 @@ export default function PaymentOutPage() {
   const tCommon = useTranslations("common");
 
   const [transactions, setTransactions] = useState<PartyTransaction[]>([]);
-  const [parties, setParties] = useState<Party[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -108,8 +109,6 @@ export default function PaymentOutPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
@@ -118,63 +117,52 @@ export default function PaymentOutPage() {
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Fetch vendors (not customers for payment out)
-  const fetchParties = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/customers?limit=-1`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const customers = data.customers || [];
-      setParties(customers.filter((p: Party & { is_delete?: number }) => p.is_delete !== 1));
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  // Replace API fetching with offline hook for the filter dropdown
+  const offlineParties = useOfflineCustomers() || [];
+  const parties = useMemo(() => {
+    return offlineParties.filter((p) => p.is_delete !== 1);
+  }, [offlineParties]);
 
-  const fetchTransactions = useCallback(async () => {
-    try {
-      setIsPageLoading(true);
-      const res = await fetch(`/${locale}/api/customer-transactions?type=payment-out&page=${currentPage}&limit=${pageSize}`);
-      if (!res.ok) throw new Error(t("failedToFetch"));
-      const data = await res.json();
-      setTransactions(data.transactions || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.totalCount || 0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("failedToFetch"));
-    } finally {
-      setIsPageLoading(false);
-      setLoading(false);
-    }
-  }, [locale, t, currentPage, pageSize]);
+  // Infinite scroll for Filter Dropdown
+  const [filterPartyPage, setFilterPartyPage] = useState(1);
+  const displayParties = useMemo(() => {
+    return parties.slice(0, filterPartyPage * 50);
+  }, [parties, filterPartyPage]);
+  const hasMoreFilterParties = displayParties.length < parties.length;
 
-  const fetchPaymentMethods = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/configuration/payment-method`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = Array.isArray(data)
-        ? data.map((item: { id?: string; bankName?: string; bankDetails?: string }) => ({
-          id: item.id ?? "",
-          name: item.bankName ?? "",
-          bankDetails: item.bankDetails ?? "",
-        })).filter((item) => item.id && item.name)
-        : [];
-      setPaymentMethods([
-        { id: "cash", name: "Cash" },
-        { id: "cheque", name: "Cheque" },
-        ...list,
-      ]);
-    } catch {
-      // ignore
-    }
-  }, [locale]);
+  // Replace API fetching with offline hook
+  const offlineTransactions = useOfflineCustomerTransactions("payment-out", searchTerm, filters.paymentMethod, filters.party);
+  const loading = offlineTransactions === undefined;
+  const allOfflineTransactions = offlineTransactions || [];
+  
+  const totalCount = allOfflineTransactions.length;
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  useEffect(() => {
-    fetchParties(); // Fetch parties first
-    fetchPaymentMethods();
-    fetchTransactions();
-  }, [fetchParties, fetchPaymentMethods, fetchTransactions]);
+  const filteredTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return allOfflineTransactions.slice(startIndex, startIndex + pageSize);
+  }, [allOfflineTransactions, currentPage, pageSize]);
+
+  const offlinePaymentMethods = useOfflinePaymentMethods() || [];
+  
+  const paymentMethods = useMemo(() => {
+    const list = offlinePaymentMethods.map((item: any) => ({
+      id: item.id || item._id,
+      name: item.bankName || item.name,
+      bankDetails: item.bankDetails,
+    })).filter((item) => item.id && item.name);
+
+    const allMethods = [
+      { id: "cash", name: "Cash" },
+      { id: "cheque", name: "Cheque" },
+      ...list,
+    ];
+
+    // Remove duplicates
+    const uniqueMap = new Map();
+    allMethods.forEach(m => uniqueMap.set(m.id, m));
+    return Array.from(uniqueMap.values());
+  }, [offlinePaymentMethods]);
 
   const resetForm = useCallback(() => {
     setFormPartyId("");
@@ -183,27 +171,6 @@ export default function PaymentOutPage() {
     setFormDate(new Date().toISOString().split("T")[0]);
     setSelectedId(null);
   }, []);
-
-  const filteredTransactions = useMemo(() => {
-    let result = transactions;
-    if (filters.paymentMethod !== "all") {
-      result = result.filter((item) => item.paymentMethodId === filters.paymentMethod);
-    }
-    if (filters.party !== "all") {
-      result = result.filter((item) => item.customerId === filters.party);
-    }
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.customerName?.toLowerCase().includes(term) ||
-          item.paymentMethodName?.toLowerCase().includes(term) ||
-          item.paymentAmount?.toString().includes(term) ||
-          item.date?.includes(term)
-      );
-    }
-    return result;
-  }, [transactions, searchTerm, filters]);
 
   const handleAdd = useCallback(async () => {
     if (!formPartyId || !formPaymentMethodId) {
@@ -218,32 +185,41 @@ export default function PaymentOutPage() {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: formPartyId,
-          paymentAmount: amount,
-          paymentMethodId: formPaymentMethodId,
-          date: formDate,
-          type: "payment-out",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || t("failedToCreate"));
+      const party = parties.find(c => c.id === formPartyId || c._id === formPartyId);
+      const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
 
-      // Refresh transactions after add
-      await fetchTransactions();
+      const payload = {
+        customerId: formPartyId,
+        paymentAmount: amount,
+        paymentMethodId: formPaymentMethodId,
+        date: formDate,
+        type: "payment-out"
+      };
+
+      const transactionId = crypto.randomUUID();
+      const localTransaction = {
+        id: transactionId,
+        ...payload,
+        customerName: party?.name || "",
+        paymentMethodName: paymentMethod?.name || formPaymentMethodId,
+        created_at: new Date().toISOString()
+      };
+
+      await db.party_transactions.add(localTransaction);
+      // Payment Out increases payable balance (amountDelta is positive)
+      await updateOfflinePartyBalance(formPartyId, amount);
+      await SyncEngine.queueOperation("party_transactions", "POST", "/api/customer-transactions", payload, transactionId);
 
       setShowAddDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("createdSuccess"), isSuccess: true });
     } catch (err) {
+      console.error(err);
       setErrorDialog({ open: true, title: t("error"), message: err instanceof Error ? err.message : t("failedToCreate") });
     } finally {
       setIsSaving(false);
     }
-  }, [locale, formPartyId, formPaymentAmount, formPaymentMethodId, formDate, fetchTransactions, resetForm, t, tCommon]);
+  }, [formPartyId, formPaymentAmount, formPaymentMethodId, formDate, parties, paymentMethods, resetForm, t, tCommon]);
 
   const handleEdit = useCallback(async () => {
     if (!selectedId) return;
@@ -259,55 +235,69 @@ export default function PaymentOutPage() {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions/${selectedId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: formPartyId,
-          paymentAmount: amount,
-          paymentMethodId: formPaymentMethodId,
-          date: formDate,
-          type: "payment-out",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || t("failedToUpdate"));
+      const oldTransaction = await db.party_transactions.get(selectedId);
+      if (oldTransaction) {
+        // Revert old balance change
+        await updateOfflinePartyBalance(oldTransaction.customerId, -oldTransaction.paymentAmount);
+      }
 
-      // Refresh transactions after edit
-      await fetchTransactions();
+      const party = parties.find(c => c.id === formPartyId || c._id === formPartyId);
+      const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
+
+      const payload = {
+        customerId: formPartyId,
+        paymentAmount: amount,
+        paymentMethodId: formPaymentMethodId,
+        date: formDate,
+        type: "payment-out"
+      };
+
+      const localTransaction = {
+        id: selectedId,
+        ...payload,
+        customerName: party?.name || "",
+        paymentMethodName: paymentMethod?.name || formPaymentMethodId,
+      };
+
+      await db.party_transactions.put(localTransaction);
+      // Apply new balance change
+      await updateOfflinePartyBalance(formPartyId, amount);
+      await SyncEngine.queueOperation("party_transactions", "PUT", `/api/customer-transactions/${selectedId}`, payload);
 
       setShowEditDialog(false);
       resetForm();
       setErrorDialog({ open: true, title: tCommon("success"), message: t("updatedSuccess"), isSuccess: true });
     } catch (err) {
+      console.error(err);
       setErrorDialog({ open: true, title: t("error"), message: err instanceof Error ? err.message : t("failedToUpdate") });
     } finally {
       setIsSaving(false);
     }
-  }, [locale, selectedId, formPartyId, formPaymentAmount, formPaymentMethodId, formDate, fetchTransactions, resetForm, t, tCommon]);
+  }, [selectedId, formPartyId, formPaymentAmount, formPaymentMethodId, formDate, parties, paymentMethods, resetForm, t, tCommon]);
 
   const handleDelete = useCallback(async () => {
     if (!transactionToDelete) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/${locale}/api/customer-transactions/${transactionToDelete.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || t("failedToDelete"));
+      const oldTransaction = await db.party_transactions.get(transactionToDelete.id);
+      if (oldTransaction) {
+        // Revert balance change
+        await updateOfflinePartyBalance(oldTransaction.customerId, -oldTransaction.paymentAmount);
       }
-
-      // Refresh transactions after delete
-      await fetchTransactions();
+      
+      await db.party_transactions.delete(transactionToDelete.id);
+      await SyncEngine.queueOperation("party_transactions", "DELETE", `/api/customer-transactions/${transactionToDelete.id}`, null);
 
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
       setErrorDialog({ open: true, title: tCommon("success"), message: t("deletedSuccess"), isSuccess: true });
     } catch (err) {
+      console.error(err);
       setErrorDialog({ open: true, title: t("error"), message: err instanceof Error ? err.message : t("failedToDelete") });
     } finally {
       setIsDeleting(false);
     }
-  }, [locale, transactionToDelete, fetchTransactions, t, tCommon]);
+  }, [transactionToDelete, t, tCommon]);
 
   const openAddDialog = () => {
     resetForm();
@@ -373,7 +363,9 @@ export default function PaymentOutPage() {
                 />
                 <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => {
+                if (open) setFilterPartyPage(1);
+              }}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -386,7 +378,15 @@ export default function PaymentOutPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-56 max-h-[70vh] overflow-y-auto"
+                  className="w-56 max-h-80 overflow-y-auto"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                      if (hasMoreFilterParties) {
+                        setFilterPartyPage(prev => prev + 1);
+                      }
+                    }
+                  }}
                 >
                   <DropdownMenuLabel>
                     {t("filterByPaymentMethod")}
@@ -422,17 +422,24 @@ export default function PaymentOutPage() {
                   >
                     {t("allParties")}
                   </DropdownMenuCheckboxItem>
-                  {parties.map((p) => (
-                    <DropdownMenuCheckboxItem
-                      key={p.id}
-                      checked={filters.party === p.id}
-                      onCheckedChange={(checked) =>
-                        checked && handleFilterParty(p.id)
-                      }
-                    >
-                      {p.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                  {displayParties.map((p) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={p.id}
+                        checked={filters.party === p.id}
+                        onCheckedChange={(checked) =>
+                          checked && handleFilterParty(p.id)
+                        }
+                      >
+                        {p.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  {hasMoreFilterParties && (
+                    <div className="flex justify-center p-2">
+                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -456,7 +463,16 @@ export default function PaymentOutPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-8"
+                    >
+                      <Loader2Icon className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -507,7 +523,11 @@ export default function PaymentOutPage() {
 
           {/* Mobile Cards View - visible only on mobile */}
           <div className="block md:hidden space-y-3">
-            {filteredTransactions.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredTransactions.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 {t("noRecords")}
               </div>

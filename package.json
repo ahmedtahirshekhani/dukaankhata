@@ -14,10 +14,15 @@
     "export:collection-activity": "tsx --env-file=.env.local scripts/export-collection-activity.ts",
     "delete:user-data": "tsx --env-file=.env.local scripts/delete-user-data.ts",
     "flag:users-deleted": "tsx --env-file=.env.local scripts/flag-users-as-deleted.ts",
+    "activate:pro-users": "tsx --env-file=.env.local scripts/activate-pro-users.ts",
     "generate:logo-icons": "node scripts/generate-logo-icons.js",
-    "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view"
+    "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view",
+    "migrate:configs": "tsx --env-file=.env.local scripts/migrate-configs.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.82",
+    "@ai-sdk/react": "^3.0.210",
+    "@ai-sdk/ui-utils": "^1.2.11",
     "@auth/core": "^0.34.3",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-dialog": "^1.1.1",
@@ -34,6 +39,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@vercel/speed-insights": "^2.0.0",
     "adm-zip": "^0.5.17",
+    "ai": "^6.0.208",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -62,7 +68,9 @@
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
     "unzipper": "^0.12.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

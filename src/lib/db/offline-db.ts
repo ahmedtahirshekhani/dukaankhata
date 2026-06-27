@@ -31,6 +31,7 @@ export class DukanKhataDB extends Dexie {
   transactions!: Table<any, string>;
   branches!: Table<any, string>;
   subscriptions!: Table<any, string>;
+  configurations!: Table<any, string>;
   syncQueue!: Table<SyncOperation, number>;
 
   constructor(dbName: string = 'DukanKhataOfflineDB') {
@@ -54,6 +55,7 @@ export class DukanKhataDB extends Dexie {
       transactions: 'id, order_id, type',
       branches: 'id, name',
       subscriptions: 'id, status, expiry_date',
+      configurations: 'id, user_id',
       syncQueue: '++id, status, timestamp, collection'
     });
   }

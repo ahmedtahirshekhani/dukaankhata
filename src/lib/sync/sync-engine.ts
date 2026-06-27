@@ -15,7 +15,7 @@ export class SyncEngine {
         db.party_transactions, db.party_ledger_entries, db.party_balance_state,
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.payment_methods,
         db.payment_method, db.vendor_transactions, db.sale_return_transactions,
-        db.transactions, db.branches, db.subscriptions],
+        db.transactions, db.branches, db.subscriptions, db.configurations],
         async () => {
           if (data.products?.length) await db.products.bulkPut(data.products);
           if (data.parties?.length) await db.parties.bulkPut(data.parties);
@@ -35,6 +35,17 @@ export class SyncEngine {
           if (data.transactions?.length) await db.transactions.bulkPut(data.transactions);
           if (data.branches?.length) await db.branches.bulkPut(data.branches);
           if (data.subscriptions?.length) await db.subscriptions.bulkPut(data.subscriptions);
+          if (data.configurations?.length) {
+            await db.configurations.bulkPut(data.configurations);
+            // Also sync to localStorage for immediate UI availability
+            const config = data.configurations[0];
+            if (config) {
+              localStorage.setItem("setting_counterSale", String(config.is_counterSale_enable || false));
+              localStorage.setItem("setting_aiChat", String(config.is_AI_Chat_Enable || false));
+              localStorage.setItem("setting_wa", String(config.is_Whatsapp_enable || false));
+              if (typeof window !== "undefined") window.dispatchEvent(new Event("featureSettingsUpdated"));
+            }
+          }
         }
       );
       
@@ -47,6 +58,16 @@ export class SyncEngine {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('initialSyncComplete'));
       }
+    }
+  }
+  static async clearCacheAndResync() {
+    try {
+      await Promise.all(db.tables.map(table => table.clear()));
+      localStorage.removeItem('last_sync_timestamp');
+      return await this.pullInitialData();
+    } catch (error) {
+      console.error('Failed to clear cache and resync:', error);
+      return false;
     }
   }
 
@@ -63,12 +84,16 @@ export class SyncEngine {
 
     let successCount = 0;
     
-    for (const op of pendingOps) {
+    for (const originalOp of pendingOps) {
       try {
+        // Re-fetch to ensure we have latest data (e.g. ID replacements from earlier ops in this sync loop)
+        const op = await db.syncQueue.get(originalOp.id!);
+        if (!op) continue;
+
         await db.syncQueue.update(op.id!, { status: 'processing' });
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
         const response = await fetch(op.url, {
           method: op.method,
@@ -79,12 +104,16 @@ export class SyncEngine {
         
         clearTimeout(timeoutId);
         
-        if (response.ok) {
+        if (response.ok || (response.status === 404 && op.method === 'DELETE')) {
           // Dispatch a custom event instead of native 'online' to avoid unwanted reloads/refetches from external libs
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('syncComplete', { detail: { collection: op.collection } }));
           }
-          const result = await response.json().catch(() => ({})); // Parse JSON safely
+          
+          let result: any = {};
+          if (response.ok) {
+            result = await response.json().catch(() => ({})); // Parse JSON safely
+          }
           
           // If this was a POST and the server returned a new ID, update the local record
           if (op.method === 'POST' && result.id && op.localId && result.id !== op.localId) {
@@ -96,6 +125,29 @@ export class SyncEngine {
               item.id = result.id;
               await table.put(item);
               await table.delete(op.localId);
+            }
+
+            // Fix foreign keys in other pending operations
+            const otherPendingOps = await db.syncQueue.where('status').equals('pending').toArray();
+            for (const otherOp of otherPendingOps) {
+              let modified = false;
+              
+              if (otherOp.data) {
+                const dataStr = JSON.stringify(otherOp.data);
+                if (dataStr.includes(op.localId)) {
+                  otherOp.data = JSON.parse(dataStr.replaceAll(op.localId, result.id));
+                  modified = true;
+                }
+              }
+              
+              if (otherOp.url && otherOp.url.includes(op.localId)) {
+                otherOp.url = otherOp.url.replaceAll(op.localId, result.id);
+                modified = true;
+              }
+              
+              if (modified) {
+                await db.syncQueue.put(otherOp);
+              }
             }
           }
           
@@ -134,7 +186,7 @@ export class SyncEngine {
         // Change status back to pending if it's just a network error, so it automatically retries later
         // or keep as failed so user sees it. Let's keep it 'failed' and provide a way to retry, or change to pending so pushQueue retries.
         // Actually, if we mark it pending it will loop endlessly if called. So failed is fine.
-        await db.syncQueue.update(op.id!, { status: 'failed', error: error.message });
+        await db.syncQueue.update(originalOp.id!, { status: 'failed', error: error.message });
       }
     }
     

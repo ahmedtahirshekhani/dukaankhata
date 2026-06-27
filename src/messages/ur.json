@@ -63,12 +63,20 @@
     "logoutWarningDesc": "براہ کرم انتظار کریں! کچھ آف لائن ڈیٹا ابھی سرور پر سنک ہو رہا ہے۔ ابھی لاگ آؤٹ کرنے سے ڈیٹا ضائع ہو سکتا ہے۔ انٹرنیٹ سے کنیکٹ کریں یا سنک مکمل ہونے کا انتظار کریں۔",
     "understood": "میں سمجھ گیا",
     "youAreOffline": "آپ آف لائن ہیں",
-    "backOnline": "انٹرنیٹ بحال ہو گیا"
+    "youAreOnline": "آپ آن لائن ہیں",
+    "backOnline": "انٹرنیٹ بحال ہو گیا",
+    "clearCache": "کیشے کلیئر کریں",
+    "clearCacheWarning": "کیا آپ واقعی لوکل کیشے کلیئر کرنا چاہتے ہیں؟ اس سے آف لائن ڈیٹا ڈیلیٹ ہو کر دوبارہ سرور سے سنک ہوگا۔",
+    "clearingCache": "کلیئر ہو رہا ہے...",
+    "cacheClearedSuccess": "کیشے کامیابی سے کلیئر ہو گیا"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
     "subtitle": "آپ کامیابی سے لاگ ان ہو گئے ہیں۔",
-    "instruction": "ڈیش بورڈ فیچرز دیکھنے کے لیے سائیڈبار استعمال کریں۔"
+    "instruction": "ڈیش بورڈ فیچرز دیکھنے کے لیے سائیڈبار استعمال کریں۔",
+    "videoTutorials": "ویڈیو ٹیوٹوریلز",
+    "viewAll": "سب دیکھیں",
+    "desktop": "ڈیسک ٹاپ"
   },
   "navigation": {
     "dashboard": "ڈیش بورڈ",
@@ -128,6 +136,14 @@
     "loading": "لوڈ ہو رہا ہے...",
     "companyDetails": "کمپنی کی تفصیلات",
     "companyDetailsDescription": "اپنی کمپنی کی معلومات کا انتظام کریں بشمول لوگو، نام اور دستخط",
+    "featureModules": "فیچر ماڈیولز",
+    "featureModulesDescription": "ایپلیکیشن میں مخصوص فیچرز کو فعال یا غیر فعال کریں",
+    "counterSaleTitle": "کاؤنٹر سیل",
+    "counterSaleDesc": "فوری لین دین کے لئے کاؤنٹر سیل ماڈیول فعال کریں.",
+    "aiChatTitle": "اے آئی چیٹ",
+    "aiChatDesc": "اے آئی چیٹ اسسٹنٹ کو فعال کریں.",
+    "whatsappTitle": "واٹس ایپ انضمام",
+    "whatsappDesc": "واٹس ایپ میسجنگ کی صلاحیتوں کو فعال کریں.",
     "companyName": "کمپنی کا نام",
     "enterCompanyName": "کمپنی کا نام درج",
     "companyAddress": "کمپنی کا پتہ",
@@ -647,7 +663,8 @@
     "pay": "آپ ادا کریں گے",
     "legend": "وضاحت (Legend)",
     "legendReceive": "آپ وصول کریں گے (+ve)",
-    "legendPay": "آپ ادا کریں گے (-ve)"
+    "legendPay": "آپ ادا کریں گے (-ve)",
+    "filterAll": "سب"
   },
   "orders": {
     "title": "آرڈرز",
@@ -877,7 +894,7 @@
     "a4Size": "A4 سائز",
     "thermalReceipt": "تھرمل رسید",
     "letterSize": "لیٹر سائز",
-    "downloadInvoice": "انوائس ڈاؤن لوڈ کریں",
+    "downloadInvoice": " ڈاؤن لوڈ ",
     "editPayment": "ادائیگی میں ایڈٹ",
     "makePayment": "ادائیگی کریں",
     "noPaymentAtAll": "بالکل ادائیگی نہیں",
@@ -1082,6 +1099,8 @@
     "analyticalDashboard": "تجزیاتی ڈیش بورڈ",
     "dashboardDescription": "اپنے کاروبار کی حقیقی وقت کی بصیرت اور تجزیات",
     "totalBalanceYoullGet": "کل بیلنس (جو آپ کو ملے گا)",
+    "totalPayable": "کل بیلنس (جو آپ کو دینا ہے)",
+    "purchases": "خریداری",
     "totalRevenue": "کل آمدنی",
     "totalExpenses": "کل اخراجات",
     "counterSales": "کاؤنٹر سیلز",
@@ -1436,5 +1455,12 @@
     "accountDeletedSuccess": "آپ کی اکاؤنٹ کامیابی سے حذف ہو گئی",
     "accountDeleteFailed": "اکاؤنٹ حذف کرنے میں ناکام",
     "invalidPassword": "پاس ورڈ غلط ہے"
+  },
+  "aiChat": {
+    "aiChatTitle": "اے آئی اسسٹنٹ",
+    "aiChatDescription": "اپنے کاروبار کے بارے میں کچھ بھی پوچھیں یا کسٹمرز کو میسج کریں۔",
+    "aiChatInputPlaceholder": "کسی بھی زبان میں میسج لکھیں...",
+    "aiChatSend": "بھیجیں",
+    "aiChatEmptyState": "ہیلو! میں آپ کا دکان کھاتہ اے آئی اسسٹنٹ ہوں۔ آپ مجھے کسٹمرز کو میسج کرنے کے لیے کہہ سکتے ہیں۔"
   }
 }
