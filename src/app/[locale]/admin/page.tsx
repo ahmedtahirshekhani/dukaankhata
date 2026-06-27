@@ -27,7 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supportContact } from "@/lib/constants";
+import { supportContacts } from "@/lib/contact-info";
 import {
   Loader2Icon,
   TrendingDown,
@@ -141,7 +141,9 @@ export default function DashboardPage() {
   const [enableCounterSale, setEnableCounterSale] = useState(false);
 
   const [totalBalance, setTotalBalance] = useState(0);
+  const [totalPayable, setTotalPayable] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalPurchases, setTotalPurchases] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [counterSales, setCounterSales] = useState(0);
   const [counterExpenses, setCounterExpenses] = useState(0);
@@ -234,7 +236,9 @@ export default function DashboardPage() {
         }
         const dashboardData = await res.json();
         setTotalBalance(dashboardData.totalBalance || 0);
+        setTotalPayable(dashboardData.totalPayable || 0);
         setTotalRevenue(dashboardData.totalRevenue || 0);
+        setTotalPurchases(dashboardData.totalPurchases || 0);
         setTotalExpenses(dashboardData.totalExpenses || 0);
       } catch (error) {
         console.error("Error fetching summary:", error);
@@ -417,6 +421,19 @@ export default function DashboardPage() {
         ),
       },
       {
+        key: "payable",
+        node: (
+          <StatCard
+            title={tDash("totalPayable")}
+            value={totalPayable}
+            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isExpense
+          />
+        ),
+      },
+      {
         key: "sales",
         node: (
           <StatCard
@@ -425,6 +442,19 @@ export default function DashboardPage() {
             icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
             isPrivacy={isPrivacyMode}
             currency="PKR"
+          />
+        ),
+      },
+      {
+        key: "purchases",
+        node: (
+          <StatCard
+            title={`${tDash("purchases")} (${currentMonthName})`}
+            value={totalPurchases}
+            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+            isPrivacy={isPrivacyMode}
+            currency="PKR"
+            isExpense
           />
         ),
       },
@@ -455,7 +485,7 @@ export default function DashboardPage() {
                   setCounterSalesRange(v as CounterRange);
                 }}
               >
-                <SelectTrigger className="w-28 h-7 text-[12px] bg-transparent shadow-none">
+                <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -489,7 +519,7 @@ export default function DashboardPage() {
                   setCounterExpensesRange(v as CounterRange);
                 }}
               >
-                <SelectTrigger className="w-28 h-7 text-[12px] bg-transparent shadow-none">
+                <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -513,7 +543,9 @@ export default function DashboardPage() {
     ],
     [
       totalBalance,
+      totalPayable,
       totalRevenue,
+      totalPurchases,
       totalExpenses,
       counterSales,
       counterExpenses,
@@ -589,14 +621,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Cards Grid */}
-      <div className={cn(
-        "grid gap-3",
-        enableCounterSale 
-          ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" 
-          : "grid-cols-1 sm:grid-cols-3 lg:grid-cols-3"
-      )}>
+      <div className="flex gap-2 overflow-x-auto pb-0.5">
         {summaryCards.map((card) => (
-          <div key={card.key}>{card.node}</div>
+          <div key={card.key} className="flex-1 min-w-[120px]">{card.node}</div>
         ))}
       </div>
 
@@ -883,12 +910,15 @@ export default function DashboardPage() {
 
       <Card className="mt-10">
         <CardContent className="p-3 sm:p-4">
-          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 items-start sm:items-center text-xs sm:text-sm text-muted-foreground">
-            <span className="font-medium">{tDash("needHelp") || "Need Help?"}</span>
-            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
-              <a href={`tel:${supportContact.phone.replace(/\s/g, "")}`} className="text-blue-600 hover:underline">
-                Call
-              </a>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <span className="font-medium text-muted-foreground shrink-0">{tDash("needHelp") || "Need Help with DukaanKhata? Reach out:"}</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {supportContacts.map((c) => (
+                <span key={c.name} className="flex items-center gap-1">
+                  <span className="text-muted-foreground">{c.name}:</span>
+                  <a href={c.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{c.display}</a>
+                </span>
+              ))}
             </div>
           </div>
         </CardContent>
@@ -924,28 +954,26 @@ function StatCard({
       : "bg-blue-500/10";
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="flex min-h-[3.5rem] flex-row items-center justify-between pb-2 p-3 sm:p-4">
-        <CardTitle className="truncate text-xs sm:text-sm font-medium">
+    <Card className="flex flex-col p-2.5 sm:p-3 gap-1.5">
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-[11px] sm:text-xs font-medium leading-tight line-clamp-3 text-muted-foreground">
           {title}
-        </CardTitle>
-        <div className={cn("flex shrink-0 items-center justify-center", !noIconBg && `p-2 rounded-lg ${bgColor}`)}>
+        </p>
+        <div className={cn("flex shrink-0 items-center justify-center", !noIconBg && `p-1 rounded-md ${bgColor}`)}>
           {icon}
         </div>
-      </CardHeader>
-      <CardContent className="flex min-h-[3.75rem] flex-1 flex-col justify-between p-3 pt-0 sm:p-4">
-        <div className="flex flex-wrap items-center gap-1 font-bold leading-tight" style={{ fontSize: "clamp(0.85rem, 2.5vw, 1.5rem)" }}>
-          {isPrivacy ? (
-            <span className="text-muted-foreground">•••••</span>
-          ) : (
-            <>
-              {currency && <span className="text-xs font-normal">{currency} </span>}
-              {Math.floor(value).toLocaleString()}
-            </>
-          )}
-          {isLoading && <Loader2Icon className="h-4 w-4 animate-spin" />}
-        </div>
-      </CardContent>
+      </div>
+      <div className="flex items-center gap-1 font-bold text-sm sm:text-base leading-tight">
+        {isPrivacy ? (
+          <span className="text-muted-foreground">•••••</span>
+        ) : (
+          <>
+            {currency && <span className="text-[10px] font-normal text-muted-foreground">{currency} </span>}
+            {Math.floor(value).toLocaleString()}
+          </>
+        )}
+        {isLoading && <Loader2Icon className="h-3 w-3 animate-spin" />}
+      </div>
     </Card>
   );
 }

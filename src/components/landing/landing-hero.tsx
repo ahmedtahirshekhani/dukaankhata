@@ -17,6 +17,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePWA } from "@/components/pwa/pwa-context";
+import Image from "next/image";
 
 export function LandingHero() {
   const locale = useLocale();
@@ -106,9 +107,11 @@ export function LandingHero() {
             {/* Right Column - Hero Image */}
             <div className="flex items-center justify-center">
               <div className="w-full relative">
-                <img
+                <Image
                   src="/images/dashboard.jpeg"
                   alt={t("dashboardPreview")}
+                  width={1200}
+                  height={800}
                   className="w-full h-auto rounded-2xl shadow-2xl border border-border"
                 />
               </div>

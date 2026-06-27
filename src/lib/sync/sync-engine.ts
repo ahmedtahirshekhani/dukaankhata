@@ -186,7 +186,7 @@ export class SyncEngine {
         // Change status back to pending if it's just a network error, so it automatically retries later
         // or keep as failed so user sees it. Let's keep it 'failed' and provide a way to retry, or change to pending so pushQueue retries.
         // Actually, if we mark it pending it will loop endlessly if called. So failed is fine.
-        await db.syncQueue.update(op.id!, { status: 'failed', error: error.message });
+        await db.syncQueue.update(originalOp.id!, { status: 'failed', error: error.message });
       }
     }
     

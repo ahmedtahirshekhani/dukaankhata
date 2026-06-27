@@ -135,7 +135,7 @@ export default function VyaparImportButton() {
               <div className='rounded-lg border divide-y text-sm'>
                 {SUMMARY_LABELS.map(({ key, label }) => {
                   const count = summary[key];
-                  if (count === 0) return null;
+                  if (count === 0 && key !== 'skipped') return null;
                   return (
                     <div key={key} className='flex justify-between items-center px-3 py-2'>
                       <span className='text-muted-foreground'>{label}</span>

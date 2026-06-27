@@ -4,7 +4,9 @@ import { getCurrentUser } from "@/lib/auth/utils";
 
 interface DashboardData {
   totalBalance: number;
+  totalPayable: number;
   totalRevenue: number;
+  totalPurchases: number;
   totalExpenses: number;
   totalProfit: number;
   profitMargin: number;
@@ -33,25 +35,6 @@ function getCurrentMonthRange(): { start: Date; end: Date } {
   return { start, end };
 }
 
-function parsePaidAmount(order: any): number {
-  if (Array.isArray(order?.payments)) {
-    return order.payments.reduce(
-      (sum: number, payment: any) =>
-        sum + parseAmount(payment?.paid_amount ?? payment?.amount ?? 0),
-      0,
-    );
-  }
-
-  if (order?.payments && typeof order.payments === "object") {
-    return parseAmount(order.payments?.paid_amount ?? order.payments?.amount ?? 0);
-  }
-
-  if (order?.payment && typeof order.payment === "object") {
-    return parseAmount(order.payment?.paid_amount ?? order.payment?.amount ?? 0);
-  }
-
-  return parseAmount(order?.paid_amount ?? order?.amount_paid ?? 0);
-}
 
 export async function GET(): Promise<NextResponse> {
   try {
@@ -67,46 +50,72 @@ export async function GET(): Promise<NextResponse> {
     }
 
     const userId = toObjectId(user.id);
-    const [ordersCollection, expensesCollection] = await Promise.all([
+    const [ordersCollection, saleReturnCollection, purchaseBillsCollection, expensesCollection, partiesCollection] = await Promise.all([
       getCollection(COLLECTIONS.ORDERS),
+      getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS),
+      getCollection(COLLECTIONS.PURCHASE_BILLS),
       getCollection(COLLECTIONS.EXPENSES),
+      getCollection(COLLECTIONS.PARTIES),
     ]);
 
     const { start, end } = getCurrentMonthRange();
 
-    const [allOrders, currentMonthOrders, currentMonthExpenses] = await Promise.all([
-      ordersCollection.find({ user_id: userId }).toArray(),
-      ordersCollection
-        .find({
-          user_id: userId,
-          $or: [
-            { sale_date: { $gte: start, $lte: end } },
-            { created_at: { $gte: start, $lte: end } },
-            { order_date: { $gte: start, $lte: end } },
-          ],
-        })
-        .toArray(),
+    const dateFilter = { $or: [
+      { sale_date: { $gte: start, $lte: end } },
+      { created_at: { $gte: start, $lte: end } },
+      { order_date: { $gte: start, $lte: end } },
+      { date: { $gte: start, $lte: end } },
+    ] };
+
+    const [
+      currentMonthOrders,
+      currentMonthReturns,
+      purchasesResult,
+      debitNotesResult,
+      currentMonthExpenses,
+      partyReceivableResult,
+      partyPayableResult,
+    ] = await Promise.all([
+      ordersCollection.find({ user_id: userId, ...dateFilter }).toArray(),
+      // Sale returns netted from revenue
+      saleReturnCollection.aggregate([
+        { $match: { user_id: userId, ...dateFilter } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      ]).toArray(),
+      // Purchases (bill_type = "purchase")
+      purchaseBillsCollection.aggregate([
+        { $match: { user_id: userId, bill_type: "purchase", ...dateFilter } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      ]).toArray(),
+      // Debit notes (purchase returns) netted from purchases
+      purchaseBillsCollection.aggregate([
+        { $match: { user_id: userId, bill_type: "debit-note", ...dateFilter } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      ]).toArray(),
       expensesCollection
-        .find({
-          user_id: userId,
-          $or: [
-            { date: { $gte: start, $lte: end } },
-            { created_at: { $gte: start, $lte: end } },
-          ],
-        })
+        .find({ user_id: userId, $or: [{ date: { $gte: start, $lte: end } }, { created_at: { $gte: start, $lte: end } }] })
         .toArray(),
+      // Receivable: sum of positive party balances
+      partiesCollection.aggregate([
+        { $match: { user_id: userId, is_delete: { $ne: 1 }, balance: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: "$balance" } } },
+      ]).toArray(),
+      // Payable: sum of absolute negative party balances
+      partiesCollection.aggregate([
+        { $match: { user_id: userId, is_delete: { $ne: 1 }, balance: { $lt: 0 } } },
+        { $group: { _id: null, total: { $sum: "$balance" } } },
+      ]).toArray(),
     ]);
 
-    const currentMonthSales = currentMonthOrders.reduce((sum, order: any) => {
-      const total = parseAmount(order?.total_amount ?? order?.total ?? 0);
-      return sum + total;
+    const grossSales = currentMonthOrders.reduce((sum, order: any) => {
+      return sum + parseAmount(order?.total_amount ?? order?.total ?? 0);
     }, 0);
+    const saleReturnsTotal = currentMonthReturns[0]?.total ?? 0;
+    const currentMonthSales = Math.max(0, grossSales - saleReturnsTotal);
 
-    const totalBalance = allOrders.reduce((sum, order: any) => {
-      const total = parseAmount(order?.total_amount ?? order?.total ?? 0);
-      const paid = parsePaidAmount(order);
-      return sum + Math.max(0, total - paid);
-    }, 0);
+    const totalBalance = partyReceivableResult[0]?.total ?? 0;
+    const totalPayable = Math.abs(partyPayableResult[0]?.total ?? 0);
+    const totalPurchases = Math.max(0, (purchasesResult[0]?.total ?? 0) - (debitNotesResult[0]?.total ?? 0));
 
     const currentMonthExpensesTotal = currentMonthExpenses.reduce(
       (sum, expense: any) => sum + parseAmount(expense?.amount ?? 0),
@@ -115,7 +124,9 @@ export async function GET(): Promise<NextResponse> {
 
     const dashboardData: DashboardData = {
       totalBalance: Math.round(totalBalance * 100) / 100,
+      totalPayable: Math.round(totalPayable * 100) / 100,
       totalRevenue: Math.round(currentMonthSales * 100) / 100,
+      totalPurchases: Math.round(totalPurchases * 100) / 100,
       totalExpenses: Math.round(currentMonthExpensesTotal * 100) / 100,
       totalProfit: 0,
       profitMargin: 0,
@@ -134,7 +145,9 @@ export async function GET(): Promise<NextResponse> {
       {
         error: "Internal server error",
         totalBalance: 0,
+        totalPayable: 0,
         totalRevenue: 0,
+        totalPurchases: 0,
         totalExpenses: 0,
         totalProfit: 0,
         profitMargin: 0,

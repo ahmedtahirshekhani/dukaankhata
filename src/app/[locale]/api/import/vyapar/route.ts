@@ -55,6 +55,16 @@ function generateExpenseNumber(txnId: string | number, date: Date) {
   return `EXP-${date.toISOString().slice(0, 10)}-${txnId}`;
 }
 
+// Sum balance + cash amounts — handles all Vyapar txn types correctly:
+// Types 3/4/7 store the amount in txn_cash_amount (txn_balance_amount = 0)
+// Types 1/2/5/6 may have non-zero in both columns
+function getTxnAmount(row: any) {
+  const balance = num(first(row, ["txn_balance_amount", "balance_amount"]));
+  const cash = num(first(row, ["txn_cash_amount", "cash_amount"]));
+  const total = balance + cash;
+  return total > 0 ? total : num(first(row, ["amount"]));
+}
+
 // ------------------- main -------------------
 export async function POST(req: NextRequest) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vyapar-"));
@@ -97,6 +107,7 @@ export async function POST(req: NextRequest) {
     const partiesCol = await getCollection(COLLECTIONS.PARTIES);
     const productsCol = await getCollection(COLLECTIONS.PRODUCTS);
     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
+    const saleReturnCol = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
     const purchaseCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
     const txnCol = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
     const expenseCol = await getCollection(COLLECTIONS.EXPENSES);
@@ -107,7 +118,7 @@ export async function POST(req: NextRequest) {
     const summary = {
       parties: 0, expense_categories: 0, products: 0,
       sales: 0, purchases: 0, payments_in: 0, payments_out: 0, expenses: 0,
-      skipped: 0, skipped_details: [] as any[]
+      skipped: 0,
     };
 
     const userId = toObjectId(user.id);
@@ -314,6 +325,7 @@ export async function POST(req: NextRequest) {
 
     // In-memory accumulators
     const orderDocs: any[] = [];
+    const saleReturnDocs: any[] = [];
     const purchaseDocs: any[] = [];
     const txnDocs: any[] = [];
     const expenseDocs: any[] = [];
@@ -357,18 +369,11 @@ export async function POST(req: NextRequest) {
       const rawType = Number(first(t, ["txn_type", "type"]));
       const partyRef = str(first(t, ["txn_name_id", "party_id", "name_id"]));
       const party = partyMap.get(partyRef) || partyMap.get(normalize(partyRef));
-      const amount = num(first(t, ["txn_balance_amount", "txn_cash_amount", "amount"]));
+      const amount = getTxnAmount(t);
       const txnDate = getTxnDate(t);
       const paymentMethodId = getPaymentMethodId(t);
       const enrichedItems = getEnrichedItems(txnId);
       
-      const isExpenseCategory = expenseCategoryMap.has(partyRef);
-      // type 7 (expense) doesn't require a party — expense categories come from kb_items
-      if (!party && !isExpenseCategory && rawType !== 7) {
-        summary.skipped++;
-        summary.skipped_details.push({ txnId, reason: "NO_PARTY" });
-        continue;
-      }
       // SALE
       if (rawType === 1) {
         const orderId = new ObjectId();
@@ -435,38 +440,51 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // TYPE 3: Purchase Return
+      // TYPE 3: Payment In from customer (cash received)
       if (rawType === 3) {
-        const returnId = new ObjectId();
-        purchaseDocs.push({
-          _id: returnId,
+        const txnDocId = new ObjectId();
+        const note = str(first(t, ["txn_description", "note", "description"]));
+        txnDocs.push({
+          _id: txnDocId,
           user_id: userId,
-          party_id: party?._id || null,
-          party_name: party?.name || null,
-          items: enrichedItems.map(i => ({
-            product_id: i.product_id,
-            product_name: i.product_name,
-            quantity: i.quantity,
-            cost_price: i.cost_price,
-            amount: i.amount,
-            discount: i.discount,
-            tax: i.tax,
-            total_amount: i.amount
-          })),
-          total_amount: amount,
-          paid_amount: 0,
-          balance_due: amount,
-          is_paid: false,
+          customer_id: party?._id || null,
+          customer_name: party?.name || null,
+          payment_amount: amount,
           payment_method_id: paymentMethodId,
+          type: "payment-in",
+          note,
           date: txnDate,
-          source: "vyapar",
-          bill_type: "purchase-return",
-          created_at: txnDate
+          created_at: txnDate,
+          source: "vyapar"
         });
         if (party) {
-          addLedgerEntry(party._id, amount, "purchase_return", "purchase_bill", returnId.toString(), txnDate, { txn_id: txnId });
+          addLedgerEntry(party._id, amount, "payment_in", "party_transaction", txnDocId.toString(), txnDate, { txn_id: txnId });
         }
-        summary.purchases++;
+        summary.payments_in++;
+        continue;
+      }
+
+      // TYPE 4: Payment Out to supplier (cash paid)
+      if (rawType === 4) {
+        const txnDocId = new ObjectId();
+        const note = str(first(t, ["txn_description", "note", "description"]));
+        txnDocs.push({
+          _id: txnDocId,
+          user_id: userId,
+          customer_id: party?._id || null,
+          customer_name: party?.name || null,
+          payment_amount: amount,
+          payment_method_id: paymentMethodId,
+          type: "payment-out",
+          note,
+          date: txnDate,
+          created_at: txnDate,
+          source: "vyapar"
+        });
+        if (party) {
+          addLedgerEntry(party._id, -amount, "payment_out", "party_transaction", txnDocId.toString(), txnDate, { txn_id: txnId });
+        }
+        summary.payments_out++;
         continue;
       }
 
@@ -571,21 +589,183 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // SALE RETURN (type 8 = credit note, type 21 = sale return) — skip
+      // TYPE 8 / 21: Sale Return / Credit Note — goes to SALE_RETURN_TRANSACTIONS, not orders
       if (rawType === 8 || rawType === 21) {
-        summary.skipped++;
-        summary.skipped_details.push({ txnId, rawType, reason: "SALE_RETURN_UNSUPPORTED" });
+        const returnId = new ObjectId();
+        saleReturnDocs.push({
+          _id: returnId,
+          user_id: userId,
+          return_number: `VYP-RET-${txnId}`,
+          customer_id: party?._id || null,
+          items: enrichedItems.map(i => ({
+            id: i.product_id ? i.product_id.toString() : `item-${txnId}`,
+            productId: i.product_id ? i.product_id.toString() : "",
+            itemName: i.product_name || "Unknown",
+            quantity: i.quantity,
+            rate: i.cost_price,
+            amount: i.total_amount
+          })),
+          total_amount: amount,
+          paid_amount: amount,
+          balance_due: 0,
+          payment_amount: amount,
+          payment_method_id: paymentMethodId,
+          invoice_no: str(first(t, ["txn_ref_number_char", "txn_display_name"])) || "",
+          invoice_date: txnDate,
+          date: txnDate,
+          created_at: txnDate,
+          updated_at: txnDate,
+          source: "vyapar",
+          source_txn_id: String(txnId)
+        });
+        if (party) {
+          addLedgerEntry(party._id, -amount, "sale_return", "sale_return_transaction", returnId.toString(), txnDate, { txn_id: txnId });
+        }
+        summary.sales++;
+        continue;
+      }
+
+      // TYPE 23: Debit Note (Purchase Return)
+      if (rawType === 23) {
+        const returnId = new ObjectId();
+        purchaseDocs.push({
+          _id: returnId,
+          user_id: userId,
+          party_id: party?._id || null,
+          party_name: party?.name || null,
+          items: enrichedItems.map(i => ({
+            product_id: i.product_id,
+            product_name: i.product_name,
+            quantity: i.quantity,
+            cost_price: i.cost_price,
+            amount: i.amount,
+            discount: i.discount,
+            tax: i.tax,
+            total_amount: i.amount
+          })),
+          total_amount: amount,
+          paid_amount: 0,
+          balance_due: amount,
+          is_paid: false,
+          payment_method_id: paymentMethodId,
+          date: txnDate,
+          source: "vyapar",
+          bill_type: "debit-note",
+          created_at: txnDate
+        });
+        if (party) {
+          addLedgerEntry(party._id, amount, "debit_note", "purchase_bill", returnId.toString(), txnDate, { txn_id: txnId });
+        }
+        summary.purchases++;
+        continue;
+      }
+
+      // TYPE 50: Party-to-Party Transfer — sender side (money flows out of this party)
+      if (rawType === 50) {
+        const txnDocId = new ObjectId();
+        const note = str(first(t, ["txn_description", "note", "description"]));
+        txnDocs.push({
+          _id: txnDocId,
+          user_id: userId,
+          customer_id: party?._id || null,
+          customer_name: party?.name || null,
+          payment_amount: amount,
+          payment_method_id: paymentMethodId,
+          type: "payment-out",
+          note,
+          date: txnDate,
+          created_at: txnDate,
+          source: "vyapar"
+        });
+        if (party) {
+          addLedgerEntry(party._id, -amount, "payment_out", "party_transaction", txnDocId.toString(), txnDate, { txn_id: txnId });
+        }
+        summary.payments_out++;
+        continue;
+      }
+
+      // TYPE 51: Party-to-Party Transfer — receiver side (money flows into this party)
+      if (rawType === 51) {
+        const txnDocId = new ObjectId();
+        const note = str(first(t, ["txn_description", "note", "description"]));
+        txnDocs.push({
+          _id: txnDocId,
+          user_id: userId,
+          customer_id: party?._id || null,
+          customer_name: party?.name || null,
+          payment_amount: amount,
+          payment_method_id: paymentMethodId,
+          type: "payment-in",
+          note,
+          date: txnDate,
+          created_at: txnDate,
+          source: "vyapar"
+        });
+        if (party) {
+          addLedgerEntry(party._id, amount, "payment_in", "party_transaction", txnDocId.toString(), txnDate, { txn_id: txnId });
+        }
+        summary.payments_in++;
+        continue;
+      }
+
+      // TYPE 65: Sale-like entry with invoice and line items
+      if (rawType === 65) {
+        const orderId = new ObjectId();
+        orderDocs.push({
+          _id: orderId,
+          user_id: userId,
+          customer_id: party?._id || null,
+          customer_name: party?.name || null,
+          total_amount: amount,
+          items: enrichedItems.map(i => ({
+            product_id: i.product_id,
+            name: i.product_name,
+            quantity: i.quantity,
+            price: i.cost_price,
+            discount: i.discount,
+            tax: i.tax
+          })),
+          date: txnDate,
+          created_at: txnDate,
+          source: "vyapar",
+          status: "completed"
+        });
+        if (party) {
+          addLedgerEntry(party._id, amount, "sale", "order", orderId.toString(), txnDate, { txn_id: txnId });
+        }
+        summary.sales++;
+        continue;
+      }
+
+      // TYPE 29: Other-account transfer (name_type=3, no party) — store as payment-in
+      if (rawType === 29) {
+        const txnDocId = new ObjectId();
+        const note = str(first(t, ["txn_description", "note", "description"]));
+        txnDocs.push({
+          _id: txnDocId,
+          user_id: userId,
+          customer_id: null,
+          customer_name: null,
+          payment_amount: amount,
+          payment_method_id: paymentMethodId,
+          type: "payment-in",
+          note,
+          date: txnDate,
+          created_at: txnDate,
+          source: "vyapar"
+        });
+        summary.payments_in++;
         continue;
       }
 
       summary.skipped++;
-      summary.skipped_details.push({ txnId, rawType, reason: "UNSUPPORTED" });
     }
 
     // ------------- 5. batch writes -------------
     const writes: Promise<any>[] = [];
 
     if (orderDocs.length)       writes.push(ordersCol.insertMany(orderDocs, { ordered: false }));
+    if (saleReturnDocs.length)  writes.push(saleReturnCol.insertMany(saleReturnDocs, { ordered: false }));
     if (purchaseDocs.length)    writes.push(purchaseCol.insertMany(purchaseDocs, { ordered: false }));
     if (txnDocs.length)         writes.push(txnCol.insertMany(txnDocs, { ordered: false }));
     if (expenseDocs.length)     writes.push(expenseCol.insertMany(expenseDocs, { ordered: false }));
@@ -594,8 +774,9 @@ export async function POST(req: NextRequest) {
     await Promise.all(writes);
 
     // bulk-update final balance state and party balance
+    const now = new Date();
+
     if (balanceCache.size > 0) {
-      const now = new Date();
       const balanceOps = Array.from(balanceCache.entries()).map(([key, balance]) => ({
         updateOne: {
           filter: { user_id: userId, party_id: partyIdMap.get(key)! },
@@ -603,16 +784,19 @@ export async function POST(req: NextRequest) {
           upsert: true
         }
       }));
-      const partyBalanceOps = Array.from(balanceCache.entries()).map(([key, balance]) => ({
+      await balanceStateCol.bulkWrite(balanceOps, { ordered: false });
+    }
+
+    // Use Vyapar's authoritative current balance from kb_names.amount (stored as opening_balance)
+    // rather than the ledger-reconstructed value which starts at 0 and misses unhandled txn types
+    if (savedParties.length > 0) {
+      const partyBalanceOps = savedParties.map(p => ({
         updateOne: {
-          filter: { _id: partyIdMap.get(key)! },
-          update: { $set: { balance, updated_at: now } }
+          filter: { _id: p._id },
+          update: { $set: { balance: p.opening_balance ?? 0, updated_at: now } }
         }
       }));
-      await Promise.all([
-        balanceStateCol.bulkWrite(balanceOps, { ordered: false }),
-        partiesCol.bulkWrite(partyBalanceOps, { ordered: false })
-      ]);
+      await partiesCol.bulkWrite(partyBalanceOps, { ordered: false });
     }
 
     // payment methods

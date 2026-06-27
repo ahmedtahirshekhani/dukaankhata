@@ -663,7 +663,8 @@
     "pay": "Aap Ada Karain Gey",
     "legend": "Legend",
     "legendReceive": "Aap Wasool Karain Gey (+ve)",
-    "legendPay": "Aap Ada Karain Gey (-ve)"
+    "legendPay": "Aap Ada Karain Gey (-ve)",
+    "filterAll": "Sab"
   },
   "orders": {
     "title": "Orders",
@@ -1098,6 +1099,8 @@
     "analyticalDashboard": "Analytics Dashboard",
     "dashboardDescription": "Apne Karobar ki Real-time Insights aur Analytics",
     "totalBalanceYoullGet": "Total Balance (Aap ko milay ga)",
+    "totalPayable": "Total Balance (Aap ko dena ho ga)",
+    "purchases": "Kharidariyaan",
     "totalRevenue": "Kul Aamidni",
     "totalExpenses": "Kul Kharche",
     "counterSales": "Counter Farokht",

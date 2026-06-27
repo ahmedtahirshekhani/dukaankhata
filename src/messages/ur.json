@@ -663,7 +663,8 @@
     "pay": "آپ ادا کریں گے",
     "legend": "وضاحت (Legend)",
     "legendReceive": "آپ وصول کریں گے (+ve)",
-    "legendPay": "آپ ادا کریں گے (-ve)"
+    "legendPay": "آپ ادا کریں گے (-ve)",
+    "filterAll": "سب"
   },
   "orders": {
     "title": "آرڈرز",
@@ -1098,6 +1099,8 @@
     "analyticalDashboard": "تجزیاتی ڈیش بورڈ",
     "dashboardDescription": "اپنے کاروبار کی حقیقی وقت کی بصیرت اور تجزیات",
     "totalBalanceYoullGet": "کل بیلنس (جو آپ کو ملے گا)",
+    "totalPayable": "کل بیلنس (جو آپ کو دینا ہے)",
+    "purchases": "خریداری",
     "totalRevenue": "کل آمدنی",
     "totalExpenses": "کل اخراجات",
     "counterSales": "کاؤنٹر سیلز",

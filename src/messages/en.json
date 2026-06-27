@@ -663,7 +663,8 @@
     "pay": "You'll Pay",
     "legend": "Legend",
     "legendReceive": "You'll Receive (+ve)",
-    "legendPay": "You'll Pay (-ve)"
+    "legendPay": "You'll Pay (-ve)",
+    "filterAll": "All"
   },
   "orders": {
     "title": "Orders",
@@ -1098,6 +1099,8 @@
     "analyticalDashboard": "Analytics Dashboard",
     "dashboardDescription": "Real-time insights and analytics of your business",
     "totalBalanceYoullGet": "Total Balance (You'll get)",
+    "totalPayable": "Total Balance (You'll give)",
+    "purchases": "Purchases",
     "totalRevenue": "Total Revenue",
     "totalExpenses": "Total Expenses",
     "counterSales": "Counter Sales",
