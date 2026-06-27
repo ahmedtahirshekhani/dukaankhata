@@ -175,6 +175,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
         }}
       >
         <style dangerouslySetInnerHTML={{ __html: `
+          @media screen {
+            .invoice-preview-inner {
+              min-height: auto !important;
+            }
+          }
           @media (max-width: 640px) {
             .invoice-a4-header {
               display: flex !important;
@@ -241,6 +246,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           • Thermal has no fixed height — it just wraps content naturally.
         */}
         <div
+          className="invoice-preview-inner"
           style={{
             minHeight: S.minHeight,
             display: "flex",
@@ -681,16 +687,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           )}
 
           {/* ══════════════════════════════════════════════════════════════════
-              SPACER — pushes footer to bottom on short-content pages.
-              On multi-page docs this collapses and footer sits after content.
-          ══════════════════════════════════════════════════════════════════ */}
-          <div style={{ flex: 1 }} />
-
-          {/* ══════════════════════════════════════════════════════════════════
               SIGNATURES
           ══════════════════════════════════════════════════════════════════ */}
           {((signatureImage && includeSignature) || requestCustomerSignature) && (
-            <div style={{ marginTop: isThermal ? "16px" : "32px" }}>
+            <div style={{ 
+              marginTop: isThermal ? "16px" : "24px",
+              marginBottom: isThermal ? "16px" : "24px"
+            }}>
               {isThermal ? (
                 /* ── THERMAL signatures: stacked ── */
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -755,6 +758,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               )}
             </div>
           )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              SPACER — pushes footer to bottom on short-content pages.
+              On multi-page docs this collapses and footer sits after content.
+          ══════════════════════════════════════════════════════════════════ */}
+          <div style={{ flex: 1 }} />
 
           {/* ══════════════════════════════════════════════════════════════════
               FOOTER / DISCLAIMER
