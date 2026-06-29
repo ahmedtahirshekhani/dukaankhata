@@ -220,6 +220,7 @@ export default function AccountStatementLatestPage() {
             format: "a4",
             orientation: "landscape"
           },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         })
         .from(reportRef.current)
         .toPdf()

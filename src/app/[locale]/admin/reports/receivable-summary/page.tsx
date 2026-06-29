@@ -158,7 +158,7 @@ export default function ReceivableSummaryPage() {
         console.error("Error loading receivable summary:", err);
       }
     } finally {
-      if (!isExportMode) setLoading(false);
+      if (!isExportMode && !signal?.aborted) setLoading(false);
     }
   }, [currentPage, pageSize, debouncedSearchTerm]);
 
@@ -221,6 +221,7 @@ export default function ReceivableSummaryPage() {
             format: "a4",
             orientation: "landscape"
           },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         })
         .from(reportRef.current)
         .toPdf()
