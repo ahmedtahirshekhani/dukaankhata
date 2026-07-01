@@ -146,18 +146,13 @@ export function SubscriptionStatusBadge() {
           <TooltipTrigger asChild>
             <div
               onClick={() => setProDialogOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer hover:opacity-80 ${getStatusColor()}`}
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer hover:opacity-80 ${getStatusColor()}`}
             >
               {getStatusIcon()}
-              <span>{getStatusLabel()}</span>
+              <span className="hidden sm:inline">{getStatusLabel()}</span>
               {subscriptionStatus.daysRemaining > 0 && (
                 <span className="hidden sm:inline border-l pl-1.5 border-current/30">
                   {subscriptionStatus.daysRemaining} days left
-                </span>
-              )}
-              {subscriptionStatus.daysRemaining > 0 && (
-                <span className="sm:hidden border-l pl-1.5 border-current/30">
-                  {subscriptionStatus.daysRemaining}d
                 </span>
               )}
             </div>

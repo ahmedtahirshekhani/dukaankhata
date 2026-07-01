@@ -743,7 +743,16 @@ export default function DashboardPage() {
                 )}
                 {activeDashboardTab === "sales" && salesRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>{row.invoiceNo}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span className="font-medium">
+                          {row.invoiceNo.slice(-5)}
+                        </span>
+                        <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
+                          {row.invoiceNo}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>{row.customerName}</TableCell>
                     <TableCell>
                       {isPrivacyMode ? "***" : `PKR ${Math.round(row.total).toLocaleString()}`}
@@ -837,9 +846,14 @@ export default function DashboardPage() {
 
             {activeDashboardTab === "sales" && salesRows.map((row) => (
               <div key={row.id} className="border rounded-lg p-4 shadow-sm">
-                <div className="flex justify-between mb-2">
-                  <h3 className="font-semibold">{row.invoiceNo}</h3>
-                  <span className="text-xs text-muted-foreground">{row.date}</span>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex flex-col items-start gap-0.5">
+                    <h3 className="font-semibold">{row.invoiceNo.slice(-5)}</h3>
+                    <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
+                      {row.invoiceNo}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground mt-1">{row.date}</span>
                 </div>
                 <div className="space-y-1 text-sm">
                   <p><span className="text-muted-foreground">Customer:</span> {row.customerName}</p>

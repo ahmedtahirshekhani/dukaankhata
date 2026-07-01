@@ -746,7 +746,7 @@ export default function ProfitabilityReportPage() {
           <Card className="bg-white shadow-sm border-border/50 overflow-x-auto">
             <CardContent className="p-0">
               <div className="w-full overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm min-w-[600px]">
+                <table className="w-full text-xs sm:text-sm sm:min-w-[600px] min-w-full">
                   <thead>
                     <tr className="bg-muted/50 border-b">
                       <th className="text-left font-semibold py-3 px-4 sm:px-6 text-muted-foreground">{tProfit("account")}</th>
@@ -755,50 +755,50 @@ export default function ProfitabilityReportPage() {
                   </thead>
                   <tbody>
                     {/* Operating Income */}
-                    <tr className="bg-muted/30">
+                    <tr className="bg-[hsl(var(--soft-gray-bg))]">
                       <td colSpan={2} className="font-bold py-3 px-4 sm:px-6 text-sm sm:text-base text-foreground">{tProfit("operatingIncome")}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-2.5 px-6 sm:px-10 text-muted-foreground">{tProfit("sales") || "Revenue"}</td>
                       <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(summary.totalRevenue)}</td>
                     </tr>
-                    <tr className="border-b">
+                    <tr className="bg-[hsl(var(--soft-gray-bg))] border-b">
                       <td className="font-bold py-3 px-4 sm:px-6 text-foreground">{tProfit("totalFor", { name: tProfit("operatingIncome") })}</td>
                       <td className="text-right font-bold py-3 px-4 sm:px-6">{formatCurrency(summary.totalRevenue)}</td>
                     </tr>
 
                     {/* Cost of Goods Sold */}
-                    <tr className="bg-muted/30">
+                    <tr className="bg-[hsl(var(--soft-gray-bg))]">
                       <td colSpan={2} className="font-bold py-3 px-4 sm:px-6 text-sm sm:text-base text-foreground mt-2">{tProfit("costOfGoodsSold")}</td>
                     </tr>
-                    <tr className="border-b">
+                    <tr className="bg-[hsl(var(--soft-gray-bg))] border-b">
                       <td className="font-bold py-3 px-4 sm:px-6 text-foreground">{tProfit("totalFor", { name: tProfit("costOfGoodsSold") })}</td>
                       <td className="text-right font-bold py-3 px-4 sm:px-6">{formatCurrency(summary.totalCOGS)}</td>
                     </tr>
 
                     {/* Gross Profit */}
-                    <tr className="border-b-2 border-b-gray-300 bg-emerald-50/30">
+                    <tr className="border-b-2 border-b-gray-300 bg-[hsl(var(--soft-gray-bg))]">
                       <td className="font-bold py-4 px-4 sm:px-6 text-sm sm:text-base">{tProfit("grossProfit")}</td>
                       <td className="text-right font-bold py-4 px-4 sm:px-6 text-sm sm:text-base">{formatCurrency(summary.grossProfit)}</td>
                     </tr>
 
                     {/* Operating Expense */}
-                    <tr className="bg-muted/30">
+                    <tr className="bg-[hsl(var(--soft-gray-bg))]">
                       <td colSpan={2} className="font-bold py-3 px-4 sm:px-6 text-sm sm:text-base text-foreground mt-2">{tProfit("operatingExpense")}</td>
                     </tr>
                     {expensesByCategory.map((exp: any, idx: number) => (
                       <tr key={idx} className="border-b border-gray-100">
-                        <td className="py-2.5 px-6 sm:px-10 text-muted-foreground">{exp.category}</td>
+                        <td className="py-2.5 px-6 sm:px-10 text-muted-foreground break-words whitespace-normal max-w-[150px] sm:max-w-none">{exp.category}</td>
                         <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(exp.amount)}</td>
                       </tr>
                     ))}
-                    <tr className="border-b border-b-gray-300">
+                    <tr className="border-b border-b-gray-300 bg-[hsl(var(--soft-gray-bg))]">
                       <td className="font-bold py-3 px-4 sm:px-6 text-foreground border-t">{tProfit("totalFor", { name: tProfit("operatingExpense") })}</td>
                       <td className="text-right font-bold py-3 px-4 sm:px-6 border-t">{formatCurrency(summary.totalExpenses)}</td>
                     </tr>
 
                     {/* Operating Profit */}
-                    <tr className="bg-blue-50/30 font-bold border-t-2 border-t-gray-300">
+                    <tr className="bg-[hsl(var(--soft-gray-bg))] font-bold border-t-2 border-t-gray-300">
                       <td className="font-extrabold py-4 px-4 sm:px-6 text-base sm:text-lg text-foreground">{tProfit("operatingProfit")}</td>
                       <td className="text-right font-extrabold py-4 px-4 sm:px-6 text-base sm:text-lg">{formatCurrency(summary.operatingProfit)}</td>
                     </tr>

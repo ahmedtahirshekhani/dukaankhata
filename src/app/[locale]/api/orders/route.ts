@@ -182,28 +182,31 @@ export async function POST(request: Request) {
           discount?: number;
           discountType?: "value" | "percentage";
           unit_of_measurement?: string;
+          cost_price?: number;
         }) => {
           let productName = product.name;
           let productDescription = product.description;
           let productUom = product.unit_of_measurement;
+          let productCostPrice = product.cost_price || 0;
           const productId = isValidObjectId(product.id)
             ? toObjectId(product.id)
             : null;
 
           if (
             productId &&
-            (!productName || !productDescription || !productUom)
+            (!productName || !productDescription || !productUom || !productCostPrice)
           ) {
             const productDoc = await productsCollection.findOne(
               { _id: productId },
               {
-                projection: { name: 1, description: 1, unit_of_measurement: 1 },
+                projection: { name: 1, description: 1, unit_of_measurement: 1, cost_price: 1 },
               },
             );
             if (productDoc) {
               productName = productName || productDoc.name;
               productDescription = productDescription || productDoc.description;
               productUom = productUom || productDoc.unit_of_measurement;
+              productCostPrice = productCostPrice || productDoc.cost_price || 0;
             }
           }
 
@@ -217,6 +220,7 @@ export async function POST(request: Request) {
             discount: product.discount || 0,
             discountType: product.discountType || "value",
             unit_of_measurement: productUom,
+            cost_price: productCostPrice,
           };
         },
       ),

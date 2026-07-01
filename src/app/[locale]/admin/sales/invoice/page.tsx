@@ -888,12 +888,25 @@ export default function OrdersPage() {
                 ) : (
                   filteredOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell>{order.invoice_no || `ORD-${order.id}`}</TableCell>
-                      <TableCell>{order.customer?.name || "-"}</TableCell>
-                      <TableCell>{t("currencySymbol")} {Math.floor(order.total_amount)}</TableCell>
-                      <TableCell>{t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
                       <TableCell>
-                        {t("currencySymbol")}{" "}
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className="font-medium">
+                            {(order.invoice_no || `ORD-${order.id}`).slice(-5)}
+                          </span>
+                          <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
+                            {order.invoice_no || `ORD-${order.id}`}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{order.customer?.name || "-"}</TableCell>
+                      <TableCell>
+                        {/* {t("currencySymbol")}  */}
+                        {Math.floor(order.total_amount)}</TableCell>
+                      <TableCell>
+                        {/* {t("currencySymbol")} */}
+                         {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
+                      <TableCell>
+                        {/* {t("currencySymbol")}{" "} */}
                         {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
                       </TableCell>
                       <TableCell>
@@ -951,9 +964,14 @@ export default function OrdersPage() {
                 <Card key={order.id} className="p-4">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("invoiceNo")}</p>
-                        <p className="font-semibold text-sm">{order.invoice_no || `ORD-${order.id}`}</p>
+                      <div className="flex flex-col items-start gap-0.5">
+                        <p className="text-xs text-muted-foreground mb-0.5">{t("invoiceNo")}</p>
+                        <h3 className="font-semibold text-sm">
+                          {(order.invoice_no || `ORD-${order.id}`).slice(-5)}
+                        </h3>
+                        <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
+                          {order.invoice_no || `ORD-${order.id}`}
+                        </span>
                       </div>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
@@ -988,13 +1006,15 @@ export default function OrdersPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">{t("total")}</p>
                         <p className="font-semibold text-sm">
-                          {t("currencySymbol")} {Math.floor(order.total_amount)}
+                          {/* {t("currencySymbol")}  */}
+                          {Math.floor(order.total_amount)}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">{t("paid")}</p>
                         <p className="font-semibold text-sm">
-                          {t("currencySymbol")} {Math.floor(order.payment?.paid_amount || 0)}
+                          {/* {t("currencySymbol")}  */}
+                          {Math.floor(order.payment?.paid_amount || 0)}
                         </p>
                       </div>
                     </div>
@@ -1002,7 +1022,7 @@ export default function OrdersPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">{t("balance")}</p>
                         <p className="font-semibold text-sm">
-                          {t("currencySymbol")}{" "}
+                          {/* {t("currencySymbol")}{" "} */}
                           {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
                         </p>
                       </div>

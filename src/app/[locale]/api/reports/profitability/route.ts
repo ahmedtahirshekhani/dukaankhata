@@ -62,6 +62,19 @@ export async function GET(request: NextRequest) {
       { $match: revenueQuery },
       { $unwind: { path: "$items", preserveNullAndEmptyArrays: true } },
       {
+        $lookup: {
+          from: "products",
+          localField: "items.product_id",
+          foreignField: "_id",
+          as: "product_info"
+        }
+      },
+      {
+        $addFields: {
+          product_cost: { $arrayElemAt: ["$product_info.cost_price", 0] }
+        }
+      },
+      {
         $group: {
           _id: "$_id",
           total_amount: { $first: "$total_amount" },
@@ -78,7 +91,12 @@ export async function GET(request: NextRequest) {
                         {
                           $ifNull: [
                             "$items.costPrice",
-                            { $ifNull: ["$items.purchasePrice", 0] }
+                            {
+                              $ifNull: [
+                                "$items.purchasePrice",
+                                { $ifNull: ["$product_cost", 0] }
+                              ]
+                            }
                           ]
                         }
                       ]
