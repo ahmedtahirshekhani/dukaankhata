@@ -746,7 +746,7 @@ export default function ProfitabilityReportPage() {
           <Card className="bg-white shadow-sm border-border/50 overflow-x-auto">
             <CardContent className="p-0">
               <div className="w-full overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm min-w-[600px]">
+                <table className="w-full text-xs sm:text-sm sm:min-w-[600px] min-w-full">
                   <thead>
                     <tr className="bg-muted/50 border-b">
                       <th className="text-left font-semibold py-3 px-4 sm:px-6 text-muted-foreground">{tProfit("account")}</th>
@@ -788,7 +788,7 @@ export default function ProfitabilityReportPage() {
                     </tr>
                     {expensesByCategory.map((exp: any, idx: number) => (
                       <tr key={idx} className="border-b border-gray-100">
-                        <td className="py-2.5 px-6 sm:px-10 text-muted-foreground">{exp.category}</td>
+                        <td className="py-2.5 px-6 sm:px-10 text-muted-foreground break-words whitespace-normal max-w-[150px] sm:max-w-none">{exp.category}</td>
                         <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(exp.amount)}</td>
                       </tr>
                     ))}
