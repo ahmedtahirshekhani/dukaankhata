@@ -7,7 +7,8 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -87,6 +88,8 @@ type Customer = {
 export default function PartiesPage() {
   const t = useTranslations("customers");
   const tCommon = useTranslations("common");
+  const tDash = useTranslations("dashboard");
+  const locale = useLocale();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -764,6 +767,11 @@ export default function PartiesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/${locale}/admin/customer-transactions/${customer.id}`}>
+                                {tDash("viewTransactions") || "View Transactions"}
+                              </Link>
+                            </Button>
                             <Button
                               size="icon"
                               variant="ghost"
@@ -845,6 +853,11 @@ export default function PartiesPage() {
                       </p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
+                      <Button asChild size="sm" variant="outline" className="h-8 px-2 text-xs">
+                        <Link href={`/${locale}/admin/customer-transactions/${customer.id}`}>
+                          {tDash("viewTransactions") || "View Transactions"}
+                        </Link>
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
