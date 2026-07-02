@@ -129,7 +129,7 @@ export function LandingPricing() {
               </div>
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="text-5xl font-bold text-foreground tracking-tight">
-                  Rs.10,000
+                   Rs.{(Number(envPlanPrice) * 10).toLocaleString()}
                 </span>
                 <span className="text-muted-foreground text-sm font-medium">/{t("billingYearly").toLowerCase()}</span>
               </div>
