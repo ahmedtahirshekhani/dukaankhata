@@ -635,6 +635,7 @@
     "companyAddressPlaceholder": "Enter company address",
     "balancePlaceholder": "0",
     "openingBalanceHelper": "Initial balance for this party account",
+    "cannotUpdateBalanceWarning": "You cannot update the hardcoded balance directly. Please add a Payment In or Payment Out to adjust the balance.",
     "cancel": "Cancel",
     "createCustomer": "Create Party",
     "updateCustomer": "Update Party",
