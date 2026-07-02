@@ -338,22 +338,26 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {!isOnline ? (
               <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("offlineTooltip")}>
                 <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("youAreOffline")}</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("youAreOffline")}</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Offline</span>
               </div>
             ) : failedSyncCount > 0 ? (
               <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
                 <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("syncFailed")} ({failedSyncCount})</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Failed</span>
               </div>
             ) : pendingSyncCount > 0 ? (
               <div className="flex items-center text-[10px] sm:text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
                 <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("syncing")} ({pendingSyncCount})</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Syncing</span>
               </div>
             ) : (
               <div className="flex items-center text-[10px] sm:text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncedTooltip")}>
                 <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap">{tCommon("youAreOnline")}</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("youAreOnline")}</span>
+                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Online</span>
               </div>
             )}
           </div>

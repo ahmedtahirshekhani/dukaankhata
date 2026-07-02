@@ -176,7 +176,7 @@ export default function StockReportPage() {
         console.error("Error loading stock report data:", err);
       }
     } finally {
-      if (!isExportMode) setLoading(false);
+      if (!isExportMode && !signal?.aborted) setLoading(false);
     }
   }, [currentPage, pageSize, debouncedSearchTerm, categoryFilter, branchFilter]);
 
@@ -246,6 +246,7 @@ export default function StockReportPage() {
             format: "a4",
             orientation: "landscape"
           },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         })
         .from(reportRef.current)
         .toPdf()
