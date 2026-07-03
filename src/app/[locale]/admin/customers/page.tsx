@@ -290,6 +290,20 @@ export default function PartiesPage() {
       return;
     }
 
+    const trimmedName = newCustomerName.trim();
+    const existingOfflineCustomer = allOfflineCustomers.find(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase() && p.is_delete !== 1 && p.id !== selectedCustomerId
+    );
+
+    if (existingOfflineCustomer) {
+      setErrorDialog({
+        open: true,
+        title: t("error"),
+        message: "A party with this name already exists",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updatedCustomer = {
@@ -1142,11 +1156,12 @@ export default function PartiesPage() {
                       }
                       placeholder={t("balancePlaceholder")}
                       className="h-9 sm:h-10 text-sm"
+                      disabled={!showNewCustomerDialog}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
-                    <Select value={newCustomerOpeningBalanceType} onValueChange={(val: "receive" | "pay") => setNewCustomerOpeningBalanceType(val)}>
+                    <Select disabled={!showNewCustomerDialog} value={newCustomerOpeningBalanceType} onValueChange={(val: "receive" | "pay") => setNewCustomerOpeningBalanceType(val)}>
                       <SelectTrigger className="h-9 sm:h-10 text-sm">
                         <SelectValue />
                       </SelectTrigger>
@@ -1157,9 +1172,15 @@ export default function PartiesPage() {
                     </Select>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {t("openingBalanceHelper")}
-                </p>
+                {!showNewCustomerDialog ? (
+                  <p className="text-xs text-amber-600 mt-2 font-medium">
+                    {t("cannotUpdateBalanceWarning")}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {t("openingBalanceHelper")}
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">

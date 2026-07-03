@@ -31,7 +31,9 @@ interface SubscriptionStatus {
   plan: string;
   daysRemaining: number;
   expiryDate: Date | null;
+  startDate: Date | null;
   status: string;
+  isRenewal: boolean;
 }
 
 export function SubscriptionStatusBadge() {
@@ -82,13 +84,18 @@ export function SubscriptionStatusBadge() {
 
   const getStatusColor = () => {
     if (subscriptionStatus.isPending) {
-      return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      return subscriptionStatus.isRenewal 
+        ? "bg-orange-100 text-orange-800 border-orange-300"
+        : "bg-yellow-100 text-yellow-800 border-yellow-300";
     }
     if (subscriptionStatus.isActive) {
       return "bg-green-100 text-green-800 border-green-300";
     }
     if (subscriptionStatus.isExpired) {
-      if (subscriptionStatus.status === "payment_expire") {
+      if (
+        subscriptionStatus.status === "payment_expire" ||
+        (subscriptionStatus.status === "expired" && subscriptionStatus.isRenewal)
+      ) {
         return "bg-orange-100 text-orange-800 border-orange-300";
       }
       return "bg-red-100 text-red-800 border-red-300";
@@ -111,13 +118,18 @@ export function SubscriptionStatusBadge() {
 
   const getStatusLabel = () => {
     if (subscriptionStatus.isPending) {
-      return "Pending";
+      return subscriptionStatus.isRenewal ? "Grace Period (Renew Pro)" : "Pending";
     }
     if (subscriptionStatus.isActive) {
       return `${["trial", "in_trial"].includes(subscriptionStatus.status) ? "Trial" : "Active"}`;
     }
     if (subscriptionStatus.isExpired) {
-      if (subscriptionStatus.status === "payment_expire") return "Trial Expired (Buy Pro)";
+      if (
+        subscriptionStatus.status === "payment_expire" ||
+        subscriptionStatus.status === "expired"
+      ) {
+        return subscriptionStatus.isRenewal ? "Grace Period (Renew Pro)" : "Trial Expired (Buy Pro)";
+      }
       if (subscriptionStatus.status === "login_blocked") return "Blocked";
       return "Expired";
     }
@@ -164,51 +176,94 @@ export function SubscriptionStatusBadge() {
       </TooltipProvider>
 
       <Dialog open={proDialogOpen} onOpenChange={setProDialogOpen}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("dialogTitle")}</DialogTitle>
-            <DialogDescription>{t("dialogDescription")}</DialogDescription>
+            <DialogTitle>
+              {subscriptionStatus.isActive ? t("dialogActiveTitle") : t("dialogTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {subscriptionStatus.isActive ? t("dialogActiveDescription") : t("dialogDescription")}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
-            <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
-              <p className="font-semibold text-foreground">
-                {t("dialogAccountTitle", {
-                  provider: proAccessPaymentInfo.provider,
-                })}
+            <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+              <p className="font-semibold text-foreground border-b border-border/50 pb-2">
+                {t("subscriptionDetailsTitle")}
               </p>
-              <p className="text-muted-foreground">
-                {proAccessPaymentInfo.provider}
-              </p>
-              <p className="font-medium text-foreground">
-                {proAccessPaymentInfo.accountNumber}
-              </p>
-              <p className="text-muted-foreground">
-                {proAccessPaymentInfo.accountHolder}
-              </p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-muted-foreground">{t("planLabel")}</span>
+                <span className="font-medium capitalize">{subscriptionStatus.plan || 'N/A'}</span>
+                
+                <span className="text-muted-foreground">{t("statusLabel")}</span>
+                <span className="font-medium capitalize">{subscriptionStatus.status?.replace('_', ' ') || 'N/A'}</span>
+                
+                {subscriptionStatus.startDate && (
+                  <>
+                    <span className="text-muted-foreground">{t("startDateLabel")}</span>
+                    <span className="font-medium">{formatDate(subscriptionStatus.startDate)}</span>
+                  </>
+                )}
+                
+                {subscriptionStatus.expiryDate && (
+                  <>
+                    <span className="text-muted-foreground">{t("expiryDateLabel")}</span>
+                    <span className="font-medium">{formatDate(subscriptionStatus.expiryDate)}</span>
+                  </>
+                )}
+                
+                {subscriptionStatus.isExpired && subscriptionStatus.status !== "login_blocked" && (
+                  <>
+                    <span className="text-muted-foreground">{t("gracePeriodLabel")}</span>
+                    <span className="font-medium text-orange-600">{t("gracePeriodActive")}</span>
+                  </>
+                )}
+              </div>
             </div>
+            {!subscriptionStatus.isActive && (
+              <>
+                <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold text-foreground border-b border-border/50 pb-2">
+                    {t("dialogAccountTitle", {
+                      provider: proAccessPaymentInfo.provider,
+                    })}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {proAccessPaymentInfo.provider}
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {proAccessPaymentInfo.accountNumber}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {proAccessPaymentInfo.accountHolder}
+                  </p>
+                </div>
 
-            <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
-              <p className="font-semibold text-foreground">
-                {t("dialogWhatsappTitle")}
-              </p>
-              <p className="text-muted-foreground">
-                {t("dialogWhatsappDescription", {
-                  whatsapp: proAccessPaymentInfo.proofWhatsappDisplay,
-                })}
-              </p>
-            </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold text-foreground">
+                    {t("dialogWhatsappTitle")}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t("dialogWhatsappDescription", {
+                      whatsapp: proAccessPaymentInfo.proofWhatsappDisplay,
+                    })}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setProDialogOpen(false)}>
               {t("dialogClose")}
             </Button>
-            <Button asChild>
-              <a href={whatsappLink} target="_blank" rel="noreferrer">
-                {t("dialogOpenWhatsapp")}
-              </a>
-            </Button>
+            {!subscriptionStatus.isActive && (
+              <Button asChild>
+                <a href={whatsappLink} target="_blank" rel="noreferrer">
+                  {t("dialogOpenWhatsapp")}
+                </a>
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

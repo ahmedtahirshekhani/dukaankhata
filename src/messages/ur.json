@@ -68,7 +68,9 @@
     "clearCache": "کیشے کلیئر کریں",
     "clearCacheWarning": "کیا آپ واقعی لوکل کیشے کلیئر کرنا چاہتے ہیں؟ اس سے آف لائن ڈیٹا ڈیلیٹ ہو کر دوبارہ سرور سے سنک ہوگا۔",
     "clearingCache": "کلیئر ہو رہا ہے...",
-    "cacheClearedSuccess": "کیشے کامیابی سے کلیئر ہو گیا"
+    "cacheClearedSuccess": "کیشے کامیابی سے کلیئر ہو گیا",
+    "syncingData": "ڈیٹا سنک ہو رہا ہے...",
+    "pleaseWait": "براہ کرم انتظار کریں، آف لائن ڈیٹا بیس تیار کیا جا رہا ہے۔"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -634,7 +636,8 @@
     "companyNamePlaceholder": "کمپنی کا نام درج کریں",
     "companyAddressPlaceholder": "کمپنی کا پتہ درج کریں",
     "balancePlaceholder": "0",
-    "openingBalanceHelper": "اس گاہک اکاؤنٹ کے لیے ابتدائی بیلنس",
+    "openingBalanceHelper": "اس پارٹی اکاؤنٹ کا ابتدائی بیلنس",
+    "cannotUpdateBalanceWarning": "آپ براہ راست بیلنس اپ ڈیٹ نہیں کر سکتے۔ براہ کرم بیلنس ایڈجسٹ کرنے کے لئے پیمنٹ ان یا پیمنٹ آؤٹ کا استعمال کریں۔",
     "cancel": "منسوخ",
     "createCustomer": "گاہک بنائیں",
     "updateCustomer": "گاہک اپڈیٹ کریں",
@@ -1147,6 +1150,7 @@
     "actions": "اقدامات",
     "viewTransactions": "ٹرانزیکشنز دیکھیں",
     "backToDashboard": "ڈیش بورڈ پر واپس",
+    "back": "پیچھے",
     "customerTransactionsToDate": "گاہک کی آج تک کی ٹرانزیکشنز",
     "customerDetails": "گاہک کی تفصیلات",
     "failedToFetchCustomers": "گاہک لوڈ کرنے میں ناکام",
@@ -1388,7 +1392,16 @@
       "plan5000Feature8": "مختص اکاؤنٹ مینیجر",
       "ctaFree": "مفت شروع کریں",
       "ctaPlan1000": "سٹارٹر منتخب کریں",
-      "ctaPlan5000": "بزنس منتخب کریں"
+      "ctaPlan5000": "بزنس منتخب کریں",
+      "subscriptionDetailsTitle": "سبسکرپشن کی تفصیلات",
+      "planLabel": "پلان:",
+      "statusLabel": "سٹیٹس:",
+      "startDateLabel": "شروع کی تاریخ:",
+      "expiryDateLabel": "ختم ہونے کی تاریخ:",
+      "gracePeriodLabel": "رعایتی مدت (Grace Period):",
+      "gracePeriodActive": "فعال (بلاک ہونے سے بچنے کے لیے تجدید کریں)",
+      "dialogActiveTitle": "ایکٹو سبسکرپشن",
+      "dialogActiveDescription": "آپ کی سبسکرپشن ایکٹو ہے۔ آپ کی سبسکرپشن کی تفصیل نیچے دی گئی ہے۔"
     },
     "contact": {
       "sectionTitle": "رابطہ کریں",

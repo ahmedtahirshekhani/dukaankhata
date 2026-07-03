@@ -32,6 +32,8 @@ import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { formatCurrencyString } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 interface QuotationItem {
     id: string;
@@ -98,32 +100,26 @@ function QuotationFormPageInner({
         const fetchData = async () => {
             try {
                 if (quotationIdFromUrl) {
-                    const quotRes = await fetch(
-                        `/${locale}/api/quotations/${quotationIdFromUrl}`
-                    );
-                    if (quotRes.ok) {
-                        const data = await quotRes.json();
-                        const quot = data.quotation || data;
-                        if (quot) {
-                            setEditingQuotationId(quot._id || quot.id);
-                            setSelectedPartyId(quot.party_id);
-                            setSelectedPartyName(quot.party_name);
-                            const mappedItems = (quot.items || []).map((item: any) => ({
-                                ...item,
-                                id: item.id || `item-${Math.random()}`,
-                                unit_price: item.unit_price || item.sell_price || 0,
-                            }));
-                            setQuotationItems(mappedItems);
-                            setDiscount(quot.discount?.toString() || "0");
-                            setDiscountType(quot.discount_type || "fixed");
-                            setTax(quot.tax?.toString() || "0");
-                            setTaxType(quot.tax_type || "fixed");
-                            setValidityDate(
-                                quot.validity_date ? quot.validity_date.split("T")[0] : ""
-                            );
-                            setNotes(quot.notes || "");
-                            setQuotationNo(quot.quotation_no || "");
-                        }
+                    const quot = await db.quotations.get(quotationIdFromUrl);
+                    if (quot) {
+                        setEditingQuotationId(quot._id || quot.id);
+                        setSelectedPartyId(quot.party_id);
+                        setSelectedPartyName(quot.party_name);
+                        const mappedItems = (quot.items || []).map((item: any) => ({
+                            ...item,
+                            id: item.id || `item-${Math.random()}`,
+                            unit_price: item.unit_price || item.sell_price || 0,
+                        }));
+                        setQuotationItems(mappedItems);
+                        setDiscount(quot.discount?.toString() || "0");
+                        setDiscountType(quot.discount_type || "fixed");
+                        setTax(quot.tax?.toString() || "0");
+                        setTaxType(quot.tax_type || "fixed");
+                        setValidityDate(
+                            quot.validity_date ? quot.validity_date.split("T")[0] : ""
+                        );
+                        setNotes(quot.notes || "");
+                        setQuotationNo(quot.quotation_no || "");
                     }
                 } else {
                     // Generate a new quotation number
@@ -224,6 +220,23 @@ function QuotationFormPageInner({
 
         setIsSaving(true);
         try {
+            // Check for duplicate quotation number locally
+            if (quotationNo) {
+                const existingQuotation = await db.quotations
+                    .filter(q => q.quotation_no === quotationNo)
+                    .first();
+                
+                if (existingQuotation && existingQuotation.id !== editingQuotationId && existingQuotation._id !== editingQuotationId) {
+                    setErrorDialog({
+                        open: true,
+                        title: tCommon("error"),
+                        message: t("quotationNumberExists") || `Quotation number ${quotationNo} already exists`,
+                        isSuccess: false,
+                    });
+                    setIsSaving(false);
+                    return;
+                }
+            }
             const payload = {
                 party_id: selectedPartyId,
                 party_name: selectedPartyName,
@@ -243,23 +256,25 @@ function QuotationFormPageInner({
                 ? `/${locale}/api/quotations/${editingQuotationId}`
                 : `/${locale}/api/quotations`;
             const method = editingQuotationId ? "PUT" : "POST";
-            const body = editingQuotationId
-                ? JSON.stringify({ ...payload, id: editingQuotationId })
-                : JSON.stringify(payload);
+            
+            const fullPayload = {
+              ...payload,
+              id: editingQuotationId || crypto.randomUUID(),
+              created_at: editingQuotationId ? undefined : new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
 
-            const res = await fetch(url, {
-                method,
-                body,
-                headers: { "Content-Type": "application/json" },
-            });
+            // Save to Dexie
+            await db.quotations.put(fullPayload as any);
 
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
-                if (errorData.code === "DUPLICATE_QUOTATION_NO") {
-                    throw new Error(t("quotationNumberExists") || "Quotation number already exists");
-                }
-                throw new Error(errorData.error || "Failed to save quotation");
-            }
+            // Queue Sync
+            await SyncEngine.queueOperation(
+              "quotations", 
+              method, 
+              url, 
+              editingQuotationId ? { ...payload, id: editingQuotationId } : payload, 
+              fullPayload.id
+            );
 
             setErrorDialog({
                 open: true,

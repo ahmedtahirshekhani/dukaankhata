@@ -68,7 +68,9 @@
     "clearCache": "Clear Cache",
     "clearCacheWarning": "Are you sure you want to clear the local cache? This will delete the offline database and re-sync all data from the server.",
     "clearingCache": "Clearing...",
-    "cacheClearedSuccess": "Cache cleared successfully"
+    "cacheClearedSuccess": "Cache cleared successfully",
+    "syncingData": "Syncing Data...",
+    "pleaseWait": "Please wait while we set up your offline database."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -635,6 +637,7 @@
     "companyAddressPlaceholder": "Enter company address",
     "balancePlaceholder": "0",
     "openingBalanceHelper": "Initial balance for this party account",
+    "cannotUpdateBalanceWarning": "You cannot update the hardcoded balance directly. Please add a Payment In or Payment Out to adjust the balance.",
     "cancel": "Cancel",
     "createCustomer": "Create Party",
     "updateCustomer": "Update Party",
@@ -1147,6 +1150,7 @@
     "actions": "Actions",
     "viewTransactions": "View Transactions",
     "backToDashboard": "Back to Dashboard",
+    "back": "Back",
     "customerTransactionsToDate": "Party transactions to date",
     "customerDetails": "Party Details",
     "failedToFetchCustomers": "Failed to fetch parties",
@@ -1388,7 +1392,16 @@
       "plan5000Feature8": "Dedicated account manager",
       "ctaFree": "Get Started Free",
       "ctaPlan1000": "Choose Starter",
-      "ctaPlan5000": "Choose Business"
+      "ctaPlan5000": "Choose Business",
+      "subscriptionDetailsTitle": "Subscription Details",
+      "planLabel": "Plan:",
+      "statusLabel": "Status:",
+      "startDateLabel": "Start Date:",
+      "expiryDateLabel": "Expiry Date:",
+      "gracePeriodLabel": "Grace Period:",
+      "gracePeriodActive": "Active (Please renew to avoid block)",
+      "dialogActiveTitle": "Active Subscription",
+      "dialogActiveDescription": "Your subscription is currently active. Here are your subscription details."
     },
     "contact": {
       "sectionTitle": "Contact Us",

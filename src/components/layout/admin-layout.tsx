@@ -35,6 +35,7 @@ import {
   WifiOff,
   CheckCircle,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -47,7 +48,7 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+export function AdminLayout({ children, isInitialSyncing = false }: { children: React.ReactNode, isInitialSyncing?: boolean }) {
   const pathname = usePathname();
   const locale = useLocale();
   const router = useRouter();
@@ -930,7 +931,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           className={`flex-1 p-3 sm:p-4 md:px-6 md:py-0 transition-all ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
             }`}
         >
-          {children}
+          {isClearingCache || isInitialSyncing ? (
+            <div className="flex flex-col items-center justify-center h-[80vh]">
+              <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+              <h2 className="text-xl font-semibold">{tCommon("syncingData") || "Syncing Data..."}</h2>
+              <p className="text-muted-foreground mt-2 text-sm">{tCommon("pleaseWait") || "Please wait while we set up your offline database."}</p>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
 
@@ -952,14 +961,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         confirmLabel={isClearingCache ? tCommon("clearingCache") : tCommon("confirm")}
         onConfirm={async () => {
           setIsClearingCache(true);
+          setShowClearCacheDialog(false);
           try {
             await SyncEngine.clearCacheAndResync();
+            
             if (typeof window !== 'undefined') {
               toast.success(tCommon("cacheClearedSuccess"));
             }
-            setShowClearCacheDialog(false);
-            window.location.reload();
-          } finally {
+            
+            setIsClearingCache(false);
+          } catch (error) {
+            console.error(error);
             setIsClearingCache(false);
           }
         }}

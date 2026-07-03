@@ -70,7 +70,9 @@ export async function getSubscriptionStatus(userId: string | ObjectId): Promise<
   plan: string;
   daysRemaining: number;
   expiryDate: Date | null;
+  startDate: Date | null;
   status: string;
+  isRenewal: boolean;
 }> {
   const subscription = await getUserLatestSubscription(userId);
 
@@ -82,7 +84,9 @@ export async function getSubscriptionStatus(userId: string | ObjectId): Promise<
       plan: "none",
       daysRemaining: 0,
       expiryDate: null,
+      startDate: null,
       status: "no_subscription",
+      isRenewal: false,
     };
   }
 
@@ -91,6 +95,11 @@ export async function getSubscriptionStatus(userId: string | ObjectId): Promise<
     (subscription.expiry_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   );
 
+  const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
+  const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
+  const subscriptionCount = await subscriptionsCollection.countDocuments({ user_id: userObjectId });
+  const isRenewal = subscriptionCount > 1 || !!subscription.previous_subscription_id;
+
   return {
     isActive: ["active", "in_trial", "trial"].includes(subscription.status) && subscription.expiry_date > now,
     isPending: subscription.status === "pending",
@@ -98,7 +107,9 @@ export async function getSubscriptionStatus(userId: string | ObjectId): Promise<
     plan: subscription.plan,
     daysRemaining: Math.max(0, daysRemaining),
     expiryDate: subscription.expiry_date,
+    startDate: subscription.billing_cycle_start || subscription.created_at,
     status: subscription.status,
+    isRenewal,
   };
 }
 
