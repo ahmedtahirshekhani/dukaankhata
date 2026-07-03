@@ -86,22 +86,28 @@ export default function QuotationListPage() {
     setIsConverting(quotationId);
     setConvertDialogOpen(false);
     try {
-      const res = await fetch(`/${locale}/api/quotations/${quotationId}/convert`, {
-        method: "POST",
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setErrorDialog({
-          open: true,
-          title: tCommon("success"),
-          message: tInv("quotation_converted_success", { invoiceNo: data.invoiceNo }),
-          isSuccess: true,
-        });
-      } else {
-        const errorData = await res.json();
-        throw new Error(errorData?.error || tInv("failed_to_convert"));
+      // Update local DB
+      const quotation = await db.quotations.get(quotationId);
+      if (quotation) {
+        quotation.status = "converted";
+        await db.quotations.put(quotation);
       }
+      
+      // Queue offline sync
+      await SyncEngine.queueOperation(
+        "quotations",
+        "POST",
+        `/${locale}/api/quotations/${quotationId}/convert`,
+        {},
+        quotationId
+      );
+      
+      setErrorDialog({
+        open: true,
+        title: tCommon("success"),
+        message: tInv("quotation_converted_success", { invoiceNo: "Pending Sync" }),
+        isSuccess: true,
+      });
     } catch (error) {
       setErrorDialog({
         open: true,

@@ -290,6 +290,20 @@ export default function PartiesPage() {
       return;
     }
 
+    const trimmedName = newCustomerName.trim();
+    const existingOfflineCustomer = allOfflineCustomers.find(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase() && p.is_delete !== 1 && p.id !== selectedCustomerId
+    );
+
+    if (existingOfflineCustomer) {
+      setErrorDialog({
+        open: true,
+        title: t("error"),
+        message: "A party with this name already exists",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updatedCustomer = {

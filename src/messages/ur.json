@@ -1392,7 +1392,16 @@
       "plan5000Feature8": "مختص اکاؤنٹ مینیجر",
       "ctaFree": "مفت شروع کریں",
       "ctaPlan1000": "سٹارٹر منتخب کریں",
-      "ctaPlan5000": "بزنس منتخب کریں"
+      "ctaPlan5000": "بزنس منتخب کریں",
+      "subscriptionDetailsTitle": "سبسکرپشن کی تفصیلات",
+      "planLabel": "پلان:",
+      "statusLabel": "سٹیٹس:",
+      "startDateLabel": "شروع کی تاریخ:",
+      "expiryDateLabel": "ختم ہونے کی تاریخ:",
+      "gracePeriodLabel": "رعایتی مدت (Grace Period):",
+      "gracePeriodActive": "فعال (بلاک ہونے سے بچنے کے لیے تجدید کریں)",
+      "dialogActiveTitle": "ایکٹو سبسکرپشن",
+      "dialogActiveDescription": "آپ کی سبسکرپشن ایکٹو ہے۔ آپ کی سبسکرپشن کی تفصیل نیچے دی گئی ہے۔"
     },
     "contact": {
       "sectionTitle": "رابطہ کریں",

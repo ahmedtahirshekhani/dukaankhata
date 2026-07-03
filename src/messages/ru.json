@@ -1392,7 +1392,16 @@
       "plan5000Feature8": "Dedicated account manager",
       "ctaFree": "Free Shuru Karain",
       "ctaPlan1000": "PRO Chunain",
-      "ctaPlan5000": "Business Chunain"
+      "ctaPlan5000": "Business Chunain",
+      "subscriptionDetailsTitle": "Subscription ki Tafseelat",
+      "planLabel": "Plan:",
+      "statusLabel": "Status:",
+      "startDateLabel": "Shuru hone ki tareekh:",
+      "expiryDateLabel": "Khatam hone ki tareekh:",
+      "gracePeriodLabel": "Grace Period:",
+      "gracePeriodActive": "Active (Block hone se bachne ke liye renew karain)",
+      "dialogActiveTitle": "Active Subscription",
+      "dialogActiveDescription": "Aapki subscription active hai. Aapki subscription ki tafseel neechay di gayi hai."
     },
     "contact": {
       "sectionTitle": "Contact Us",

@@ -220,6 +220,23 @@ function QuotationFormPageInner({
 
         setIsSaving(true);
         try {
+            // Check for duplicate quotation number locally
+            if (quotationNo) {
+                const existingQuotation = await db.quotations
+                    .filter(q => q.quotation_no === quotationNo)
+                    .first();
+                
+                if (existingQuotation && existingQuotation.id !== editingQuotationId && existingQuotation._id !== editingQuotationId) {
+                    setErrorDialog({
+                        open: true,
+                        title: tCommon("error"),
+                        message: t("quotationNumberExists") || `Quotation number ${quotationNo} already exists`,
+                        isSuccess: false,
+                    });
+                    setIsSaving(false);
+                    return;
+                }
+            }
             const payload = {
                 party_id: selectedPartyId,
                 party_name: selectedPartyName,

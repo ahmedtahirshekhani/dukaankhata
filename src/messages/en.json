@@ -1392,7 +1392,16 @@
       "plan5000Feature8": "Dedicated account manager",
       "ctaFree": "Get Started Free",
       "ctaPlan1000": "Choose Starter",
-      "ctaPlan5000": "Choose Business"
+      "ctaPlan5000": "Choose Business",
+      "subscriptionDetailsTitle": "Subscription Details",
+      "planLabel": "Plan:",
+      "statusLabel": "Status:",
+      "startDateLabel": "Start Date:",
+      "expiryDateLabel": "Expiry Date:",
+      "gracePeriodLabel": "Grace Period:",
+      "gracePeriodActive": "Active (Please renew to avoid block)",
+      "dialogActiveTitle": "Active Subscription",
+      "dialogActiveDescription": "Your subscription is currently active. Here are your subscription details."
     },
     "contact": {
       "sectionTitle": "Contact Us",

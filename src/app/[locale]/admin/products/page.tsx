@@ -10,12 +10,12 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import {
-  PlusIcon,
   Loader2Icon,
   SearchIcon,
   FileDown,
   Upload,
   MoreVertical,
+  PlusCircle,
 } from "lucide-react";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import { db } from "@/lib/db/offline-db";
@@ -444,7 +444,7 @@ export default function Products() {
                 onClick={() => setIsProductDialogOpen(true)}
                 className="h-9 text-xs px-2 flex-shrink-0"
               >
-                <PlusIcon className="w-3 h-3 mr-1" />
+                <PlusCircle className="w-3 h-3 mr-1" />
                 {t("addProduct")}
               </Button>
               <DropdownMenu>
@@ -571,7 +571,7 @@ export default function Products() {
                   onClick={() => setIsProductDialogOpen(true)}
                   className="h-9 text-xs px-3 flex-shrink-0"
                 >
-                  <PlusIcon className="w-3 h-3 mr-1" />
+                  <PlusCircle className="w-3 h-3 mr-1" />
                   {t("addProduct")}
                 </Button>
               </div>
