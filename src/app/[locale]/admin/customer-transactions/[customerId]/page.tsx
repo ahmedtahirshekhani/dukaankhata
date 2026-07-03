@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,6 +47,7 @@ type ReportMeta = {
 
 export default function CustomerTransactionsDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const locale = useLocale();
   const tDash = useTranslations("dashboard");
   const tStatement = useTranslations("accountStatement");
@@ -112,11 +113,9 @@ export default function CustomerTransactionsDetailPage() {
   if (error) {
     return (
       <div className="flex flex-col gap-4">
-        <Button asChild variant="outline" className="w-fit">
-          <Link href={`/${locale}/admin`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {tDash("backToDashboard") || "Back to Dashboard"}
-          </Link>
+        <Button variant="outline" className="w-fit" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {tDash("back") || "Back"}
         </Button>
         <Card>
           <CardContent className="pt-6">
@@ -129,11 +128,9 @@ export default function CustomerTransactionsDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Button asChild variant="outline" className="w-fit">
-        <Link href={`/${locale}/admin`}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {tDash("backToDashboard") || "Back to Dashboard"}
-        </Link>
+      <Button variant="outline" className="w-fit" onClick={() => router.back()}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        {tDash("back") || "Back"}
       </Button>
 
       <div>

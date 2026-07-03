@@ -68,7 +68,9 @@
     "clearCache": "Cache Clear Karein",
     "clearCacheWarning": "Kya aap waqai local cache clear karna chahte hain? Is se offline data delete ho kar dobara server se sync hoga.",
     "clearingCache": "Clear ho raha hai...",
-    "cacheClearedSuccess": "Cache successfully clear ho gaya"
+    "cacheClearedSuccess": "Cache successfully clear ho gaya",
+    "syncingData": "Data sync ho raha hai...",
+    "pleaseWait": "Barae meharbani intezar karein, offline database tayar kiya ja raha hai."
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -1148,6 +1150,7 @@
     "actions": "Actions",
     "viewTransactions": "Transactions View",
     "backToDashboard": "Dashboard par Wapas",
+    "back": "Peeche",
     "customerTransactionsToDate": "Customer ki aaj tak ki transactions",
     "customerDetails": "Customer Details",
     "failedToFetchCustomers": "Customers fetch karne mein masla",

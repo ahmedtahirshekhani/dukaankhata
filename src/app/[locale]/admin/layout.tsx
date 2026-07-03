@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { useSession } from "next-auth/react";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function Layout({
   children,
@@ -14,6 +16,8 @@ export default function Layout({
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const tCommon = useTranslations("common");
+  const [isInitialSyncing, setIsInitialSyncing] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -31,8 +35,20 @@ export default function Layout({
   // Initial Sync when user logs in and is authenticated
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      // Check if sync already happened recently or just trigger it
-      SyncEngine.pullInitialData().catch(console.error);
+      const lastSync = typeof window !== 'undefined' ? localStorage.getItem('last_sync_timestamp') : null;
+      
+      if (!lastSync) {
+        setIsInitialSyncing(true);
+        SyncEngine.pullInitialData()
+          .then(() => setIsInitialSyncing(false))
+          .catch((error) => {
+             console.error(error);
+             setIsInitialSyncing(false);
+          });
+      } else {
+        // Check if sync already happened recently or just trigger it in background
+        SyncEngine.pullInitialData().catch(console.error);
+      }
       
       // Also attempt to push any pending queues
       SyncEngine.pushQueue().catch(console.error);
@@ -49,5 +65,5 @@ export default function Layout({
     }
   }, [status, session]);
 
-  return <AdminLayout>{children}</AdminLayout>;
+  return <AdminLayout isInitialSyncing={isInitialSyncing}>{children}</AdminLayout>;
 }

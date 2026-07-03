@@ -68,7 +68,9 @@
     "clearCache": "Clear Cache",
     "clearCacheWarning": "Are you sure you want to clear the local cache? This will delete the offline database and re-sync all data from the server.",
     "clearingCache": "Clearing...",
-    "cacheClearedSuccess": "Cache cleared successfully"
+    "cacheClearedSuccess": "Cache cleared successfully",
+    "syncingData": "Syncing Data...",
+    "pleaseWait": "Please wait while we set up your offline database."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -1148,6 +1150,7 @@
     "actions": "Actions",
     "viewTransactions": "View Transactions",
     "backToDashboard": "Back to Dashboard",
+    "back": "Back",
     "customerTransactionsToDate": "Party transactions to date",
     "customerDetails": "Party Details",
     "failedToFetchCustomers": "Failed to fetch parties",

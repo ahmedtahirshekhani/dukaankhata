@@ -11,6 +11,7 @@ import Link from "next/link";
 import { ArrowLeft, Download, FileText, Loader2, Printer, Replace } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
+import { db } from "@/lib/db/offline-db";
 
 export default function QuotationViewClient({ id }: { id: string }) {
     const tInvoice = useTranslations("invoice");
@@ -43,10 +44,24 @@ export default function QuotationViewClient({ id }: { id: string }) {
     const fetchQuotation = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/${locale}/api/quotations/${id}`);
-            if (!res.ok) throw new Error("Quotation not found");
-            const data = await res.json();
-            setQuotation(data.quotation || data);
+            const quot = await db.quotations.get(id);
+            if (!quot) throw new Error("Quotation not found");
+            
+            // Populate party details from offline DB if missing or incomplete
+            if (quot.party_id && (!quot.party_details || !quot.party_details.phone)) {
+                const party = await db.parties.get(quot.party_id);
+                if (party) {
+                    quot.party_details = {
+                        name: party.name,
+                        company_name: party.company_name,
+                        phone: party.phone,
+                        email: party.email,
+                        address: party.company_address || party.address,
+                    };
+                }
+            }
+            
+            setQuotation(quot);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -58,23 +73,62 @@ export default function QuotationViewClient({ id }: { id: string }) {
         fetchQuotation();
         const loadBranding = async () => {
             try {
+                // 1. Try to load branding from localStorage first (offline support)
+                const cachedLogo = typeof window !== "undefined" ? localStorage.getItem("companyLogo") : null;
+                const cachedSignature = typeof window !== "undefined" ? localStorage.getItem("invoiceSignature") : null;
+                const cachedName = typeof window !== "undefined" ? localStorage.getItem("companyName") : null;
+                const cachedAddress = typeof window !== "undefined" ? localStorage.getItem("companyAddress") : null;
+                const cachedPhone = typeof window !== "undefined" ? localStorage.getItem("companyPhone") : null;
+                const cachedEmail = typeof window !== "undefined" ? localStorage.getItem("companyEmail") : null;
+
+                setBranding({
+                    name: cachedName || "Dukan Khata",
+                    address: cachedAddress || "Karachi, Pakistan",
+                    phone: cachedPhone || "",
+                    email: cachedEmail || "",
+                    logo: cachedLogo || null,
+                    signatureImage: cachedSignature || null,
+                });
+
+                // 2. Try to fetch from server if online and update cache
                 const res = await fetch(`/${locale}/api/configuration/assets`);
                 if (res.ok) {
                     const data = await res.json();
+                    
+                    const name = data.companyName || "Dukan Khata";
+                    const address = data.companyAddress || "Karachi, Pakistan";
+                    const phone = data.companyPhone || "";
+                    const email = data.companyEmail || "";
+                    const logo = data.companyLogo || null;
+                    const signature = data.signatureImage || null;
+
                     setBranding({
-                        name: data.companyName || "Dukan Khata",
-                        address: data.companyAddress || "Karachi, Pakistan",
-                        phone: data.companyPhone || "",
-                        email: data.companyEmail || "",
-                        logo: data.companyLogo || null,
-                        signatureImage: data.signatureImage || null,
+                        name,
+                        address,
+                        phone,
+                        email,
+                        logo,
+                        signatureImage: signature,
                     });
+
+                    // Update localStorage cache
+                    if (typeof window !== "undefined") {
+                        if (name) localStorage.setItem("companyName", name);
+                        if (address) localStorage.setItem("companyAddress", address);
+                        if (phone) localStorage.setItem("companyPhone", phone);
+                        if (email) localStorage.setItem("companyEmail", email);
+                        if (logo) localStorage.setItem("companyLogo", logo);
+                        else localStorage.removeItem("companyLogo");
+                        if (signature) localStorage.setItem("invoiceSignature", signature);
+                        else localStorage.removeItem("invoiceSignature");
+                    }
                 }
             } catch (err) {
-                console.error("Failed to load branding", err);
+                console.error("Failed to load branding (may be offline)", err);
             }
         };
         loadBranding();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, locale]);
 
     const handleConvert = async () => {

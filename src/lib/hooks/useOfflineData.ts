@@ -1,8 +1,27 @@
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useState, useEffect } from 'react';
+import { liveQuery } from 'dexie';
 import { db } from '../db/offline-db';
 
+// Custom hook to replace useLiveQuery from dexie-react-hooks
+// This fixes the Next.js App Router bug where navigating back returns an empty/stale state
+function useSafeLiveQuery<T>(querier: () => Promise<T> | T, deps: any[] = []): T | undefined {
+  const [data, setData] = useState<T | undefined>(undefined);
+
+  useEffect(() => {
+    const observable = liveQuery(querier);
+    const subscription = observable.subscribe({
+      next: (val) => setData(val),
+      error: (err) => console.error("useSafeLiveQuery error:", err)
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return data;
+}
+
 export function useOfflineCustomers(searchQuery: string = '') {
-  return useLiveQuery(() => {
+  return useSafeLiveQuery(() => {
     return db.parties.filter(party => {
       // Filter out deleted parties
       if (party.is_delete === 1) return false;
@@ -22,9 +41,8 @@ export function useOfflineCustomers(searchQuery: string = '') {
   }, [searchQuery]);
 }
 
-
 export function useOfflineProducts(searchQuery: string = '', type: string = 'all') {
-  return useLiveQuery(() => {
+  return useSafeLiveQuery(() => {
     let collection = db.products;
     
     return collection.filter(product => {
@@ -53,20 +71,36 @@ export function useOfflineProducts(searchQuery: string = '', type: string = 'all
   }, [searchQuery, type]);
 }
 
+export function useOfflineCategories(searchQuery: string = '') {
+  return useSafeLiveQuery(() => {
+    return db.categories.filter(category => {
+      if (category.is_delete === 1) return false;
+      if (searchQuery) {
+        return Boolean(category.category_name?.toLowerCase().includes(searchQuery.toLowerCase()));
+      }
+      return true;
+    }).toArray().then(arr => arr.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }));
+  }, [searchQuery]);
+}
+
 export function useOfflineOrders() {
-  return useLiveQuery(() => db.orders.toArray());
+  return useSafeLiveQuery(() => db.orders.toArray());
 }
 
 export function useOfflineExpenses() {
-  return useLiveQuery(() => db.expenses.toArray());
+  return useSafeLiveQuery(() => db.expenses.toArray());
 }
 
 export function useOfflineLedger(partyId: string) {
-  return useLiveQuery(() => db.party_ledger_entries.where('party_id').equals(partyId).toArray(), [partyId]);
+  return useSafeLiveQuery(() => db.party_ledger_entries.where('party_id').equals(partyId).toArray(), [partyId]);
 }
 
 export function useOfflineCustomerTransactions(type: string = 'payment-in', searchQuery: string = '', filterPaymentMethodId: string = 'all', filterPartyId: string = 'all') {
-  return useLiveQuery(async () => {
+  return useSafeLiveQuery(async () => {
     // Join parties and payment methods locally
     const allParties = await db.parties.toArray();
     const partyMap = new Map(allParties.map(p => [(p.id || p._id)?.toString(), p.name]));
@@ -128,5 +162,27 @@ export function useOfflineCustomerTransactions(type: string = 'payment-in', sear
 }
 
 export function useOfflinePaymentMethods() {
-  return useLiveQuery(() => db.payment_methods.toArray());
+  return useSafeLiveQuery(() => db.payment_methods.toArray());
+}
+
+export function useOfflineQuotations(searchQuery: string = '') {
+  return useSafeLiveQuery(() => {
+    return db.quotations.filter(quotation => {
+      // Filter out deleted quotations if there's a flag, otherwise assume all are valid unless deleted physically
+      if (quotation.is_delete === 1) return false;
+      
+      if (searchQuery) {
+        const lowerSearch = searchQuery.toLowerCase();
+        return Boolean(
+          quotation.quotation_no?.toLowerCase().includes(lowerSearch) || 
+          quotation.party_name?.toLowerCase().includes(lowerSearch)
+        );
+      }
+      return true;
+    }).toArray().then(arr => arr.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }));
+  }, [searchQuery]);
 }

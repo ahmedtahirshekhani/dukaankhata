@@ -43,12 +43,15 @@ export async function GET(request: Request) {
 
     const result: Record<string, any[]> = {};
     
-    // Fetch all in parallel for performance
-    await Promise.all(collectionsToFetch.map(async (col) => {
-      const dbCol = await getCollection(col.key);
-      const docs = await dbCol.find(query).toArray();
-      result[col.name] = mapData(docs);
-    }));
+    // Fetch in batches of 4 for performance while avoiding DB connection exhaustion
+    for (let i = 0; i < collectionsToFetch.length; i += 4) {
+      const batch = collectionsToFetch.slice(i, i + 4);
+      await Promise.all(batch.map(async (col) => {
+        const dbCol = await getCollection(col.key);
+        const docs = await dbCol.find(query).toArray();
+        result[col.name] = mapData(docs);
+      }));
+    }
 
     return NextResponse.json({
       data: result,

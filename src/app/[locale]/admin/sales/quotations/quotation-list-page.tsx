@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/table";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Download, Trash2, EyeIcon, Loader2, SearchIcon, X, Edit } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Download, Trash2, EyeIcon, Loader2, SearchIcon, X, Edit, PlusCircle } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -28,6 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { useOfflineQuotations } from "@/lib/hooks/useOfflineData";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 export default function QuotationListPage() {
   const t = useTranslations();
@@ -36,8 +39,23 @@ export default function QuotationListPage() {
   const tInv = useTranslations("invoice");
   const locale = useLocale();
   const router = useRouter();
-  const [quotations, setQuotations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Pagination & Search States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const rawQuotations = useOfflineQuotations(debouncedSearch);
+  const quotations = useMemo(() => {
+    if (!rawQuotations) return [];
+    const startIndex = (currentPage - 1) * pageSize;
+    return rawQuotations.slice(startIndex, startIndex + pageSize);
+  }, [rawQuotations, currentPage, pageSize]);
+  
+  const totalPages = Math.ceil((rawQuotations?.length || 0) / pageSize) || 1;
+  const loading = rawQuotations === undefined;
+
   const [isConverting, setIsConverting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -55,14 +73,7 @@ export default function QuotationListPage() {
     title: "",
     message: "",
   });
-  
-  // Pagination & Search States
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  const [isPageLoading, setIsPageLoading] = useState(false);
+  const isPageLoading = false;
 
   const handleConvertClick = (quotationId: string) => {
     setQuotationToConvert(quotationId);
@@ -87,7 +98,6 @@ export default function QuotationListPage() {
           message: tInv("quotation_converted_success", { invoiceNo: data.invoiceNo }),
           isSuccess: true,
         });
-        fetchQuotations(); // Refresh list
       } else {
         const errorData = await res.json();
         throw new Error(errorData?.error || tInv("failed_to_convert"));
@@ -104,58 +114,7 @@ export default function QuotationListPage() {
     }
   };
 
-  const fetchQuotations = async (page = currentPage, limit = pageSize, search = debouncedSearch) => {
-    // Only show full-screen loader on the very first load
-    if (quotations.length === 0 && !search && page === 1) {
-      setLoading(true);
-    }
-    setIsPageLoading(true);
-    setError(null);
-    try {
-      const url = new URL(`/${locale}/api/quotations`, window.location.origin);
-      url.searchParams.append("page", page.toString());
-      url.searchParams.append("limit", limit.toString());
-      if (search) url.searchParams.append("search", search);
-      
-      const response = await fetch(url.toString());
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.quotations) {
-        setQuotations(data.quotations);
-        setTotalPages(data.pagination?.totalPages || 1);
-      } else {
-        setQuotations(Array.isArray(data) ? data : []);
-        setTotalPages(1);
-      }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      let message = "Unknown error";
-      if (error && typeof error === "object" && "message" in error && typeof (error as any).message === "string") {
-        message = (error as any).message;
-      } else if (typeof error === "string") {
-        message = error;
-      }
-      setError(message);
-      setQuotations([]);
-    } finally {
-      setLoading(false);
-      setIsPageLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    fetchQuotations(1, pageSize, debouncedSearch);
-    setCurrentPage(1);
-  }, [debouncedSearch, locale, pageSize]);
-
-  useEffect(() => {
-    fetchQuotations(currentPage, pageSize, debouncedSearch);
-  }, [currentPage]);
 
   const handleDeleteClick = (quotation: any) => {
     setQuotationToDelete(quotation);
@@ -167,19 +126,16 @@ export default function QuotationListPage() {
     const id = quotationToDelete._id || quotationToDelete.id;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/${locale}/api/quotations/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setQuotations(quotations.filter((q) => (q._id || q.id) !== id));
-        setErrorDialog({
-          open: true,
-          title: tCommon("success"),
-          message: tInv("quotation_deleted_success"),
-          isSuccess: true,
-        });
-      } else {
-        const errorData = await res.json();
-        throw new Error(errorData?.error || tInv("failed_to_delete"));
-      }
+      // Offline Delete
+      await db.quotations.delete(id);
+      await SyncEngine.queueOperation("quotations", "DELETE", `/${locale}/api/quotations/${id}`, {}, id);
+      
+      setErrorDialog({
+        open: true,
+        title: tCommon("success"),
+        message: tInv("quotation_deleted_success"),
+        isSuccess: true,
+      });
     } catch (error) {
       setErrorDialog({
         open: true,
@@ -209,8 +165,8 @@ export default function QuotationListPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           <h3 className="font-semibold">{tInv("loading_quotations_error")}</h3>
           <p className="text-sm">{error}</p>
-          <Button onClick={() => fetchQuotations()} className="mt-2" variant="outline">
-            {tCommon("confirm")}
+          <Button onClick={() => window.location.reload()} className="mt-2" variant="outline">
+            {tCommon("confirm") || "Retry"}
           </Button>
         </div>
       </div>
@@ -218,39 +174,76 @@ export default function QuotationListPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <>
+      <div className="hidden sm:flex flex-col gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{tNav("quotations")}</h1>
-          <p className="text-sm text-muted-foreground">{tNav("quotationsDescription")}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">{tNav("quotations")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{tNav("quotationsDescription")}</p>
         </div>
-        <Button asChild className="shrink-0">
-          <Link href={`/${locale}/admin/sales/quotations/new`}>{t("common.add")}</Link>
-        </Button>
       </div>
 
-      <Card className="shadow-md">
-        <CardHeader className="p-4 border-b bg-muted/50">
-          <div className="relative w-full sm:max-w-sm">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t("common.search") || "Search quotations..."}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-9"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+      <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 shadow-md">
+        <CardHeader className="p-0">
+          <div className="flex flex-col gap-3">
+            {/* Mobile: Search + Add Button in Row */}
+            <div className="flex gap-2 md:hidden items-center">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("common.search") || "Search quotations..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-9 h-9 text-sm w-full"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button asChild size="sm" className="h-9 text-xs px-2 flex-shrink-0">
+                <Link href={`/${locale}/admin/sales/quotations/new`}>
+                  <PlusCircle className="w-3 h-3 mr-1" />
+                  {t("common.add")}
+                </Link>
+              </Button>
+            </div>
+
+            {/* Desktop: Search and Actions */}
+            <div className="hidden md:flex items-center justify-between gap-2">
+              <div className="relative w-full max-w-sm">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("common.search") || "Search quotations..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-9"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button asChild size="sm" className="h-9 text-xs px-3 flex-shrink-0">
+                  <Link href={`/${locale}/admin/sales/quotations/new`}>
+                    <PlusCircle className="w-3 h-3 mr-1" />
+                    {t("common.add")}
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </div>
         </CardHeader>
         
-        <CardContent className="p-0">
+        <CardContent className="p-0 relative">
           {quotations.length === 0 && !loading ? (
             <div className="text-center py-20 text-muted-foreground bg-muted/5">
               <div className="flex flex-col items-center gap-2">
@@ -279,7 +272,7 @@ export default function QuotationListPage() {
                       <TableHead>{tInv("status")}</TableHead>
                       <TableHead>{tInv("validity")}</TableHead>
                       <TableHead>{tInv("date")}</TableHead>
-                      <TableHead>{tCommon("actions")}</TableHead>
+                      <TableHead className="w-[1%] whitespace-nowrap">{tCommon("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -307,38 +300,42 @@ export default function QuotationListPage() {
                           <TableCell className="text-muted-foreground">
                             {q.created_at ? new Date(q.created_at).toLocaleDateString() : "-"}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1 justify-end">
-                              <Button size="icon" variant="ghost" asChild title="View">
+                          <TableCell className="w-[1%] whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              {q.status !== "converted" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs font-medium"
+                                  onClick={() => handleConvertClick(quotId)}
+                                  disabled={isConverting === quotId}
+                                >
+                                  {isConverting === quotId ? (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                  ) : null}
+                                  {tNav("convertToSale")}
+                                </Button>
+                              )}
+                              <Button size="icon" variant="ghost" asChild>
                                 <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
                                   <EyeIcon className="h-4 w-4" />
+                                  <span className="sr-only">{tCommon("view") || "View"}</span>
                                 </Link>
                               </Button>
-                              <Button size="icon" variant="ghost" asChild title="Edit">
+                              <Button size="icon" variant="ghost" asChild>
                                 <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
                                   <Edit className="h-4 w-4" />
+                                  <span className="sr-only">{tCommon("edit") || "Edit"}</span>
                                 </Link>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="h-8 text-xs font-medium border-primary/20 text-white hover:opacity-90 transition-opacity"
-                                onClick={() => handleConvertClick(quotId)}
-                                disabled={isConverting === quotId || q.status === "converted"}
-                              >
-                                {isConverting === quotId ? (
-                                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                ) : null}
-                                {tNav("convertToSale")}
                               </Button>
                               <Button
                                 size="icon"
                                 variant="danger"
                                 className="h-8 w-8"
                                 onClick={() => handleDeleteClick(q)}
-                                title="Delete"
                               >
                                 <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">{tCommon("delete") || "Delete"}</span>
                               </Button>
                             </div>
                           </TableCell>
@@ -372,16 +369,20 @@ export default function QuotationListPage() {
           )}
         </CardContent>
         
-        <div className="border-t p-4 flex flex-col md:flex-row justify-between items-center gap-4 bg-muted/30">
-          <div className="flex items-center gap-4">
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: rawQuotations?.length || 0 })}
+            </div>
+            
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {t("common.rowsPerPage") || "Rows per page"}:
+                {tCommon("rowsPerPage")}
               </span>
               <Select
                 value={pageSize.toString()}
-                onValueChange={(v) => {
-                  setPageSize(parseInt(v));
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
                   setCurrentPage(1);
                 }}
               >
@@ -398,16 +399,13 @@ export default function QuotationListPage() {
               </Select>
             </div>
           </div>
-          
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              isLoading={isPageLoading}
-            />
-          )}
-        </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isLoading={isPageLoading}
+          />
+        </CardFooter>
       </Card>
 
       {/* Confirm Convert Dialog */}
@@ -442,7 +440,7 @@ export default function QuotationListPage() {
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
       />
-    </div>
+    </>
   );
 }
 
