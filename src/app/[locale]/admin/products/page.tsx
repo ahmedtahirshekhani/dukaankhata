@@ -699,55 +699,6 @@ export default function Products() {
           <div className="space-y-4 py-4">
             {/* 2 Filters per row */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Type Filter */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 h-9 text-xs justify-start w-full"
-                  >
-                    <span className="text-muted-foreground">{t("type")}:</span>
-                    <span>
-                      {mobileFilters.type === "all"
-                        ? t("all")
-                        : mobileFilters.type === "goods"
-                        ? t("goods")
-                        : t("services")}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
-                  <DropdownMenuLabel>{t("type")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={mobileFilters.type === "all"}
-                    onCheckedChange={() =>
-                      handleMobileFilterChange("type", "all")
-                    }
-                  >
-                    {t("all")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={mobileFilters.type === "goods"}
-                    onCheckedChange={() =>
-                      handleMobileFilterChange("type", "goods")
-                    }
-                  >
-                    {t("goods")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={mobileFilters.type === "services"}
-                    onCheckedChange={() =>
-                      handleMobileFilterChange("type", "services")
-                    }
-                  >
-                    {t("services")}
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
               {/* Category Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -790,53 +741,6 @@ export default function Products() {
                       }
                     >
                       {capitalizeFirstLetter(cat)}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Branch Filter */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 h-9 text-xs justify-start w-full"
-                  >
-                    <span className="text-muted-foreground">
-                      {t("branch")}:
-                    </span>
-                    <span className="truncate">
-                      {mobileFilters.branch === "all"
-                        ? t("all")
-                        : mobileFilters.branch}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-40 max-h-64 overflow-y-auto"
-                >
-                  <DropdownMenuLabel>{t("branch")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={mobileFilters.branch === "all"}
-                    onCheckedChange={() =>
-                      handleMobileFilterChange("branch", "all")
-                    }
-                  >
-                    {t("all")}
-                  </DropdownMenuCheckboxItem>
-                  {branches.map((branch) => (
-                    <DropdownMenuCheckboxItem
-                      key={branch}
-                      checked={mobileFilters.branch === branch}
-                      onCheckedChange={() =>
-                        handleMobileFilterChange("branch", branch)
-                      }
-                    >
-                      {capitalizeFirstLetter(branch)}
                     </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
