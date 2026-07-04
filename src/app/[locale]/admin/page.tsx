@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
+import { SummaryCarousel } from "@/components/summary-carousel";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import {
@@ -202,7 +203,7 @@ export default function DashboardPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
 
   useEffect(() => {
@@ -620,11 +621,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Summary Cards Grid */}
-      <div className="flex gap-2 overflow-x-auto pb-0.5">
-        {summaryCards.map((card) => (
-          <div key={card.key} className="flex-1 min-w-[120px]">{card.node}</div>
-        ))}
+      {/* Summary Cards Carousel */}
+      <div className="min-w-0 max-w-full">
+        <SummaryCarousel
+          cards={summaryCards.map(c => <React.Fragment key={c.key}>{c.node}</React.Fragment>)}
+          itemClassName="basis-[45%] sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
+        />
       </div>
 
       {/* Dashboard Tabs Section */}

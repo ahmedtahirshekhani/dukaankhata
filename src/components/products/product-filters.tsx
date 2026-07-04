@@ -67,9 +67,7 @@ export function ProductFilters({
   const priceLabel = t("price");
   // Check if any filters are active
   const hasActiveFilters =
-    filters.type !== "all" ||
     filters.category !== "all" ||
-    filters.branch !== "all" ||
     priceRanges.sellPriceMin !== "" ||
     priceRanges.sellPriceMax !== "" ||
     priceRanges.costPriceMin !== "" ||
@@ -94,51 +92,6 @@ export function ProductFilters({
         />
         <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
       </div>
-
-      {/* Type Filter */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1 h-9 text-xs flex-shrink-0"
-          >
-            <span className="text-muted-foreground hidden sm:inline">
-              {typeLabel}:
-            </span>
-            <span>
-              {filters.type === "all"
-                ? allLabel
-                : filters.type === "goods"
-                ? goodsLabel
-                : servicesLabel}
-            </span>
-            <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuLabel>{typeLabel}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuCheckboxItem
-            checked={filters.type === "all"}
-            onCheckedChange={() => onFilterChange("type", "all")}
-          >
-            {allLabel}
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={filters.type === "goods"}
-            onCheckedChange={() => onFilterChange("type", "goods")}
-          >
-            {goodsLabel}
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={filters.type === "services"}
-            onCheckedChange={() => onFilterChange("type", "services")}
-          >
-            {servicesLabel}
-          </DropdownMenuCheckboxItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
 
       {/* Category Filter */}
       <DropdownMenu>
@@ -176,47 +129,6 @@ export function ProductFilters({
               onCheckedChange={() => onFilterChange("category", cat)}
             >
               {capitalizeFirstLetter(cat)}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Branch Filter */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1 h-9 text-xs flex-shrink-0"
-          >
-            <span className="text-muted-foreground hidden sm:inline">
-              {branchLabel}:
-            </span>
-            <span className="truncate max-w-[80px] sm:max-w-none">
-              {filters.branch === "all" ? allLabel : filters.branch}
-            </span>
-            <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-40 max-h-64 overflow-y-auto"
-        >
-          <DropdownMenuLabel>{branchLabel}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuCheckboxItem
-            checked={filters.branch === "all"}
-            onCheckedChange={() => onFilterChange("branch", "all")}
-          >
-            {allLabel}
-          </DropdownMenuCheckboxItem>
-          {branches.map((branch) => (
-            <DropdownMenuCheckboxItem
-              key={branch}
-              checked={filters.branch === branch}
-              onCheckedChange={() => onFilterChange("branch", branch)}
-            >
-              {capitalizeFirstLetter(branch)}
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>

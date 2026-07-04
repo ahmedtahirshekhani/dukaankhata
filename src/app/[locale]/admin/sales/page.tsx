@@ -21,7 +21,7 @@ export default function SalesModulePage() {
         if (savedCounter) setEnableCounterSale(savedCounter === "true");
       }
     };
-    
+
     loadFeatures();
 
     window.addEventListener("featureSettingsUpdated", loadFeatures);
