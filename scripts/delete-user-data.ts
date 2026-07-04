@@ -76,7 +76,6 @@ async function deleteUserData(db: Db, userId: string, dryRun: boolean): Promise<
   await deleteCollection("expenses", COLLECTIONS.EXPENSES);
   await deleteCollection("transactions", COLLECTIONS.TRANSACTIONS);
   await deleteCollection("quotations", COLLECTIONS.QUOTATIONS);
-  await deleteCollection("subscriptions", COLLECTIONS.SUBSCRIPTIONS);
   await deleteCollection("categories", COLLECTIONS.CATEGORIES);
   await deleteCollection("branches", COLLECTIONS.BRANCHES);
   await deleteCollection("chathistories", "chathistories");

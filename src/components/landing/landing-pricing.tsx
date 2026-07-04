@@ -79,7 +79,6 @@ export function LandingPricing() {
               <p className="mt-3 text-muted-foreground text-sm">
                 {t("proDescriptionMonthly")}
               </p>
-
               <ul className="mt-8 flex-1 space-y-4 border-t border-border/50 pt-8">
                 {proFeatures.map((feature, index) => (
                   <li
