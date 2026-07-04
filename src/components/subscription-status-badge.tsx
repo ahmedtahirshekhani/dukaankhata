@@ -121,7 +121,9 @@ export function SubscriptionStatusBadge() {
       return subscriptionStatus.isRenewal ? "Payment Pending (Renew)" : "Pending";
     }
     if (subscriptionStatus.isActive) {
-      return `${["trial", "in_trial"].includes(subscriptionStatus.status) ? "Trial" : "Active"}`;
+      const planName = subscriptionStatus.plan ? subscriptionStatus.plan.charAt(0).toUpperCase() + subscriptionStatus.plan.slice(1) : "";
+      const baseStatus = ["trial", "in_trial"].includes(subscriptionStatus.status) ? "Trial" : "Active";
+      return planName ? `${baseStatus} (${planName})` : baseStatus;
     }
     if (subscriptionStatus.isExpired) {
       if (
