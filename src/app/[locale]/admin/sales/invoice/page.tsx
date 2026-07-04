@@ -18,6 +18,7 @@ import {
   FilePenIcon,
   EyeIcon,
   XIcon,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   Table,
@@ -62,6 +63,11 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { Pagination } from "@/components/ui/pagination";
 import { Plus } from "lucide-react";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { useOfflineOrders } from "@/lib/hooks/useOfflineData";
+import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
+import { maskInvoiceNo } from "@/lib/utils";
 
 // ------------------------------------------------------------
 // Edit Order Dialog Component (embedded for clarity)
@@ -77,6 +83,7 @@ type OrderProduct = {
   discount: number;
   discountType: "value" | "percentage";
   unit_of_measurement?: string;
+  type?: string;
 };
 
 type OrderCharge = {
@@ -263,10 +270,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/orders/${order.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = {
           customerId,
           saleDate,
           dueDate: dueDate || null,
@@ -294,9 +298,85 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
             noPaymentAtAll: payment.noPaymentAtAll,
           },
           customerNotes,
-        }),
-      });
-      if (!res.ok) throw new Error("Update failed");
+      };
+
+      // 1. Revert Old Stock
+      if (order.items && Array.isArray(order.items)) {
+         for (const item of order.items) {
+           if (item.product_id) {
+             const productDoc = await db.products.get(item.product_id.toString());
+             if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
+               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
+               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
+             }
+           }
+         }
+      }
+
+      // 2. Revert Old Balance
+      const oldPaid = order.payment && !order.payment.noPaymentAtAll ? (order.payment.paid_amount || 0) : 0;
+      const oldNetAmount = (order.total_amount || 0) - oldPaid;
+      if (oldNetAmount !== 0 && order.customer_id) {
+        await updateOfflinePartyBalance(order.customer_id.toString(), -oldNetAmount);
+      }
+
+      // 3. Apply New Stock
+      for (const p of products) {
+        if (!p.type || p.type === "goods" || p.type === "good") {
+          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
+          const productDoc = await db.products.get(p.id.toString());
+          if (productDoc) {
+             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
+             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+          }
+        }
+      }
+
+      // 4. Apply New Balance
+      const newNetAmount = total - (payment.noPaymentAtAll ? 0 : payment.paidAmount);
+      if (newNetAmount !== 0) {
+        await updateOfflinePartyBalance(customerId.toString(), newNetAmount);
+      }
+
+      // 5. Update Order locally
+      const updatedOrder = {
+        ...order,
+        customer_id: customerId.toString(),
+        total_amount: total,
+        subtotal: subtotal,
+        invoice_no: invoiceNo || null,
+        sale_date: saleDate,
+        due_date: dueDate || null,
+        charges: charges,
+        overallDiscount: overallDiscount,
+        shippingCharges: shippingCharges,
+        payment: payment.noPaymentAtAll ? null : {
+           method: payment.method,
+           paid_amount: payment.paidAmount || 0,
+           paid_date: payment.paidDate || null,
+           no_payment_at_all: payment.noPaymentAtAll
+        },
+        updated_at: new Date().toISOString(),
+        items: products.map(p => ({
+          product_id: p.id.toString(),
+          name: p.name,
+          description: p.description,
+          quantity: p.quantity,
+          quantityType: p.quantityType || "prime",
+          price: p.sell_price,
+          discount: p.discount || 0,
+          discountType: p.discountType || "value",
+          unit_of_measurement: p.unit_of_measurement,
+        })),
+        customer_notes: customerNotes
+      };
+      
+      await db.orders.put(updatedOrder);
+
+      // 6. Sync to server
+      await SyncEngine.queueOperation("orders", "PUT", `/api/orders/${order.id}`, payload);
+
       onOrderUpdated();
       onOpenChange(false);
     } catch (err) {
@@ -624,8 +704,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 // Main Orders Page Component
 // ------------------------------------------------------------
 type Order = {
-  id: number;
-  customer_id: number;
+  id: number | string;
+  customer_id: number | string;
   total_amount: number;
   subtotal?: number;
   status: "completed" | "pending" | "cancelled";
@@ -639,9 +719,11 @@ type Order = {
     phone?: string;
   };
   items?: Array<{
+    product_id?: string | number;
     name: string;
     description?: string;
     quantity: number;
+    quantityType?: "prime" | "damaged";
     price: number;
     discount?: number;
     unit_of_measurement?: string;
@@ -676,6 +758,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({ status: "all" });
+  const [sortBy, setSortBy] = useState("default");
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
   const [editOrderOpen, setEditOrderOpen] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
@@ -685,46 +768,34 @@ export default function OrdersPage() {
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const inFlightOrdersRequest = useRef<string | null>(null);
-
-  const fetchOrders = useCallback(async () => {
-    const requestKey = `${currentPage}|${pageSize}|${debouncedSearchTerm}|${filters.status}`;
-    if (inFlightOrdersRequest.current === requestKey) {
-      return;
-    }
-
-    try {
-      inFlightOrdersRequest.current = requestKey;
-      setLoading(true);
-      const url = new URL("/api/orders", window.location.origin);
-      url.searchParams.append("page", currentPage.toString());
-      url.searchParams.append("limit", pageSize.toString());
-      if (debouncedSearchTerm) {
-        url.searchParams.append("search", debouncedSearchTerm);
-      }
-      if (filters.status !== "all") {
-        url.searchParams.append("status", filters.status);
-      }
-      
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(t("failedToFetchOrders"));
-      const data = await response.json();
-      setOrders(data.orders || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.totalCount || 0);
-    } catch (error) {
-      setError((error as Error).message);
-    } finally {
-      if (inFlightOrdersRequest.current === requestKey) {
-        inFlightOrdersRequest.current = null;
-      }
-      setLoading(false);
-    }
-  }, [t, currentPage, pageSize, debouncedSearchTerm, filters.status]);
+  const offlineOrders = useOfflineOrders(debouncedSearchTerm, filters.status) as any[];
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    if (offlineOrders) {
+      let processedOrders = [...offlineOrders];
+      
+      if (sortBy === "totalHighToLow") {
+        processedOrders.sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
+      } else if (sortBy === "balanceHighToLow") {
+        processedOrders.sort((a, b) => {
+          const balA = (a.total_amount || 0) - (a.payment?.paid_amount || 0);
+          const balB = (b.total_amount || 0) - (b.payment?.paid_amount || 0);
+          return balB - balA;
+        });
+      }
+
+      setTotalCount(processedOrders.length);
+      const limit = pageSize === -1 ? 0 : pageSize;
+      setTotalPages(limit > 0 ? Math.ceil(processedOrders.length / limit) : 1);
+      
+      const skip = limit > 0 ? (currentPage - 1) * limit : 0;
+      const paginated = limit > 0 ? processedOrders.slice(skip, skip + limit) : processedOrders;
+      setOrders(paginated);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }, [offlineOrders, currentPage, pageSize, sortBy]);
 
   // filteredOrders is still useful for local filtering if needed, but we should probably rely on backend search
   const filteredOrders = orders; 
@@ -745,7 +816,7 @@ export default function OrdersPage() {
   };
 
   const handleOrderUpdated = () => {
-    fetchOrders();
+    // Handled by useLiveQuery automatically
   };
 
   const handleDeleteClick = (order: Order) => {
@@ -757,13 +828,35 @@ export default function OrdersPage() {
     if (!orderToDelete) return;
     setDeleting(true);
     try {
-      const response = await fetch(`/api/orders?id=${orderToDelete.id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error(t("errorDeletingOrder"));
+      // 1. Revert stock locally
+      if (orderToDelete.items && Array.isArray(orderToDelete.items)) {
+         for (const item of orderToDelete.items) {
+           if (item.product_id) {
+             const productDoc = await db.products.get(item.product_id.toString());
+             if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
+               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
+               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
+             }
+           }
+         }
+      }
+
+      // 2. Revert Balance locally
+      const paid = orderToDelete.payment && !orderToDelete.payment.no_payment_at_all ? (orderToDelete.payment.paid_amount || 0) : 0;
+      const netAmount = (orderToDelete.total_amount || 0) - paid;
+      if (netAmount !== 0 && orderToDelete.customer_id) {
+        await updateOfflinePartyBalance(orderToDelete.customer_id.toString(), -netAmount);
+      }
+
+      // 3. Delete locally
+      await db.orders.delete(orderToDelete.id.toString());
+
+      // 4. Sync to server
+      await SyncEngine.queueOperation("orders", "DELETE", `/api/orders?id=${orderToDelete.id}`, {});
+
       setDeleteConfirmOpen(false);
       setOrderToDelete(null);
-      fetchOrders();
     } catch (error) {
       setError((error as Error).message);
     } finally {
@@ -798,60 +891,101 @@ export default function OrdersPage() {
         <h1 className="text-2xl font-bold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
       </div>
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-4">
-              <div className="relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={handleSearch}
-                  className="pr-8"
+                  className="pl-9 pr-9 h-9 text-sm w-full"
                 />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                {searchTerm && (
+                  <button
+                    onClick={() => { setSearchTerm(""); handleSearch({ target: { value: "" } } as any); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <FilterIcon className="w-4 h-4" />
-                    <span>{t("filters")}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "all"}
-                    onCheckedChange={() => handleFilterChange("all")}
-                  >
-                    {t("allStatuses")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "completed"}
-                    onCheckedChange={() => handleFilterChange("completed")}
-                  >
-                    {t("completed")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "pending"}
-                    onCheckedChange={() => handleFilterChange("pending")}
-                  >
-                    {t("pending")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.status === "cancelled"}
-                    onCheckedChange={() => handleFilterChange("cancelled")}
-                  >
-                    {t("cancelled")}
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 h-9">
+                      <FilterIcon className="w-4 h-4" />
+                      <span>{t("filters")}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={filters.status === "all"}
+                      onCheckedChange={() => handleFilterChange("all")}
+                    >
+                      {t("allStatuses")}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filters.status === "completed"}
+                      onCheckedChange={() => handleFilterChange("completed")}
+                    >
+                      {t("completed")}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filters.status === "pending"}
+                      onCheckedChange={() => handleFilterChange("pending")}
+                    >
+                      {t("pending")}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filters.status === "cancelled"}
+                      onCheckedChange={() => handleFilterChange("cancelled")}
+                    >
+                      {t("cancelled")}
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 h-9">
+                      <ArrowUpDown className="w-4 h-4" />
+                      <span>{t("sort") || "Sort"}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>{t("sortBy") || "Sort By"}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "default"}
+                      onCheckedChange={() => { setSortBy("default"); setCurrentPage(1); }}
+                    >
+                      {t("default") || "Default"}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "totalHighToLow"}
+                      onCheckedChange={() => { setSortBy("totalHighToLow"); setCurrentPage(1); }}
+                    >
+                      {t("totalHighToLow") || "Total (High to Low)"}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "balanceHighToLow"}
+                      onCheckedChange={() => { setSortBy("balanceHighToLow"); setCurrentPage(1); }}
+                    >
+                      {t("balanceHighToLow") || "Balance (High to Low)"}
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-            <Button asChild className="gap-2 self-start">
+            <Button asChild size="sm" className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
               <Link href={`/${locale}/admin/sales/invoice/new`}>
-                <PlusCircle className="w-4 h-4" />
+                <PlusCircle className="w-3 h-3 mr-1" />
                 {t("createOrder")}
               </Link>
             </Button>
@@ -891,7 +1025,7 @@ export default function OrdersPage() {
                       <TableCell>
                         <div className="flex flex-col items-start gap-0.5">
                           <span className="font-medium">
-                            {(order.invoice_no || `ORD-${order.id}`).slice(-5)}
+                            {maskInvoiceNo(order.invoice_no || `ORD-${order.id}`)}
                           </span>
                           <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
                             {order.invoice_no || `ORD-${order.id}`}
@@ -967,7 +1101,7 @@ export default function OrdersPage() {
                       <div className="flex flex-col items-start gap-0.5">
                         <p className="text-xs text-muted-foreground mb-0.5">{t("invoiceNo")}</p>
                         <h3 className="font-semibold text-sm">
-                          {(order.invoice_no || `ORD-${order.id}`).slice(-5)}
+                          {maskInvoiceNo(order.invoice_no || `ORD-${order.id}`)}
                         </h3>
                         <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
                           {order.invoice_no || `ORD-${order.id}`}

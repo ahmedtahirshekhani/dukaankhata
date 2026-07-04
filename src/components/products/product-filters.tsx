@@ -15,7 +15,6 @@ import {
 import { SearchIcon, FilterIcon, ChevronDownIcon, XIcon } from "lucide-react";
 
 interface ProductFiltersProps {
-  searchTerm: string;
   filters: {
     type: string;
     category: string;
@@ -29,29 +28,23 @@ interface ProductFiltersProps {
   };
   categories: string[];
   branches: string[];
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFilterChange: (type: "type" | "category" | "branch", value: string) => void;
   onPriceRangeChange: (field: string, value: string) => void;
   onClearAll: () => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
-  isMobileDialog?: boolean;
 }
 
 export function ProductFilters({
-  searchTerm,
   filters,
   priceRanges,
   categories,
   branches,
-  onSearchChange,
   onFilterChange,
   onPriceRangeChange,
   onClearAll,
   capitalizeFirstLetter,
-  isMobileDialog = false,
 }: ProductFiltersProps) {
   const t = useTranslations("products");
-  const searchPlaceholder = t("searchProducts");
   const typeLabel = t("type");
   const allLabel = t("all");
   const goodsLabel = t("goods");
@@ -74,24 +67,7 @@ export function ProductFilters({
     priceRanges.costPriceMax !== "";
 
   return (
-    <div
-      className={
-        isMobileDialog
-          ? "flex flex-col gap-3 w-full"
-          : "flex items-center gap-2 w-full md:w-auto overflow-x-auto"
-      }
-    >
-      {/* Desktop Search - Hidden on Mobile */}
-      <div className="hidden md:block relative w-48 flex-shrink-0">
-        <Input
-          type="text"
-          placeholder={searchPlaceholder}
-          value={searchTerm}
-          onChange={onSearchChange}
-          className="pr-8 h-9 text-sm"
-        />
-        <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
 
       {/* Category Filter */}
       <DropdownMenu>

@@ -534,56 +534,59 @@ export default function PartiesPage() {
         <h1 className="text-2xl font-bold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
       </div>
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          {/* Desktop Layout */}
-          <div className="hidden md:flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="pr-8"
-                />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+            <div className="flex flex-col gap-3 w-full md:w-auto flex-1">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                <div className="relative w-full sm:w-64 flex-shrink-0">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder={t("searchPlaceholder")}
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="pl-9 pr-9 h-9 text-sm w-full"
+                  />
+                </div>
+                <div className="flex items-center rounded-md border overflow-x-auto text-xs font-medium h-9 w-full sm:w-auto flex-shrink-0 scrollbar-none">
+                  {(["all", "receive", "pay"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setBalanceFilter(f)}
+                      className={cn(
+                        "px-3 h-full transition-colors flex-1 sm:flex-none whitespace-nowrap",
+                        balanceFilter === f
+                          ? f === "receive" ? "bg-green-500 text-white" : f === "pay" ? "bg-red-500 text-white" : "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {f === "all" ? t("filterAll") || "All" : f === "receive" ? t("legendReceive") : t("legendPay")}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium h-9">
-                {(["all", "receive", "pay"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setBalanceFilter(f)}
-                    className={cn(
-                      "px-3 h-full transition-colors",
-                      balanceFilter === f
-                        ? f === "receive" ? "bg-green-500 text-white" : f === "pay" ? "bg-red-500 text-white" : "bg-primary text-primary-foreground"
-                        : "hover:bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {f === "all" ? t("filterAll") || "All" : f === "receive" ? t("legendReceive") : t("legendPay")}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <div className="flex items-center gap-4 mr-2 text-xs border rounded-md px-3 py-1.5 bg-muted/30">
-                <span className="font-semibold text-muted-foreground">{t("legend")}:</span>
+              
+              <div className="flex items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-full sm:w-fit overflow-x-auto whitespace-nowrap scrollbar-none">
+                <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-green-500 border border-green-600" />
                   <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 border border-red-600" />
                   <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
                 </div>
               </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-9 p-0"
+                    className="h-9 w-9 p-0 flex-shrink-0"
                     disabled={isDownloading || isImporting}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -615,6 +618,7 @@ export default function PartiesPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
               <input
                 ref={fileInputRef}
                 type="file"
@@ -622,110 +626,27 @@ export default function PartiesPage() {
                 onChange={handleFileSelect}
                 style={{ display: "none" }}
               />
-              <Button size="sm" onClick={() => setShowNewCustomerDialog(true)}>
-                <PlusCircle className="w-4 h-4 mr-2" />
+              
+              <Button size="sm" onClick={() => setShowNewCustomerDialog(true)} className="h-9 text-xs px-3 flex-shrink-0 whitespace-nowrap">
+                <PlusCircle className="w-4 h-4 mr-1.5" />
                 {t("addCustomer")}
               </Button>
             </div>
           </div>
 
-          {/* Mobile/Tablet Layout */}
-          <div className="md:hidden flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="pr-8 h-9 text-sm"
-                />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex items-center rounded-md border overflow-hidden text-[11px] font-medium h-9 flex-shrink-0">
-                {(["all", "receive", "pay"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setBalanceFilter(f)}
-                    className={cn(
-                      "px-2 h-full transition-colors",
-                      balanceFilter === f
-                        ? f === "receive" ? "bg-green-500 text-white" : f === "pay" ? "bg-red-500 text-white" : "bg-primary text-primary-foreground"
-                        : "hover:bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {f === "all" ? "All" : f === "receive" ? "Get" : "Pay"}
-                  </button>
-                ))}
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setShowNewCustomerDialog(true)}
-                className="h-9 px-3 flex-shrink-0"
-              >
-                <PlusCircle className="w-4 h-4 mr-1" />
-                <span className="text-xs">{t("add")}</span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 w-9 p-0"
-                    disabled={isDownloading || isImporting}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDownloadExcel}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {isDownloading ? t("downloading") : t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDownloadTemplate}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleImportClick}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {isImporting ? t("importing") : t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={handleFileSelect}
-                style={{ display: "none" }}
-              />
+          <div className="flex xl:hidden items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none mt-3">
+            <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-green-500 border border-green-600" />
+              <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
             </div>
-            {/* Legend for mobile */}
-            <div className="flex items-center gap-4 text-[10px] border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none">
-              <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-green-500 border border-green-600" />
-                <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-red-500 border border-red-600" />
-                <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 border border-red-600" />
+              <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0 md:p-6">
+        <CardContent className="p-0 relative">
           {/* Desktop Table View */}
           <div className="hidden md:block">
             <div className="overflow-x-auto">

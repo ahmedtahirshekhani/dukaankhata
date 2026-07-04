@@ -14,6 +14,7 @@ import {
   SearchIcon,
   FilePenIcon,
   FilterIcon,
+  XIcon,
 } from "lucide-react";
 import {
   Table,
@@ -351,100 +352,110 @@ export default function PaymentOutPage() {
       </div>
       <Card className="flex flex-col gap-6 p-6">
         <CardHeader className="p-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
-              <div className="relative flex-1 min-w-[180px] max-w-sm">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto flex-1">
+              <div className="relative w-full sm:w-64 flex-shrink-0">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder={t("searchPlaceholder")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pr-8"
+                  className="pl-9 pr-9 h-9 text-sm w-full"
                 />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                {searchTerm && (
+                  <button
+                    onClick={() => { setSearchTerm(""); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <DropdownMenu onOpenChange={(open) => {
-                if (open) setFilterPartyPage(1);
-              }}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 shrink-0"
-                  >
-                    <FilterIcon className="w-4 h-4" />
-                    <span>{tCommon("filter")}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-56 max-h-80 overflow-y-auto"
-                  onScroll={(e) => {
-                    const target = e.currentTarget;
-                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
-                      if (hasMoreFilterParties) {
-                        setFilterPartyPage(prev => prev + 1);
+              <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu onOpenChange={(open) => {
+                  if (open) setFilterPartyPage(1);
+                }}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 h-9"
+                    >
+                      <FilterIcon className="w-4 h-4" />
+                      <span>{tCommon("filter")}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-56 max-h-80 overflow-y-auto"
+                    onScroll={(e) => {
+                      const target = e.currentTarget;
+                      if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                        if (hasMoreFilterParties) {
+                          setFilterPartyPage(prev => prev + 1);
+                        }
                       }
-                    }
-                  }}
-                >
-                  <DropdownMenuLabel>
-                    {t("filterByPaymentMethod")}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.paymentMethod === "all"}
-                    onCheckedChange={(checked) =>
-                      checked && handleFilterPaymentMethod("all")
-                    }
+                    }}
                   >
-                    {t("allPaymentMethods")}
-                  </DropdownMenuCheckboxItem>
-                  {paymentMethods.map((pm) => (
+                    <DropdownMenuLabel>
+                      {t("filterByPaymentMethod")}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
                     <DropdownMenuCheckboxItem
-                      key={pm.id}
-                      checked={filters.paymentMethod === pm.id}
+                      checked={filters.paymentMethod === "all"}
                       onCheckedChange={(checked) =>
-                        checked && handleFilterPaymentMethod(pm.id)
+                        checked && handleFilterPaymentMethod("all")
                       }
                     >
-                      {pm.name}
+                      {t("allPaymentMethods")}
                     </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t("filterByParty")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.party === "all"}
-                    onCheckedChange={(checked) =>
-                      checked && handleFilterParty("all")
-                    }
-                  >
-                    {t("allParties")}
-                  </DropdownMenuCheckboxItem>
-                  {displayParties.map((p) => {
-                    return (
+                    {paymentMethods.map((pm) => (
                       <DropdownMenuCheckboxItem
-                        key={p.id}
-                        checked={filters.party === p.id}
+                        key={pm.id}
+                        checked={filters.paymentMethod === pm.id}
                         onCheckedChange={(checked) =>
-                          checked && handleFilterParty(p.id)
+                          checked && handleFilterPaymentMethod(pm.id)
                         }
                       >
-                        {p.name}
+                        {pm.name}
                       </DropdownMenuCheckboxItem>
-                    );
-                  })}
-                  {hasMoreFilterParties && (
-                    <div className="flex justify-center p-2">
-                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>{t("filterByParty")}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={filters.party === "all"}
+                      onCheckedChange={(checked) =>
+                        checked && handleFilterParty("all")
+                      }
+                    >
+                      {t("allParties")}
+                    </DropdownMenuCheckboxItem>
+                    {displayParties.map((p) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={p.id}
+                          checked={filters.party === p.id}
+                          onCheckedChange={(checked) =>
+                            checked && handleFilterParty(p.id)
+                          }
+                        >
+                          {p.name}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                    {hasMoreFilterParties && (
+                      <div className="flex justify-center p-2">
+                        <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-            <Button size="sm" onClick={openAddDialog} className="shrink-0">
-              <PlusCircle className="w-4 h-4 mr-2" />
+            <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
+              <PlusCircle className="w-3 h-3 mr-1" />
               {t("addRecord")}
             </Button>
           </div>
