@@ -87,8 +87,33 @@ export function useOfflineCategories(searchQuery: string = '') {
   }, [searchQuery]);
 }
 
-export function useOfflineOrders() {
-  return useSafeLiveQuery(() => db.orders.toArray());
+export function useOfflineOrders(searchQuery: string = '', statusFilter: string = 'all') {
+  return useSafeLiveQuery(async () => {
+    const allOrders = await db.orders.orderBy("created_at").reverse().toArray();
+    
+    let filtered = allOrders;
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(o => o.status === statusFilter);
+    }
+    
+    if (searchQuery) {
+      const term = searchQuery.toLowerCase();
+      filtered = filtered.filter(o => 
+        o.invoice_no?.toLowerCase().includes(term) || 
+        o.id?.toString().toLowerCase().includes(term)
+      );
+    }
+    
+    const withCustomers = await Promise.all(filtered.map(async (o) => {
+      const customer = await db.parties.get(o.customer_id);
+      return { 
+        ...o, 
+        customer: customer ? { name: customer.name } : null 
+      };
+    }));
+    
+    return withCustomers;
+  }, [searchQuery, statusFilter]);
 }
 
 export function useOfflineExpenses() {

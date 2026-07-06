@@ -39,7 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
 import { SummaryCarousel } from "@/components/summary-carousel";
 import { Pagination } from "@/components/ui/pagination";
-import { cn } from "@/lib/utils";
+import { cn, maskInvoiceNo } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -255,9 +255,45 @@ export default function DashboardPage() {
     const fetchTabData = async () => {
       setIsDataLoading(true);
       try {
-        let endpoint = "";
-        if (activeDashboardTab === "sales") endpoint = "/api/orders";
+        if (activeDashboardTab === "sales") {
+            const offset = (currentPage - 1) * pageSize;
+            const orders = await db.orders.offset(offset).limit(pageSize).toArray();
+            const totalCount = await db.orders.count();
+            
+            // Populate customers
+            const ordersWithCustomers = await Promise.all(
+              orders.map(async (order) => {
+                if (order.customer_id) {
+                  const customer = await db.parties.get(order.customer_id.toString());
+                  return { ...order, customer };
+                }
+                return order;
+              })
+            );
 
+            const orderRows = ordersWithCustomers.map((order: any, index: number) => {
+              const total = Number(order?.total_amount || 0);
+              const paid = Number(order?.payment?.paid_amount || 0);
+              return {
+                id: order?.id || String(index),
+                invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
+                customerName: order?.customer?.name || "-",
+                total,
+                paid,
+                balance: Math.max(0, total - paid),
+                date: order?.sale_date || order?.created_at
+                  ? new Date(order?.sale_date || order?.created_at).toLocaleDateString()
+                  : "-",
+              };
+            });
+            
+            setSalesRows(orderRows);
+            setTotalCount(totalCount);
+            setTotalPages(Math.ceil(totalCount / pageSize));
+            setIsDataLoading(false);
+            return;
+        }
+        
         if (activeDashboardTab === "items") {
             const offset = (currentPage - 1) * pageSize;
             const products = await db.products.offset(offset).limit(pageSize).toArray();
@@ -303,37 +339,6 @@ export default function DashboardPage() {
             return;
         }
 
-        const url = new URL(endpoint, window.location.origin);
-        url.searchParams.append("page", currentPage.toString());
-        url.searchParams.append("limit", pageSize.toString());
-
-        const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Failed to fetch data");
-        const data = await res.json();
-
-        const orders = data.orders || [];
-        const orderRows = orders.map((order: any, index: number) => {
-            const total = Number(order?.total_amount || 0);
-            const paid = Number(order?.payment?.paid_amount || 0);
-            return {
-              id: order?.id || String(index),
-              invoiceNo: order?.invoice_no || `ORD-${order?.id || index}`,
-              customerName: order?.customer?.name || "-",
-              total,
-              paid,
-              balance: Math.max(0, total - paid),
-              date:
-                order?.sale_date || order?.created_at
-                  ? new Date(
-                      order?.sale_date || order?.created_at,
-                    ).toLocaleDateString()
-                  : "-",
-            };
-          });
-          setSalesRows(orderRows);
-          setTotalCount(data.total || 0);
-          setTotalPages(data.totalPages || 1);
-        
         setIsDataLoading(false);
       } catch (error) {
         console.error("Error fetching tab data:", error);
@@ -748,7 +753,7 @@ export default function DashboardPage() {
                     <TableCell>
                       <div className="flex flex-col items-start gap-0.5">
                         <span className="font-medium">
-                          {row.invoiceNo.slice(-5)}
+                          {maskInvoiceNo(row.invoiceNo)}
                         </span>
                         <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
                           {row.invoiceNo}
@@ -850,7 +855,7 @@ export default function DashboardPage() {
               <div key={row.id} className="border rounded-lg p-4 shadow-sm">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex flex-col items-start gap-0.5">
-                    <h3 className="font-semibold">{row.invoiceNo.slice(-5)}</h3>
+                    <h3 className="font-semibold">{maskInvoiceNo(row.invoiceNo)}</h3>
                     <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded">
                       {row.invoiceNo}
                     </span>

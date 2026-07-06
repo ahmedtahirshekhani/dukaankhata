@@ -37,23 +37,41 @@ export default function QuotationListPage() {
   const tNav = useTranslations("navigation");
   const tCommon = useTranslations("common");
   const tInv = useTranslations("invoice");
+  const tOrders = useTranslations("orders");
   const locale = useLocale();
   const router = useRouter();
   
-  // Pagination & Search States
+  // Pagination & Search & Filters States
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("default");
   const debouncedSearch = useDebounce(searchTerm, 500);
 
   const rawQuotations = useOfflineQuotations(debouncedSearch);
-  const quotations = useMemo(() => {
-    if (!rawQuotations) return [];
-    const startIndex = (currentPage - 1) * pageSize;
-    return rawQuotations.slice(startIndex, startIndex + pageSize);
-  }, [rawQuotations, currentPage, pageSize]);
   
-  const totalPages = Math.ceil((rawQuotations?.length || 0) / pageSize) || 1;
+  const filteredQuotations = useMemo(() => {
+    if (!rawQuotations) return [];
+    let filtered = [...rawQuotations];
+    
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(q => (q.status || "open") === statusFilter);
+    }
+    
+    if (sortBy === "totalHighToLow") {
+      filtered.sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
+    }
+    
+    return filtered;
+  }, [rawQuotations, statusFilter, sortBy]);
+
+  const quotations = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredQuotations.slice(startIndex, startIndex + pageSize);
+  }, [filteredQuotations, currentPage, pageSize]);
+  
+  const totalPages = Math.ceil(filteredQuotations.length / pageSize) || 1;
   const loading = rawQuotations === undefined;
 
   const [isConverting, setIsConverting] = useState<string | null>(null);
@@ -190,10 +208,9 @@ export default function QuotationListPage() {
 
       <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col gap-3">
-            {/* Mobile: Search + Add Button in Row */}
-            <div className="flex gap-2 md:hidden items-center">
-              <div className="relative flex-1">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("common.search") || "Search quotations..."}
@@ -210,42 +227,49 @@ export default function QuotationListPage() {
                   </button>
                 )}
               </div>
-              <Button asChild size="sm" className="h-9 text-xs px-2 flex-shrink-0">
-                <Link href={`/${locale}/admin/sales/quotations/new`}>
-                  <PlusCircle className="w-3 h-3 mr-1" />
-                  {t("common.add")}
-                </Link>
-              </Button>
-            </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    setStatusFilter(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder={tOrders("filterByStatus")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tOrders("allStatuses")}</SelectItem>
+                    <SelectItem value="open">{tInv("statusOpen")}</SelectItem>
+                    <SelectItem value="converted">{tInv("statusConverted")}</SelectItem>
+                    <SelectItem value="expired">{tInv("statusExpired")}</SelectItem>
+                    <SelectItem value="cancelled">{tInv("statusCancelled")}</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            {/* Desktop: Search and Actions */}
-            <div className="hidden md:flex items-center justify-between gap-2">
-              <div className="relative w-full max-w-sm">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("common.search") || "Search quotations..."}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-9"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button asChild size="sm" className="h-9 text-xs px-3 flex-shrink-0">
-                  <Link href={`/${locale}/admin/sales/quotations/new`}>
-                    <PlusCircle className="w-3 h-3 mr-1" />
-                    {t("common.add")}
-                  </Link>
-                </Button>
+                <Select
+                  value={sortBy}
+                  onValueChange={(value) => {
+                    setSortBy(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[160px] h-9">
+                    <SelectValue placeholder={tOrders("sortBy")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{tOrders("default")}</SelectItem>
+                    <SelectItem value="totalHighToLow">{tOrders("totalHighToLow")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+            <Button asChild size="sm" className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
+              <Link href={`/${locale}/admin/sales/quotations/new`}>
+                <PlusCircle className="w-3 h-3 mr-1" />
+                {t("common.add")}
+              </Link>
+            </Button>
           </div>
         </CardHeader>
         
@@ -378,7 +402,7 @@ export default function QuotationListPage() {
         <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
             <div className="text-sm text-muted-foreground whitespace-nowrap">
-              {tCommon("totalCountLabel", { count: rawQuotations?.length || 0 })}
+              {tCommon("totalCountLabel", { count: filteredQuotations.length })}
             </div>
             
             <div className="flex items-center gap-2">
