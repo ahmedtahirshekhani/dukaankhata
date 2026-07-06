@@ -149,8 +149,8 @@ export default function PaymentOutPage() {
   const paymentMethods = useMemo(() => {
     const list = offlinePaymentMethods.map((item: any) => ({
       id: item.id || item._id,
-      name: item.bankName || item.name,
-      bankDetails: item.bankDetails,
+      name: item.bankName || item.name || item.bank_name,
+      bankDetails: item.bankDetails || item.bank_details,
     })).filter((item) => item.id && item.name);
 
     const allMethods = [
@@ -353,8 +353,8 @@ export default function PaymentOutPage() {
       <Card className="flex flex-col gap-6 p-6">
         <CardHeader className="p-0">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto flex-1">
-              <div className="relative w-full sm:w-64 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"

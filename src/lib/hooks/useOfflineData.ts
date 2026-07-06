@@ -211,3 +211,72 @@ export function useOfflineQuotations(searchQuery: string = '') {
     }));
   }, [searchQuery]);
 }
+
+export function useOfflineSaleReturns(searchQuery: string = '', filterPaymentMethodId: string = 'all', filterPartyId: string = 'all') {
+  return useSafeLiveQuery(async () => {
+    // Join parties and payment methods locally
+    const allParties = await db.parties.toArray();
+    const partyMap = new Map(allParties.map(p => [(p.id || p._id)?.toString(), p.name]));
+    
+    const allMethods = await db.payment_methods.toArray();
+    const methodMap = new Map(allMethods.map(m => [(m.id || m._id)?.toString(), m.name || m.bankName || m.bank_name]));
+
+    const transactions = await db.sale_return_transactions.toArray();
+    
+    return transactions.map(t => {
+      const customerId = (t.customerId || t.customer_id)?.toString();
+      const paymentMethodId = (t.paymentMethodId || t.payment_method_id)?.toString();
+      let formattedDate = t.date;
+      if (formattedDate && typeof formattedDate === 'string' && formattedDate.includes('T')) {
+        formattedDate = formattedDate.split('T')[0];
+      }
+
+      return {
+        ...t,
+        id: t.id,
+        customerId,
+        paymentMethodId,
+        returnNumber: t.returnNumber || t.return_number || "-",
+        totalAmount: t.totalAmount ?? t.total_amount ?? 0,
+        paidAmount: t.paidAmount ?? t.paid_amount ?? 0,
+        balanceDue: t.balanceDue ?? t.balance_due ?? 0,
+        invoiceNo: t.invoiceNo || t.invoice_no || "",
+        invoiceDate: t.invoiceDate || t.invoice_date || "",
+        paymentRefNo: t.paymentRefNo || t.payment_ref_no || "",
+        date: formattedDate,
+        customerName: t.customerName || partyMap.get(customerId) || '-',
+        paymentMethodName: t.paymentMethodName || methodMap.get(paymentMethodId) || (paymentMethodId === 'cash' ? 'Cash' : paymentMethodId === 'cheque' ? 'Cheque' : '-'),
+      };
+    }).filter(t => {
+      let matches = true;
+      
+      if (t.is_delete === 1) return false;
+
+      if (filterPaymentMethodId && filterPaymentMethodId !== 'all') {
+        matches = matches && t.paymentMethodId === filterPaymentMethodId;
+      }
+      
+      if (filterPartyId && filterPartyId !== 'all') {
+        matches = matches && t.customerId === filterPartyId;
+      }
+      
+      if (searchQuery) {
+        const lowerSearch = searchQuery.toLowerCase();
+        matches = matches && (
+          (t.customerName && t.customerName.toLowerCase().includes(lowerSearch)) ||
+          (t.paymentMethodName && t.paymentMethodName.toLowerCase().includes(lowerSearch)) ||
+          (t.returnNumber && t.returnNumber.toLowerCase().includes(lowerSearch)) ||
+          (t.totalAmount && t.totalAmount.toString().includes(searchQuery)) ||
+          (t.date && t.date.includes(searchQuery))
+        );
+      }
+      
+      return matches;
+    }).sort((a, b) => {
+      // Sort by date descending
+      const dateA = a.date ? new Date(a.date).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const dateB = b.date ? new Date(b.date).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+      return dateB - dateA;
+    });
+  }, [searchQuery, filterPaymentMethodId, filterPartyId]);
+}
