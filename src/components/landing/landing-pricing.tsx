@@ -79,7 +79,6 @@ export function LandingPricing() {
               <p className="mt-3 text-muted-foreground text-sm">
                 {t("proDescriptionMonthly")}
               </p>
-
               <ul className="mt-8 flex-1 space-y-4 border-t border-border/50 pt-8">
                 {proFeatures.map((feature, index) => (
                   <li
@@ -129,7 +128,7 @@ export function LandingPricing() {
               </div>
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="text-5xl font-bold text-foreground tracking-tight">
-                  Rs.10,000
+                   Rs.{(Number(envPlanPrice) * 10).toLocaleString()}
                 </span>
                 <span className="text-muted-foreground text-sm font-medium">/{t("billingYearly").toLowerCase()}</span>
               </div>
