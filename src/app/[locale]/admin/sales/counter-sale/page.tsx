@@ -10,7 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
+import { useOfflineProducts, useOfflineCounterSales } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import {
@@ -134,6 +136,7 @@ export default function CounterSale() {
     ];
   }, [rawProducts, t]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
@@ -165,6 +168,10 @@ export default function CounterSale() {
     min: "",
     max: "",
   });
+
+  const rawOfflineTransactions = useOfflineCounterSales(searchTerm, filters.type, selectedYear);
+  const offlineTransactions = useMemo(() => rawOfflineTransactions || [], [rawOfflineTransactions]);
+
   const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState({
     fromDate: "",
@@ -375,29 +382,18 @@ export default function CounterSale() {
     }
 
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(editFormData),
-      });
+      const transactionToUpdate = { ...editFormData };
+      await db.transactions.update(String(id), transactionToUpdate);
+      await SyncEngine.queueOperation(
+        "transactions",
+        "PUT",
+        `/api/transactions/${id}`,
+        transactionToUpdate
+      );
 
-      if (response.ok) {
-        const updatedTransaction = await response.json();
-
-        // Update the transaction in the local state
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === id ? updatedTransaction : t)),
-        );
-
-        // Close edit mode
-        setEditingId(null);
-        setEditFormData({});
-      } else {
-        alert("Failed to update transaction");
-        console.error("Failed to update transaction");
-      }
+      // Close edit mode
+      setEditingId(null);
+      setEditFormData({});
     } catch (error) {
       alert("Error updating transaction");
       console.error("Error updating transaction:", error);
@@ -451,30 +447,34 @@ export default function CounterSale() {
     }
 
     try {
-      const response = await fetch("/api/transactions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newTransaction),
-      });
+      // Generate a 24-character hex string valid for MongoDB ObjectId
+      const generateObjectId = () => {
+        const timestamp = Math.floor(Date.now() / 1000).toString(16);
+        const random = [...Array(16)].map(() => Math.floor(Math.random() * 16).toString(16)).join("");
+        return timestamp + random;
+      };
+      const tempId = generateObjectId();
+      const transactionToAdd = {
+        ...newTransaction,
+        id: tempId,
+      };
 
-      if (response.ok) {
-        const addedTransaction = await response.json();
-        // Put the newly added transaction at the top of the table immediately
-        setTransactions((prev) => [addedTransaction, ...prev]);
-        // Also reset to first page in case pagination is active
-        setCurrentPage(1);
-        setNewTransaction({
-          type: "income",
-          amount: 0,
-          created_at: new Date().toISOString(),
-        });
-        return true;
-      } else {
-        console.error("Failed to add transaction");
-        return false;
-      }
+      await db.transactions.add(transactionToAdd);
+      await SyncEngine.queueOperation(
+        "transactions",
+        "POST",
+        "/api/transactions",
+        transactionToAdd,
+        tempId
+      );
+
+      setCurrentPage(1);
+      setNewTransaction({
+        type: "income",
+        amount: 0,
+        created_at: new Date().toISOString(),
+      });
+      return true;
     } catch (error) {
       console.error("Error adding transaction:", error);
       return false;
@@ -656,39 +656,8 @@ export default function CounterSale() {
 
         setIsImportPreviewOpen(false);
 
-        // Refresh transactions by resetting to page 1 and triggering refetch
-        const wasOnPage1 = currentPage === 1;
+        // Refresh transactions by resetting to page 1
         setCurrentPage(1);
-
-        // Force refetch if already on page 1
-        if (wasOnPage1) {
-          try {
-            const refreshResponse = await fetch(
-              `/api/transactions?page=1&limit=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
-            );
-            if (refreshResponse.ok) {
-              const refreshResult: PaginatedResponse =
-                await refreshResponse.json();
-              setTransactions(refreshResult.data);
-              const computedTotalPages = Math.max(
-                1,
-                Math.ceil(refreshResult.total / pageSize),
-              );
-              setPageInfo({
-                total: refreshResult.total,
-                totalPages: computedTotalPages,
-              });
-              const years = getYearsFromDates(
-                refreshResult.data.map((t) => t.created_at),
-              );
-              const currentYear = new Date().getFullYear();
-              const yearsSet = new Set([currentYear, ...years]);
-              setAllYears(Array.from(yearsSet).sort((a, b) => b - a));
-            }
-          } catch (refreshError) {
-            console.error("Error refreshing transactions:", refreshError);
-          }
-        }
 
         // Reset file input
         if (fileInputRef.current) {
@@ -795,16 +764,13 @@ export default function CounterSale() {
     setTransactionToDelete(null);
 
     try {
-      const response = await fetch(`/api/transactions/${idToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        // Rollback on failure
-        setTransactions(previousTransactions);
-        setPageInfo(previousPageInfo);
-        console.error("Failed to delete transaction");
-      }
+      await db.transactions.delete(String(idToDelete));
+      await SyncEngine.queueOperation(
+        "transactions",
+        "DELETE",
+        `/api/transactions/${idToDelete}`,
+        null
+      );
     } catch (error) {
       // Rollback on error
       setTransactions(previousTransactions);
@@ -1158,41 +1124,35 @@ export default function CounterSale() {
 
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/transactions?page=${currentPage}&limit=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch transactions");
-        }
-        const result: PaginatedResponse = await response.json();
-        setTransactions(result.data);
-        const computedTotalPages = Math.max(
-          1,
-          Math.ceil(result.total / pageSize),
-        );
-        console.log("Computed Total Pages:", result.total);
-        setPageInfo({
-          total: result.total,
-          totalPages: computedTotalPages,
-        });
-        // Extract all years from transactions
-        const years = getYearsFromDates(result.data.map((t) => t.created_at));
-        // Always include the current year
-        const currentYear = new Date().getFullYear();
-        const yearsSet = new Set([currentYear, ...years]);
-        setAllYears(Array.from(yearsSet).sort((a, b) => b - a)); // Sort descending
-      } catch (error) {
-        console.error("Error fetching transactions:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
 
-    fetchTransactions();
-  }, [currentPage, pageSize, sortColumn, sortDirection, selectedYear]);
+    let processed = [...offlineTransactions];
+    
+    // sorting
+    processed.sort((a, b) => {
+      const aVal = a[sortColumn];
+      const bVal = b[sortColumn];
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    const total = processed.length;
+    const computedTotalPages = Math.max(1, Math.ceil(total / pageSize));
+    setPageInfo({ total, totalPages: computedTotalPages });
+    
+    // Extract all years from transactions
+    const years = getYearsFromDates(processed.map((t) => t.created_at));
+    const currentYear = new Date().getFullYear();
+    const yearsSet = new Set([currentYear, ...years]);
+    setAllYears(Array.from(yearsSet).sort((a, b) => b - a));
+
+    // Pagination
+    const paginated = processed.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    setTransactions(paginated);
+    
+    setLoading(false);
+  }, [offlineTransactions, currentPage, pageSize, sortColumn, sortDirection]);
 
   // Reset to first page when search or filters change or page size changes
   useEffect(() => {
