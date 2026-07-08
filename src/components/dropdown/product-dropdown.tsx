@@ -61,13 +61,26 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     
     // Replace API fetching with offline hook
     const offlineProducts = useOfflineProducts(debouncedSearchTerm) || [];
+    const getProductId = (p: Product) => String(p.id || p._id);
+
     const products = useMemo(() => {
-      return offlineProducts.slice(0, page * ITEMS_PER_PAGE);
-    }, [offlineProducts, page]);
+      let paginated = offlineProducts.slice(0, page * ITEMS_PER_PAGE);
+
+      if (value) {
+        const stringValue = String(value);
+        const isSelectedInPaginated = paginated.some(p => getProductId(p) === stringValue);
+        if (!isSelectedInPaginated) {
+          const selectedProduct = offlineProducts.find(p => getProductId(p) === stringValue);
+          if (selectedProduct) {
+            paginated = [selectedProduct, ...paginated];
+          }
+        }
+      }
+
+      return paginated;
+    }, [offlineProducts, page, value]);
     
     const hasMore = products.length < offlineProducts.length;
-
-    const getProductId = (p: Product) => String(p.id || p._id);
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
       const target = e.currentTarget;

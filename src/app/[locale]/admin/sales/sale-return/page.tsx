@@ -10,12 +10,13 @@ import {
   SearchIcon,
   FilePenIcon,
   FilterIcon,
-  X,
+  XIcon,
   ChevronRight,
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { db } from "@/lib/db/offline-db";
-import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
+import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
@@ -144,8 +145,7 @@ export default function SaleReturnPage() {
   const t = useTranslations("saleReturn");
   const tCommon = useTranslations("common");
 
-  const [transactions, setTransactions] = useState<SaleReturnTransaction[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  // Customers will be derived from useOfflineCustomers
   const rawProducts = useOfflineProducts() || [];
   const products = useMemo(() => {
     return rawProducts.map(item => ({
@@ -158,14 +158,13 @@ export default function SaleReturnPage() {
       retailPrice: item.retailPrice || 0,
     }));
   }, [rawProducts]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  // Payment Methods will be derived from useOfflinePaymentMethods
   const [loading, setLoading] = useState(true);
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Pagination & Search states
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
@@ -218,92 +217,51 @@ export default function SaleReturnPage() {
     [totalAmount, paidAmount],
   );
 
-  const fetchTransactions = useCallback(async (page = currentPage, limit = pageSize, search = debouncedSearch, currentFilters = filters) => {
-    // Only show full-screen loader on the very first load
-    if (transactions.length === 0 && !search && page === 1 && currentFilters.customer === "all" && currentFilters.paymentMethod === "all") {
-      setLoading(true);
-    }
-    setIsPageLoading(true);
-    setError(null);
-    try {
-      const url = new URL(`/${locale}/api/sale-return-transactions`, window.location.origin);
-      url.searchParams.append("page", page.toString());
-      url.searchParams.append("limit", limit.toString());
-      if (search) url.searchParams.append("search", search);
-      if (currentFilters.customer !== "all") url.searchParams.append("customerId", currentFilters.customer);
-      if (currentFilters.paymentMethod !== "all") url.searchParams.append("paymentMethod", currentFilters.paymentMethod);
-      
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error(t("failedToFetch"));
-      const data = await res.json();
-      
-      if (data.transactions) {
-        setTransactions(data.transactions);
-        setTotalPages(data.pagination?.totalPages || 1);
-      } else {
-        setTransactions(Array.isArray(data) ? data : []);
-        setTotalPages(1);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("failedToFetch"));
-    } finally {
+  const allOfflineTransactions = useOfflineSaleReturns(debouncedSearch, filters.paymentMethod, filters.customer) || [];
+  const totalPages = Math.ceil(allOfflineTransactions.length / pageSize) || 1;
+  const transactions = allOfflineTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize) as SaleReturnTransaction[];
+
+  useEffect(() => {
+    if (allOfflineTransactions !== undefined) {
       setLoading(false);
       setIsPageLoading(false);
     }
-  }, [locale, t, transactions.length, currentPage, pageSize, debouncedSearch, filters]);
+  }, [allOfflineTransactions]);
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const allCustomers = await db.parties.toArray();
-      setCustomers(allCustomers);
-    } catch {
-      setCustomers([]);
-    }
-  }, []);
+  const offlineCustomers = useOfflineCustomers() || [];
+  const customers = useMemo(() => {
+    return offlineCustomers.filter((c) => c.is_delete !== 1);
+  }, [offlineCustomers]);
 
-  const fetchPaymentMethods = useCallback(async () => {
-    try {
-      const res = await fetch(`/${locale}/api/configuration/payment-method`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = Array.isArray(data)
-        ? data
-          .map(
-            (item: {
-              id?: string;
-              bankName?: string;
-              bankDetails?: string;
-            }) => ({
-              id: item.id ?? "",
-              name: item.bankName ?? "",
-              bankDetails: item.bankDetails ?? "",
-            }),
-          )
-          .filter((item) => item.id && item.name)
-        : [];
-      setPaymentMethods([
-        { id: "cash", name: "Cash" },
-        { id: "cheque", name: "Cheque" },
-        ...list,
-      ]);
-    } catch {
-      setPaymentMethods([]);
-    }
-  }, [locale]);
+  const [filterCustomerPage, setFilterCustomerPage] = useState(1);
+  const displayCustomers = useMemo(() => {
+    return customers.slice(0, filterCustomerPage * 50);
+  }, [customers, filterCustomerPage]);
+  const hasMoreFilterCustomers = displayCustomers.length < customers.length;
+
+  const offlinePaymentMethods = useOfflinePaymentMethods() || [];
+  
+  const paymentMethods = useMemo(() => {
+    const list = offlinePaymentMethods.map((item: any) => ({
+      id: item.id || item._id,
+      name: item.bankName || item.name || item.bank_name,
+      bankDetails: item.bankDetails || item.bank_details,
+    })).filter((item) => item.id && item.name);
+
+    const allMethods = [
+      { id: "cash", name: "Cash" },
+      { id: "cheque", name: "Cheque" },
+      ...list,
+    ];
+
+    const uniqueMap = new Map();
+    allMethods.forEach(m => uniqueMap.set(m.id, m));
+    return Array.from(uniqueMap.values());
+  }, [offlinePaymentMethods]);
 
   useEffect(() => {
-    fetchTransactions(1, pageSize, debouncedSearch, filters);
     setCurrentPage(1);
-  }, [debouncedSearch, locale, pageSize, filters]);
-
-  useEffect(() => {
-    fetchTransactions(currentPage, pageSize, debouncedSearch, filters);
-  }, [currentPage, locale]);
-
-  useEffect(() => {
-    fetchCustomers();
-    fetchPaymentMethods();
-  }, [fetchCustomers, fetchPaymentMethods]);
+  }, [debouncedSearch, pageSize, filters]);
 
   const resetForm = useCallback(() => {
     setFormReturnNumber(generateReturnNumber());
@@ -435,35 +393,27 @@ export default function SaleReturnPage() {
     setIsSaving(true);
     try {
       const payload = buildPayload();
-      const res = await fetch(`/${locale}/api/sale-return-transactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || t("failedToCreate"));
-
       const customer = customers.find((c) => c.id === formCustomerId);
       const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
-      setTransactions((prev) => [
-        {
-          id: data.id,
-          returnNumber: payload.returnNumber,
-          customerId: payload.customerId,
-          customerName: customer?.name ?? "",
-          items: payload.items,
-          totalAmount: payload.totalAmount,
-          paidAmount: payload.paidAmount,
-          balanceDue,
-          paymentMethodId: payload.paymentMethodId,
-          paymentMethodName: pm?.name ?? "",
-          paymentRefNo: payload.paymentRefNo,
-          invoiceNo: payload.invoiceNo,
-          invoiceDate: payload.invoiceDate ?? "",
-          date: payload.date,
-        },
-        ...prev,
-      ]);
+      const newId = Date.now().toString();
+
+      await db.sale_return_transactions.put({
+        ...payload,
+        id: newId,
+        customerName: customer?.name ?? "",
+        paymentMethodName: pm?.name ?? "",
+        balanceDue,
+        is_delete: 0,
+        created_at: new Date().toISOString()
+      });
+
+      await SyncEngine.queueOperation(
+        "sale_return_transactions", 
+        "POST", 
+        `/${locale}/api/sale-return-transactions`, 
+        payload, 
+        newId
+      );
       setShowAddDialog(false);
       resetForm();
       setErrorDialog({
@@ -508,38 +458,28 @@ export default function SaleReturnPage() {
     setIsSaving(true);
     try {
       const payload = buildPayload();
-      const res = await fetch(`/${locale}/api/sale-return-transactions/${selectedId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || t("failedToUpdate"));
-
       const customer = customers.find((c) => c.id === formCustomerId);
       const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
-      setTransactions((prev) =>
-        prev.map((item) =>
-          item.id === selectedId
-            ? {
-              ...item,
-              returnNumber: payload.returnNumber,
-              customerId: payload.customerId,
-              customerName: customer?.name ?? "",
-              items: payload.items,
-              totalAmount: payload.totalAmount,
-              paidAmount: payload.paidAmount,
-              balanceDue,
-              paymentMethodId: payload.paymentMethodId,
-              paymentMethodName: pm?.name ?? "",
-              paymentRefNo: payload.paymentRefNo,
-              invoiceNo: payload.invoiceNo,
-              invoiceDate: payload.invoiceDate ?? "",
-              date: payload.date,
-            }
-            : item,
-        ),
-      );
+
+      const existing = await db.sale_return_transactions.get(selectedId);
+      if (existing) {
+        await db.sale_return_transactions.update(selectedId, {
+          ...existing,
+          ...payload,
+          customerName: customer?.name ?? "",
+          paymentMethodName: pm?.name ?? "",
+          balanceDue,
+          updated_at: new Date().toISOString()
+        });
+
+        await SyncEngine.queueOperation(
+          "sale_return_transactions", 
+          "PUT", 
+          `/${locale}/api/sale-return-transactions/${selectedId}`, 
+          payload, 
+          selectedId
+        );
+      }
       setShowEditDialog(false);
       resetForm();
       setErrorDialog({
@@ -582,17 +522,22 @@ export default function SaleReturnPage() {
     if (!transactionToDelete) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(
-        `/${locale}/api/sale-return-transactions/${transactionToDelete.id}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || t("failedToDelete"));
+      const existing = await db.sale_return_transactions.get(transactionToDelete.id);
+      if (existing) {
+        await db.sale_return_transactions.update(transactionToDelete.id, {
+          ...existing,
+          is_delete: 1,
+          updated_at: new Date().toISOString()
+        });
+
+        await SyncEngine.queueOperation(
+          "sale_return_transactions", 
+          "DELETE", 
+          `/${locale}/api/sale-return-transactions/${transactionToDelete.id}`, 
+          {}, 
+          transactionToDelete.id
+        );
       }
-      setTransactions((prev) =>
-        prev.filter((item) => item.id !== transactionToDelete.id),
-      );
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
       setErrorDialog({
@@ -624,12 +569,19 @@ export default function SaleReturnPage() {
     setFormDate(item.date || new Date().toISOString().split("T")[0]);
     setFormInvoiceDate(item.invoiceDate || "");
     setFormInvoiceNo(item.invoiceNo || "");
+    
+    // Parse items if they are stored as string (some legacy offline data might be)
+    let parsedItems = item.items;
+    if (typeof parsedItems === "string") {
+      try { parsedItems = JSON.parse(parsedItems); } catch(e) {}
+    }
+    
     setFormItems(
-      item.items?.length
-        ? item.items.map((line, index) => ({
+      parsedItems?.length
+        ? parsedItems.map((line: any, index: number) => ({
           id: line.id || `${item.id}-${index}`,
-          productId: (line.productId || (line as any).product_id || "").toString(),
-          itemName: line.itemName || "",
+          productId: (line.productId || line.product_id || "").toString(),
+          itemName: line.itemName || line.item_name || "",
           quantity: String(line.quantity ?? 1),
           rate: String(line.rate ?? 0),
         }))
@@ -901,82 +853,105 @@ export default function SaleReturnPage() {
     );
   }
   return (
-    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-6">
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:max-w-sm">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("searchPlaceholder") || "Search transactions..."}
-            className="pl-9 pr-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <FilterIcon className="h-4 w-4" />
-                {tCommon("filter")}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 max-h-[70vh] overflow-y-auto">
-              <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={filters.paymentMethod === "all"}
-                onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: "all" }))}
-              >
-                {t("allPaymentMethods")}
-              </DropdownMenuCheckboxItem>
-              {paymentMethods.map((pm) => (
-                <DropdownMenuCheckboxItem
-                  key={pm.id}
-                  checked={filters.paymentMethod === pm.id}
-                  onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: pm.id }))}
-                >
-                  {pm.name}
-                </DropdownMenuCheckboxItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={filters.customer === "all"}
-                onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: "all" }))}
-              >
-                {t("allCustomers")}
-              </DropdownMenuCheckboxItem>
-              {customers.map((c) => (
-                <DropdownMenuCheckboxItem
-                  key={c.id}
-                  checked={filters.customer === c.id}
-                  onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: c.id }))}
-                >
-                  {c.name}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            onClick={openAddDialog}
-            className="gap-2 shrink-0"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>{t("addSaleReturn")}</span>
-          </Button>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
       </div>
-
-      <Card className="shadow-sm overflow-hidden">
+      <Card className="flex flex-col gap-6 p-6 shadow-sm overflow-hidden">
+        <CardHeader className="p-0">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={t("searchPlaceholder") || "Search transactions..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-9 h-9 text-sm w-full"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+              <DropdownMenu onOpenChange={(open) => {
+                if (open) setFilterCustomerPage(1);
+              }}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 shrink-0">
+                    <FilterIcon className="h-4 w-4" />
+                    <span>{tCommon("filter")}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-56 max-h-80 overflow-y-auto"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                      if (hasMoreFilterCustomers) {
+                        setFilterCustomerPage(prev => prev + 1);
+                      }
+                    }
+                  }}
+                >
+                  <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.paymentMethod === "all"}
+                    onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: "all" }))}
+                  >
+                    {t("allPaymentMethods")}
+                  </DropdownMenuCheckboxItem>
+                  {paymentMethods.map((pm) => (
+                    <DropdownMenuCheckboxItem
+                      key={pm.id}
+                      checked={filters.paymentMethod === pm.id}
+                      onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: pm.id }))}
+                    >
+                      {pm.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.customer === "all"}
+                    onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: "all" }))}
+                  >
+                    {t("allCustomers")}
+                  </DropdownMenuCheckboxItem>
+                  {displayCustomers.map((c) => (
+                    <DropdownMenuCheckboxItem
+                      key={c.id}
+                      checked={filters.customer === c.id}
+                      onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: c.id }))}
+                    >
+                      {c.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  {hasMoreFilterCustomers && (
+                    <div className="flex justify-center p-2">
+                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            </div>
+            <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
+              <PlusCircle className="w-3 h-3 mr-1" />
+              <span>{t("addSaleReturn")}</span>
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent className="p-0 relative">
           {isPageLoading && (
             <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
@@ -1087,22 +1062,28 @@ export default function SaleReturnPage() {
           </div>
         </CardContent>
 
-        {transactions.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground order-2 sm:order-1">
-              <span>{tCommon("rowsPerPage")}:</span>
+        <div className="border-t p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: allOfflineTransactions.length })}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage")}
+              </span>
               <Select
                 value={pageSize.toString()}
-                onValueChange={(val) => {
-                  setPageSize(Number(val));
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
                   setCurrentPage(1);
                 }}
               >
                 <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize} />
+                  <SelectValue placeholder={pageSize.toString()} />
                 </SelectTrigger>
                 <SelectContent>
-                  {[5, 10, 20, 50].map((size) => (
+                  {[10, 25, 50, 100].map((size) => (
                     <SelectItem key={size} value={size.toString()}>
                       {size}
                     </SelectItem>
@@ -1110,17 +1091,17 @@ export default function SaleReturnPage() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="order-1 sm:order-2">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                isLoading={isPageLoading}
-              />
-            </div>
           </div>
-        )}
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isLoading={isPageLoading}
+            />
+          )}
+        </div>
       </Card>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
