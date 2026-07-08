@@ -280,3 +280,67 @@ export function useOfflineSaleReturns(searchQuery: string = '', filterPaymentMet
     });
   }, [searchQuery, filterPaymentMethodId, filterPartyId]);
 }
+
+export function useOfflineCounterSales(searchQuery: string = '', filterType: string = 'all', year?: number) {
+  return useSafeLiveQuery(async () => {
+    // Get all transactions
+    let transactions = await db.transactions.toArray();
+    
+    // Filter by type
+    if (filterType && filterType !== 'all') {
+      transactions = transactions.filter(t => t.type === filterType);
+    }
+    
+    // Filter by year
+    if (year) {
+      transactions = transactions.filter(t => {
+        if (!t.created_at) return false;
+        const tYear = new Date(t.created_at).getFullYear();
+        return tYear === year;
+      });
+    }
+    
+    // Filter by search query (productName)
+    if (searchQuery) {
+      const lowerSearch = searchQuery.toLowerCase();
+      transactions = transactions.filter(t => {
+        return (t.productName && t.productName.toLowerCase().includes(lowerSearch)) || 
+               (t.customerName && t.customerName.toLowerCase().includes(lowerSearch));
+      });
+    }
+    
+    // Process transactions and join with products if needed
+    const allProducts = await db.products.toArray();
+    const productMap = new Map(allProducts.map(p => [(p.id || p._id)?.toString(), p]));
+
+    return transactions.map(t => {
+      // Get product details if productId is present and not 0 (which is "others")
+      const productId = (t.productId || t.product_id)?.toString();
+      let productName = t.productName || t.product_name;
+      let productDescription = t.productDescription || t.product_description;
+      
+      if (productId && productId !== "0") {
+        const product = productMap.get(productId);
+        if (product) {
+          productName = productName || product.name;
+          productDescription = productDescription || product.description;
+        }
+      }
+      
+      return {
+        ...t,
+        id: t.id || t._id,
+        productId,
+        productName: productName || "-",
+        productDescription: productDescription || "-",
+        created_at: t.created_at || t.date || new Date().toISOString(),
+      };
+    }).sort((a, b) => {
+      // Sort by created_at descending
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA;
+    });
+  }, [searchQuery, filterType, year]);
+}
+

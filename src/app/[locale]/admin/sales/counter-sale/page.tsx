@@ -10,7 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
+import { useOfflineProducts, useOfflineCounterSales } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import {
@@ -134,6 +136,7 @@ export default function CounterSale() {
     ];
   }, [rawProducts, t]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
@@ -165,6 +168,10 @@ export default function CounterSale() {
     min: "",
     max: "",
   });
+
+  const rawOfflineTransactions = useOfflineCounterSales(searchTerm, filters.type, selectedYear);
+  const offlineTransactions = useMemo(() => rawOfflineTransactions || [], [rawOfflineTransactions]);
+
   const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState({
     fromDate: "",
@@ -375,29 +382,18 @@ export default function CounterSale() {
     }
 
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(editFormData),
-      });
+      const transactionToUpdate = { ...editFormData };
+      await db.transactions.update(String(id), transactionToUpdate);
+      await SyncEngine.queueOperation(
+        "transactions",
+        "PUT",
+        `/api/transactions/${id}`,
+        transactionToUpdate
+      );
 
-      if (response.ok) {
-        const updatedTransaction = await response.json();
-
-        // Update the transaction in the local state
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === id ? updatedTransaction : t)),
-        );
-
-        // Close edit mode
-        setEditingId(null);
-        setEditFormData({});
-      } else {
-        alert("Failed to update transaction");
-        console.error("Failed to update transaction");
-      }
+      // Close edit mode
+      setEditingId(null);
+      setEditFormData({});
     } catch (error) {
       alert("Error updating transaction");
       console.error("Error updating transaction:", error);
@@ -451,30 +447,34 @@ export default function CounterSale() {
     }
 
     try {
-      const response = await fetch("/api/transactions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newTransaction),
-      });
+      // Generate a 24-character hex string valid for MongoDB ObjectId
+      const generateObjectId = () => {
+        const timestamp = Math.floor(Date.now() / 1000).toString(16);
+        const random = [...Array(16)].map(() => Math.floor(Math.random() * 16).toString(16)).join("");
+        return timestamp + random;
+      };
+      const tempId = generateObjectId();
+      const transactionToAdd = {
+        ...newTransaction,
+        id: tempId,
+      };
 
-      if (response.ok) {
-        const addedTransaction = await response.json();
-        // Put the newly added transaction at the top of the table immediately
-        setTransactions((prev) => [addedTransaction, ...prev]);
-        // Also reset to first page in case pagination is active
-        setCurrentPage(1);
-        setNewTransaction({
-          type: "income",
-          amount: 0,
-          created_at: new Date().toISOString(),
-        });
-        return true;
-      } else {
-        console.error("Failed to add transaction");
-        return false;
-      }
+      await db.transactions.add(transactionToAdd);
+      await SyncEngine.queueOperation(
+        "transactions",
+        "POST",
+        "/api/transactions",
+        transactionToAdd,
+        tempId
+      );
+
+      setCurrentPage(1);
+      setNewTransaction({
+        type: "income",
+        amount: 0,
+        created_at: new Date().toISOString(),
+      });
+      return true;
     } catch (error) {
       console.error("Error adding transaction:", error);
       return false;
@@ -635,17 +635,14 @@ export default function CounterSale() {
         }
 
         const result = await response.json();
-        const message = `${t("importSuccess")}: ${
-          result.successCount
-        } transaction(s) imported.${
-          result.errorCount > 0
+        const message = `${t("importSuccess")}: ${result.successCount
+          } transaction(s) imported.${result.errorCount > 0
             ? `\n\n${result.errorCount} error(s) occurred.`
             : ""
-        }${
-          result.errors && result.errors.length > 0
+          }${result.errors && result.errors.length > 0
             ? `\n\nFirst few errors:\n${result.errors.slice(0, 3).join("\n")}`
             : ""
-        }`;
+          }`;
 
         setErrorDialog({
           open: true,
@@ -656,39 +653,8 @@ export default function CounterSale() {
 
         setIsImportPreviewOpen(false);
 
-        // Refresh transactions by resetting to page 1 and triggering refetch
-        const wasOnPage1 = currentPage === 1;
+        // Refresh transactions by resetting to page 1
         setCurrentPage(1);
-
-        // Force refetch if already on page 1
-        if (wasOnPage1) {
-          try {
-            const refreshResponse = await fetch(
-              `/api/transactions?page=1&limit=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
-            );
-            if (refreshResponse.ok) {
-              const refreshResult: PaginatedResponse =
-                await refreshResponse.json();
-              setTransactions(refreshResult.data);
-              const computedTotalPages = Math.max(
-                1,
-                Math.ceil(refreshResult.total / pageSize),
-              );
-              setPageInfo({
-                total: refreshResult.total,
-                totalPages: computedTotalPages,
-              });
-              const years = getYearsFromDates(
-                refreshResult.data.map((t) => t.created_at),
-              );
-              const currentYear = new Date().getFullYear();
-              const yearsSet = new Set([currentYear, ...years]);
-              setAllYears(Array.from(yearsSet).sort((a, b) => b - a));
-            }
-          } catch (refreshError) {
-            console.error("Error refreshing transactions:", refreshError);
-          }
-        }
 
         // Reset file input
         if (fileInputRef.current) {
@@ -795,16 +761,13 @@ export default function CounterSale() {
     setTransactionToDelete(null);
 
     try {
-      const response = await fetch(`/api/transactions/${idToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        // Rollback on failure
-        setTransactions(previousTransactions);
-        setPageInfo(previousPageInfo);
-        console.error("Failed to delete transaction");
-      }
+      await db.transactions.delete(String(idToDelete));
+      await SyncEngine.queueOperation(
+        "transactions",
+        "DELETE",
+        `/api/transactions/${idToDelete}`,
+        null
+      );
     } catch (error) {
       // Rollback on error
       setTransactions(previousTransactions);
@@ -987,9 +950,8 @@ export default function CounterSale() {
             
             .type-badge {
               display: inline-block;
-              background-color: ${
-                transaction.type === "income" ? "#d1fae5" : "#fee2e2"
-              };
+              background-color: ${transaction.type === "income" ? "#d1fae5" : "#fee2e2"
+      };
               color: ${transaction.type === "income" ? "#065f46" : "#991b1b"};
               padding: 4px 8px;
               border-radius: 3px;
@@ -1063,11 +1025,10 @@ export default function CounterSale() {
             <div class="receipt-section">
               <div class="section-title">${t("itemDetails")}</div>
               <div class="item-name">${transaction.productName || "N/A"}</div>
-              ${
-                transaction.productDescription
-                  ? `<div class="item-description">${transaction.productDescription}</div>`
-                  : ""
-              }
+              ${transaction.productDescription
+        ? `<div class="item-description">${transaction.productDescription}</div>`
+        : ""
+      }
               <div class="detail-row">
                 <span class="detail-label">${t("unitPrice")}:</span>
                 <span class="detail-value">Rs. ${transaction.unitPrice || 0}</span>
@@ -1082,38 +1043,35 @@ export default function CounterSale() {
               </div>
             </div>
             
-            ${
-              transaction.customerName || transaction.customerNumber
-                ? `
+            ${transaction.customerName || transaction.customerNumber
+        ? `
             <hr class="divider">
             
             <!-- Customer Details -->
             <div class="receipt-section">
               <div class="section-title">${t("customerName")}</div>
-              ${
-                transaction.customerName
-                  ? `
+              ${transaction.customerName
+          ? `
               <div class="detail-row">
                 <span class="detail-label">${t("name")}:</span>
                 <span class="detail-value">${transaction.customerName}</span>
               </div>
               `
-                  : ""
-              }
-              ${
-                transaction.customerNumber
-                  ? `
+          : ""
+        }
+              ${transaction.customerNumber
+          ? `
               <div class="detail-row">
                 <span class="detail-label">${t("number")}:</span>
                 <span class="detail-value">${transaction.customerNumber}</span>
               </div>
               `
-                  : ""
-              }
+          : ""
+        }
             </div>
             `
-                : ""
-            }
+        : ""
+      }
             
             <hr class="divider">
             
@@ -1121,8 +1079,8 @@ export default function CounterSale() {
             <div class="amount-box">
               <div class="amount-label">${t("amount")}</div>
               <div class="amount-value">Rs. ${Math.floor(
-                transaction.amount,
-              )}</div>
+        transaction.amount,
+      )}</div>
             </div>
             
             <!-- Type Badge -->
@@ -1158,41 +1116,35 @@ export default function CounterSale() {
 
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/transactions?page=${currentPage}&limit=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&year=${selectedYear}`,
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch transactions");
-        }
-        const result: PaginatedResponse = await response.json();
-        setTransactions(result.data);
-        const computedTotalPages = Math.max(
-          1,
-          Math.ceil(result.total / pageSize),
-        );
-        console.log("Computed Total Pages:", result.total);
-        setPageInfo({
-          total: result.total,
-          totalPages: computedTotalPages,
-        });
-        // Extract all years from transactions
-        const years = getYearsFromDates(result.data.map((t) => t.created_at));
-        // Always include the current year
-        const currentYear = new Date().getFullYear();
-        const yearsSet = new Set([currentYear, ...years]);
-        setAllYears(Array.from(yearsSet).sort((a, b) => b - a)); // Sort descending
-      } catch (error) {
-        console.error("Error fetching transactions:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
 
-    fetchTransactions();
-  }, [currentPage, pageSize, sortColumn, sortDirection, selectedYear]);
+    let processed = [...offlineTransactions];
+
+    // sorting
+    processed.sort((a, b) => {
+      const aVal = a[sortColumn];
+      const bVal = b[sortColumn];
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    const total = processed.length;
+    const computedTotalPages = Math.max(1, Math.ceil(total / pageSize));
+    setPageInfo({ total, totalPages: computedTotalPages });
+
+    // Extract all years from transactions
+    const years = getYearsFromDates(processed.map((t) => t.created_at));
+    const currentYear = new Date().getFullYear();
+    const yearsSet = new Set([currentYear, ...years]);
+    setAllYears(Array.from(yearsSet).sort((a, b) => b - a));
+
+    // Pagination
+    const paginated = processed.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    setTransactions(paginated);
+
+    setLoading(false);
+  }, [offlineTransactions, currentPage, pageSize, sortColumn, sortDirection]);
 
   // Reset to first page when search or filters change or page size changes
   useEffect(() => {
@@ -1209,140 +1161,147 @@ export default function CounterSale() {
 
   return (
     <>
-      <Card className="w-full">
-        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle className="text-lg md:text-2xl">{t("title")}</CardTitle>
-            <CardDescription className="text-xs md:text-sm">
-              {t("pageDescription")}
-            </CardDescription>
-          </div>
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+        </div>
+        <Card className="flex flex-col gap-6 p-6 w-full">
+          <CardHeader className="p-0">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder={t("searchItems")}
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="pl-9 pr-9 h-9 text-sm w-full"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm("");
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <XIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
 
-          {/* Desktop controls */}
-          <div className="hidden md:flex flex-col items-end gap-2 md:ml-auto">
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <label className="text-sm font-medium whitespace-nowrap">
-                {t("year")}:
-              </label>
-              <Select
-                value={selectedYear.toString()}
-                onValueChange={(value) => setSelectedYear(parseInt(value))}
-              >
-                <SelectTrigger className="w-[150px] text-sm h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {allYears.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 w-10 p-0"
-                    disabled={isDownloading || isImporting}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDownloadExcel}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {isDownloading ? t("downloading") : t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setIsDateRangeDialogOpen(true)}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadDateRange")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDownloadTemplate}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  {/* <DropdownMenuItem
-                    onClick={handleDownloadSampleData}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadSampleFile") || "Download Sample Data"}
-                  </DropdownMenuItem> */}
-                  <DropdownMenuItem
-                    onClick={handleImportClick}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {isImporting ? t("importing") : t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={handleFileSelect}
-                style={{ display: "none" }}
-              />
-            </div>
-            <div className="text-xs text-muted-foreground whitespace-nowrap">
-              {t("total")}: {pageInfo.total.toLocaleString()}
-            </div>
-          </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 shrink-0 h-9"
+                      >
+                        <FilterIcon className="w-4 h-4" />
+                        <span>{tCommon("filter")}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-64 p-2 max-h-96 overflow-y-auto">
+                      <DropdownMenuLabel>{t("typeFilter")}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "all"}
+                        onCheckedChange={() => handleFilterChange("type", "all")}
+                      >
+                        {t("all")}
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "income"}
+                        onCheckedChange={() => handleFilterChange("type", "income")}
+                      >
+                        {t("income")}
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.type === "expense"}
+                        onCheckedChange={() => handleFilterChange("type", "expense")}
+                      >
+                        {t("expense")}
+                      </DropdownMenuCheckboxItem>
 
-          {/* Mobile controls */}
-          <div className="md:hidden w-full">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center gap-1">
-                <label className="text-xs font-medium whitespace-nowrap">
-                  {t("year")}:
-                </label>
-                <Select
-                  value={selectedYear.toString()}
-                  onValueChange={(value) => setSelectedYear(parseInt(value))}
-                >
-                  <SelectTrigger className="w-[90px] text-xs h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allYears.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      <DropdownMenuSeparator className="my-2" />
+                      <DropdownMenuLabel>{t("amountRange")}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <div className="p-2 space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            placeholder={t("min")}
+                            value={amountRange.min}
+                            onChange={(e) =>
+                              handleAmountRangeChange("min", e.target.value)
+                            }
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            placeholder={t("max")}
+                            value={amountRange.max}
+                            onChange={(e) =>
+                              handleAmountRangeChange("max", e.target.value)
+                            }
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearAllFilters}
+                      className="h-9 gap-1"
+                    >
+                      <XIcon className="w-4 h-4" />
+                      <span className="hidden sm:inline">{t("clear")}</span>
+                    </Button>
+                  )}
+                </div>
               </div>
-              <span className="text-[11px] text-muted-foreground whitespace-nowrap flex-1">
-                {t("total")}: {pageInfo.total.toLocaleString()}
-              </span>
-              <div className="flex items-center gap-2 ml-auto">
+
+              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full md:w-auto">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap hidden sm:inline">
+                    {t("year")}:
+                  </span>
+                  <Select
+                    value={selectedYear.toString()}
+                    onValueChange={(value) => setSelectedYear(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-[100px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   size="sm"
-                  className="h-8 text-xs whitespace-nowrap"
+                  className="h-9"
                   onClick={() => setIsAddFormOpen((prev) => !prev)}
                 >
-                  {isAddFormOpen ? t("close") : t("add")}
+                  {isAddFormOpen ? <><XIcon className="w-4 h-4 mr-2" />{t("close")}</> : <><PlusCircle className="w-4 h-4 mr-2" />{t("add")}</>}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0"
                       disabled={isDownloading || isImporting}
                     >
                       <MoreVertical className="h-4 w-4" />
@@ -1372,13 +1331,6 @@ export default function CounterSale() {
                       <FileDown className="mr-2 h-4 w-4" />
                       {t("downloadTemplate")}
                     </DropdownMenuItem>
-                    {/* <DropdownMenuItem
-                      onClick={handleDownloadSampleData}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {t("downloadSampleFile") || "Download Sample Data"}
-                    </DropdownMenuItem> */}
                     <DropdownMenuItem
                       onClick={handleImportClick}
                       disabled={isDownloading || isImporting}
@@ -1396,230 +1348,729 @@ export default function CounterSale() {
                   style={{ display: "none" }}
                 />
               </div>
-            </div>
-          </div>
-        </CardHeader>
 
-        <CardContent>
-          {/* Filter Section - Desktop */}
-          <div className="hidden md:block -mx-6 -mt-6 mb-6 px-6 py-4 border-b">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Search */}
-              <div className="relative w-48 flex-shrink-0">
-                <Input
-                  type="text"
-                  placeholder={t("searchItems")}
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="pr-8 h-9 text-sm"
-                />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <div className="w-full text-xs text-muted-foreground sm:hidden mt-2">
+                {t("total")}: {pageInfo.total.toLocaleString()}
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto -mx-4 md:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <div className="overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-48 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                            {t("item")}
+                          </TableHead>
+                          <TableHead className="w-28 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                            {t("unitPrice")}
+                          </TableHead>
+                          <TableHead className="w-24 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                            {t("uom")}
+                          </TableHead>
+                          <TableHead className="w-20 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                            {t("qty")}
+                          </TableHead>
+                          <TableHead
+                            className="w-32 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
+                            onClick={() => handleSort("amount")}
+                          >
+                            {t("amount")} {getSortIcon("amount")}
+                          </TableHead>
+                          <TableHead
+                            className="w-28 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
+                            onClick={() => handleSort("type")}
+                          >
+                            {t("type")} {getSortIcon("type")}
+                          </TableHead>
+                          <TableHead
+                            className="w-36 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
+                            onClick={() => handleSort("created_at")}
+                          >
+                            {t("date")} {getSortIcon("created_at")}
+                          </TableHead>
+                          <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                            {t("customerName")}
+                          </TableHead>
+                          <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
+                            {t("customerNumber")}
+                          </TableHead>
+                          <TableHead className="w-20 px-2 sm:px-4"></TableHead>
+                          <TableHead className="w-20 px-2 sm:px-4">
+                            <span className="sr-only">Actions</span>
+                          </TableHead>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                            <ProductDropdown
+                              value={
+                                newTransaction.productId
+                                  ? String(newTransaction.productId)
+                                  : ""
+                              }
+                              onValueChange={(value, product) => {
+                                if (product) {
+                                  setNewTransaction((prev) => ({
+                                    ...prev,
+                                    productId: (product._id
+                                      ? String(product._id)
+                                      : String(product.id)) as any,
+                                    productName: product.name,
+                                    productDescription: product.description,
+                                    unitPrice: product.sell_price || 0,
+                                    uom: product.unit_of_measurement || "unit",
+                                    quantity: 1,
+                                    amount: (product.sell_price || 0) * 1,
+                                  }));
+                                }
+                              }}
+                              placeholder={t("selectItem")}
+                              className="w-32 truncate text-xs"
+                            />
+                          </TableCell>
+                          <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                            <Input
+                              name="unitPrice"
+                              type="number"
+                              value={newTransaction.unitPrice || ""}
+                              onChange={handleInputChange}
+                              placeholder={t("price")}
+                              className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                              required
+                            />
+                          </TableCell>
+                          <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
+                            <Select
+                              value={newTransaction.uom}
+                              onValueChange={(value) =>
+                                handleUOMChange(value, false)
+                              }
+                            >
+                              <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
+                                <SelectValue placeholder="UOM" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNITS_OF_MEASUREMENT.map((unit) => (
+                                  <SelectItem key={unit.value} value={unit.value}>
+                                    {unit.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
+                            <Input
+                              name="quantity"
+                              type="number"
+                              value={newTransaction.quantity || ""}
+                              onChange={handleInputChange}
+                              placeholder={t("qty")}
+                              className="text-xs sm:text-sm h-8 sm:h-10 w-16"
+                              required
+                            />
+                          </TableCell>
+                          <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                            <Input
+                              name="amount"
+                              type="number"
+                              value={newTransaction.amount}
+                              onChange={handleInputChange}
+                              placeholder={t("amount")}
+                              required
+                              className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                              readOnly
+                            />
+                          </TableCell>
+                          <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                            <div className="w-full overflow-hidden">
+                              <Select
+                                defaultValue={newTransaction.type}
+                                onValueChange={(value) =>
+                                  setNewTransaction({
+                                    ...newTransaction,
+                                    type: value as TransactionType,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
+                                  <SelectValue placeholder={t("type")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="income">Income</SelectItem>
+                                  <SelectItem value="expense">Expense</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </TableCell>
+                          <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                            <div className="relative w-32">
+                              <Input
+                                name="created_at"
+                                type="date"
+                                value={isoToDateInput(newTransaction.created_at)}
+                                onChange={handleInputChange}
+                                required
+                                className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                              />
+                              <CalendarIcon
+                                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                                onClick={(e) => {
+                                  (
+                                    e.currentTarget
+                                      .previousElementSibling as HTMLInputElement
+                                  )?.showPicker?.();
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                            <Input
+                              name="customerName"
+                              value={newTransaction.customerName || ""}
+                              onChange={handleInputChange}
+                              placeholder={t("name")}
+                              className="text-xs sm:text-sm h-8 sm:h-10 w-32"
+                            />
+                          </TableCell>
+                          <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                            <Input
+                              name="customerNumber"
+                              value={newTransaction.customerNumber || ""}
+                              onChange={handleInputChange}
+                              placeholder={t("number")}
+                              className="text-xs sm:text-sm h-8 sm:h-10 w-32"
+                            />
+                          </TableCell>
+                          <TableCell className="w-20 px-2 sm:px-4">
+                            <Button
+                              onClick={handleAddTransaction}
+                              disabled={isImporting}
+                              size="sm"
+                              className="text-xs sm:text-sm h-8 sm:h-10"
+                            >
+                              {t("add")}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTransactions.map((transaction) => (
+                          <React.Fragment key={transaction.id}>
+                            {/* Desktop Edit Row */}
+                            {editingId === transaction.id ? (
+                              <TableRow className="hidden md:table-row">
+                                <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                                  <ProductDropdown
+                                    value={
+                                      editFormData.productId
+                                        ? String(editFormData.productId)
+                                        : ""
+                                    }
+                                    onValueChange={(value, product) => {
+                                      if (product) {
+                                        setEditFormData((prev) => ({
+                                          ...prev,
+                                          productId: (product._id
+                                            ? String(product._id)
+                                            : String(product.id)) as any,
+                                          productName: product.name,
+                                          productDescription: product.description,
+                                          unitPrice: product.sell_price || 0,
+                                          uom:
+                                            product.unit_of_measurement || "unit",
+                                          quantity: 1,
+                                          amount: (product.sell_price || 0) * 1,
+                                        }));
+                                      }
+                                    }}
+                                    placeholder={t("selectItem")}
+                                    className="w-32 truncate text-xs"
+                                  />
+                                </TableCell>
+                                <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                                  <Input
+                                    name="unitPrice"
+                                    type="number"
+                                    value={editFormData.unitPrice || ""}
+                                    onChange={handleEditInputChange}
+                                    placeholder={t("price")}
+                                    className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                                    required
+                                  />
+                                </TableCell>
+                                <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
+                                  <Select
+                                    value={editFormData.uom}
+                                    onValueChange={(value) =>
+                                      handleUOMChange(value, true)
+                                    }
+                                  >
+                                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
+                                      <SelectValue placeholder="UOM" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {UNITS_OF_MEASUREMENT.map((unit) => (
+                                        <SelectItem
+                                          key={unit.value}
+                                          value={unit.value}
+                                        >
+                                          {unit.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
+                                  <Input
+                                    name="quantity"
+                                    type="number"
+                                    value={editFormData.quantity || ""}
+                                    onChange={handleEditInputChange}
+                                    placeholder={t("qty")}
+                                    className="text-xs sm:text-sm h-8 sm:h-10 w-16"
+                                    required
+                                  />
+                                </TableCell>
+                                <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
+                                  <Input
+                                    name="amount"
+                                    type="number"
+                                    value={editFormData.amount || ""}
+                                    onChange={handleEditInputChange}
+                                    placeholder="Amount"
+                                    className="text-xs sm:text-sm h-8 sm:h-10 w-28"
+                                    readOnly
+                                  />
+                                </TableCell>
+                                <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                                  <div className="w-full overflow-hidden">
+                                    <Select
+                                      value={editFormData.type || "income"}
+                                      onValueChange={(value) =>
+                                        setEditFormData({
+                                          ...editFormData,
+                                          type: value as TransactionType,
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
+                                        <SelectValue placeholder="Type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="income">
+                                          Income
+                                        </SelectItem>
+                                        <SelectItem value="expense">
+                                          Expense
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                                  <div className="relative w-32">
+                                    <Input
+                                      name="created_at"
+                                      type="date"
+                                      value={isoToDateInput(
+                                        editFormData.created_at ||
+                                        transaction.created_at,
+                                      )}
+                                      onChange={handleEditInputChange}
+                                      className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                                    />
+                                    <CalendarIcon
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                                      onClick={(e) => {
+                                        (
+                                          e.currentTarget
+                                            .previousElementSibling as HTMLInputElement
+                                        )?.showPicker?.();
+                                      }}
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                                  <Input
+                                    name="customerName"
+                                    value={editFormData.customerName || ""}
+                                    onChange={handleEditInputChange}
+                                    placeholder={t("name")}
+                                    className="text-xs sm:text-sm h-8 sm:h-10 w-32"
+                                  />
+                                </TableCell>
+                                <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                                  <Input
+                                    name="customerNumber"
+                                    value={editFormData.customerNumber || ""}
+                                    onChange={handleEditInputChange}
+                                    placeholder={t("number")}
+                                    className="text-xs sm:text-sm h-8 sm:h-10 w-32"
+                                  />
+                                </TableCell>
+                                <TableCell className="w-20 px-2 sm:px-4">
+                                  <div className="flex gap-1 sm:gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleUpdateTransaction(transaction.id)
+                                      }
+                                      className="text-xs sm:text-sm h-8 px-2 sm:px-3"
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditingId(null);
+                                        setEditFormData({});
+                                      }}
+                                      className="text-xs sm:text-sm h-8 px-2 sm:px-3"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              <>
+                                {/* Desktop View */}
+                                <TableRow className="hidden md:table-row">
+                                  <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
+                                    <div className="flex flex-col items-start py-1">
+                                      <span className="text-xs sm:text-sm font-medium leading-tight">
+                                        {transaction.productName || "-"}
+                                      </span>
+                                      {transaction.productDescription && (
+                                        <span className="text-xs text-muted-foreground leading-snug">
+                                          {truncateWords(
+                                            transaction.productDescription,
+                                            3,
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="w-24 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                    Rs. {transaction.unitPrice}
+                                  </TableCell>
+                                  <TableCell className="w-20 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                    {transaction.uom}
+                                  </TableCell>
+                                  <TableCell className="w-16 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                    {transaction.quantity}
+                                  </TableCell>
+                                  <TableCell className="w-28 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                    Rs. {Math.floor(transaction.amount)}
+                                  </TableCell>
+                                  <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                                    <Badge
+                                      variant={transaction.type}
+                                      className="text-xs truncate"
+                                    >
+                                      {transaction.type}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="w-32 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
+                                    {formatDate(transaction.created_at, false, {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "2-digit",
+                                    })}
+                                  </TableCell>
+                                  <TableCell
+                                    className="w-32 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
+                                    title={transaction.customerName || "-"}
+                                  >
+                                    {transaction.customerName || "-"}
+                                  </TableCell>
+                                  <TableCell
+                                    className="w-32 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
+                                    title={transaction.customerNumber || "-"}
+                                  >
+                                    {transaction.customerNumber || "-"}
+                                  </TableCell>
+                                  <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
+                                    <div className="flex gap-1">
+                                      <Button
+                                        aria-haspopup="true"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8"
+                                        onClick={() =>
+                                          handleOpenEdit(transaction)
+                                        }
+                                        title="Edit"
+                                      >
+                                        <Edit2Icon className="h-4 w-4" />
+                                        <span className="sr-only">Edit</span>
+                                      </Button>
+                                      <Button
+                                        aria-haspopup="true"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8"
+                                        onClick={() =>
+                                          handleDownloadPDF(transaction)
+                                        }
+                                        title="Download"
+                                      >
+                                        <DownloadIcon className="h-4 w-4" />
+                                        <span className="sr-only">Download</span>
+                                      </Button>
+                                      <Button
+                                        aria-haspopup="true"
+                                        size="icon"
+                                        variant="danger"
+                                        className="h-8 w-8"
+                                        onClick={() => {
+                                          setTransactionToDelete(transaction);
+                                          setIsDeleteConfirmationOpen(true);
+                                        }}
+                                        title="Delete"
+                                      >
+                                        <Trash2Icon className="h-4 w-4" />
+                                        <span className="sr-only">Delete</span>
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              </>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile View - Cards */}
+            <div className="md:hidden space-y-3">
+              {/* Mobile Filter Section */}
+              <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border">
+                <div className="flex flex-col gap-3">
+                  {/* Search */}
+                  <div className="relative w-full">
+                    <Input
+                      type="text"
+                      placeholder={t("searchItems")}
+                      value={searchTerm}
+                      onChange={handleSearch}
+                      className="pr-8 h-9 text-sm w-full"
+                    />
+                    <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {/* Type Filter */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 h-9 text-xs flex-shrink-0"
+                        >
+                          <span className="text-muted-foreground">Type:</span>
+                          <span>
+                            {filters.type === "all" ? "All" : filters.type}
+                          </span>
+                          <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-[200px]">
+                        <DropdownMenuLabel>Type</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuCheckboxItem
+                          checked={filters.type === "all"}
+                          onCheckedChange={() =>
+                            handleFilterChange("type", "all")
+                          }
+                        >
+                          All
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                          checked={filters.type === "income"}
+                          onCheckedChange={() =>
+                            handleFilterChange("type", "income")
+                          }
+                        >
+                          Income
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                          checked={filters.type === "expense"}
+                          onCheckedChange={() =>
+                            handleFilterChange("type", "expense")
+                          }
+                        >
+                          Expense
+                        </DropdownMenuCheckboxItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Amount Range Filter */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 h-9 flex-shrink-0"
+                        >
+                          <FilterIcon className="w-3 h-3" />
+                          <span className="text-xs">Amount</span>
+                          <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="start"
+                        className="w-[280px] p-4"
+                      >
+                        <div className="space-y-3">
+                          <Label className="text-xs font-semibold">
+                            Amount Range
+                          </Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              placeholder="Min"
+                              value={amountRange.min}
+                              onChange={(e) =>
+                                handleAmountRangeChange("min", e.target.value)
+                              }
+                              className="h-8 text-xs"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Max"
+                              value={amountRange.max}
+                              onChange={(e) =>
+                                handleAmountRangeChange("max", e.target.value)
+                              }
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Reset Filters Button */}
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearAllFilters}
+                        className="h-9 px-2 flex-shrink-0 text-xs"
+                      >
+                        <XIcon className="w-4 h-4 mr-1" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Type Filter */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 h-9 text-xs flex-shrink-0"
-                  >
-                    <span className="text-muted-foreground hidden sm:inline">
-                      {t("typeFilter")}:
-                    </span>
-                    <span>
-                      {filters.type === "all"
-                        ? t("all")
-                        : filters.type === "income"
-                          ? t("income")
-                          : t("expense")}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
-                  <DropdownMenuLabel>{t("typeFilter")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.type === "all"}
-                    onCheckedChange={() => handleFilterChange("type", "all")}
-                  >
-                    {t("all")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.type === "income"}
-                    onCheckedChange={() => handleFilterChange("type", "income")}
-                  >
-                    {t("income")}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.type === "expense"}
-                    onCheckedChange={() =>
-                      handleFilterChange("type", "expense")
-                    }
-                  >
-                    {t("expense")}
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Amount Range Filter */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 h-9 flex-shrink-0"
-                  >
-                    <FilterIcon className="w-3 h-3" />
-                    <span className="text-xs hidden sm:inline">
-                      {t("amount")}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 sm:w-80 p-4">
-                  <div className="space-y-3">
-                    <Label className="text-xs font-semibold">
-                      {t("amountRange")}
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        placeholder={t("min")}
-                        value={amountRange.min}
-                        onChange={(e) =>
-                          handleAmountRangeChange("min", e.target.value)
-                        }
-                        className="h-8 text-xs"
-                      />
-                      <Input
-                        type="number"
-                        placeholder={t("max")}
-                        value={amountRange.max}
-                        onChange={(e) =>
-                          handleAmountRangeChange("max", e.target.value)
-                        }
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Reset Filters Button */}
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearAllFilters}
-                  className="h-9 w-9 md:w-auto md:px-3 p-0 flex-shrink-0"
-                >
-                  <XIcon className="w-4 h-4" />
-                  <span className="hidden md:inline md:ml-1 text-xs">
-                    {t("clear")}
-                  </span>
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Desktop Table View */}
-          <div className="hidden md:block">
-            <div className="overflow-x-auto -mx-4 md:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <div className="overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-48 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          {t("item")}
-                        </TableHead>
-                        <TableHead className="w-28 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          {t("unitPrice")}
-                        </TableHead>
-                        <TableHead className="w-24 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          {t("uom")}
-                        </TableHead>
-                        <TableHead className="w-20 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          {t("qty")}
-                        </TableHead>
-                        <TableHead
-                          className="w-32 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
-                          onClick={() => handleSort("amount")}
+              {/* Transaction Cards */}
+              {filteredTransactions.map((transaction) => (
+                <div key={transaction.id}>
+                  {editingId === transaction.id ? (
+                    // Mobile Edit Card
+                    <div className="bg-white dark:bg-slate-900 border rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-semibold text-sm">
+                          Edit Transaction
+                        </h4>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditFormData({});
+                          }}
+                          className="h-6 w-6"
                         >
-                          {t("amount")} {getSortIcon("amount")}
-                        </TableHead>
-                        <TableHead
-                          className="w-28 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
-                          onClick={() => handleSort("type")}
-                        >
-                          {t("type")} {getSortIcon("type")}
-                        </TableHead>
-                        <TableHead
-                          className="w-36 cursor-pointer select-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4"
-                          onClick={() => handleSort("created_at")}
-                        >
-                          {t("date")} {getSortIcon("created_at")}
-                        </TableHead>
-                        <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          {t("customerName")}
-                        </TableHead>
-                        <TableHead className="w-36 whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4">
-                          {t("customerNumber")}
-                        </TableHead>
-                        <TableHead className="w-20 px-2 sm:px-4"></TableHead>
-                        <TableHead className="w-20 px-2 sm:px-4">
-                          <span className="sr-only">Actions</span>
-                        </TableHead>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                          <ProductDropdown
-                            value={
-                              newTransaction.productId
-                                ? String(newTransaction.productId)
-                                : ""
+                          ✕
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Item</label>
+                        <ProductDropdown
+                          value={
+                            editFormData.productId
+                              ? String(editFormData.productId)
+                              : ""
+                          }
+                          onValueChange={(value, product) => {
+                            if (product) {
+                              setEditFormData((prev) => ({
+                                ...prev,
+                                productId: (product._id
+                                  ? String(product._id)
+                                  : String(product.id)) as any,
+                                productName: product.name,
+                                productDescription: product.description,
+                                unitPrice: product.sell_price || 0,
+                                uom: product.unit_of_measurement || "unit",
+                                quantity: 1,
+                                amount: (product.sell_price || 0) * 1,
+                              }));
                             }
-                            onValueChange={(value, product) => {
-                              if (product) {
-                                setNewTransaction((prev) => ({
-                                  ...prev,
-                                  productId: (product._id
-                                    ? String(product._id)
-                                    : String(product.id)) as any,
-                                  productName: product.name,
-                                  productDescription: product.description,
-                                  unitPrice: product.sell_price || 0,
-                                  uom: product.unit_of_measurement || "unit",
-                                  quantity: 1,
-                                  amount: (product.sell_price || 0) * 1,
-                                }));
-                              }
-                            }}
-                            placeholder={t("selectItem")}
-                            className="w-32 truncate text-xs"
-                          />
-                        </TableCell>
-                        <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                          }}
+                          placeholder="Select Item"
+                          className="w-full truncate text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Type</label>
+                        <Select
+                          value={editFormData.type || "income"}
+                          onValueChange={(value) =>
+                            setEditFormData({
+                              ...editFormData,
+                              type: value as TransactionType,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="text-sm h-9">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="income">Income</SelectItem>
+                            <SelectItem value="expense">Expense</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium">
+                            Unit Price
+                          </label>
                           <Input
                             name="unitPrice"
                             type="number"
-                            value={newTransaction.unitPrice || ""}
-                            onChange={handleInputChange}
-                            placeholder={t("price")}
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                            value={editFormData.unitPrice || ""}
+                            onChange={handleEditInputChange}
+                            placeholder="Price"
+                            className="text-sm h-9"
                             required
                           />
-                        </TableCell>
-                        <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium">UOM</label>
                           <Select
-                            value={newTransaction.uom}
+                            value={editFormData.uom}
                             onValueChange={(value) =>
-                              handleUOMChange(value, false)
+                              handleUOMChange(value, true)
                             }
                           >
-                            <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
+                            <SelectTrigger className="text-sm h-9">
                               <SelectValue placeholder="UOM" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1630,865 +2081,248 @@ export default function CounterSale() {
                               ))}
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                        <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium">Quantity</label>
                           <Input
                             name="quantity"
                             type="number"
-                            value={newTransaction.quantity || ""}
-                            onChange={handleInputChange}
-                            placeholder={t("qty")}
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-16"
+                            value={editFormData.quantity || ""}
+                            onChange={handleEditInputChange}
+                            placeholder="Qty"
+                            className="text-sm h-9"
                             required
                           />
-                        </TableCell>
-                        <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium">Amount</label>
                           <Input
                             name="amount"
                             type="number"
-                            value={newTransaction.amount}
-                            onChange={handleInputChange}
-                            placeholder={t("amount")}
-                            required
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-24"
+                            value={editFormData.amount || ""}
+                            onChange={handleEditInputChange}
+                            placeholder="Amount"
+                            className="text-sm h-9"
                             readOnly
                           />
-                        </TableCell>
-                        <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                          <div className="w-full overflow-hidden">
-                            <Select
-                              defaultValue={newTransaction.type}
-                              onValueChange={(value) =>
-                                setNewTransaction({
-                                  ...newTransaction,
-                                  type: value as TransactionType,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
-                                <SelectValue placeholder={t("type")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="income">Income</SelectItem>
-                                <SelectItem value="expense">Expense</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
-                          <div className="relative w-32">
-                            <Input
-                              name="created_at"
-                              type="date"
-                              value={isoToDateInput(newTransaction.created_at)}
-                              onChange={handleInputChange}
-                              required
-                              className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
-                            />
-                            <CalendarIcon
-                              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
-                              onClick={(e) => {
-                                (
-                                  e.currentTarget
-                                    .previousElementSibling as HTMLInputElement
-                                )?.showPicker?.();
-                              }}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Date</label>
+                        <div className="relative">
                           <Input
-                            name="customerName"
-                            value={newTransaction.customerName || ""}
-                            onChange={handleInputChange}
-                            placeholder={t("name")}
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-32"
+                            name="created_at"
+                            type="date"
+                            value={isoToDateInput(
+                              editFormData.created_at || transaction.created_at,
+                            )}
+                            onChange={handleEditInputChange}
+                            className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
                           />
-                        </TableCell>
-                        <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
-                          <Input
-                            name="customerNumber"
-                            value={newTransaction.customerNumber || ""}
-                            onChange={handleInputChange}
-                            placeholder={t("number")}
-                            className="text-xs sm:text-sm h-8 sm:h-10 w-32"
-                          />
-                        </TableCell>
-                        <TableCell className="w-20 px-2 sm:px-4">
-                          <Button
-                            onClick={handleAddTransaction}
-                            disabled={isImporting}
-                            size="sm"
-                            className="text-xs sm:text-sm h-8 sm:h-10"
-                          >
-                            {t("add")}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredTransactions.map((transaction) => (
-                        <React.Fragment key={transaction.id}>
-                          {/* Desktop Edit Row */}
-                          {editingId === transaction.id ? (
-                            <TableRow className="hidden md:table-row">
-                              <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                                <ProductDropdown
-                                  value={
-                                    editFormData.productId
-                                      ? String(editFormData.productId)
-                                      : ""
-                                  }
-                                  onValueChange={(value, product) => {
-                                    if (product) {
-                                      setEditFormData((prev) => ({
-                                        ...prev,
-                                        productId: (product._id
-                                          ? String(product._id)
-                                          : String(product.id)) as any,
-                                        productName: product.name,
-                                        productDescription: product.description,
-                                        unitPrice: product.sell_price || 0,
-                                        uom:
-                                          product.unit_of_measurement || "unit",
-                                        quantity: 1,
-                                        amount: (product.sell_price || 0) * 1,
-                                      }));
-                                    }
-                                  }}
-                                  placeholder={t("selectItem")}
-                                  className="w-32 truncate text-xs"
-                                />
-                              </TableCell>
-                              <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="unitPrice"
-                                  type="number"
-                                  value={editFormData.unitPrice || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder={t("price")}
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-24"
-                                  required
-                                />
-                              </TableCell>
-                              <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
-                                <Select
-                                  value={editFormData.uom}
-                                  onValueChange={(value) =>
-                                    handleUOMChange(value, true)
-                                  }
-                                >
-                                  <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-20">
-                                    <SelectValue placeholder="UOM" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {UNITS_OF_MEASUREMENT.map((unit) => (
-                                      <SelectItem
-                                        key={unit.value}
-                                        value={unit.value}
-                                      >
-                                        {unit.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="quantity"
-                                  type="number"
-                                  value={editFormData.quantity || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder={t("qty")}
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-16"
-                                  required
-                                />
-                              </TableCell>
-                              <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="amount"
-                                  type="number"
-                                  value={editFormData.amount || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder="Amount"
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-28"
-                                  readOnly
-                                />
-                              </TableCell>
-                              <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                                <div className="w-full overflow-hidden">
-                                  <Select
-                                    value={editFormData.type || "income"}
-                                    onValueChange={(value) =>
-                                      setEditFormData({
-                                        ...editFormData,
-                                        type: value as TransactionType,
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10 w-24">
-                                      <SelectValue placeholder="Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="income">
-                                        Income
-                                      </SelectItem>
-                                      <SelectItem value="expense">
-                                        Expense
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </TableCell>
-                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
-                                <div className="relative w-32">
-                                  <Input
-                                    name="created_at"
-                                    type="date"
-                                    value={isoToDateInput(
-                                      editFormData.created_at ||
-                                        transaction.created_at,
-                                    )}
-                                    onChange={handleEditInputChange}
-                                    className="text-xs sm:text-sm h-8 sm:h-10 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
-                                  />
-                                  <CalendarIcon
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
-                                    onClick={(e) => {
-                                      (
-                                        e.currentTarget
-                                          .previousElementSibling as HTMLInputElement
-                                      )?.showPicker?.();
-                                    }}
-                                  />
-                                </div>
-                              </TableCell>
-                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="customerName"
-                                  value={editFormData.customerName || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder={t("name")}
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-32"
-                                />
-                              </TableCell>
-                              <TableCell className="w-32 px-2 sm:px-4 overflow-hidden">
-                                <Input
-                                  name="customerNumber"
-                                  value={editFormData.customerNumber || ""}
-                                  onChange={handleEditInputChange}
-                                  placeholder={t("number")}
-                                  className="text-xs sm:text-sm h-8 sm:h-10 w-32"
-                                />
-                              </TableCell>
-                              <TableCell className="w-20 px-2 sm:px-4">
-                                <div className="flex gap-1 sm:gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleUpdateTransaction(transaction.id)
-                                    }
-                                    className="text-xs sm:text-sm h-8 px-2 sm:px-3"
-                                  >
-                                    Save
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setEditingId(null);
-                                      setEditFormData({});
-                                    }}
-                                    className="text-xs sm:text-sm h-8 px-2 sm:px-3"
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            <>
-                              {/* Desktop View */}
-                              <TableRow className="hidden md:table-row">
-                                <TableCell className="w-40 px-2 sm:px-4 overflow-hidden">
-                                  <div className="flex flex-col items-start py-1">
-                                    <span className="text-xs sm:text-sm font-medium leading-tight">
-                                      {transaction.productName || "-"}
-                                    </span>
-                                    {transaction.productDescription && (
-                                      <span className="text-xs text-muted-foreground leading-snug">
-                                        {truncateWords(
-                                          transaction.productDescription,
-                                          3,
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="w-24 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                  Rs. {transaction.unitPrice}
-                                </TableCell>
-                                <TableCell className="w-20 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                  {transaction.uom}
-                                </TableCell>
-                                <TableCell className="w-16 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                  {transaction.quantity}
-                                </TableCell>
-                                <TableCell className="w-28 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                  Rs. {Math.floor(transaction.amount)}
-                                </TableCell>
-                                <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                                  <Badge
-                                    variant={transaction.type}
-                                    className="text-xs truncate"
-                                  >
-                                    {transaction.type}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="w-32 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                  {formatDate(transaction.created_at, false, {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "2-digit",
-                                  })}
-                                </TableCell>
-                                <TableCell
-                                  className="w-32 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
-                                  title={transaction.customerName || "-"}
-                                >
-                                  {transaction.customerName || "-"}
-                                </TableCell>
-                                <TableCell
-                                  className="w-32 text-xs sm:text-sm px-2 sm:px-4 overflow-hidden truncate"
-                                  title={transaction.customerNumber || "-"}
-                                >
-                                  {transaction.customerNumber || "-"}
-                                </TableCell>
-                                <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
-                                  <div className="flex gap-1">
-                                    <Button
-                                      aria-haspopup="true"
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-8 w-8"
-                                      onClick={() =>
-                                        handleOpenEdit(transaction)
-                                      }
-                                      title="Edit"
-                                    >
-                                      <Edit2Icon className="h-4 w-4" />
-                                      <span className="sr-only">Edit</span>
-                                    </Button>
-                                    <Button
-                                      aria-haspopup="true"
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-8 w-8"
-                                      onClick={() =>
-                                        handleDownloadPDF(transaction)
-                                      }
-                                      title="Download"
-                                    >
-                                      <DownloadIcon className="h-4 w-4" />
-                                      <span className="sr-only">Download</span>
-                                    </Button>
-                                    <Button
-                                      aria-haspopup="true"
-                                      size="icon"
-                                      variant="danger"
-                                      className="h-8 w-8"
-                                      onClick={() => {
-                                        setTransactionToDelete(transaction);
-                                        setIsDeleteConfirmationOpen(true);
-                                      }}
-                                      title="Delete"
-                                    >
-                                      <Trash2Icon className="h-4 w-4" />
-                                      <span className="sr-only">Delete</span>
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            </>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile View - Cards */}
-          <div className="md:hidden space-y-3">
-            {/* Mobile Filter Section */}
-            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border">
-              <div className="flex flex-col gap-3">
-                {/* Search */}
-                <div className="relative w-full">
-                  <Input
-                    type="text"
-                    placeholder={t("searchItems")}
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="pr-8 h-9 text-sm w-full"
-                  />
-                  <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {/* Type Filter */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1 h-9 text-xs flex-shrink-0"
-                      >
-                        <span className="text-muted-foreground">Type:</span>
-                        <span>
-                          {filters.type === "all" ? "All" : filters.type}
-                        </span>
-                        <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[200px]">
-                      <DropdownMenuLabel>Type</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuCheckboxItem
-                        checked={filters.type === "all"}
-                        onCheckedChange={() =>
-                          handleFilterChange("type", "all")
-                        }
-                      >
-                        All
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filters.type === "income"}
-                        onCheckedChange={() =>
-                          handleFilterChange("type", "income")
-                        }
-                      >
-                        Income
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filters.type === "expense"}
-                        onCheckedChange={() =>
-                          handleFilterChange("type", "expense")
-                        }
-                      >
-                        Expense
-                      </DropdownMenuCheckboxItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Amount Range Filter */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1 h-9 flex-shrink-0"
-                      >
-                        <FilterIcon className="w-3 h-3" />
-                        <span className="text-xs">Amount</span>
-                        <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      className="w-[280px] p-4"
-                    >
-                      <div className="space-y-3">
-                        <Label className="text-xs font-semibold">
-                          Amount Range
-                        </Label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Min"
-                            value={amountRange.min}
-                            onChange={(e) =>
-                              handleAmountRangeChange("min", e.target.value)
-                            }
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            type="number"
-                            placeholder="Max"
-                            value={amountRange.max}
-                            onChange={(e) =>
-                              handleAmountRangeChange("max", e.target.value)
-                            }
-                            className="h-8 text-xs"
+                          <CalendarIcon
+                            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                            onClick={(e) => {
+                              (
+                                e.currentTarget
+                                  .previousElementSibling as HTMLInputElement
+                              )?.showPicker?.();
+                            }}
                           />
                         </div>
                       </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
 
-                  {/* Reset Filters Button */}
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearAllFilters}
-                      className="h-9 px-2 flex-shrink-0 text-xs"
-                    >
-                      <XIcon className="w-4 h-4 mr-1" />
-                      Clear
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Transaction Cards */}
-            {filteredTransactions.map((transaction) => (
-              <div key={transaction.id}>
-                {editingId === transaction.id ? (
-                  // Mobile Edit Card
-                  <div className="bg-white dark:bg-slate-900 border rounded-lg p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-semibold text-sm">
-                        Edit Transaction
-                      </h4>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingId(null);
-                          setEditFormData({});
-                        }}
-                        className="h-6 w-6"
-                      >
-                        ✕
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium">Item</label>
-                      <ProductDropdown
-                        value={
-                          editFormData.productId
-                            ? String(editFormData.productId)
-                            : ""
-                        }
-                        onValueChange={(value, product) => {
-                          if (product) {
-                            setEditFormData((prev) => ({
-                              ...prev,
-                              productId: (product._id
-                                ? String(product._id)
-                                : String(product.id)) as any,
-                              productName: product.name,
-                              productDescription: product.description,
-                              unitPrice: product.sell_price || 0,
-                              uom: product.unit_of_measurement || "unit",
-                              quantity: 1,
-                              amount: (product.sell_price || 0) * 1,
-                            }));
-                          }
-                        }}
-                        placeholder="Select Item"
-                        className="w-full truncate text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium">Type</label>
-                      <Select
-                        value={editFormData.type || "income"}
-                        onValueChange={(value) =>
-                          setEditFormData({
-                            ...editFormData,
-                            type: value as TransactionType,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="text-sm h-9">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="income">Income</SelectItem>
-                          <SelectItem value="expense">Expense</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-2">
                         <label className="text-xs font-medium">
-                          Unit Price
+                          Customer Name
                         </label>
                         <Input
-                          name="unitPrice"
-                          type="number"
-                          value={editFormData.unitPrice || ""}
+                          name="customerName"
+                          value={editFormData.customerName || ""}
                           onChange={handleEditInputChange}
-                          placeholder="Price"
+                          placeholder="Name (Optional)"
                           className="text-sm h-9"
-                          required
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-medium">UOM</label>
-                        <Select
-                          value={editFormData.uom}
-                          onValueChange={(value) =>
-                            handleUOMChange(value, true)
-                          }
-                        >
-                          <SelectTrigger className="text-sm h-9">
-                            <SelectValue placeholder="UOM" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {UNITS_OF_MEASUREMENT.map((unit) => (
-                              <SelectItem key={unit.value} value={unit.value}>
-                                {unit.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">Quantity</label>
+                        <label className="text-xs font-medium">
+                          Customer Number
+                        </label>
                         <Input
-                          name="quantity"
-                          type="number"
-                          value={editFormData.quantity || ""}
+                          name="customerNumber"
+                          value={editFormData.customerNumber || ""}
                           onChange={handleEditInputChange}
-                          placeholder="Qty"
+                          placeholder="Number (Optional)"
                           className="text-sm h-9"
-                          required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">Amount</label>
-                        <Input
-                          name="amount"
-                          type="number"
-                          value={editFormData.amount || ""}
-                          onChange={handleEditInputChange}
-                          placeholder="Amount"
-                          className="text-sm h-9"
-                          readOnly
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium">Date</label>
-                      <div className="relative">
-                        <Input
-                          name="created_at"
-                          type="date"
-                          value={isoToDateInput(
-                            editFormData.created_at || transaction.created_at,
-                          )}
-                          onChange={handleEditInputChange}
-                          className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
-                        />
-                        <CalendarIcon
-                          className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
-                          onClick={(e) => {
-                            (
-                              e.currentTarget
-                                .previousElementSibling as HTMLInputElement
-                            )?.showPicker?.();
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium">
-                        Customer Name
-                      </label>
-                      <Input
-                        name="customerName"
-                        value={editFormData.customerName || ""}
-                        onChange={handleEditInputChange}
-                        placeholder="Name (Optional)"
-                        className="text-sm h-9"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium">
-                        Customer Number
-                      </label>
-                      <Input
-                        name="customerNumber"
-                        value={editFormData.customerNumber || ""}
-                        onChange={handleEditInputChange}
-                        placeholder="Number (Optional)"
-                        className="text-sm h-9"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleUpdateTransaction(transaction.id)}
-                        className="flex-1 text-sm"
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setEditingId(null);
-                          setEditFormData({});
-                        }}
-                        className="flex-1 text-sm"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  // Mobile Transaction Card
-                  <div className="bg-white dark:bg-slate-900 border rounded-lg p-3 space-y-2">
-                    <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded space-y-1">
-                      <div className="font-medium">
-                        {transaction.productName || "-"}
-                      </div>
-                      {transaction.productDescription && (
-                        <div className="text-muted-foreground text-xs">
-                          {truncateWords(transaction.productDescription, 3)}
-                        </div>
-                      )}
-                      <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
-                        {transaction.unitPrice && (
-                          <span>
-                            Price: Rs. {transaction.unitPrice}
-                            {transaction.uom ? `/${transaction.uom}` : ""}
-                          </span>
-                        )}
-                        {transaction.quantity && (
-                          <span>Qty: {transaction.quantity}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-start justify-between gap-2">
                       <div className="flex gap-2">
                         <Button
-                          aria-haspopup="true"
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => handleOpenEdit(transaction)}
-                          title="Edit"
+                          onClick={() => handleUpdateTransaction(transaction.id)}
+                          className="flex-1 text-sm"
                         >
-                          <Edit2Icon className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
+                          Save
                         </Button>
                         <Button
-                          aria-haspopup="true"
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => handleDownloadPDF(transaction)}
-                          title="Download"
-                        >
-                          <DownloadIcon className="h-4 w-4" />
-                          <span className="sr-only">Download</span>
-                        </Button>
-                        <Button
-                          aria-haspopup="true"
-                          size="icon"
-                          variant="danger"
-                          className="h-7 w-7"
+                          variant="outline"
                           onClick={() => {
-                            setTransactionToDelete(transaction);
-                            setIsDeleteConfirmationOpen(true);
+                            setEditingId(null);
+                            setEditFormData({});
                           }}
-                          title="Delete"
+                          className="flex-1 text-sm"
                         >
-                          <Trash2Icon className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
+                          Cancel
                         </Button>
                       </div>
                     </div>
-                    {(transaction.customerName ||
-                      transaction.customerNumber) && (
-                      <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded">
-                        {transaction.customerName && (
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {transaction.customerName}
-                          </p>
+                  ) : (
+                    // Mobile Transaction Card
+                    <div className="bg-white dark:bg-slate-900 border rounded-lg p-3 space-y-2">
+                      <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded space-y-1">
+                        <div className="font-medium">
+                          {transaction.productName || "-"}
+                        </div>
+                        {transaction.productDescription && (
+                          <div className="text-muted-foreground text-xs">
+                            {truncateWords(transaction.productDescription, 3)}
+                          </div>
                         )}
-                        {transaction.customerNumber && (
-                          <p className="text-muted-foreground">
-                            {transaction.customerNumber}
-                          </p>
-                        )}
+                        <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
+                          {transaction.unitPrice && (
+                            <span>
+                              Price: Rs. {transaction.unitPrice}
+                              {transaction.uom ? `/${transaction.uom}` : ""}
+                            </span>
+                          )}
+                          {transaction.quantity && (
+                            <span>Qty: {transaction.quantity}</span>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                      <span>
-                        {formatDate(transaction.created_at, false, {
-                          year: "numeric",
-                          month: "short",
-                          day: "2-digit",
-                        })}
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        Rs. {Math.floor(transaction.amount)}
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <Badge
-                        variant={transaction.type}
-                        className="text-[10px] px-2 py-0.5 capitalize"
-                      >
-                        {transaction.type}
-                      </Badge>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex gap-2">
+                          <Button
+                            aria-haspopup="true"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => handleOpenEdit(transaction)}
+                            title="Edit"
+                          >
+                            <Edit2Icon className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            aria-haspopup="true"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => handleDownloadPDF(transaction)}
+                            title="Download"
+                          >
+                            <DownloadIcon className="h-4 w-4" />
+                            <span className="sr-only">Download</span>
+                          </Button>
+                          <Button
+                            aria-haspopup="true"
+                            size="icon"
+                            variant="danger"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setTransactionToDelete(transaction);
+                              setIsDeleteConfirmationOpen(true);
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </div>
+                      {(transaction.customerName ||
+                        transaction.customerNumber) && (
+                          <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                            {transaction.customerName && (
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {transaction.customerName}
+                              </p>
+                            )}
+                            {transaction.customerNumber && (
+                              <p className="text-muted-foreground">
+                                {transaction.customerNumber}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span>
+                          {formatDate(transaction.created_at, false, {
+                            year: "numeric",
+                            month: "short",
+                            day: "2-digit",
+                          })}
+                        </span>
+                        <span className="text-gray-400">|</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          Rs. {Math.floor(transaction.amount)}
+                        </span>
+                        <span className="text-gray-400">|</span>
+                        <Badge
+                          variant={transaction.type}
+                          className="text-[10px] px-2 py-0.5 capitalize"
+                        >
+                          {transaction.type}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="mt-4 sm:mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
-              <div className="text-sm text-muted-foreground whitespace-nowrap">
-                {tCommon("totalCountLabel", { count: pageInfo.total })}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {tCommon("rowsPerPage")}
-                </span>
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(parseInt(value))}
-                >
-                  <SelectTrigger className="h-8 w-[70px]">
-                    <SelectValue placeholder={pageSize.toString()} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[10, 25, 50, 100].map((size) => (
-                      <SelectItem key={size} value={size.toString()}>
-                        {size}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {pageInfo.totalPages > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={pageInfo.totalPages}
-                onPageChange={setCurrentPage}
-                isLoading={loading}
-              />
-            )}
-          </div>
-        </CardContent>
-        {/* Remove card footer */}
-      </Card>
+            {/* Pagination */}
+            <div className="mt-4 sm:mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                  {tCommon("totalCountLabel", { count: pageInfo.total })}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {tCommon("rowsPerPage")}
+                  </span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(parseInt(value))}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={pageSize.toString()} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 25, 50, 100].map((size) => (
+                        <SelectItem key={size} value={size.toString()}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {pageInfo.totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={pageInfo.totalPages}
+                  onPageChange={setCurrentPage}
+                  isLoading={loading}
+                />
+              )}
+            </div>
+          </CardContent>
+          {/* Remove card footer */}
+        </Card>
+      </div>
       <Dialog
         open={isDeleteConfirmationOpen}
         onOpenChange={setIsDeleteConfirmationOpen}
