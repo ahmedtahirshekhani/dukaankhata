@@ -70,7 +70,8 @@
     "clearingCache": "Clearing...",
     "cacheClearedSuccess": "Cache cleared successfully",
     "syncingData": "Syncing Data...",
-    "pleaseWait": "Please wait while we set up your offline database."
+    "pleaseWait": "Please wait while we set up your offline database.",
+    "all": "All"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -1106,7 +1107,8 @@
     "loadOptionsFailed": "Failed to load expense options",
     "editExpense": "Edit Expense",
     "deleteExpense": "Delete Expense",
-    "noExpenses": "No expenses found"
+    "noExpenses": "No expenses found",
+    "filterByCategory": "Filter by Category"
   },
   "dashboard": {
     "analyticalDashboard": "Analytics Dashboard",
