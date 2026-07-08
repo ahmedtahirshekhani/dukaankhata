@@ -157,3 +157,18 @@ export function setDateToCurrentTime(date: Date | string): Date {
     now.getMilliseconds(),
   );
 }
+
+/**
+ * Mask an invoice number (e.g. INV-17182839210-456 -> INV-***-456)
+ */
+export function maskInvoiceNo(invoiceNo: string): string {
+  if (!invoiceNo) return "";
+  const parts = invoiceNo.split('-');
+  if (parts.length === 3) {
+    return `${parts[0]}-***-${parts[2]}`;
+  }
+  if (invoiceNo.length > 8) {
+    return invoiceNo.slice(0, 4) + "***" + invoiceNo.slice(-4);
+  }
+  return invoiceNo;
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "monthly",
+    "billing": "monthly",
+    "name": "DukaanKhata Pro",
+    "price": "1000",
+    "originalPrice": "",
+    "currency": "Rs.",
+    "isPopular": true,
+    "isRecommended": false,
+    "hasDiscountBadge": false,
+    "discountBadgeText": "",
+    "description": "Unlock all premium features with a flexible monthly subscription.",
+    "features": [
+      "Unlimited Invoices & Quotations",
+      "Unlimited Products & Inventory",
+      "Unlimited Customers & Suppliers",
+      "Advanced Reports & Analytics",
+      "Priority WhatsApp Support",
+      "No Watermark on PDFs"
+    ]
+  },
+  {
+    "id": "yearly",
+    "billing": "yearly",
+    "name": "DukaanKhata Pro",
+    "price": "10,000",
+    "originalPrice": "12,000",
+    "currency": "Rs.",
+    "isPopular": false,
+    "isRecommended": true,
+    "hasDiscountBadge": true,
+    "discountBadgeText": "Save 17%",
+    "description": "Best value for growing businesses. Get 2 months free!",
+    "features": [
+      "Unlimited Invoices & Quotations",
+      "Unlimited Products & Inventory",
+      "Unlimited Customers & Suppliers",
+      "Advanced Reports & Analytics",
+      "Priority WhatsApp Support",
+      "No Watermark on PDFs"
+    ]
+  }
+]

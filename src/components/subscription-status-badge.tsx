@@ -118,17 +118,19 @@ export function SubscriptionStatusBadge() {
 
   const getStatusLabel = () => {
     if (subscriptionStatus.isPending) {
-      return subscriptionStatus.isRenewal ? "Grace Period (Renew Pro)" : "Pending";
+      return subscriptionStatus.isRenewal ? "Payment Pending (Renew)" : "Pending";
     }
     if (subscriptionStatus.isActive) {
-      return `${["trial", "in_trial"].includes(subscriptionStatus.status) ? "Trial" : "Active"}`;
+      const planName = subscriptionStatus.plan ? subscriptionStatus.plan.charAt(0).toUpperCase() + subscriptionStatus.plan.slice(1) : "";
+      const baseStatus = ["trial", "in_trial"].includes(subscriptionStatus.status) ? "Trial" : "Active";
+      return planName ? `${baseStatus} (${planName})` : baseStatus;
     }
     if (subscriptionStatus.isExpired) {
       if (
         subscriptionStatus.status === "payment_expire" ||
         subscriptionStatus.status === "expired"
       ) {
-        return subscriptionStatus.isRenewal ? "Grace Period (Renew Pro)" : "Trial Expired (Buy Pro)";
+        return subscriptionStatus.isRenewal ? "Payment Pending (Renew)" : "Trial Expired (Buy Pro)";
       }
       if (subscriptionStatus.status === "login_blocked") return "Blocked";
       return "Expired";

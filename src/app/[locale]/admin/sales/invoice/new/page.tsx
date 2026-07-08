@@ -46,6 +46,9 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { XIcon } from "lucide-react";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -611,47 +614,100 @@ export default function NewInvoicePage() {
 
     setIsCreatingOrder(true);
     try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const payload = {
+        invoiceNo,
+        customerId: selectedCustomer.id,
+        saleDate: selectedDate,
+        dueDate: addDueDate ? dueDate : null,
+        products: selectedProducts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          quantity: p.quantity,
+          quantityType: p.quantityType || "prime",
+          price: p.sell_price,
+          discount: p.discount || 0,
+          discountType: p.discountType || "value",
+          unit_of_measurement: p.unit_of_measurement,
+        })),
+        subtotal: total,
+        charges: displayCharges.map((c) => ({
+          item: c.item,
+          value: c.value,
+        })),
+        overallDiscount: overallDiscountAmount,
+        shippingCharges: shippingChargesNum,
+        total: finalTotal,
+        payment: {
+          method: paymentDetails.paymentMethod,
+          paidAmount: paymentDetails.paidAmount,
+          paidDate: paymentDetails.paidDate,
+          noPaymentAtAll: paymentDetails.noPaymentAtAll,
         },
-        body: JSON.stringify({
-          invoiceNo,
-          customerId: selectedCustomer.id,
-          saleDate: selectedDate,
-          dueDate: addDueDate ? dueDate : null,
-          products: selectedProducts.map((p) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            quantity: p.quantity,
-            quantityType: p.quantityType || "prime",
-            price: p.sell_price,
-            discount: p.discount || 0,
-            discountType: p.discountType || "value",
-            unit_of_measurement: p.unit_of_measurement,
-          })),
-          subtotal: total,
-          charges: displayCharges.map((c) => ({
-            item: c.item,
-            value: c.value,
-          })),
-          overallDiscount: overallDiscountAmount,
-          shippingCharges: shippingChargesNum,
-          total: finalTotal,
-          payment: {
-            method: paymentDetails.paymentMethod,
-            paidAmount: paymentDetails.paidAmount,
-            paidDate: paymentDetails.paidDate,
-            noPaymentAtAll: paymentDetails.noPaymentAtAll,
-          },
-        }),
-      });
+      };
 
-      if (!response.ok) throw new Error("Failed to create order");
+      // 1. Generate local ID
+      const localOrderId = `local_order_${Date.now()}`;
+      const now = new Date().toISOString();
 
-      const order = await response.json();
+      // 2. Insert Order locally
+      const orderData = {
+        id: localOrderId,
+        customer_id: selectedCustomer.id.toString(),
+        total_amount: finalTotal,
+        subtotal: total,
+        invoice_no: invoiceNo || null,
+        sale_date: selectedDate || now,
+        due_date: addDueDate ? dueDate : null,
+        charges: displayCharges,
+        overallDiscount: overallDiscountAmount,
+        shippingCharges: shippingChargesNum,
+        payment: paymentDetails.noPaymentAtAll ? null : {
+           method: paymentDetails.paymentMethod,
+           paid_amount: paymentDetails.paidAmount || 0,
+           paid_date: paymentDetails.paidDate || null,
+           no_payment_at_all: paymentDetails.noPaymentAtAll
+        },
+        user_id: (session?.user as any)?.id || "",
+        status: "completed",
+        created_at: now,
+        updated_at: now,
+        items: selectedProducts.map(p => ({
+          product_id: p.id.toString(),
+          name: p.name,
+          description: p.description,
+          quantity: p.quantity,
+          quantityType: p.quantityType || "prime",
+          price: p.sell_price,
+          discount: p.discount || 0,
+          discountType: p.discountType || "value",
+          unit_of_measurement: p.unit_of_measurement,
+        }))
+      };
+      
+      await db.orders.add(orderData);
+
+      // 3. Update stock locally (optimistic)
+      for (const p of selectedProducts) {
+        if (!p.type || p.type === "goods" || p.type === "good") {
+          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
+          const productDoc = await db.products.get(p.id.toString());
+          if (productDoc) {
+             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
+             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+          }
+        }
+      }
+
+      // 4. Update balance locally (optimistic)
+      const netAmount = finalTotal - (paymentDetails.noPaymentAtAll ? 0 : paymentDetails.paidAmount);
+      if (netAmount !== 0) {
+        await updateOfflinePartyBalance(selectedCustomer.id.toString(), netAmount);
+      }
+
+      // 5. Sync to server
+      await SyncEngine.queueOperation("orders", "POST", "/api/orders", payload, localOrderId);
+
       setCreatedOrderShareData(shareData);
 
       // Reset the form

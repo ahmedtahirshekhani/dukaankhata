@@ -18,6 +18,7 @@ import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ type SignupStep = 1 | 2 | 3 | 4;
 export default function SignUpPage({ params }: { params: { locale: string } }) {
   const t = useTranslations("auth");
   const router = useRouter();
+  const allowOtp = process.env.NEXT_PUBLIC_ALLOW_SIGNUP_OTP === "true";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -66,6 +68,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [emailVerificationToken, setEmailVerificationToken] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
+  const [contactDetailsConfirmed, setContactDetailsConfirmed] = useState(false);
   const [isCreatingBusiness, setIsCreatingBusiness] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -113,6 +116,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError(t("invalidEmail"));
+      return false;
+    }
+
+    if (!allowOtp && !contactDetailsConfirmed) {
+      setError("Please confirm your email and phone number are correct.");
       return false;
     }
 
@@ -275,11 +283,22 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     setError("");
     setSuccess("");
 
-    if (!validateStepFour()) {
+    if (!validateStepOne()) {
+      setCurrentStep(1);
       return;
     }
 
-    if (!emailVerified) {
+    if (!validateStepTwo()) {
+      setCurrentStep(2);
+      return;
+    }
+
+    if (!validateStepFour()) {
+      setCurrentStep(4);
+      return;
+    }
+
+    if (allowOtp && !emailVerified) {
       setError("Please verify your email first.");
       return;
     }
@@ -338,6 +357,11 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             ) {
               errorMessage = t("phoneAlreadyExists");
             } else if (
+              apiError.includes("company name already") ||
+              apiError.includes("company already")
+            ) {
+              errorMessage = t("companyAlreadyExists");
+            } else if (
               apiError.includes("failed to create user") ||
               apiError.includes("internal server error")
             ) {
@@ -392,6 +416,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       setOtp("");
       setEmailVerificationToken("");
       setEmailVerified(false);
+      setContactDetailsConfirmed(false);
       setOtpSent(false);
       setResendCooldown(0);
       setCurrentStep(1);
@@ -425,6 +450,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setError("");
 
     if (name === "phoneNumber") {
       let digitsOnly = value.replace(/\D/g, "");
@@ -440,6 +466,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
         ...prev,
         phoneNumber: digitsOnly,
       }));
+      setContactDetailsConfirmed(false);
       return;
     }
 
@@ -453,6 +480,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       setOtpSent(false);
       setOtp("");
       setEmailVerificationToken("");
+      setContactDetailsConfirmed(false);
     }
   };
 
@@ -520,6 +548,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     }
 
     if (currentStep === 2) {
+      if (!validateStepTwo()) {
+        return;
+      }
+      if (!allowOtp) {
+        setCurrentStep(4);
+        return;
+      }
       if (emailVerified || otpSent) {
         setCurrentStep(3);
         return;
@@ -540,10 +575,15 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
   const isStepOneComplete = formData.name.trim() && formData.companyName.trim();
   const isStepTwoComplete =
-    formData.email.trim() && formData.phoneNumber.trim() && normalizedPhoneNumber.length >= 11;
+    formData.email.trim() &&
+    formData.phoneNumber.trim() &&
+    normalizedPhoneNumber.length >= 11 &&
+    (!allowOtp ? contactDetailsConfirmed : true);
   const isStepThreeComplete = otp.replace(/\s/g, "").length === 6;
   const isStepFourComplete =
-    formData.password.trim() && formData.confirmPassword.trim() && emailVerified;
+    formData.password.trim() &&
+    formData.confirmPassword.trim() &&
+    (emailVerified || !allowOtp);
 
   const showPasswordMismatch =
     formData.password.length > 0 &&
@@ -558,11 +598,12 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   };
 
   const renderStatusBars = () => {
+    const steps: SignupStep[] = allowOtp ? [1, 2, 3, 4] : [1, 2, 4];
     return (
       <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="grid grid-cols-4 gap-2">
-          {[1, 2, 3, 4].map((step) => {
-            const { isComplete, isActive } = getStepState(step as SignupStep);
+        <div className={`grid gap-2 ${allowOtp ? "grid-cols-4" : "grid-cols-3"}`}>
+          {steps.map((step) => {
+            const { isComplete, isActive } = getStepState(step);
 
             return (
               <div
@@ -665,6 +706,23 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               className={signupInputClassName}
             />
           </div>
+
+          {!allowOtp && (
+            <div className="flex items-start gap-2.5 pt-2">
+              <Checkbox
+                id="confirm-details"
+                checked={contactDetailsConfirmed}
+                onCheckedChange={(checked) => setContactDetailsConfirmed(!!checked)}
+                disabled={isLoading || otpLoading}
+              />
+              <label
+                htmlFor="confirm-details"
+                className="text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer select-none"
+              >
+                I confirm that my email and phone number are correct.
+              </label>
+            </div>
+          )}
         </div>
       );
     }
@@ -799,7 +857,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
           </div>
         </div>
 
-        {!emailVerified && (
+        {allowOtp && !emailVerified && (
           <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-secondary/20 px-3 py-2 text-sm text-foreground">
             <Check className="h-4 w-4 text-primary" />
             Verify your email before creating the account.
@@ -904,7 +962,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                       </>
                     ) : currentStep === 2 ? (
                       <>
-                        Send OTP
+                        {allowOtp ? "Send OTP" : "Continue"}
                         <ArrowRight className="h-4 w-4" />
                       </>
                     ) : currentStep === 3 ? (
@@ -933,7 +991,12 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setCurrentStep((prev) => (prev > 1 ? (prev - 1) as SignupStep : prev))}
+                    onClick={() =>
+                      setCurrentStep((prev) => {
+                        if (prev === 4 && !allowOtp) return 2;
+                        return prev > 1 ? (prev - 1) as SignupStep : prev;
+                      })
+                    }
                     disabled={currentStep === 1 || isLoading || otpLoading}
                   >
                     Back

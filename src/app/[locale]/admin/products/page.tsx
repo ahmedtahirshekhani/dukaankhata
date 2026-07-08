@@ -16,6 +16,7 @@ import {
   Upload,
   MoreVertical,
   PlusCircle,
+  XIcon,
 } from "lucide-react";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import { db } from "@/lib/db/offline-db";
@@ -223,26 +224,6 @@ export default function Products() {
     setIsMobileFilterOpen(false);
   };
 
-  const handleClearMobileFilters = () => {
-    const clearedFilters = {
-      category: "all",
-      inStock: "all",
-      type: "all",
-      branch: "all",
-    };
-    const clearedPriceRanges = {
-      sellPriceMin: "",
-      sellPriceMax: "",
-      costPriceMin: "",
-      costPriceMax: "",
-    };
-    setMobileFilters(clearedFilters);
-    setMobilePriceRanges(clearedPriceRanges);
-    setFilters(clearedFilters);
-    setPriceRanges(clearedPriceRanges);
-    setCurrentPage(1);
-  };
-
   const clearAllFilters = () => {
     const clearedFilters = {
       category: "all",
@@ -414,39 +395,110 @@ export default function Products() {
   }, []);
 
 
+  const activeFiltersCount = 
+    (filters.category !== "all" ? 1 : 0) +
+    (filters.type !== "all" ? 1 : 0) +
+    (filters.branch !== "all" ? 1 : 0) +
+    ((priceRanges.sellPriceMin || priceRanges.sellPriceMax) ? 1 : 0) +
+    ((priceRanges.costPriceMin || priceRanges.costPriceMax) ? 1 : 0);
+
   return (
-    <>
-      <div className="hidden sm:flex flex-col gap-4 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">{t("title")}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            {t("pageDescription")}
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">
+          {t("pageDescription")}
+        </p>
       </div>
-      <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6">
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col gap-3">
-            {/* Mobile: Search + Add Button + Actions in Row */}
-            <div className="flex gap-2 md:hidden items-center">
-              <div className="relative flex-1">
-                <input
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
                   type="text"
                   placeholder={t("searchProducts")}
                   value={searchTerm}
                   onChange={handleSearch}
-                  className="w-full h-9 text-sm px-3 pr-8 border rounded-md"
+                  className="pl-9 pr-9 h-9 text-sm w-full"
                 />
-                <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      handleSearch({ target: { value: "" } } as any);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <Button
-                size="sm"
-                onClick={() => setIsProductDialogOpen(true)}
-                className="h-9 text-xs px-2 flex-shrink-0"
-              >
-                <PlusCircle className="w-3 h-3 mr-1" />
-                {t("addProduct")}
-              </Button>
+              <div className="hidden md:flex flex-wrap items-center gap-2">
+                <ProductFilters
+                  filters={filters}
+                  priceRanges={priceRanges}
+                  categories={categories}
+                  branches={branches}
+                  onFilterChange={handleFilterChange}
+                  onPriceRangeChange={handlePriceRangeChange}
+                  onClearAll={clearAllFilters}
+                  capitalizeFirstLetter={capitalizeFirstLetter}
+                />
+              </div>
+              <div className="flex md:hidden items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMobileFilters(filters);
+                    setMobilePriceRanges(priceRanges);
+                    setIsMobileFilterOpen(true);
+                  }}
+                  className="h-9 text-xs"
+                >
+                  <FilterIcon className="w-3 h-3 mr-1" />
+                  {t("filters")}
+                  {activeFiltersCount > 0 && ` (${activeFiltersCount})`}
+                </Button>
+              </div>
+            </div>
+            
+            {/* Active Filters Summary (Mobile only) */}
+            {activeFiltersCount > 0 && (
+              <div className="flex md:hidden flex-wrap gap-1.5 w-full mt-1">
+                {filters.category !== "all" && (
+                  <span className="bg-secondary text-secondary-foreground text-[10px] px-2 py-1 rounded-md font-medium border">
+                    {t("category")}: {capitalizeFirstLetter(filters.category)}
+                  </span>
+                )}
+                {filters.type !== "all" && (
+                  <span className="bg-secondary text-secondary-foreground text-[10px] px-2 py-1 rounded-md font-medium border">
+                    {t("type")}: {capitalizeFirstLetter(filters.type)}
+                  </span>
+                )}
+                {filters.branch !== "all" && (
+                  <span className="bg-secondary text-secondary-foreground text-[10px] px-2 py-1 rounded-md font-medium border">
+                    {t("branch")}: {capitalizeFirstLetter(filters.branch)}
+                  </span>
+                )}
+                {(priceRanges.sellPriceMin || priceRanges.sellPriceMax) && (
+                  <span className="bg-secondary text-secondary-foreground text-[10px] px-2 py-1 rounded-md font-medium border">
+                    Sell: {priceRanges.sellPriceMin || 0} - {priceRanges.sellPriceMax || "Max"}
+                  </span>
+                )}
+                {(priceRanges.costPriceMin || priceRanges.costPriceMax) && (
+                  <span className="bg-secondary text-secondary-foreground text-[10px] px-2 py-1 rounded-md font-medium border">
+                    Cost: {priceRanges.costPriceMin || 0} - {priceRanges.costPriceMax || "Max"}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -458,7 +510,7 @@ export default function Products() {
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -491,6 +543,7 @@ export default function Products() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
               <input
                 ref={fileInputRef}
                 type="file"
@@ -498,99 +551,14 @@ export default function Products() {
                 onChange={handleFileSelect}
                 style={{ display: "none" }}
               />
-            </div>
-
-            {/* Desktop: Filters with Add Button */}
-            <div className="hidden md:flex items-center gap-2">
-              <ProductFilters
-                searchTerm={searchTerm}
-                filters={filters}
-                priceRanges={priceRanges}
-                categories={categories}
-                branches={branches}
-                onSearchChange={handleSearch}
-                onFilterChange={handleFilterChange}
-                onPriceRangeChange={handlePriceRangeChange}
-                onClearAll={clearAllFilters}
-                capitalizeFirstLetter={capitalizeFirstLetter}
-              />
-              <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      disabled={isDownloading || isImporting}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleDownloadExcel}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {isDownloading ? t("downloading") : t("downloadExcel")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleDownloadTemplate}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {t("downloadTemplate")}
-                    </DropdownMenuItem>
-                    {/* <DropdownMenuItem
-                      onClick={handleDownloadSampleFile}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {t("downloadSampleFile") || "Download Sample Data"}
-                    </DropdownMenuItem> */}
-                    <DropdownMenuItem
-                      onClick={handleImportClick}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <Upload className="mr-2 h-4 w-4" />
-                      {isImporting ? t("importing") : t("import")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  onChange={handleFileSelect}
-                  style={{ display: "none" }}
-                />
-                <Button
-                  size="sm"
-                  onClick={() => setIsProductDialogOpen(true)}
-                  className="h-9 text-xs px-3 flex-shrink-0"
-                >
-                  <PlusCircle className="w-3 h-3 mr-1" />
-                  {t("addProduct")}
-                </Button>
-              </div>
-            </div>
-
-            {/* Mobile: Filters Button */}
-            <div className="flex md:hidden items-center gap-2">
+              
               <Button
-                variant="outline"
                 size="sm"
-                onClick={() => {
-                  setMobileFilters(filters);
-                  setMobilePriceRanges(priceRanges);
-                  setIsMobileFilterOpen(true);
-                }}
-                className="h-9 text-xs"
+                onClick={() => setIsProductDialogOpen(true)}
+                className="h-9 text-xs px-3 flex-shrink-0"
               >
-                <FilterIcon className="w-3 h-3 mr-1" />
-                {t("filters")}
+                <PlusCircle className="w-4 h-4 mr-1.5" />
+                {t("addProduct")}
               </Button>
             </div>
           </div>
@@ -687,9 +655,10 @@ export default function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
       {/* Mobile Filter Dialog */}
       <Dialog open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
-        <DialogContent className="max-w-[90vw] sm:max-w-lg">
+        <DialogContent className="max-w-[90vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("filters")}</DialogTitle>
             <DialogDescription>
@@ -697,138 +666,82 @@ export default function Products() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* 2 Filters per row */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Category Filter */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 h-9 text-xs justify-start w-full"
-                  >
-                    <span className="text-muted-foreground">
-                      {t("category")}:
-                    </span>
-                    <span className="truncate">
-                      {mobileFilters.category === "all"
-                        ? t("all")
-                        : mobileFilters.category}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-40 max-h-64 overflow-y-auto"
-                >
-                  <DropdownMenuLabel>Category</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={mobileFilters.category === "all"}
-                    onCheckedChange={() =>
-                      handleMobileFilterChange("category", "all")
-                    }
-                  >
-                    All
-                  </DropdownMenuCheckboxItem>
+            {/* Category Filter */}
+            <div>
+              <Label className="text-xs font-semibold mb-2 block">{t("category")}</Label>
+              <Select
+                value={mobileFilters.category}
+                onValueChange={(val) => handleMobileFilterChange("category", val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("category")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all")}</SelectItem>
                   {categories.map((cat) => (
-                    <DropdownMenuCheckboxItem
-                      key={cat}
-                      checked={mobileFilters.category === cat}
-                      onCheckedChange={() =>
-                        handleMobileFilterChange("category", cat)
-                      }
-                    >
+                    <SelectItem key={cat} value={cat}>
                       {capitalizeFirstLetter(cat)}
-                    </DropdownMenuCheckboxItem>
+                    </SelectItem>
                   ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Sell Price Range */}
+            <div>
+              <Label className="text-xs font-semibold mb-2 block">
+                {t("sellPriceRange")}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder={t("min")}
+                  value={mobilePriceRanges.sellPriceMin}
+                  onChange={(e) =>
+                    handleMobilePriceRangeChange("sellPriceMin", e.target.value)
+                  }
+                  className="h-9 text-sm"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={mobilePriceRanges.sellPriceMax}
+                  onChange={(e) =>
+                    handleMobilePriceRangeChange("sellPriceMax", e.target.value)
+                  }
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
 
-              {/* Price Range Filters */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 h-9 text-xs justify-start w-full"
-                  >
-                    <FilterIcon className="w-3 h-3" />
-                    <span>Price Ranges</span>
-                    <ChevronDownIcon className="w-3 h-3 text-muted-foreground ml-auto" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 p-4">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-xs font-semibold mb-2 block">
-                        {t("sellPriceRange")}
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          placeholder={t("min")}
-                          value={mobilePriceRanges.sellPriceMin}
-                          onChange={(e) =>
-                            handleMobilePriceRangeChange(
-                              "sellPriceMin",
-                              e.target.value
-                            )
-                          }
-                          className="h-8 text-xs"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Max"
-                          value={mobilePriceRanges.sellPriceMax}
-                          onChange={(e) =>
-                            handleMobilePriceRangeChange(
-                              "sellPriceMax",
-                              e.target.value
-                            )
-                          }
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold mb-2 block">
-                        {t("costPriceRange")}
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          placeholder={t("min")}
-                          value={mobilePriceRanges.costPriceMin}
-                          onChange={(e) =>
-                            handleMobilePriceRangeChange(
-                              "costPriceMin",
-                              e.target.value
-                            )
-                          }
-                          className="h-8 text-xs"
-                        />
-                        <Input
-                          type="number"
-                          placeholder={t("max")}
-                          value={mobilePriceRanges.costPriceMax}
-                          onChange={(e) =>
-                            handleMobilePriceRangeChange(
-                              "costPriceMax",
-                              e.target.value
-                            )
-                          }
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* Cost Price Range */}
+            <div>
+              <Label className="text-xs font-semibold mb-2 block">
+                {t("costPriceRange")}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder={t("min")}
+                  value={mobilePriceRanges.costPriceMin}
+                  onChange={(e) =>
+                    handleMobilePriceRangeChange("costPriceMin", e.target.value)
+                  }
+                  className="h-9 text-sm"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={mobilePriceRanges.costPriceMax}
+                  onChange={(e) =>
+                    handleMobilePriceRangeChange("costPriceMax", e.target.value)
+                  }
+                  className="h-9 text-sm"
+                />
+              </div>
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
             {(mobileFilters.type !== "all" ||
               mobileFilters.category !== "all" ||
               mobileFilters.branch !== "all" ||
@@ -852,16 +765,18 @@ export default function Products() {
                     costPriceMax: "",
                   });
                 }}
+                className="w-full sm:w-auto"
               >
                 {t("resetFilters")}
               </Button>
             )}
-            <Button onClick={handleApplyMobileFilters}>
+            <Button onClick={handleApplyMobileFilters} className="w-full sm:w-auto">
               {t("applyFilters")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <ImportPreviewModal
         open={isImportPreviewOpen}
         onOpenChange={setIsImportPreviewOpen}
@@ -877,6 +792,6 @@ export default function Products() {
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
       />
-    </>
+    </div>
   );
 }
