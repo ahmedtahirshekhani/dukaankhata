@@ -345,6 +345,43 @@ export async function POST(request: Request) {
       }
     }
 
+    if (finalPaidAmount > 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: partyId,
+          eventKey: `purchase_bill_payment_${billResult.insertedId.toString()}`,
+          eventType: "purchase_bill_credit",
+          eventSource: "party_transaction",
+          eventSourceId: billResult.insertedId.toString(),
+          amountDelta: -finalPaidAmount,
+          effectiveAt: now,
+          metadata: {
+            bill_id: billResult.insertedId.toString(),
+            party_name: partyName,
+            note: "Payment recorded with bill",
+          },
+        });
+
+        // Add transaction
+        const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+        await transactionsCollection.insertOne({
+          user_id: userObjId,
+          amount: finalPaidAmount,
+          status: "completed",
+          category: "purchasing",
+          type: "expense",
+          description: `Payment for purchase bill #${billResult.insertedId.toString()}`,
+          payment_date: now,
+          payment_method_id: paymentMethodId && isValidObjectId(paymentMethodId) ? toObjectId(paymentMethodId) : (paymentMethodId || "cash"),
+          order_id: billResult.insertedId,
+          created_at: now,
+        });
+      } catch (err) {
+        console.error("Error recording payment:", err);
+      }
+    }
+
     // ✅ Update user's last activity
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
@@ -494,6 +531,57 @@ export async function PUT(request: Request) {
       updateData.items = enrichedItems;
     }
 
+    // Revert old ledger entry before updating
+    if (oldBill.total_amount && oldBill.total_amount !== 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: oldBill.party_id.toString(),
+          eventKey: `purchase_bill_revert_${billObjId.toString()}_${Date.now()}`,
+          eventType: "manual_adjustment",
+          eventSource: "party_transaction",
+          eventSourceId: billObjId.toString(),
+          amountDelta: -oldBill.total_amount,
+          effectiveAt: new Date(),
+          metadata: {
+            bill_id: billObjId.toString(),
+            party_name: oldBill.party_name,
+            note: "Reverted due to edit",
+          },
+        });
+      } catch (ledgerError) {
+        console.error("Error reverting ledger entry:", ledgerError);
+      }
+    }
+    if (oldBill.paid_amount && oldBill.paid_amount > 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: oldBill.party_id.toString(),
+          eventKey: `purchase_bill_payment_revert_${billObjId.toString()}_${Date.now()}`,
+          eventType: "manual_adjustment",
+          eventSource: "party_transaction",
+          eventSourceId: billObjId.toString(),
+          amountDelta: oldBill.paid_amount, // Revert negative by adding positive
+          effectiveAt: new Date(),
+          metadata: {
+            bill_id: billObjId.toString(),
+            party_name: oldBill.party_name,
+            note: "Reverted payment due to edit",
+          },
+        });
+      } catch (err) {
+        console.error("Error reverting payment ledger entry:", err);
+      }
+    }
+
+    // Delete old transactions
+    const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+    await transactionsCollection.deleteMany({
+      user_id: userObjId,
+      order_id: billObjId,
+    });
+
     // ✅ Use setLastUpdated helper
     const updateResult = await setLastUpdated(
       purchaseBillsCollection,
@@ -506,6 +594,65 @@ export async function PUT(request: Request) {
         { error: "Purchase bill not found" },
         { status: 404 }
       );
+    }
+
+    // Record new ledger entry
+    if (totalAmount !== 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: partyId,
+          eventKey: `purchase_bill_${billObjId.toString()}_${Date.now()}`,
+          eventType: "purchase_bill_debit",
+          eventSource: "party_transaction",
+          eventSourceId: billObjId.toString(),
+          amountDelta: totalAmount,
+          effectiveAt: new Date(),
+          metadata: {
+            bill_id: billObjId.toString(),
+            party_name: partyName,
+            note: "Updated bill amount",
+          },
+        });
+      } catch (ledgerError) {
+        console.error("Error recording new ledger entry:", ledgerError);
+      }
+    }
+
+    if (finalPaidAmount > 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: partyId,
+          eventKey: `purchase_bill_payment_${billObjId.toString()}_${Date.now()}`,
+          eventType: "purchase_bill_credit",
+          eventSource: "party_transaction",
+          eventSourceId: billObjId.toString(),
+          amountDelta: -finalPaidAmount,
+          effectiveAt: new Date(),
+          metadata: {
+            bill_id: billObjId.toString(),
+            party_name: partyName,
+            note: "Updated payment amount",
+          },
+        });
+
+        // Add transaction
+        await transactionsCollection.insertOne({
+          user_id: userObjId,
+          amount: finalPaidAmount,
+          status: "completed",
+          category: "purchasing",
+          type: "expense",
+          description: `Payment for purchase bill #${billObjId.toString()}`,
+          payment_date: new Date(),
+          payment_method_id: paymentMethodId && isValidObjectId(paymentMethodId) ? toObjectId(paymentMethodId) : (paymentMethodId || "cash"),
+          order_id: billObjId,
+          created_at: new Date(),
+        });
+      } catch (err) {
+        console.error("Error recording updated payment:", err);
+      }
     }
 
     // ✅ Update user's last activity
@@ -581,6 +728,57 @@ export async function DELETE(request: Request) {
         { status: 404 }
       );
     }
+
+    // Revert ledger entry for deletion
+    if (oldBill.total_amount && oldBill.total_amount !== 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: oldBill.party_id.toString(),
+          eventKey: `purchase_bill_delete_${billObjId.toString()}_${Date.now()}`,
+          eventType: "manual_adjustment",
+          eventSource: "party_transaction",
+          eventSourceId: billObjId.toString(),
+          amountDelta: -oldBill.total_amount,
+          effectiveAt: new Date(),
+          metadata: {
+            bill_id: billObjId.toString(),
+            party_name: oldBill.party_name,
+            note: "Reverted due to deletion",
+          },
+        });
+      } catch (ledgerError) {
+        console.error("Error reverting ledger entry for delete:", ledgerError);
+      }
+    }
+
+    if (oldBill.paid_amount && oldBill.paid_amount > 0) {
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: oldBill.party_id.toString(),
+          eventKey: `purchase_bill_payment_delete_${billObjId.toString()}_${Date.now()}`,
+          eventType: "manual_adjustment",
+          eventSource: "party_transaction",
+          eventSourceId: billObjId.toString(),
+          amountDelta: oldBill.paid_amount,
+          effectiveAt: new Date(),
+          metadata: {
+            bill_id: billObjId.toString(),
+            party_name: oldBill.party_name,
+            note: "Reverted payment due to deletion",
+          },
+        });
+      } catch (err) {
+        console.error("Error reverting payment for delete:", err);
+      }
+    }
+
+    const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+    await transactionsCollection.deleteMany({
+      user_id: userObjId,
+      order_id: billObjId,
+    });
 
     // ✅ Update user's last activity after deletion
     const usersCollection = await getCollection(COLLECTIONS.USERS);
