@@ -344,3 +344,48 @@ export function useOfflineCounterSales(searchQuery: string = '', filterType: str
   }, [searchQuery, filterType, year]);
 }
 
+export function useOfflinePurchaseBills(searchQuery: string = '') {
+  return useSafeLiveQuery(async () => {
+    // Join parties locally if needed, but purchase_bills might already have party_name
+    const allParties = await db.parties.toArray();
+    const partyMap = new Map(allParties.map(p => [(p.id || p._id)?.toString(), p.name]));
+
+    const bills = await db.purchase_bills.toArray();
+    
+    return bills.map(b => {
+      const partyId = (b.party_id || b.partyId)?.toString();
+      
+      return {
+        ...b,
+        id: b.id || b._id,
+        party_name: b.party_name || b.partyName || partyMap.get(partyId) || '-',
+        total_amount: b.total_amount ?? b.totalAmount ?? 0,
+        paid_amount: b.paid_amount ?? b.paidAmount ?? 0,
+        balance_due: b.balance_due ?? b.balanceDue ?? 0,
+        is_paid: b.is_paid ?? b.isPaid ?? false,
+      };
+    }).filter(b => {
+      // Basic deletion filter
+      if (b.is_delete === 1) return false;
+
+      let matches = true;
+
+      // Filter by search query (party_name or total_amount)
+      if (searchQuery) {
+        const lowerSearch = searchQuery.toLowerCase();
+        matches = matches && (
+          (b.party_name && b.party_name.toLowerCase().includes(lowerSearch)) ||
+          (b.total_amount && b.total_amount.toString().includes(searchQuery))
+        );
+      }
+      
+      return matches;
+    }).sort((a, b) => {
+      // Sort by created_at descending
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [searchQuery]);
+}
+

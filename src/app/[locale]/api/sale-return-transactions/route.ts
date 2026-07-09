@@ -279,6 +279,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Increment stock for returned products
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    for (const item of lineItems) {
+      if (!item.productId || !isValidObjectId(item.productId)) continue;
+      
+      const productDoc = await productsCollection.findOne(
+        { _id: toObjectId(item.productId) },
+        { projection: { type: 1, quantity: 1, in_stock: 1 } }
+      );
+      
+      if (!productDoc) continue;
+      
+      const productType = (productDoc as { type?: string }).type;
+      const isGoods = !productType || productType === "goods" || productType === "good";
+      if (!isGoods) continue;
+
+      const returnQty = item.quantity || 0;
+      if (returnQty <= 0) continue;
+
+      const productQuantity = (productDoc as { quantity?: number }).quantity;
+      const productInStock = (productDoc as { in_stock?: number }).in_stock;
+      const stockField = productQuantity !== undefined && productQuantity !== null
+        ? "quantity"
+        : productInStock !== undefined && productInStock !== null
+          ? "in_stock"
+          : "quantity";
+
+      await productsCollection.updateOne(
+        { _id: toObjectId(item.productId) },
+        { $inc: { [stockField]: returnQty } }
+      );
+    }
+
     await appendCustomerLedgerEntry({
       userId: user.id,
       customerId,
@@ -293,6 +326,42 @@ export async function POST(req: NextRequest) {
         payment_method_id: paymentMethodId,
       },
     });
+
+    if (paidAmount > 0) {
+      try {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId,
+          eventKey: `sale_return_payment_debit:${insertedId.toString()}`,
+          eventType: "manual_adjustment",
+          eventSource: "party_transaction",
+          eventSourceId: insertedId.toString(),
+          amountDelta: paidAmount, // Money given back to customer, increases their owed balance to us logically... wait, if positive balance is they owe us, giving them cash means they owe us MORE? No, if they return goods (amountDelta: -paymentAmount), they owe us LESS. If we give them cash back, their balance goes UP (back towards 0). Yes, +paidAmount.
+          effectiveAt: date,
+          metadata: {
+            reason: "sale_return_refund",
+            payment_method_id: paymentMethodId,
+          },
+        });
+
+        // Add transaction for cash leaving the business
+        const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+        await transactionsCollection.insertOne({
+          user_id: toObjectId(user.id),
+          amount: paidAmount,
+          status: "completed",
+          category: "selling", // or refund
+          type: "expense", // Because cash is going out
+          description: `Refund for sale return #${returnNumber}`,
+          payment_date: date,
+          payment_method_id: isHardcodedMethod ? paymentMethodId : toObjectId(paymentMethodId),
+          order_id: insertedId,
+          created_at: now,
+        });
+      } catch (err) {
+        console.error("Error recording sale return payment:", err);
+      }
+    }
 
     // ✅ Update user's last activity after successful creation
     const usersCollection = await getCollection(COLLECTIONS.USERS);

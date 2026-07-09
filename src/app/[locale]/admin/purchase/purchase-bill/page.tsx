@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit } from "lucide-react";
+import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ChevronDownIcon } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -28,7 +28,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import React from "react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
+import { useOfflinePurchaseBills } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
+import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
+import React, { useMemo } from "react";
+import { getYearsFromDates } from "@/lib/utils";
 
 interface PurchaseBillItem {
   id: string;
@@ -66,16 +80,65 @@ export default function PurchaseBillPage() {
   const locale = useLocale();
   const router = useRouter();
 
-  const [bills, setBills] = useState<PurchaseBill[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPageLoading, setIsPageLoading] = useState(false);
-  
-  // Pagination & Search states
+
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // New UI filter states
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending">("all");
+  const [amountRange, setAmountRange] = useState<"all" | "0-1000" | "1000-5000" | "5000+">("all");
+
   const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const rawOfflineBills = useOfflinePurchaseBills(debouncedSearch);
+
+  // Extract unique years for the filter
+  const availableYears = useMemo(() => {
+    return getYearsFromDates(rawOfflineBills?.map((b) => b.created_at) || []);
+  }, [rawOfflineBills]);
+
+  // Apply client-side filters (year, status, amount range)
+  const filteredBills = useMemo(() => {
+    let result = rawOfflineBills || [];
+
+    if (selectedYear) {
+      result = result.filter(bill => {
+        if (!bill.created_at) return false;
+        return new Date(bill.created_at).getFullYear() === selectedYear;
+      });
+    }
+
+    if (statusFilter !== "all") {
+      result = result.filter(bill => bill.is_paid === (statusFilter === "paid"));
+    }
+
+    if (amountRange !== "all") {
+      result = result.filter(bill => {
+        const amount = bill.total_amount || 0;
+        if (amountRange === "0-1000") return amount <= 1000;
+        if (amountRange === "1000-5000") return amount > 1000 && amount <= 5000;
+        if (amountRange === "5000+") return amount > 5000;
+        return true;
+      });
+    }
+
+    return result;
+  }, [rawOfflineBills, selectedYear, statusFilter, amountRange]);
+
+  const totalPages = Math.ceil(filteredBills.length / pageSize) || 1;
+
+  // Pagination slicing
+  const bills = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredBills.slice(startIndex, startIndex + pageSize);
+  }, [filteredBills, currentPage, pageSize]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, selectedYear, statusFilter, amountRange, pageSize]);
 
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -94,60 +157,22 @@ export default function PurchaseBillPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const fetchBills = useCallback(async (page = currentPage, limit = pageSize, search = debouncedSearch) => {
-    if (bills.length === 0 && !search && page === 1) {
-      setLoading(true);
-    }
-    setIsPageLoading(true);
-    try {
-      const url = new URL(`/${locale}/api/purchase-bills`, window.location.origin);
-      url.searchParams.append("page", page.toString());
-      url.searchParams.append("limit", limit.toString());
-      if (search) url.searchParams.append("search", search);
-
-      const billsRes = await fetch(url.toString());
-      if (billsRes.ok) {
-        const data = await billsRes.json();
-        if (data.bills) {
-          setBills(data.bills);
-          setTotalPages(data.pagination?.totalPages || 1);
-        } else {
-          setBills(Array.isArray(data) ? data : []);
-          setTotalPages(1);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching bills:", error);
-      setErrorDialog({
-        open: true,
-        title: t("error"),
-        message: t("failedToLoadData"),
-      });
-    } finally {
-      setLoading(false);
-      setIsPageLoading(false);
-    }
-  }, [locale, t, bills.length, currentPage, pageSize, debouncedSearch]);
-
-  useEffect(() => {
-    fetchBills(1, pageSize, debouncedSearch);
-    setCurrentPage(1);
-  }, [debouncedSearch, locale, pageSize]);
-
-  useEffect(() => {
-    fetchBills(currentPage, pageSize, debouncedSearch);
-  }, [currentPage, locale]);
-
   const handleDeleteBill = useCallback(async (billId: string) => {
     setIsSaving(true);
     try {
-      const response = await fetch(`/${locale}/api/purchase-bills?id=${billId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(t("failedToDeleteBill"));
+      const billToDelete = await db.purchase_bills.get(billId);
+      if (billToDelete && billToDelete.balance_due !== undefined) {
+        await updateOfflinePartyBalance(billToDelete.party_id, -billToDelete.balance_due);
       }
+      
+      await db.purchase_bills.delete(billId);
+
+      await SyncEngine.queueOperation(
+        "purchase_bills",
+        "DELETE",
+        `/${locale}/api/purchase-bills?id=${billId}`,
+        { id: billId }
+      );
 
       setErrorDialog({
         open: true,
@@ -155,13 +180,6 @@ export default function PurchaseBillPage() {
         message: t("deleteSuccess"),
         isSuccess: true,
       });
-
-      // Refresh bills list
-      const billsRes = await fetch(`/${locale}/api/purchase-bills`);
-      if (billsRes.ok) {
-        const data = await billsRes.json();
-        setBills(Array.isArray(data) ? data : []);
-      }
 
       setDeleteConfirmDialog({ open: false });
     } catch (error) {
@@ -175,7 +193,7 @@ export default function PurchaseBillPage() {
     }
   }, [locale, t]);
 
-  if (loading) {
+  if (rawOfflineBills === undefined) {
     return (
       <div className="h-[80vh] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin" />
@@ -190,41 +208,131 @@ export default function PurchaseBillPage() {
         <p className="text-sm text-muted-foreground">{t("purchaseBilldescription")}</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:max-w-sm">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("searchPlaceholder") || "Search purchase bills..."}
-            className="pl-9 pr-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-        <Button
-          onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new`)}
-          className="gap-2 shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-          {t("addBills") || "Add Purchase Bill"}
-        </Button>
-      </div>
+      <Card className="flex flex-col gap-6 p-6">
+        <CardHeader className="p-0">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={t("searchPlaceholder") || "Search purchase bills..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-9 h-9 text-sm w-full"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => { setSearchTerm(""); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-      <Card className="shadow-sm overflow-hidden">
-        <CardContent className="p-0 relative">
-          {isPageLoading && (
-            <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 gap-1 shrink-0">
+                      Year
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[150px]">
+                    <DropdownMenuLabel>Select Year</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={selectedYear === null}
+                      onCheckedChange={() => setSelectedYear(null)}
+                    >
+                      All Years
+                    </DropdownMenuCheckboxItem>
+                    {availableYears.map((year) => (
+                      <DropdownMenuCheckboxItem
+                        key={year}
+                        checked={selectedYear === year}
+                        onCheckedChange={() => setSelectedYear(year)}
+                      >
+                        {year}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 gap-1 shrink-0">
+                      <FilterIcon className="h-4 w-4" />
+                      Filters
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[200px]">
+                    <DropdownMenuLabel>Status</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={statusFilter === "all"}
+                      onCheckedChange={() => setStatusFilter("all")}
+                    >
+                      All
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={statusFilter === "paid"}
+                      onCheckedChange={() => setStatusFilter("paid")}
+                    >
+                      Paid
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={statusFilter === "pending"}
+                      onCheckedChange={() => setStatusFilter("pending")}
+                    >
+                      Pending
+                    </DropdownMenuCheckboxItem>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Amount Range</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={amountRange === "all"}
+                      onCheckedChange={() => setAmountRange("all")}
+                    >
+                      Any Amount
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={amountRange === "0-1000"}
+                      onCheckedChange={() => setAmountRange("0-1000")}
+                    >
+                      0 - 1,000
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={amountRange === "1000-5000"}
+                      onCheckedChange={() => setAmountRange("1000-5000")}
+                    >
+                      1,001 - 5,000
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={amountRange === "5000+"}
+                      onCheckedChange={() => setAmountRange("5000+")}
+                    >
+                      5,000+
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          )}
-          
+            <Button
+              size="sm"
+              onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new`)}
+              className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto"
+            >
+              <PlusCircle className="w-3 h-3 mr-1" />
+              {t("addBills") || "Add Purchase Bill"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 relative">
+
+
           {bills.length === 0 ? (
             <div className="text-center text-muted-foreground py-20 flex flex-col items-center justify-center gap-2">
               <SearchIcon className="h-10 w-10 opacity-20" />
@@ -319,10 +427,16 @@ export default function PurchaseBillPage() {
           )}
         </CardContent>
 
-        {bills.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground order-2 sm:order-1">
-              <span>{tCommon("rowsPerPage") || "Rows per page"}:</span>
+        <div className="border-t p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: filteredBills.length }) || `Total ${filteredBills.length} records`}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage") || "Rows per page"}
+              </span>
               <Select
                 value={pageSize.toString()}
                 onValueChange={(val) => {
@@ -331,7 +445,7 @@ export default function PurchaseBillPage() {
                 }}
               >
                 <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize} />
+                  <SelectValue placeholder={pageSize.toString()} />
                 </SelectTrigger>
                 <SelectContent>
                   {[5, 10, 20, 50].map((size) => (
@@ -342,17 +456,17 @@ export default function PurchaseBillPage() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="order-1 sm:order-2">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                isLoading={isPageLoading}
-              />
-            </div>
           </div>
-        )}
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isLoading={false}
+            />
+          )}
+        </div>
       </Card>
 
       {/* Delete Confirmation Dialog */}
@@ -441,10 +555,10 @@ function PurchaseBillCard({
           </span>
         </div>
         <div className="flex justify-between items-center pt-1">
-           <span className="text-muted-foreground">{t("status") || "Status"}:</span>
-           <Badge variant={bill.is_paid ? "default" : "secondary"}>
-             {bill.is_paid ? t("paid") || "Paid" : t("pending") || "Pending"}
-           </Badge>
+          <span className="text-muted-foreground">{t("status") || "Status"}:</span>
+          <Badge variant={bill.is_paid ? "default" : "secondary"}>
+            {bill.is_paid ? t("paid") || "Paid" : t("pending") || "Pending"}
+          </Badge>
         </div>
         <div className="flex justify-between pt-1 text-xs text-muted-foreground border-t">
           <span>{bill.created_at ? new Date(bill.created_at).toLocaleDateString(locale) : "-"}</span>
