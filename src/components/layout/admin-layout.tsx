@@ -158,16 +158,24 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
   // Set Tenant Info for Offline Database Isolation
   useEffect(() => {
-    if (user?.id && user?.company) {
+    if (user?.id) {
       const currentInfoStr = localStorage.getItem("tenant_info");
-      const newInfo = JSON.stringify({ userId: user.id, company: user.company });
-      if (currentInfoStr !== newInfo) {
-        localStorage.setItem("tenant_info", newInfo);
-        // Reload to let offline-db.ts pick up the new dynamic database name
-        window.location.reload();
+      let currentUserId = null;
+      try {
+        if (currentInfoStr) {
+          currentUserId = JSON.parse(currentInfoStr).userId;
+        }
+      } catch (e) {}
+
+      if (currentUserId !== user.id) {
+        localStorage.setItem("tenant_info", JSON.stringify({ userId: user.id }));
+        // Only reload if we are switching from another user
+        if (currentUserId !== null) {
+          window.location.reload();
+        }
       }
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Listen for company details updates
   useEffect(() => {
