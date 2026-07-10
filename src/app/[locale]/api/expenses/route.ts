@@ -1,11 +1,19 @@
-
 // src/app/[locale]/api/expenses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
-import { COLLECTIONS, getCollection, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
+import {
+  COLLECTIONS,
+  getCollection,
+  toObjectId,
+  isValidObjectId,
+  setLastUpdated,
+  updateUserLastActivity,
+} from "@/lib/db/mongodb";
+import { ObjectId } from "mongodb";
 import { setDateToCurrentTime } from "@/lib/utils";
 
 type ExpenseItemInput = {
+  id?: string;
   category?: string;
   itemName?: string;
   qty?: number | string;
@@ -30,24 +38,31 @@ export async function GET(request: Request) {
 
     const query = { user_id: userId };
 
-    const [categoriesRaw, itemNamesRaw, expenseRows, totalCount] = await Promise.all([
-      expensesCollection.distinct("category", { user_id: userId }),
-      expensesCollection.distinct("item_name", { user_id: userId }),
-      expensesCollection
-        .find(query)
-        .sort({ created_at: -1 })
-        .skip(skip)
-        .limit(limit)
-        .toArray(),
-      expensesCollection.countDocuments(query),
-    ]);
+    const [categoriesRaw, itemNamesRaw, expenseRows, totalCount] =
+      await Promise.all([
+        expensesCollection.distinct("category", { user_id: userId }),
+        expensesCollection.distinct("item_name", { user_id: userId }),
+        expensesCollection
+          .find(query)
+          .sort({ created_at: -1 })
+          .skip(skip)
+          .limit(limit)
+          .toArray(),
+        expensesCollection.countDocuments(query),
+      ]);
 
     const categories = categoriesRaw
-      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
       .sort((a, b) => a.localeCompare(b));
 
     const items = itemNamesRaw
-      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
       .sort((a, b) => a.localeCompare(b));
 
     const expenses = expenseRows.map((row) => ({
@@ -92,12 +107,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const expenseNumber = String(body?.expenseNumber ?? "").trim();
     const dateInput = String(body?.date ?? "").trim();
-    const lineItems = Array.isArray(body?.items) ? (body.items as ExpenseItemInput[]) : [];
+    const lineItems = Array.isArray(body?.items)
+      ? (body.items as ExpenseItemInput[])
+      : [];
 
     if (!expenseNumber) {
       return NextResponse.json(
         { error: "Expense number is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -108,7 +125,7 @@ export async function POST(req: NextRequest) {
     if (lineItems.length === 0) {
       return NextResponse.json(
         { error: "At least one expense item is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -125,10 +142,16 @@ export async function POST(req: NextRequest) {
       const amount = amountFromBody > 0 ? amountFromBody : qty * rate;
 
       if (!category || !itemName || qty <= 0 || rate < 0 || amount <= 0) {
-        throw new Error("Each expense item must have category, item name, qty, rate, and amount");
+        throw new Error(
+          "Each expense item must have category, item name, qty, rate, and amount",
+        );
       }
 
       return {
+        _id:
+          item.id && isValidObjectId(item.id)
+            ? toObjectId(item.id)
+            : new ObjectId(),
         user_id: userId,
         expense_number: expenseNumber,
         date: expenseDate,

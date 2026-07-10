@@ -1,11 +1,36 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CreatableSelect from "react-select/creatable";
-import { PlusCircle, Trash2, Edit, Loader2, Edit2 } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useOfflineExpenses } from "@/lib/hooks/useOfflineData";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import {
+  PlusCircle,
+  Trash2,
+  Edit,
+  Loader2,
+  Edit2,
+  Search,
+  X,
+  FilterIcon,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -75,6 +100,12 @@ function generateExpenseNumber() {
   return `EXP-${timestamp}-${random}`;
 }
 
+const generateObjectId = () => {
+  const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
+  const randomString = Math.random().toString(16).substring(2, 18);
+  return timestamp + randomString.substring(0, 16);
+};
+
 function createLine(): ExpenseLine {
   return {
     id: `${Date.now()}-${Math.floor(Math.random() * 100000)}`,
@@ -105,16 +136,23 @@ export default function ExpensesPage() {
     new Date().toISOString().split("T")[0],
   );
   const [lines, setLines] = useState<ExpenseLine[]>([createLine()]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const offlineExpenses = useOfflineExpenses(searchQuery);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<ExpenseRow | null>(null);
-  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRow | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseRow | null>(
+    null,
+  );
+  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRow | null>(
+    null,
+  );
   const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>(
     defaultCategories.map((value) => ({ value, label: value })),
   );
@@ -146,46 +184,69 @@ export default function ExpensesPage() {
   }, [lines]);
 
   const grandTotal = useMemo(() => {
-    return Number(
-      lineTotals.reduce((sum, value) => sum + value, 0).toFixed(2),
-    );
+    return Number(lineTotals.reduce((sum, value) => sum + value, 0).toFixed(2));
   }, [lineTotals]);
 
-  const mergeOptions = useCallback((existing: SelectOption[], values: string[]) => {
-    const map = new Map(existing.map((option) => [option.value, option]));
-    values.forEach((value) => {
-      const trimmed = value.trim();
-      if (trimmed) {
-        map.set(trimmed, { value: trimmed, label: trimmed });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, []);
+  const mergeOptions = useCallback(
+    (existing: SelectOption[], values: string[]) => {
+      const map = new Map(existing.map((option) => [option.value, option]));
+      values.forEach((value) => {
+        const trimmed = value.trim();
+        if (trimmed) {
+          map.set(trimmed, { value: trimmed, label: trimmed });
+        }
+      });
+      return Array.from(map.values()).sort((a, b) =>
+        a.label.localeCompare(b.label),
+      );
+    },
+    [],
+  );
 
   const fetchExpensesData = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch(`/${locale}/api/expenses?page=${page}&limit=${pageSize}`);
-      if (!response.ok) {
-        throw new Error(t("loadOptionsFailed"));
+      const categories = new Set(defaultCategories);
+      const items = new Set<string>();
+
+      if (offlineExpenses) {
+        offlineExpenses.forEach((expense) => {
+          if (expense.category) categories.add(expense.category);
+          if (expense.itemName) items.add(expense.itemName);
+        });
       }
 
-      const data = await response.json();
-      const categories = Array.isArray(data?.categories) ? data.categories : [];
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const rows = Array.isArray(data?.expenses) ? data.expenses : [];
+      setCategoryOptions(
+        Array.from(categories)
+          .map((value) => ({ value, label: value }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      );
+      setItemOptions(
+        Array.from(items)
+          .map((value) => ({ value, label: value }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      );
 
-      setCategoryOptions((prev) => mergeOptions(prev, categories));
-      setItemOptions((prev) => mergeOptions(prev, items));
-      setExpenses(rows);
-      setTotalPages(data?.totalPages || 1);
-      setTotalCount(data?.totalCount || 0);
+      let filtered = offlineExpenses ? [...offlineExpenses] : [];
+      if (filterCategory !== "all") {
+        filtered = filtered.filter(
+          (expense) => expense.category === filterCategory,
+        );
+      }
+
+      filtered.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
+
+      setTotalCount(filtered.length);
+      setTotalPages(Math.ceil(filtered.length / pageSize) || 1);
+
+      const startIndex = (page - 1) * pageSize;
+      const paginated = filtered.slice(startIndex, startIndex + pageSize);
+      setExpenses(paginated);
     } catch {
       setCategoryOptions((prev) => mergeOptions(prev, defaultCategories));
-    } finally {
-      setIsLoading(false);
     }
-  }, [locale, mergeOptions, t, page, pageSize]);
+  }, [offlineExpenses, mergeOptions, page, pageSize, filterCategory]);
 
   useEffect(() => {
     fetchExpensesData();
@@ -206,7 +267,9 @@ export default function ExpensesPage() {
   };
 
   const removeRow = (id: string) => {
-    setLines((prev) => (prev.length > 1 ? prev.filter((line) => line.id !== id) : prev));
+    setLines((prev) =>
+      prev.length > 1 ? prev.filter((line) => line.id !== id) : prev,
+    );
   };
 
   const handleCreateCategory = (lineId: string, value: string) => {
@@ -244,19 +307,17 @@ export default function ExpensesPage() {
       return;
     }
 
-    const isInvalidLine = lines.some(
-      (line) => {
-        const qty = parseNumericInput(line.qty);
-        const rate = parseNumericInput(line.rate);
-        return (
-          !line.category.trim() ||
-          !line.itemName.trim() ||
-          qty <= 0 ||
-          rate < 0 ||
-          qty * rate <= 0
-        );
-      },
-    );
+    const isInvalidLine = lines.some((line) => {
+      const qty = parseNumericInput(line.qty);
+      const rate = parseNumericInput(line.rate);
+      return (
+        !line.category.trim() ||
+        !line.itemName.trim() ||
+        qty <= 0 ||
+        rate < 0 ||
+        qty * rate <= 0
+      );
+    });
 
     if (isInvalidLine) {
       setErrorDialog({
@@ -269,32 +330,49 @@ export default function ExpensesPage() {
 
     setIsSaving(true);
     try {
+      const payloadItems = lines.map((line) => ({
+        id: generateObjectId(),
+        qty: Number(parseNumericInput(line.qty)),
+        rate: Number(parseNumericInput(line.rate)),
+        category: line.category.trim(),
+        itemName: line.itemName.trim(),
+        amount: Number(
+          (parseNumericInput(line.qty) * parseNumericInput(line.rate)).toFixed(
+            2,
+          ),
+        ),
+      }));
+
       const payload = {
         expenseNumber,
         date: expenseDate,
-        items: lines.map((line) => ({
-          qty: Number(parseNumericInput(line.qty)),
-          rate: Number(parseNumericInput(line.rate)),
-          category: line.category.trim(),
-          itemName: line.itemName.trim(),
-          amount: Number(
-            (parseNumericInput(line.qty) * parseNumericInput(line.rate)).toFixed(2),
-          ),
-        })),
+        items: payloadItems,
       };
 
-      const response = await fetch(`/${locale}/api/expenses`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      const expenseDocs = payload.items.map((item) => {
+        return {
+          id: item.id,
+          expenseNumber: payload.expenseNumber,
+          date: payload.date,
+          category: item.category,
+          itemName: item.itemName,
+          qty: item.qty,
+          rate: item.rate,
+          amount: item.amount,
+          created_at: new Date().toISOString(),
+        };
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || t("failedToSave"));
-      }
+      // Save to local Dexie
+      await db.expenses.bulkPut(expenseDocs);
+
+      // Queue sync
+      await SyncEngine.queueOperation(
+        "expenses",
+        "POST",
+        `/api/expenses`,
+        payload,
+      );
 
       setErrorDialog({
         open: true,
@@ -306,7 +384,6 @@ export default function ExpensesPage() {
       setShowAddDialog(false);
       resetForm();
       setPage(1);
-      fetchExpensesData();
     } catch (err) {
       setErrorDialog({
         open: true,
@@ -320,12 +397,12 @@ export default function ExpensesPage() {
 
   const openEditDialog = (expense: ExpenseRow) => {
     setSelectedExpense(expense);
-    setEditExpenseNumber(expense.expenseNumber);
-    setEditExpenseDate(expense.date);
-    setEditCategory(expense.category);
-    setEditItemName(expense.itemName);
-    setEditQty(expense.qty.toString());
-    setEditRate(expense.rate.toString());
+    setEditExpenseNumber(expense.expenseNumber || "");
+    setEditExpenseDate(expense.date || "");
+    setEditCategory(expense.category || "");
+    setEditItemName(expense.itemName || "");
+    setEditQty((expense.qty || 0).toString());
+    setEditRate((expense.rate || 0).toString());
     setShowEditDialog(true);
   };
 
@@ -347,10 +424,10 @@ export default function ExpensesPage() {
     if (!selectedExpense) return;
 
     if (
-      !editExpenseNumber.trim() ||
+      !editExpenseNumber?.trim() ||
       !editExpenseDate ||
-      !editCategory.trim() ||
-      !editItemName.trim() ||
+      !(editCategory || "").trim() ||
+      !(editItemName || "").trim() ||
       parseNumericInput(editQty) <= 0 ||
       parseNumericInput(editRate) < 0 ||
       parseNumericInput(editQty) * parseNumericInput(editRate) <= 0
@@ -365,29 +442,37 @@ export default function ExpensesPage() {
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`/${locale}/api/expenses/${selectedExpense.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          expenseNumber: editExpenseNumber.trim(),
-          date: editExpenseDate,
-          category: editCategory.trim(),
-          itemName: editItemName.trim(),
-          qty: Number(parseNumericInput(editQty)),
-          rate: Number(parseNumericInput(editRate)),
-        }),
-      });
+      const updatedExpense = {
+        ...selectedExpense,
+        expenseNumber: (editExpenseNumber || "").trim(),
+        date: editExpenseDate,
+        category: (editCategory || "").trim(),
+        itemName: (editItemName || "").trim(),
+        qty: Number(parseNumericInput(editQty)),
+        rate: Number(parseNumericInput(editRate)),
+        amount:
+          Number(parseNumericInput(editQty)) *
+          Number(parseNumericInput(editRate)),
+      };
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || t("failedToSave"));
-      }
+      await db.expenses.put(updatedExpense);
+
+      await SyncEngine.queueOperation(
+        "expenses",
+        "PUT",
+        `/api/expenses/${selectedExpense.id}`,
+        {
+          expenseNumber: updatedExpense.expenseNumber,
+          date: updatedExpense.date,
+          category: updatedExpense.category,
+          itemName: updatedExpense.itemName,
+          qty: updatedExpense.qty,
+          rate: updatedExpense.rate,
+        },
+      );
 
       setShowEditDialog(false);
       setSelectedExpense(null);
-      fetchExpensesData();
       setErrorDialog({
         open: true,
         title: tCommon("success"),
@@ -417,17 +502,17 @@ export default function ExpensesPage() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/${locale}/api/expenses/${expenseToDelete.id}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || t("deleteExpense"));
-      }
+      await db.expenses.delete(expenseToDelete.id);
+
+      await SyncEngine.queueOperation(
+        "expenses",
+        "DELETE",
+        `/api/expenses/${expenseToDelete.id}`,
+        null,
+      );
 
       setShowDeleteDialog(false);
       setExpenseToDelete(null);
-      fetchExpensesData();
       setErrorDialog({
         open: true,
         title: tCommon("success"),
@@ -446,19 +531,106 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-          <div>
-            <CardTitle>{t("title")}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">{t("pageDescription")}</p>
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {t("pageDescription")}
+        </p>
+      </div>
+
+      <Card className="flex flex-col gap-6 p-6">
+        <CardHeader className="p-0">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={
+                    typeof tCommon("search") === "string" && tCommon("search")
+                      ? tCommon("search")
+                      : "Search..."
+                  }
+                  className="pl-9 pr-9 h-9 text-sm w-full bg-background"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setPage(1);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 shrink-0"
+                    >
+                      <FilterIcon className="w-4 h-4" />
+                      <span>{tCommon("filter")}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-56 max-h-80 overflow-y-auto"
+                  >
+                    <DropdownMenuLabel>
+                      {t("filterByCategory") || "Filter by Category"}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={filterCategory === "all"}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFilterCategory("all");
+                          setPage(1);
+                        }
+                      }}
+                    >
+                      {tCommon("all", { defaultValue: "All" })}
+                    </DropdownMenuCheckboxItem>
+                    {categoryOptions.map((cat) => (
+                      <DropdownMenuCheckboxItem
+                        key={cat.value}
+                        checked={filterCategory === cat.value}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setFilterCategory(cat.value);
+                            setPage(1);
+                          }
+                        }}
+                      >
+                        {cat.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={openAddDialog}
+              className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto"
+            >
+              <PlusCircle className="w-3 h-3 mr-1" />
+              {t("addExpense")}
+            </Button>
           </div>
-          <Button onClick={openAddDialog} className="shrink-0">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            {t("addExpense")}
-          </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {/* Desktop Table View - hidden on mobile */}
           <div className="hidden md:block overflow-x-auto">
             <Table>
@@ -486,7 +658,10 @@ export default function ExpensesPage() {
                   </TableRow>
                 ) : expenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={8}
+                      className="text-center text-muted-foreground"
+                    >
                       {t("noExpenses")}
                     </TableCell>
                   </TableRow>
@@ -638,9 +813,13 @@ export default function ExpensesPage() {
                       onChange={(option) =>
                         updateLine(line.id, "category", option?.value ?? "")
                       }
-                      onCreateOption={(value) => handleCreateCategory(line.id, value)}
+                      onCreateOption={(value) =>
+                        handleCreateCategory(line.id, value)
+                      }
                       placeholder={t("selectOrCreateCategory")}
-                      formatCreateLabel={(value) => t("createCategory", { value })}
+                      formatCreateLabel={(value) =>
+                        t("createCategory", { value })
+                      }
                       isClearable
                       classNamePrefix="expense-select"
                     />
@@ -658,7 +837,9 @@ export default function ExpensesPage() {
                       onChange={(option) =>
                         updateLine(line.id, "itemName", option?.value ?? "")
                       }
-                      onCreateOption={(value) => handleCreateItem(line.id, value)}
+                      onCreateOption={(value) =>
+                        handleCreateItem(line.id, value)
+                      }
                       placeholder={t("selectOrCreateItem")}
                       formatCreateLabel={(value) => t("createItem", { value })}
                       isClearable
@@ -721,7 +902,9 @@ export default function ExpensesPage() {
 
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">{t("total")}</p>
-                <p className="text-2xl font-semibold">{formatNumber(grandTotal)}</p>
+                <p className="text-2xl font-semibold">
+                  {formatNumber(grandTotal)}
+                </p>
               </div>
             </div>
 
@@ -772,7 +955,11 @@ export default function ExpensesPage() {
                 <Label>{t("category")}</Label>
                 <CreatableSelect
                   options={categoryOptions}
-                  value={editCategory ? { value: editCategory, label: editCategory } : null}
+                  value={
+                    editCategory
+                      ? { value: editCategory, label: editCategory }
+                      : null
+                  }
                   onChange={(option) => setEditCategory(option?.value ?? "")}
                   onCreateOption={handleCreateEditCategory}
                   placeholder={t("selectOrCreateCategory")}
@@ -785,7 +972,11 @@ export default function ExpensesPage() {
                 <Label>{t("itemName")}</Label>
                 <CreatableSelect
                   options={itemOptions}
-                  value={editItemName ? { value: editItemName, label: editItemName } : null}
+                  value={
+                    editItemName
+                      ? { value: editItemName, label: editItemName }
+                      : null
+                  }
                   onChange={(option) => setEditItemName(option?.value ?? "")}
                   onCreateOption={handleCreateEditItem}
                   placeholder={t("selectOrCreateItem")}
@@ -889,14 +1080,19 @@ function ExpenseCard({
           <p className="text-xs text-muted-foreground">{expense.date}</p>
         </div>
         <div className="flex gap-1">
-          <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onEdit}
+            className="h-8 w-8"
+          >
             <Edit className="w-4 h-4" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
-          <Button 
-            size="icon" 
-            variant="danger" 
-            onClick={onDelete} 
+          <Button
+            size="icon"
+            variant="danger"
+            onClick={onDelete}
             className="h-8 w-8"
           >
             <Trash2 className="h-4 w-4" />
