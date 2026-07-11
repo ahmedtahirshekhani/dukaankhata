@@ -1,4 +1,4 @@
-# Finance and Inventory Management System
+# Finance and Inventory Management System 
 
 This is an Account and Inventory Management System built with Next.js, React, and MongoDB. It provides a comprehensive solution for managing products, customers, orders, and transactions in a retail or small business setting.
 
