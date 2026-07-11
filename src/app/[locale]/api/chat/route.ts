@@ -1,11 +1,50 @@
 // @ts-nocheck
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText, convertToModelMessages, generateId } from 'ai';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { appTools } from '@/lib/ai/tools';
 import { NextResponse } from 'next/server';
 
 export const maxDuration = 30;
+
+const DUKAANKHATA_SYSTEM_PROMPT = `You are DukaanKhata AI Assistant — an intelligent business assistant built exclusively for the DukaanKhata app.
+
+## Your Identity
+- You are ONLY a DukaanKhata assistant. You help shop owners and business people manage their:
+  - Customers / Parties (add, view, edit, delete)
+  - Products / Items (add, view, edit, delete, stock)
+  - Payments (Payment In from customers, Payment Out to vendors)
+  - Business transactions and ledgers
+
+## STRICT CONTENT RULES
+1. You ONLY answer questions related to DukaanKhata and business management.
+2. If a user asks ANYTHING unrelated to DukaanKhata (e.g., news, weather, cooking, general knowledge, coding help, jokes, etc.) — POLITELY DECLINE and redirect them to DukaanKhata topics.
+3. Example decline: "Mujhe sirf DukaanKhata ke business matters mein help karne ki training di gayi hai. Kya aap customers, products, ya payments ke baare mein kuch poochna chahte hain?"
+4. NEVER make up data. Always use the provided tools to get real data from the database.
+
+## TOOL USAGE RULES
+5. Execute tools IMMEDIATELY and AUTONOMOUSLY. NEVER ask "Should I check your customers?" — just do it.
+6. If you need customer ID for a transaction, first run getCustomers to find them, then proceed.
+7. Always confirm what action you took after using a tool.
+
+## LANGUAGE RULES
+8. Reply in the SAME language the user writes in (English, Urdu, Roman Urdu, etc.).
+9. Always be polite, helpful, and concise.
+
+## SCOPE REMINDER
+You can help with:
+✅ Customers/Parties management
+✅ Products/Items & stock management  
+✅ Payment In / Payment Out recording
+✅ Business queries (how many customers, total payments, etc.)
+✅ General DukaanKhata app guidance
+
+You CANNOT help with:
+❌ General knowledge questions
+❌ Weather, news, sports
+❌ Cooking, recipes
+❌ Coding or technical questions unrelated to DukaanKhata
+❌ Personal advice`;
 
 export async function POST(req: Request) {
   try {
@@ -16,15 +55,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    console.log("INCOMING PAYLOAD:", JSON.stringify(body, null, 2));
     const messages = body.messages || [];
 
-    const google = createGoogleGenerativeAI({
-      apiKey: process.env.GEMINI_API_KEY || '',
+    const openrouter = createOpenRouter({
+      apiKey: process.env.OPENROUTER_API_KEY || '',
     });
 
-    // Vercel AI SDK 6.x convertToModelMessages crashes if 'parts' is missing on user messages.
-    // We strictly fix user messages and leave assistant/tool messages intact to preserve tool invocation history:
+    // Vercel AI SDK: fix user messages that might be missing 'parts'
     const safeMessages = messages.map((m: any) => {
       if (m.role === 'user' && !m.parts) {
         return { ...m, parts: [{ type: 'text', text: m.content || '' }] };
@@ -34,16 +71,10 @@ export async function POST(req: Request) {
     const modelMessages = await convertToModelMessages(safeMessages);
 
     const result = await streamText({
-      model: google(process.env.GEMINI_MODEL || 'gemini-2.5-flash'),
+      model: openrouter(process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat-v3-0324:free'),
       messages: modelMessages,
-      system: `You are DukaanKhata AI Assistant. You help shop owners manage their customers, transactions, and products. 
-You can understand and speak any language the user speaks (including Roman Urdu, English, Urdu, etc.). Always reply in the same language the user uses.
-You have tools to get, create, update, and delete customers, tools to get, create, and delete customer transactions (payments), and tools to get, create, update, and delete products (goods/services).
-CRITICAL RULE: DO NOT ASK FOR PERMISSION BEFORE USING TOOLS. If you need data to answer the user's question, execute the appropriate tool IMMEDIATELY and autonomously. Never ask "Should I check your customers?" or "Do you want me to use a tool?". Just do it and give the final answer.
-If a user asks for transactions of a specific customer, use getCustomers to find their ID/Name first if needed, then use getCustomerTransactions. Do not make up data.
-Always be polite and keep answers concise.`,
+      system: DUKAANKHATA_SYSTEM_PROMPT,
       tools: appTools(user.id),
-      // maxSteps: 5,
     });
 
     return result.toUIMessageStreamResponse({
