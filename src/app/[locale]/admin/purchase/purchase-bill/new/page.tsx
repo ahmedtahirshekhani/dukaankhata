@@ -21,6 +21,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
     Dialog,
     DialogContent,
     DialogHeader,
@@ -33,6 +41,9 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { formatCurrencyString } from "@/lib/utils";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Product } from "@/types/product";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 
 // Local interfaces for this page
 interface Party {
@@ -132,36 +143,26 @@ function AddPurchaseBillPageInner() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const paymentMethodsRes = await fetch(`/${locale}/api/configuration/payment-method`);
-                if (paymentMethodsRes.ok) {
-                    const data = await paymentMethodsRes.json();
-                    setPaymentMethods(Array.isArray(data) ? data : []);
-                }
-
                 // Load bill data if editing
                 if (billIdFromUrl) {
-                    const billRes = await fetch(`/${locale}/api/purchase-bills?id=${billIdFromUrl}`);
-                    if (billRes.ok) {
-                        const bills = await billRes.json();
-                        const bill = Array.isArray(bills) ? bills[0] : bills;
-                        if (bill) {
-                            setEditingBillId(bill.id);
-                            setSelectedPartyId(bill.party_id);
-                            setSelectedPartyName(bill.party_name);
-                            const loadedItems = (bill.items || []).map((item: any, idx: number) => ({
-                                ...item,
-                                id: item.id || `item-${idx}-${Date.now()}`
-                            }));
-                            setBillItems(loadedItems);
-                            setDiscount(bill.discount?.toString() || "0");
-                            setDiscountType(bill.discount_type || "fixed");
-                            setTax(bill.tax?.toString() || "0");
-                            setTaxType(bill.tax_type || "fixed");
-                            setIsPaid((bill.paid_amount && bill.paid_amount > 0) || bill.is_paid || false);
-                            setPaidAmount(bill.paid_amount?.toString() || "0");
-                            setSelectedPaymentMethod(bill.payment_method_id || "");
-                            setDescription(bill.description || "");
-                        }
+                    const bill = await db.purchase_bills.get(billIdFromUrl);
+                    if (bill) {
+                        setEditingBillId(bill.id || bill._id);
+                        setSelectedPartyId(bill.party_id || bill.partyId);
+                        setSelectedPartyName(bill.party_name || bill.partyName);
+                        const loadedItems = (bill.items || []).map((item: any, idx: number) => ({
+                            ...item,
+                            id: item.id || `item-${idx}-${Date.now()}`
+                        }));
+                        setBillItems(loadedItems);
+                        setDiscount(bill.discount?.toString() || "0");
+                        setDiscountType(bill.discount_type || bill.discountType || "fixed");
+                        setTax(bill.tax?.toString() || "0");
+                        setTaxType(bill.tax_type || bill.taxType || "fixed");
+                        setIsPaid((bill.paid_amount && bill.paid_amount > 0) || bill.is_paid || bill.isPaid || false);
+                        setPaidAmount(bill.paid_amount?.toString() || bill.paidAmount?.toString() || "0");
+                        setSelectedPaymentMethod(bill.payment_method_id || bill.paymentMethodId || "");
+                        setDescription(bill.description || "");
                     }
                 }
             } catch (error) {
@@ -288,7 +289,21 @@ function AddPurchaseBillPageInner() {
         setSelectedProductObj(null);
         setItemQuantity("1");
         setIsItemDialogOpen(false);
-    }, [selectedProductObj, itemQuantity, editingItemId, billItems, t]);
+    }, [selectedProduct, selectedProductObj, itemQuantity, editingItemId, billItems, t]);
+
+    const handleUpdateItemInline = useCallback((id: string, field: "quantity" | "cost_price", value: string) => {
+        const numericValue = value === "" ? 0 : parseFloat(value);
+        if (isNaN(numericValue) || numericValue < 0) return;
+
+        setBillItems(prev => prev.map(item => {
+            if (item.id === id) {
+                const updatedItem = { ...item, [field]: numericValue };
+                updatedItem.amount = updatedItem.quantity * updatedItem.cost_price;
+                return updatedItem;
+            }
+            return item;
+        }));
+    }, []);
 
     const handleEditItem = useCallback((item: PurchaseBillItem) => {
         setEditingItemId(item.id);
@@ -366,22 +381,35 @@ function AddPurchaseBillPageInner() {
             };
 
             const method = editingBillId ? "PUT" : "POST";
-            const body = editingBillId
-                ? JSON.stringify({ id: editingBillId, ...billData })
-                : JSON.stringify(billData);
+            const billId = editingBillId || `local-${Date.now()}`;
+            
+            const finalBillData = {
+                id: billId,
+                ...billData,
+                created_at: new Date().toISOString()
+            };
 
-            const response = await fetch(`/${locale}/api/purchase-bills`, {
-                method,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || (editingBillId ? t("failedToUpdateBill") : t("failedToSaveBill")));
+            // Update local DB instantly
+            if (editingBillId) {
+                const oldBill = await db.purchase_bills.get(editingBillId);
+                if (oldBill && oldBill.balance_due !== undefined) {
+                    await updateOfflinePartyBalance(oldBill.party_id, -oldBill.balance_due);
+                }
+                await db.purchase_bills.update(editingBillId, finalBillData);
+                await updateOfflinePartyBalance(selectedPartyId, finalBillData.balance_due);
+            } else {
+                await db.purchase_bills.add(finalBillData);
+                await updateOfflinePartyBalance(selectedPartyId, finalBillData.balance_due);
             }
+
+            // Queue for sync
+            await SyncEngine.queueOperation(
+                "purchase_bills",
+                method,
+                `/${locale}/api/purchase-bills`,
+                finalBillData,
+                !editingBillId ? billId : undefined
+            );
 
             setErrorDialog({
                 open: true,
@@ -478,9 +506,11 @@ function AddPurchaseBillPageInner() {
                     {/* Billed Items */}
                     <div className="space-y-3">
                         <Label>{t("billedItems") || "Billed Items"} *</Label>
-                        <div className="border rounded-lg divide-y">
+                        
+                        {/* Mobile View (Cards) */}
+                        <div className="md:hidden space-y-3">
                             {billItems.length === 0 ? (
-                                <div className="p-4 text-center text-muted-foreground">
+                                <div className="p-4 text-center border rounded-lg text-muted-foreground">
                                     {t("noItems") || "No items added"}
                                 </div>
                             ) : (
@@ -491,48 +521,153 @@ function AddPurchaseBillPageInner() {
                                             : item.product_description
                                         : "";
                                     return (
-                                        <div
-                                            key={item.id}
-                                            className="flex items-center justify-between p-4 hover:bg-muted/50"
-                                        >
-                                            <div className="flex-1">
-                                                <div className="font-medium">#{idx + 1}</div>
-                                                <div className="text-sm text-muted-foreground">
-                                                    {item.product_name}
+                                        <div key={item.id} className="border rounded-lg p-3 space-y-3 bg-card">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-semibold text-sm">#{idx + 1} - {item.product_name}</div>
+                                                    {descriptionPreview && (
+                                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                                            {descriptionPreview}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {descriptionPreview && (
-                                                    <div className="text-xs text-muted-foreground mt-1">
-                                                        {descriptionPreview}
-                                                    </div>
-                                                )}
-                                                <div className="text-xs">
-                                                    {item.quantity} × {formatCurrencyString(item.cost_price)}
+                                                <div className="flex justify-end gap-1">
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditItem(item)}>
+                                                        <Edit className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button size="icon" variant="danger" className="h-7 w-7" onClick={() => handleDeleteItem(item.id)}>
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="font-medium">
-                                                    {formatCurrencyString(item.amount)}
+                                            <div className="flex items-end justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <div>
+                                                        <div className="text-[10px] text-muted-foreground uppercase mb-1">{t("quantity") || "Qty"}</div>
+                                                        <Input
+                                                            type="number"
+                                                            value={item.quantity === 0 ? "" : item.quantity}
+                                                            onChange={(e) => handleUpdateItemInline(item.id, "quantity", e.target.value)}
+                                                            className="h-8 w-16 text-xs px-2"
+                                                            min="0"
+                                                            step="any"
+                                                        />
+                                                    </div>
+                                                    <span className="text-muted-foreground self-end mb-2">×</span>
+                                                    <div>
+                                                        <div className="text-[10px] text-muted-foreground uppercase mb-1">{t("rate") || "Rate"}</div>
+                                                        <Input
+                                                            type="number"
+                                                            value={item.cost_price === 0 ? "" : item.cost_price}
+                                                            onChange={(e) => handleUpdateItemInline(item.id, "cost_price", e.target.value)}
+                                                            className="h-8 w-20 text-xs px-2"
+                                                            min="0"
+                                                            step="any"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={() => handleEditItem(item)}
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    size="icon"
-                                                    variant="danger"
-                                                    className="h-8 w-8"
-                                                    onClick={() => handleDeleteItem(item.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] text-muted-foreground uppercase mb-1">{t("total") || "Total"}</div>
+                                                    <div className="font-medium text-sm">
+                                                        {formatCurrencyString(item.amount)}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     );
                                 })
                             )}
+                        </div>
+
+                        {/* Desktop View (Table) */}
+                        <div className="hidden md:block border rounded-lg overflow-x-auto">
+                            <Table className="min-w-[600px]">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[50px]">#</TableHead>
+                                        <TableHead>{t("product") || "Product"}</TableHead>
+                                        <TableHead className="w-[120px]">{t("quantity") || "Qty"}</TableHead>
+                                        <TableHead className="w-[140px]">{t("rate") || "Rate"}</TableHead>
+                                        <TableHead className="w-[120px] text-right">{t("amount") || "Amount"}</TableHead>
+                                        <TableHead className="w-[100px] text-right">{t("actions") || "Actions"}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {billItems.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                {t("noItems") || "No items added"}
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        billItems.map((item, idx) => {
+                                            const descriptionPreview = item.product_description
+                                                ? item.product_description.length > 30
+                                                    ? item.product_description.substring(0, 30) + "..."
+                                                    : item.product_description
+                                                : "";
+                                            return (
+                                                <TableRow key={item.id} className="hover:bg-muted/50">
+                                                    <TableCell className="font-medium">{idx + 1}</TableCell>
+                                                    <TableCell>
+                                                        <div className="font-medium text-sm whitespace-nowrap">
+                                                            {item.product_name}
+                                                        </div>
+                                                        {descriptionPreview && (
+                                                            <div className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
+                                                                {descriptionPreview}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="number"
+                                                            value={item.quantity === 0 ? "" : item.quantity}
+                                                            onChange={(e) => handleUpdateItemInline(item.id, "quantity", e.target.value)}
+                                                            className="h-8 w-20 text-xs px-2"
+                                                            min="0"
+                                                            step="any"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="number"
+                                                            value={item.cost_price === 0 ? "" : item.cost_price}
+                                                            onChange={(e) => handleUpdateItemInline(item.id, "cost_price", e.target.value)}
+                                                            className="h-8 w-24 text-xs px-2"
+                                                            min="0"
+                                                            step="any"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium">
+                                                        {formatCurrencyString(item.amount)}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8"
+                                                                onClick={() => handleEditItem(item)}
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="danger"
+                                                                className="h-8 w-8"
+                                                                onClick={() => handleDeleteItem(item.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
                         <Button
                             onClick={() => {

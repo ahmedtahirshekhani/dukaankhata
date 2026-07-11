@@ -70,7 +70,8 @@
     "clearingCache": "Clear ho raha hai...",
     "cacheClearedSuccess": "Cache successfully clear ho gaya",
     "syncingData": "Data sync ho raha hai...",
-    "pleaseWait": "Barae meharbani intezar karein, offline database tayar kiya ja raha hai."
+    "pleaseWait": "Barae meharbani intezar karein, offline database tayar kiya ja raha hai.",
+    "all": "Sab"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -1106,7 +1107,8 @@
     "loadOptionsFailed": "Kharcha options load karne mein masla",
     "editExpense": "Kharcha mein Edit",
     "deleteExpense": "Kharcha Delete",
-    "noExpenses": "Koi Kharcha Nahi Mila"
+    "noExpenses": "Koi Kharcha Nahi Mila",
+    "filterByCategory": "Category se Filter Karein"
   },
   "dashboard": {
     "analyticalDashboard": "Analytics Dashboard",
@@ -1189,7 +1191,11 @@
     "billNumber": "Bill Number",
     "billNumberPlaceholder": "Bill Number Dakhil Karein",
     "searchProduct": "Product Search Karein",
+    "product": "Product",
     "quantity": "Miqdar",
+    "rate": "Rate",
+    "amount": "Raqam",
+    "total": "Kul",
     "discount": "Khiskh",
     "tax": "Tax",
     "subtotal": "Zaili Kul",

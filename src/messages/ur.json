@@ -70,7 +70,8 @@
     "clearingCache": "کلیئر ہو رہا ہے...",
     "cacheClearedSuccess": "کیشے کامیابی سے کلیئر ہو گیا",
     "syncingData": "ڈیٹا سنک ہو رہا ہے...",
-    "pleaseWait": "براہ کرم انتظار کریں، آف لائن ڈیٹا بیس تیار کیا جا رہا ہے۔"
+    "pleaseWait": "براہ کرم انتظار کریں، آف لائن ڈیٹا بیس تیار کیا جا رہا ہے۔",
+    "all": "تمام"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -1106,7 +1107,8 @@
     "loadOptionsFailed": "اخراج اختیارات لوڈ کرنے میں ناکام",
     "editExpense": "اخراج میں ایڈٹ",
     "deleteExpense": "اخراج ڈیلیٹ",
-    "noExpenses": "کوئی اخراج نہیں ملا"
+    "noExpenses": "کوئی اخراج نہیں ملا",
+    "filterByCategory": "زمرے سے فلٹر کریں"
   },
   "dashboard": {
     "analyticalDashboard": "تجزیاتی ڈیش بورڈ",
@@ -1186,7 +1188,11 @@
     "noItems": "کوئی چیزیں شامل نہیں ہیں",
     "addItems": "اشیاء شامل کریں",
     "selectProduct": "پروڈکٹ منتخب کریں",
+    "product": "پروڈکٹ",
     "quantity": "مقدار",
+    "rate": "ریٹ",
+    "amount": "رقم",
+    "total": "کل",
     "discount": "رعایت",
     "tax": "ٹیکس",
     "subtotal": "ذیلی کل",

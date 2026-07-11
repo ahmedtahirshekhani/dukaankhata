@@ -49,11 +49,6 @@ export default function ConfigurationPage({
   useEffect(() => {
     const load = async () => {
       try {
-        const cachedCompanyName =
-          typeof window !== "undefined"
-            ? localStorage.getItem("companyName")
-            : null;
-            
         if (typeof window !== "undefined") {
           const savedCounter = localStorage.getItem("setting_counterSale");
           if (savedCounter) setEnableCounterSale(savedCounter === "true");
@@ -61,36 +56,36 @@ export default function ConfigurationPage({
           if (savedAi) setEnableAiChat(savedAi === "true");
           const savedWa = localStorage.getItem("setting_wa");
           if (savedWa) setEnableWhatsApp(savedWa === "true");
+          
+          // Pre-fill from local storage to allow offline viewing immediately
+          setCompanyName(localStorage.getItem("companyName") || (session?.user as any)?.company || "");
+          setCompanyAddress(localStorage.getItem("companyAddress") || "");
+          setCompanyPhone(localStorage.getItem("companyPhone") || "");
+          setCompanyEmail(localStorage.getItem("companyEmail") || "");
+          setCompanyLogo(localStorage.getItem("companyLogo") || null);
+          setSignatureImage(localStorage.getItem("invoiceSignature") || null);
         }
 
-        const res = await fetch(`/${params.locale}/api/configuration/assets`);
-        const data = await res.json();
-        if (res.ok) {
-          // Use saved company name if available, otherwise use the name from session
-          const savedCompanyName =
-            cachedCompanyName ||
-            data.companyName ||
-            (session?.user as any)?.company ||
-            "";
-          const savedCompanyAddress = 
-            data.companyAddress || 
-            (typeof window !== "undefined" ? localStorage.getItem("companyAddress") : "") || 
-            "";
-          const savedCompanyPhone = 
-            data.companyPhone || 
-            (typeof window !== "undefined" ? localStorage.getItem("companyPhone") : "") || 
-            "";
-          const savedCompanyEmail = 
-            data.companyEmail || 
-            (typeof window !== "undefined" ? localStorage.getItem("companyEmail") : "") || 
-            "";
-          setCompanyName(savedCompanyName);
-          setCompanyAddress(savedCompanyAddress as string);
-          setCompanyPhone(savedCompanyPhone as string);
-          setCompanyEmail(savedCompanyEmail as string);
-          setCompanyLogo(data.companyLogo || null);
-          setSignatureImage(data.signatureImage || null);
+        try {
+          const res = await fetch(`/${params.locale}/api/configuration/assets`);
+          if (res.ok) {
+            const data = await res.json();
+            const savedCompanyName = data.companyName || localStorage.getItem("companyName") || (session?.user as any)?.company || "";
+            const savedCompanyAddress = data.companyAddress || localStorage.getItem("companyAddress") || "";
+            const savedCompanyPhone = data.companyPhone || localStorage.getItem("companyPhone") || "";
+            const savedCompanyEmail = data.companyEmail || localStorage.getItem("companyEmail") || "";
+            
+            setCompanyName(savedCompanyName);
+            setCompanyAddress(savedCompanyAddress as string);
+            setCompanyPhone(savedCompanyPhone as string);
+            setCompanyEmail(savedCompanyEmail as string);
+            setCompanyLogo(data.companyLogo || localStorage.getItem("companyLogo") || null);
+            setSignatureImage(data.signatureImage || localStorage.getItem("invoiceSignature") || null);
+          }
+        } catch (fetchErr) {
+          console.warn("Offline or failed to fetch config from server, using local data");
         }
+
       } catch (err) {
         console.error("Failed to load configuration assets", err);
       } finally {
@@ -186,34 +181,7 @@ export default function ConfigurationPage({
     setIsSaving(true);
     setMessage("");
     try {
-      // Save configuration assets
-      const configRes = await fetch(
-        `/${params.locale}/api/configuration/assets`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage }),
-        },
-      );
-      const configData = await configRes.json();
-      if (!configRes.ok) {
-        throw new Error(configData?.error || "Failed to save");
-      }
-
-      // Also update user profile with company name to keep everything in sync
-      if (companyName) {
-        try {
-          await fetch(`/${params.locale}/api/users/profile`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ company: companyName }),
-          });
-        } catch (err) {
-          console.error("Failed to update user profile with company name", err);
-        }
-      }
-
-      // Update localStorage so invoice and other components can use cached values
+      // Update localStorage so invoice and other components can use cached values immediately
       if (companyName) {
         localStorage.setItem("companyName", companyName);
       } else {
@@ -244,6 +212,32 @@ export default function ConfigurationPage({
       } else {
         localStorage.removeItem("invoiceSignature");
       }
+
+      // Queue the sync operations
+      const { db } = await import('@/lib/db/offline-db');
+      const { SyncEngine } = await import('@/lib/sync/sync-engine');
+      
+      await db.syncQueue.add({
+        collection: 'configurations', // Using a generic collection name for UI purposes
+        method: 'POST',
+        url: `/${params.locale}/api/configuration/assets`,
+        data: { companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage },
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      });
+
+      if (companyName) {
+        await db.syncQueue.add({
+          collection: 'users',
+          method: 'POST',
+          url: `/${params.locale}/api/users/profile`,
+          data: { company: companyName },
+          status: 'pending',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      SyncEngine.pushQueue();
 
       // Dispatch custom event to update UI across all components
       window.dispatchEvent(

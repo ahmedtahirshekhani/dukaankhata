@@ -100,11 +100,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email already registered" }, { status: 400 });
     }
 
-    const existingCompany = await usersCollection.findOne({ company_name: companyName });
-    if (existingCompany) {
-      return NextResponse.json({ error: "Company name already registered" }, { status: 400 });
-    }
-
     const existingPhone = await usersCollection.findOne({ phone });
     if (existingPhone) {
       return NextResponse.json({ error: "Phone number already registered" }, { status: 400 });

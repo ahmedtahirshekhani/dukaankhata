@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { SummaryCarousel } from "@/components/summary-carousel";
 import { Pagination } from "@/components/ui/pagination";
 import { cn, maskInvoiceNo } from "@/lib/utils";
@@ -125,9 +126,22 @@ const getRangeTimestamps = (rangeKey: CounterRange) => {
   };
 };
 
+const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    width="1em"
+    height="1em"
+    {...props}
+  >
+    <path d="M12.004 2C6.48 2 2 6.48 2 12c0 2.17.7 4.19 1.89 5.86L2.5 22.5l4.81-1.35c1.42.75 3.01 1.18 4.69 1.18 5.52 0 10-4.48 10-10S17.52 2 12.004 2zm5.72 13.91c-.24.67-1.19 1.25-1.92 1.34-.5.06-1.15.09-3.32-.82-2.77-1.17-4.52-4.06-4.66-4.25-.14-.19-1.12-1.49-1.12-2.84 0-1.35.7-2.01.95-2.29.25-.28.55-.35.74-.35.19 0 .38.01.55.02.18.01.42-.07.65.48.24.58.82 2.01.89 2.15.07.14.12.31.02.5-.1.19-.15.31-.31.5-.16.19-.34.42-.48.56-.16.16-.33.33-.14.65.19.32.85 1.4 1.83 2.27.84.75 1.55.98 1.87 1.12.32.14.51.12.7-.1.19-.22.82-.95 1.04-1.28.22-.33.44-.28.74-.17.3.11 1.91.9 2.23 1.06.32.16.53.24.61.38.08.14.08.8-.16 1.47z" />
+  </svg>
+);
+
 export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
   const tCust = useTranslations("customers");
+  const tInvoice = useTranslations("invoice");
   const router = useRouter();
   const params = useParams();
   const locale =
@@ -204,6 +218,60 @@ export default function DashboardPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  const [errorDialog, setErrorDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+    isSuccess: false,
+  });
+
+  const handleWhatsAppClick = (customer: { name: string; phone: string; balance: number }) => {
+    const cleanPhone = (customer.phone || "").replace(/\D/g, "");
+    if (!cleanPhone || cleanPhone.length < 5) {
+      const baseMsg = tInvoice("whatsappNumberUnavailable") || "No WhatsApp number available for this customer.";
+      const instructMsg = locale === "ur" 
+        ? "\n\nبراہ کرم اس گاہک کا فون نمبر درج کریں۔ آپ Customers سیکشن میں جا کر تبدیل کریں (Edit) بٹن پر کلک کر کے نمبر شامل کر سکتے ہیں۔"
+        : locale === "ru"
+        ? "\n\nIs customer ka phone number add karain. Aap Customers section mein Edit button par click kar ke number add kar sakte hain."
+        : "\n\nPlease add a phone number for this customer. You can navigate to the Customers section and edit the customer to add their number.";
+      
+      setErrorDialog({
+        open: true,
+        title: locale === "ur" ? "فون نمبر شامل کریں" : "Add Phone Number",
+        message: baseMsg + instructMsg,
+        isSuccess: false,
+      });
+      return;
+    }
+
+    let whatsappPhone = "";
+    if (cleanPhone.startsWith("0")) {
+      whatsappPhone = `92${cleanPhone.slice(1)}`;
+    } else if (cleanPhone.startsWith("92")) {
+      whatsappPhone = cleanPhone;
+    } else if (cleanPhone.length === 10) {
+      whatsappPhone = `92${cleanPhone}`;
+    } else {
+      whatsappPhone = cleanPhone;
+    }
+
+    const currency = tCust("currencySymbol") || "Rs.";
+    const roundedBalance = Math.round(customer.balance || 0);
+    
+    // Select translation message based on current locale
+    let message = "";
+    if (locale === "ur") {
+      message = `السلام علیکم ${customer.name}،\n\nبراہ کرم اپنا بقایا بیلنس ${currency} ${roundedBalance} بھیج دیں۔\n\nشکریہ!`;
+    } else if (locale === "ru") {
+      message = `Assalam o Alaikum ${customer.name},\n\nFriendly reminder: Please clear your outstanding balance of ${currency} ${roundedBalance}.\n\nShukriya!`;
+    } else {
+      message = `Dear ${customer.name},\n\nThis is a friendly reminder to please clear your outstanding balance of ${currency} ${roundedBalance}.\n\nThank you!`;
+    }
+
+    const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
 
 
   useEffect(() => {
@@ -797,11 +865,24 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>{row.status}</TableCell>
                     <TableCell>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/${locale}/admin/customer-transactions/${row.id}`}>
-                          {tDash("viewTransactions") || "View Transactions"}
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/${locale}/admin/customer-transactions/${row.id}`}>
+                            {tDash("viewTransactions") || "View Transactions"}
+                          </Link>
+                        </Button>
+                        {row.balance > 0 && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30"
+                            onClick={() => handleWhatsAppClick(row)}
+                          >
+                            <WhatsAppIcon className="w-4.5 h-4.5" />
+                            <span className="sr-only">Send on WhatsApp</span>
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -834,12 +915,28 @@ export default function DashboardPage() {
                 key={row.id}
                 onClick={() => router.push(`/${locale}/admin/customer-transactions/${row.id}`)}
                 className={cn(
-                  "border rounded-lg p-4 shadow-sm cursor-pointer",
+                  "border rounded-lg p-4 shadow-sm cursor-pointer relative",
                   row.balance < 0 && "bg-red-100/70 dark:bg-red-950/50",
                   row.balance > 0 && "bg-green-100/70 dark:bg-green-950/50"
                 )}
               >
-                <h3 className="font-semibold text-base mb-2">{row.name}</h3>
+                <div className="flex justify-between items-start">
+                  <h3 className="font-semibold text-base mb-2">{row.name}</h3>
+                  {row.balance > 0 && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleWhatsAppClick(row);
+                      }}
+                    >
+                      <WhatsAppIcon className="w-4.5 h-4.5" />
+                      <span className="sr-only">Send on WhatsApp</span>
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-1 text-sm">
                   <p><span className="text-muted-foreground">Email:</span> {row.email}</p>
                   <p><span className="text-muted-foreground">Phone:</span> {row.phone}</p>
@@ -944,6 +1041,14 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ErrorDialog
+        open={errorDialog.open}
+        onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
+        title={errorDialog.title}
+        message={errorDialog.message}
+        isSuccess={errorDialog.isSuccess}
+      />
     </div>
   );
 }
