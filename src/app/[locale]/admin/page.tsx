@@ -416,6 +416,16 @@ export default function DashboardPage() {
     };
 
     fetchTabData();
+    
+    window.addEventListener("focus", fetchTabData);
+    window.addEventListener("initialSyncComplete", fetchTabData);
+    window.addEventListener("syncComplete", fetchTabData);
+    
+    return () => {
+      window.removeEventListener("focus", fetchTabData);
+      window.removeEventListener("initialSyncComplete", fetchTabData);
+      window.removeEventListener("syncComplete", fetchTabData);
+    };
   }, [activeDashboardTab, currentPage, pageSize, locale]);
 
   // Fetch counter sales total for selected range

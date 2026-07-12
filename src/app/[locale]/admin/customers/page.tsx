@@ -160,7 +160,9 @@ export default function PartiesPage() {
     message: "",
   });
 
-  const allOfflineCustomers = useOfflineCustomers(debouncedSearchTerm) || [];
+  const offlineCustomersData = useOfflineCustomers(debouncedSearchTerm);
+  const isDexieLoading = offlineCustomersData === undefined;
+  const allOfflineCustomers = useMemo(() => offlineCustomersData || [], [offlineCustomersData]);
 
   const [isSyncReady, setIsSyncReady] = useState(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('last_sync_timestamp')
@@ -184,10 +186,10 @@ export default function PartiesPage() {
   useEffect(() => {
     setTotalCount(processedCustomers.length);
     setTotalPages(Math.ceil(processedCustomers.length / pageSize) || 1);
-    if (allOfflineCustomers.length > 0 || isSyncReady) {
+    if (!isDexieLoading && (allOfflineCustomers.length > 0 || isSyncReady)) {
       setLoading(false);
     }
-  }, [processedCustomers.length, pageSize, allOfflineCustomers.length, isSyncReady]);
+  }, [processedCustomers.length, pageSize, allOfflineCustomers.length, isSyncReady, isDexieLoading]);
 
   const filteredCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -284,10 +286,8 @@ export default function PartiesPage() {
     newCustomerOpeningBalance,
     newCustomerOpeningBalanceType,
     newCustomerStatus,
-    newCustomerStatus,
+    allOfflineCustomers,
     t,
-    currentPage,
-    debouncedSearchTerm,
     resetSelectedCustomer,
   ]);
 
@@ -742,7 +742,7 @@ export default function PartiesPage() {
                   {filteredCustomers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                        {t("noCustomers")}
+                        {loading ? <Loader2Icon className="h-8 w-8 animate-spin mx-auto text-primary" /> : t("noCustomers")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -979,7 +979,7 @@ export default function PartiesPage() {
             ))}
             {filteredCustomers.length === 0 && (
               <div className="py-12 text-center text-muted-foreground">
-                {t("noCustomers")}
+                {loading ? <Loader2Icon className="h-8 w-8 animate-spin mx-auto text-primary" /> : t("noCustomers")}
               </div>
             )}
           </div>
