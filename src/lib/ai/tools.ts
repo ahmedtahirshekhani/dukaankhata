@@ -61,10 +61,11 @@ export const appTools = (userId: string) => ({
     createCustomer: tool({
       description: "Create a new customer/party.",
       parameters: z.object({
-        name: z.string().describe("The name of the customer"),
-        phone: z.string().optional().describe("The phone number of the customer"),
-        company_name: z.string().optional().describe("The company name of the customer"),
-        opening_balance: z.number().optional().describe("The opening balance of the customer. Positive means they owe you, negative means you owe them."),
+        name: z.string().describe("The name of the customer/party"),
+        phone: z.string().optional().describe("The phone number of the customer. Leave empty if user says 'no phone' or 'phone nahi'."),
+        company_name: z.string().optional().describe("The company/business name of the customer. This is DIFFERENT from company_address. Extract from: 'company ka naam', 'dukaan ka naam', 'company name'."),
+        company_address: z.string().optional().describe("The physical address of the company/customer. This is DIFFERENT from company_name. Extract from: 'address', 'ghar ka pata', 'location'."),
+        opening_balance: z.number().optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them."),
       }),
       execute: async (body: any) => {
         try {
@@ -83,13 +84,14 @@ export const appTools = (userId: string) => ({
     }),
 
     updateCustomer: tool({
-      description: "Update an existing customer/party.",
+      description: "Update an existing customer/party's details.",
       parameters: z.object({
         customerId: z.string().describe("The ID of the customer to update"),
-        name: z.string().optional().describe("The updated name"),
+        name: z.string().optional().describe("The updated full name of the customer"),
         phone: z.string().optional().describe("The updated phone number"),
-        company_name: z.string().optional().describe("The updated company name"),
-        balance: z.number().optional().describe("The updated balance"),
+        company_name: z.string().optional().describe("The company/business NAME of the customer. IMPORTANT: This is the company's name (e.g. 'ATF', 'ABC Traders'). It is DIFFERENT from company_address which is a physical location. Use this when user says 'company ka naam change karo' or 'company ATF karo'."),
+        company_address: z.string().optional().describe("The physical address or location of the company. DIFFERENT from company_name. Use this when user says 'address change karo' or 'location update karo'."),
+        balance: z.number().optional().describe("The updated balance amount"),
       }),
       execute: async ({ customerId, ...body }: any) => {
         try {

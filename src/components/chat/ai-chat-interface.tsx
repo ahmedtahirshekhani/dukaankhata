@@ -2,15 +2,35 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { useTranslations, useLocale } from "next-intl";
+import { useLocale } from "next-intl";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Message } from "ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { SendIcon, Loader2, Bot, User, Sparkles, Zap, Users, Package, CreditCard, BarChart2, PlusCircle, ShoppingBag } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  SendIcon,
+  Loader2,
+  User,
+  Sparkles,
+  Zap,
+  Users,
+  Package,
+  CreditCard,
+  BarChart2,
+  PlusCircle,
+  ShoppingBag,
+  StopCircle,
+} from "lucide-react";
 
-// ─── Quick action chips shown on welcome screen ───────────────────────────────
+// ─── Quick action chips ───────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   {
     icon: Users,
@@ -29,7 +49,7 @@ const QUICK_ACTIONS = [
   {
     icon: Package,
     label: "Products ki list",
-    message: "Mere sab products/items ki list do aur unki quantity bhi batao",
+    message: "Mere sab products/items ki list do",
     color: "text-orange-500",
     bg: "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20",
   },
@@ -50,59 +70,71 @@ const QUICK_ACTIONS = [
   {
     icon: ShoppingBag,
     label: "Payment Out record karo",
-    message: "Mujhe payment out (vendor ko payment) record karne mein help karo",
+    message: "Mujhe payment out record karne mein help karo",
     color: "text-indigo-500",
     bg: "bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20",
   },
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function getMessageText(m: Message): string {
+  if (m.parts && m.parts.length > 0) {
+    const txt = (m.parts as any[])
+      .filter((p) => p.type === "text" && p.text?.trim())
+      .map((p) => p.text)
+      .join("");
+    if (txt) return txt;
+  }
+  if (m.content && String(m.content).trim()) return String(m.content);
+  return "";
+}
+
+function renderHtml(text: string) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>");
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function AiChatInterface() {
-  const t = useTranslations("aiChat");
   const locale = useLocale();
+
+  // Use as any — different AI SDK versions have slightly different APIs
   const chatHelpers = useChat({
     api: `/${locale}/api/chat`,
     maxSteps: 5,
-  });
-  const { messages, sendMessage, status, stop, error, append } = chatHelpers as any;
+  }) as any;
+
+  const { messages, status, stop, error } = chatHelpers;
+
+  // sendMessage is confirmed available in this project's AI SDK version
+  const sendMessage: Function = chatHelpers.sendMessage;
 
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const isLoading = status === "submitted" || status === "streaming";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
-  };
+  const sendText = useCallback(
+    (text: string) => {
+      if (!text.trim() || isLoading) return;
+      sendMessage({ role: "user", content: text });
+      setInput("");
+    },
+    [sendMessage, isLoading]
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessageText(input);
-  };
-
-  const sendMessageText = useCallback(
-    (text: string) => {
-      if (!text.trim()) return;
-      if (append) {
-        append({ role: "user", content: text });
-      } else if (sendMessage) {
-        sendMessage({ role: "user", content: text });
-      }
-      setInput("");
-    },
-    [append, sendMessage]
-  );
-
-  const handleQuickAction = (message: string) => {
-    sendMessageText(message);
+    sendText(input);
   };
 
   return (
     <Card className="flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] w-full max-w-2xl md:max-w-4xl lg:max-w-6xl xl:max-w-7xl mx-auto shadow-md border-border/50 overflow-hidden">
-      {/* ─── Header ────────────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <CardHeader className="border-b bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 pb-3 pt-4 px-5 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -125,12 +157,11 @@ export function AiChatInterface() {
         </div>
       </CardHeader>
 
-      {/* ─── Messages Area ──────────────────────────────────────────────────── */}
+      {/* ── Messages ── */}
       <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-background min-h-0">
         {messages.length === 0 ? (
-          /* ── Welcome Screen ──────────────────────────────────────────── */
+          /* Welcome Screen */
           <div className="flex flex-col items-center justify-start h-full pt-6 pb-4 space-y-6">
-            {/* Avatar */}
             <div className="relative">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
                 <Sparkles className="w-10 h-10 text-white" />
@@ -140,23 +171,21 @@ export function AiChatInterface() {
               </div>
             </div>
 
-            {/* Welcome Text */}
             <div className="text-center space-y-2 max-w-md">
               <h2 className="text-xl font-bold text-foreground">
                 Aapka DukaanKhata AI Assistant
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Main aapke business ko manage karne mein help karta hoon — customers, products, payments, aur bhi bahut kuch. Kuch bhi poochein!
+                Main aapke business ko manage karne mein help karta hoon —
+                customers, products, payments, aur bhi bahut kuch!
               </p>
             </div>
 
-            {/* Scope Badge */}
             <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600">
               <Sparkles className="w-3 h-3" />
               Sirf DukaanKhata ke business matters ka jawab deta hoon
             </div>
 
-            {/* Quick Actions Grid */}
             <div className="w-full max-w-xl space-y-3">
               <p className="text-xs font-medium text-muted-foreground text-center uppercase tracking-wide">
                 Quick Actions
@@ -167,7 +196,8 @@ export function AiChatInterface() {
                   return (
                     <button
                       key={i}
-                      onClick={() => handleQuickAction(action.message)}
+                      type="button"
+                      onClick={() => sendText(action.message)}
                       disabled={isLoading}
                       className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${action.bg}`}
                     >
@@ -182,111 +212,106 @@ export function AiChatInterface() {
             </div>
           </div>
         ) : (
-          /* ── Chat Messages ───────────────────────────────────────────── */
+          /* Chat Messages */
           <>
-            {messages.map((m: Message) => (
-              <div
-                key={m.id}
-                className={`flex gap-2.5 ${m.role === "user" ? "ml-auto flex-row-reverse max-w-[80%]" : "mr-auto max-w-[85%]"}`}
-              >
-                {/* Avatar */}
-                <div
-                  className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-gradient-to-br from-primary/80 to-primary text-white"
-                  }`}
-                >
-                  {m.role === "user" ? (
-                    <User className="w-3.5 h-3.5" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
-                  )}
-                </div>
+            {messages.map((m: Message) => {
+              const text = getMessageText(m);
+              const hasTools =
+                m.toolInvocations && m.toolInvocations.length > 0;
 
-                {/* Bubble */}
+              // Skip empty assistant messages — no ghost bubbles
+              if (m.role === "assistant" && !text && !hasTools) return null;
+
+              return (
                 <div
-                  className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  key={m.id}
+                  className={`flex gap-2.5 ${
                     m.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-tr-sm"
-                      : "bg-muted text-foreground rounded-tl-sm"
+                      ? "ml-auto flex-row-reverse max-w-[80%]"
+                      : "mr-auto max-w-[85%]"
                   }`}
                 >
-                  {/* Text content */}
-                  {m.parts && m.parts.length > 0 ? (
-                    <>
-                      {m.parts.map((part: any, index: number) => {
-                        if (part.type === "text") {
-                          return (
+                  {/* Avatar */}
+                  <div
+                    className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-gradient-to-br from-primary/80 to-primary text-white"
+                    }`}
+                  >
+                    {m.role === "user" ? (
+                      <User className="w-3.5 h-3.5" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                  </div>
+
+                  {/* Bubble */}
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-tr-sm"
+                        : "bg-muted text-foreground rounded-tl-sm"
+                    }`}
+                  >
+                    {/* Text */}
+                    {text && (
+                      <div
+                        className="whitespace-pre-wrap"
+                        dangerouslySetInnerHTML={{ __html: renderHtml(text) }}
+                      />
+                    )}
+
+                    {/* Tool status */}
+                    {hasTools && (
+                      <div className={`space-y-1 ${text ? "mt-2" : ""}`}>
+                        {(m.toolInvocations as any[]).map((t, idx) =>
+                          t.state !== "result" ? (
                             <div
-                              key={index}
-                              className="whitespace-pre-wrap"
-                              dangerouslySetInnerHTML={{
-                                __html: part.text
-                                  .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                                  .replace(/\*(.*?)\*/g, "<em>$1</em>")
-                                  .replace(/^• /gm, "&#x2022; ")
-                                  .replace(/^- /gm, "&#x2022; "),
-                              }}
-                            />
-                          );
-                        }
-                        return null;
-                      })}
-                      {/* Tool invocations */}
-                      {m.toolInvocations && m.toolInvocations.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {m.toolInvocations.map((t: any, index: number) =>
-                            t.state !== "result" ? (
-                              <div key={`tool-${index}`} className="flex items-center gap-1.5 text-muted-foreground italic">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span className="text-xs opacity-80">Kaam kar raha hoon...</span>
-                              </div>
-                            ) : (
-                              <div key={`tool-${index}`} className="flex items-center gap-1.5 text-muted-foreground italic opacity-60">
-                                <Zap className="w-3 h-3 text-green-500" />
-                                <span className="text-xs">Action complete</span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </>
-                  ) : m.content ? (
-                    <div
-                      className="whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{
-                        __html: String(m.content)
-                          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                          .replace(/\*(.*?)\*/g, "<em>$1</em>"),
-                      }}
-                    />
-                  ) : m.toolInvocations ? (
-                    m.toolInvocations.some((t) => t.state !== "result") ? (
-                      <div className="flex items-center gap-1.5 text-muted-foreground italic">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span className="text-xs opacity-80">Kaam kar raha hoon...</span>
+                              key={idx}
+                              className="flex items-center gap-1.5 text-muted-foreground"
+                            >
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span className="text-xs italic opacity-80">
+                                Kaam kar raha hoon...
+                              </span>
+                            </div>
+                          ) : !text ? (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-1.5 text-green-600"
+                            >
+                              <Zap className="w-3 h-3" />
+                              <span className="text-xs font-medium">
+                                ✓ Ho gaya
+                              </span>
+                            </div>
+                          ) : null
+                        )}
                       </div>
-                    ) : null
-                  ) : null}
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
-            {/* Error */}
+            {/* Error bubble */}
             {error && (
               <div className="flex gap-2.5 max-w-[85%] mr-auto">
                 <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center bg-red-100 text-red-600">
-                  <Bot className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <div className="rounded-2xl px-4 py-2.5 text-sm bg-red-50 text-red-600 rounded-tl-sm border border-red-200">
-                  <p className="font-semibold mb-1">Koi masla hua</p>
-                  <p className="text-xs">{error.message || "Kuch ghalat ho gaya. Dobara try karein."}</p>
+                  <p className="font-semibold mb-0.5">Koi masla hua</p>
+                  <p className="text-xs opacity-80">
+                    {error.message ||
+                      "Kuch ghalat ho gaya. Dobara try karein."}
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Typing Indicator */}
+            {/* Typing indicator */}
             {isLoading &&
               messages.length > 0 &&
               messages[messages.length - 1].role === "user" && (
@@ -296,46 +321,60 @@ export function AiChatInterface() {
                   </div>
                   <div className="rounded-2xl px-4 py-3 bg-muted rounded-tl-sm flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-primary/50 animate-bounce" />
-                    <span className="w-2 h-2 rounded-full bg-primary/65 animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 rounded-full bg-primary/80 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span
+                      className="w-2 h-2 rounded-full bg-primary/65 animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <span
+                      className="w-2 h-2 rounded-full bg-primary/80 animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    />
                   </div>
                 </div>
               )}
           </>
         )}
-
         <div ref={messagesEndRef} />
       </CardContent>
 
-      {/* ─── Footer ────────────────────────────────────────────────────────── */}
+      {/* ── Footer ── */}
       <CardFooter className="p-3 border-t bg-background/80 backdrop-blur-sm flex-col gap-2 flex-shrink-0">
-        {/* Compact Quick Chips (visible when there are messages) */}
+        {/* Compact chips when chatting */}
         {messages.length > 0 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 w-full scrollbar-hide">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 w-full scrollbar-hide">
             {QUICK_ACTIONS.slice(0, 4).map((action, i) => {
               const Icon = action.icon;
               return (
                 <button
                   key={i}
-                  onClick={() => handleQuickAction(action.message)}
+                  type="button"
+                  onClick={() => sendText(action.message)}
                   disabled={isLoading}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-150 disabled:opacity-50 ${action.bg}`}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all disabled:opacity-50 ${action.bg}`}
                 >
                   <Icon className={`w-3 h-3 ${action.color}`} />
-                  <span className="text-foreground/75 whitespace-nowrap">{action.label}</span>
+                  <span className="text-foreground/75 whitespace-nowrap">
+                    {action.label}
+                  </span>
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* Input */}
+        {/* Input row */}
         <form onSubmit={handleSubmit} className="flex w-full items-center gap-2">
           <Input
             value={input}
-            onChange={handleInputChange}
+            onChange={(e) => setInput(e.target.value)}
             placeholder="Kuch bhi puchein DukaanKhata ke baare mein..."
             disabled={isLoading}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendText(input);
+              }
+            }}
             className="flex-1 rounded-full bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus-visible:bg-background text-sm"
           />
           {isLoading ? (
@@ -345,8 +384,9 @@ export function AiChatInterface() {
               size="icon"
               variant="outline"
               className="rounded-full flex-shrink-0 w-9 h-9 border-red-300 text-red-500 hover:bg-red-50"
+              title="Stop"
             >
-              <span className="w-3 h-3 bg-red-500 rounded-sm" />
+              <StopCircle className="w-4 h-4" />
             </Button>
           ) : (
             <Button
