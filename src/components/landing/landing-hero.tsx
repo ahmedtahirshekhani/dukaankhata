@@ -51,68 +51,107 @@ export function LandingHero() {
         <div className="container mx-auto px-4">
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
             {/* Left Column */}
-            <div className="flex flex-col justify-center space-y-6">
+            <div className="flex flex-col justify-center space-y-6 max-w-2xl lg:max-w-none mx-auto lg:mx-0 w-full">
               <div className="space-y-4">
-                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl text-foreground">
+                  <span className="text-primary">{t("titleHighlight")}</span>{" "}
                   {t("title")}
-                  <span className="text-primary"> {t("titleHighlight")}</span>
                 </h1>
                 <p className="text-lg text-muted-foreground md:text-xl">
                   {t("description")}
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  size="lg"
-                  className="gap-2"
-                  onClick={() => {
-                    if (session?.user) {
-                      router.push(`/${locale}/admin/welcome`);
-                    } else {
-                      router.push(`/${locale}/signup`);
-                    }
-                  }}
-                >
-                  {t("dashboardButton")}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={triggerInstall}
-                  disabled={!canInstall}
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  {t("downloadAppButton")}
-                </Button>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-4 w-full">
+                {/* Row 1: Start Free Trial & See Pricing */}
+                <div className="flex flex-row items-center gap-3 w-full max-w-md lg:w-auto lg:max-w-none">
+                  <Button
+                    size="lg"
+                    className="w-2/3 sm:w-auto lg:w-auto gap-2"
+                    onClick={() => {
+                      if (session?.user) {
+                        router.push(`/${locale}/admin/welcome`);
+                      } else {
+                        router.push(`/${locale}/signup`);
+                      }
+                    }}
+                  >
+                    <span className="truncate">{t("dashboardButton")}</span>
+                    <ArrowRight className="h-4 w-4 shrink-0" />
+                  </Button>
+                  <Link href="#pricing" className="w-1/3 sm:w-auto lg:w-auto">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full lg:w-auto gap-1 px-2 sm:gap-2 sm:px-4"
+                    >
+                      <span className="truncate">{t("seePricing")}</span>
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Row 2: Download App Button */}
+                <div className="w-full max-w-md lg:w-auto lg:max-w-none">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={triggerInstall}
+                    disabled={!canInstall}
+                    className="w-full sm:w-auto lg:w-auto gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    {t("downloadAppButton")}
+                  </Button>
+                </div>
               </div>
 
               {/* Trust Badges */}
-              <div className="flex gap-8 pt-4">
-                <div>
-                  <div className="text-2xl font-bold">{t("membersValue")}</div>
-                  <p className="text-sm text-muted-foreground">
+              <div className="flex flex-row items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-4 w-full max-w-md">
+                <div className="text-left">
+                  <div className="text-lg sm:text-2xl font-bold">{t("membersValue")}</div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {t("waitlistMembers")}
                   </p>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold">{t("uptimeValue")}</div>
-                  <p className="text-sm text-muted-foreground">{t("uptime")}</p>
+                <div className="text-left">
+                  <div className="text-lg sm:text-2xl font-bold">{t("uptimeValue")}</div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t("uptime")}</p>
+                </div>
+                <div className="text-left">
+                  <div className="text-lg sm:text-2xl font-bold">{t("supportValue")}</div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t("support")}</p>
+                </div>
+              </div>
+
+              {/* Trust Line */}
+              <div className="flex flex-row items-center justify-between sm:justify-start gap-1 sm:gap-2.5 text-[9px] min-[360px]:text-[10px] sm:text-xs text-muted-foreground/80 font-medium w-full max-w-md whitespace-nowrap">
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <span className="text-primary font-bold">✓</span>
+                  <span>{t("trustNoCard")}</span>
+                </div>
+                <span className="text-muted-foreground/40 font-normal">·</span>
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <span className="text-primary font-bold">✓</span>
+                  <span>{t("trustCancel")}</span>
+                </div>
+                <span className="text-muted-foreground/40 font-normal">·</span>
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <span className="text-primary font-bold">✓</span>
+                  <span>{t("trustSupport")}</span>
                 </div>
               </div>
             </div>
 
             {/* Right Column - Hero Image */}
-            <div className="flex items-center justify-center">
-              <div className="w-full relative">
+            <div className="flex items-center justify-center lg:justify-end w-full">
+              <div className="w-full max-w-[540px] md:max-w-[640px] lg:max-w-none relative transition-all duration-300">
                 <Image
-                  src="/images/dashboard.jpeg"
+                  src="/images/dashboard2.png"
                   alt={t("dashboardPreview")}
                   width={1200}
                   height={800}
-                  className="w-full h-auto rounded-2xl shadow-2xl border border-border"
+                  className="w-full h-auto rounded-2xl border border-border"
+                  priority
                 />
               </div>
             </div>
@@ -180,7 +219,7 @@ export function LandingHero() {
               t("benefit6"),
             ].map((benefit, index) => (
               <div key={index} className="flex gap-4">
-                <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0" />
+                <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0" />
                 <p className="text-foreground">{benefit}</p>
               </div>
             ))}
