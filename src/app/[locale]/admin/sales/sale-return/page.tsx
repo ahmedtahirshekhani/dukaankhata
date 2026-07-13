@@ -159,7 +159,6 @@ export default function SaleReturnPage() {
     }));
   }, [rawProducts]);
   // Payment Methods will be derived from useOfflinePaymentMethods
-  const [loading, setLoading] = useState(true);
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -217,16 +216,11 @@ export default function SaleReturnPage() {
     [totalAmount, paidAmount],
   );
 
-  const allOfflineTransactions = useOfflineSaleReturns(debouncedSearch, filters.paymentMethod, filters.customer) || [];
+  const rawOfflineTransactions = useOfflineSaleReturns(debouncedSearch, filters.paymentMethod, filters.customer);
+  const loading = rawOfflineTransactions === undefined;
+  const allOfflineTransactions = rawOfflineTransactions || [];
   const totalPages = Math.ceil(allOfflineTransactions.length / pageSize) || 1;
   const transactions = allOfflineTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize) as SaleReturnTransaction[];
-
-  useEffect(() => {
-    if (allOfflineTransactions !== undefined) {
-      setLoading(false);
-      setIsPageLoading(false);
-    }
-  }, [allOfflineTransactions]);
 
   const offlineCustomers = useOfflineCustomers() || [];
   const customers = useMemo(() => {

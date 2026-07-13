@@ -139,8 +139,8 @@ export default function ExpensesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const offlineExpenses = useOfflineExpenses(searchQuery);
+  const isLoading = offlineExpenses === undefined;
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

@@ -20,11 +20,27 @@ import plansData from "@/data/DK_Plan.json";
 
 const BASIC_FEATURES_COUNT = 4;
 
+const renderFeatureText = (text: string) => {
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  if (parts.length > 1) {
+    return parts.map((part, index) => {
+      return index % 2 === 1 ? (
+        <strong key={index} className="text-foreground font-bold">
+          {part}
+        </strong>
+      ) : (
+        part
+      );
+    });
+  }
+  return text;
+};
+
 export function LandingPricing() {
   const locale = useLocale();
   const t = useTranslations("landing.pricing");
   const [proDialogOpen, setProDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly" | "lifetime">("monthly");
   const [selectedPlanPrice, setSelectedPlanPrice] = useState("1000");
   const [selectedPlanName, setSelectedPlanName] = useState("DukaanKhata Pro");
 
@@ -32,7 +48,9 @@ export function LandingPricing() {
 
   const whatsappMessage = selectedPlan === "monthly"
     ? t("dialogWhatsappMessageMonthly")
-    : t("dialogWhatsappMessageYearly");
+    : selectedPlan === "yearly"
+    ? t("dialogWhatsappMessageYearly")
+    : t("dialogWhatsappMessageLifetime");
 
   const whatsappLink = `${proAccessPaymentInfo.proofWhatsappHref}?text=${encodeURIComponent(
     whatsappMessage,
@@ -55,9 +73,15 @@ export function LandingPricing() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-8">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mt-8">
           {plansData.map((plan) => {
             const isYearly = plan.billing === "yearly";
+            const isLifetime = plan.billing === "lifetime";
+            const billingLabel = isLifetime
+              ? t("billingLifetime")
+              : isYearly
+              ? t("billingYearly")
+              : t("billingMonthly");
 
             return (
               <div 
@@ -81,7 +105,7 @@ export function LandingPricing() {
                 )}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-                      {plan.name} - {isYearly ? t("billingYearly") : t("billingMonthly")}
+                      {plan.name} ({billingLabel})
                     </p>
                     {plan.isPopular && (
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm">
@@ -99,7 +123,7 @@ export function LandingPricing() {
                     <span className="text-5xl font-bold text-foreground tracking-tight">
                       {plan.currency}{plan.price}
                     </span>
-                    <span className="text-muted-foreground text-sm font-medium">/{isYearly ? t("billingYearly").toLowerCase() : t("billingMonthly").toLowerCase()}</span>
+                    <span className="text-muted-foreground text-sm font-medium">/{billingLabel.toLowerCase()}</span>
                   </div>
                   
                   <p className="mt-3 text-muted-foreground text-sm">
@@ -113,35 +137,49 @@ export function LandingPricing() {
                         className="flex gap-3 text-sm items-center"
                       >
                         <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
-                        <span className="font-medium text-muted-foreground">{feature}</span>
+                        <span className="font-medium text-muted-foreground">{renderFeatureText(feature)}</span>
                       </li>
                     ))}
                   </ul>
 
-                  <div className="mt-10 space-y-3">
-                    <Link href={`/${locale}/signup`} className="block">
-                      <Button className="w-full text-base" size="lg">
-                        {t("basicPrice", { days: trialDays })}
-                      </Button>
-                    </Link>
+                  <div className="mt-10 flex flex-col items-center gap-3">
+                    {!isLifetime && (
+                      <Link 
+                        href={`/${locale}/signup`} 
+                        className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hover:underline"
+                      >
+                        {t("startForFree")}
+                      </Link>
+                    )}
                     <Button
                       variant={plan.isRecommended ? "default" : "outline"}
                       className="w-full text-base"
                       size="lg"
                       onClick={() => {
-                        setSelectedPlan(plan.id as "monthly" | "yearly");
+                        setSelectedPlan(plan.id as "monthly" | "yearly" | "lifetime");
                         setSelectedPlanPrice(plan.price);
                         setSelectedPlanName(plan.name);
                         setProDialogOpen(true);
                       }}
                     >
-                      {t("proButton")}
+                      {plan.billing === "lifetime" ? t("contactSales") : t("proButton")}
                     </Button>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-12 flex justify-center">
+          <Link href={`/${locale}/signup`}>
+            <Button 
+              className="bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black dark:hover:bg-white/90 text-lg px-8 py-6 rounded-xl shadow-lg transition-transform hover:scale-105" 
+              size="lg"
+            >
+              {t("startFreeTrial")}
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -159,7 +197,11 @@ export function LandingPricing() {
                 Selected Plan
               </p>
               <p className="font-bold text-lg text-foreground">
-                {selectedPlan === "monthly" ? `${selectedPlanName} - Monthly` : `${selectedPlanName} - Yearly`}
+                {selectedPlan === "monthly" 
+                  ? `${selectedPlanName} - Monthly` 
+                  : selectedPlan === "yearly" 
+                  ? `${selectedPlanName} - Yearly` 
+                  : `${selectedPlanName} - Lifetime`}
               </p>
               <p className="text-sm font-medium text-muted-foreground">
                 Amount to Send: <span className="text-foreground font-semibold">Rs.{selectedPlanPrice}</span>
