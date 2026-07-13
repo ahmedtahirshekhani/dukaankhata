@@ -3,6 +3,10 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 
+// Determine session max age in seconds from environment variable, defaulting to 30 days
+const SESSION_MAX_AGE_DAYS = Number(process.env.SESSION_MAX_AGE_DAYS) || 30;
+const SESSION_MAX_AGE_SECONDS = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
+
 // Shared NextAuth options (v4-compatible)
 export const authOptions = {
   providers: [
@@ -110,8 +114,8 @@ export const authOptions = {
   },
   session: {
     strategy: "jwt" as const,
-    // Keep users signed in for 30 days
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    // Keep users signed in for configured days
+    maxAge: SESSION_MAX_AGE_SECONDS,
     // Refresh the JWT periodically to achieve sliding sessions while active
     updateAge: 24 * 60 * 60, // refresh token if it's older than 24h
   },
@@ -127,7 +131,7 @@ export const authOptions = {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        maxAge: 30 * 24 * 60 * 60, // 30 days (align with session.maxAge)
+        maxAge: SESSION_MAX_AGE_SECONDS, // align with session.maxAge
       },
     },
   },

@@ -144,7 +144,6 @@ export default function CounterSale() {
     useState<Transaction | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [pageInfo, setPageInfo] = useState({ total: 0, totalPages: 0 });
@@ -170,6 +169,7 @@ export default function CounterSale() {
   });
 
   const rawOfflineTransactions = useOfflineCounterSales(searchTerm, filters.type, selectedYear);
+  const loading = rawOfflineTransactions === undefined;
   const offlineTransactions = useMemo(() => rawOfflineTransactions || [], [rawOfflineTransactions]);
 
   const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
@@ -1116,8 +1116,6 @@ export default function CounterSale() {
 
 
   useEffect(() => {
-    setLoading(true);
-
     let processed = [...offlineTransactions];
 
     // sorting
@@ -1142,8 +1140,6 @@ export default function CounterSale() {
     // Pagination
     const paginated = processed.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     setTransactions(paginated);
-
-    setLoading(false);
   }, [offlineTransactions, currentPage, pageSize, sortColumn, sortDirection]);
 
   // Reset to first page when search or filters change or page size changes

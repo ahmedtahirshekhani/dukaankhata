@@ -160,7 +160,9 @@ export default function PartiesPage() {
     message: "",
   });
 
-  const allOfflineCustomers = useOfflineCustomers(debouncedSearchTerm) || [];
+  const offlineCustomersData = useOfflineCustomers(debouncedSearchTerm);
+  const isDexieLoading = offlineCustomersData === undefined;
+  const allOfflineCustomers = useMemo(() => offlineCustomersData || [], [offlineCustomersData]);
 
   const [isSyncReady, setIsSyncReady] = useState(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('last_sync_timestamp')
@@ -184,10 +186,10 @@ export default function PartiesPage() {
   useEffect(() => {
     setTotalCount(processedCustomers.length);
     setTotalPages(Math.ceil(processedCustomers.length / pageSize) || 1);
-    if (allOfflineCustomers.length > 0 || isSyncReady) {
+    if (!isDexieLoading && (allOfflineCustomers.length > 0 || isSyncReady)) {
       setLoading(false);
     }
-  }, [processedCustomers.length, pageSize, allOfflineCustomers.length, isSyncReady]);
+  }, [processedCustomers.length, pageSize, allOfflineCustomers.length, isSyncReady, isDexieLoading]);
 
   const filteredCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -284,10 +286,8 @@ export default function PartiesPage() {
     newCustomerOpeningBalance,
     newCustomerOpeningBalanceType,
     newCustomerStatus,
-    newCustomerStatus,
+    allOfflineCustomers,
     t,
-    currentPage,
-    debouncedSearchTerm,
     resetSelectedCustomer,
   ]);
 
@@ -595,10 +595,10 @@ export default function PartiesPage() {
       </div>
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-            <div className="flex flex-col gap-3 w-full md:w-auto flex-1">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 md:gap-4">
+            <div className="flex flex-col gap-3 w-full xl:w-auto flex-1">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
-                <div className="relative w-full sm:w-64 flex-shrink-0">
+                <div className="relative w-full sm:w-56 md:w-64 flex-shrink-0">
                   <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
@@ -625,21 +625,23 @@ export default function PartiesPage() {
                   ))}
                 </div>
               </div>
-              
-              <div className="flex items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-full sm:w-fit overflow-x-auto whitespace-nowrap scrollbar-none">
-                <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-green-500 border border-green-600" />
-                  <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 border border-red-600" />
-                  <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
-                </div>
-              </div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            <div className="flex flex-wrap items-center gap-1.5 w-full xl:w-auto justify-end">
+              {/* Desktop Legend */}
+              <div className="hidden md:flex items-center gap-2 text-[9px] border rounded-md px-1.5 py-1 bg-muted/30 whitespace-nowrap">
+                <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 border border-green-600" />
+                  <span className="font-medium text-green-700 dark:text-green-400 leading-none">{t("legendReceive")}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 border border-red-600" />
+                  <span className="font-medium text-red-700 dark:text-red-400 leading-none">{t("legendPay")}</span>
+                </div>
+              </div>
+
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -693,7 +695,7 @@ export default function PartiesPage() {
             </div>
           </div>
 
-          <div className="flex xl:hidden items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none mt-3">
+          <div className="flex md:hidden items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none mt-3">
             <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-green-500 border border-green-600" />
@@ -740,7 +742,7 @@ export default function PartiesPage() {
                   {filteredCustomers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                        {t("noCustomers")}
+                        {loading ? <Loader2Icon className="h-8 w-8 animate-spin mx-auto text-primary" /> : t("noCustomers")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -977,7 +979,7 @@ export default function PartiesPage() {
             ))}
             {filteredCustomers.length === 0 && (
               <div className="py-12 text-center text-muted-foreground">
-                {t("noCustomers")}
+                {loading ? <Loader2Icon className="h-8 w-8 animate-spin mx-auto text-primary" /> : t("noCustomers")}
               </div>
             )}
           </div>

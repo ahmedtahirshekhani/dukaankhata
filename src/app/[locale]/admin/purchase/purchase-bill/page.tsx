@@ -21,6 +21,7 @@ import { formatCurrencyString } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -88,7 +89,7 @@ export default function PurchaseBillPage() {
   // New UI filter states
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending">("all");
-  const [amountRange, setAmountRange] = useState<"all" | "0-1000" | "1000-5000" | "5000+">("all");
+  const [amountRange, setAmountRange] = useState({ min: "", max: "" });
 
   const debouncedSearch = useDebounce(searchTerm, 500);
 
@@ -114,13 +115,12 @@ export default function PurchaseBillPage() {
       result = result.filter(bill => bill.is_paid === (statusFilter === "paid"));
     }
 
-    if (amountRange !== "all") {
+    if (amountRange.min !== "" || amountRange.max !== "") {
       result = result.filter(bill => {
         const amount = bill.total_amount || 0;
-        if (amountRange === "0-1000") return amount <= 1000;
-        if (amountRange === "1000-5000") return amount > 1000 && amount <= 5000;
-        if (amountRange === "5000+") return amount > 5000;
-        return true;
+        const min = amountRange.min === "" ? 0 : parseFloat(amountRange.min);
+        const max = amountRange.max === "" ? Infinity : parseFloat(amountRange.max);
+        return amount >= min && amount <= max;
       });
     }
 
@@ -138,7 +138,7 @@ export default function PurchaseBillPage() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, selectedYear, statusFilter, amountRange, pageSize]);
+  }, [debouncedSearch, selectedYear, statusFilter, amountRange.min, amountRange.max, pageSize]);
 
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -290,32 +290,25 @@ export default function PurchaseBillPage() {
                     </DropdownMenuCheckboxItem>
 
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Amount Range</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={amountRange === "all"}
-                      onCheckedChange={() => setAmountRange("all")}
-                    >
-                      Any Amount
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={amountRange === "0-1000"}
-                      onCheckedChange={() => setAmountRange("0-1000")}
-                    >
-                      0 - 1,000
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={amountRange === "1000-5000"}
-                      onCheckedChange={() => setAmountRange("1000-5000")}
-                    >
-                      1,001 - 5,000
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={amountRange === "5000+"}
-                      onCheckedChange={() => setAmountRange("5000+")}
-                    >
-                      5,000+
-                    </DropdownMenuCheckboxItem>
+                    <div className="p-3">
+                      <Label className="text-xs font-semibold mb-2 block">Amount Range</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={amountRange.min}
+                          onChange={(e) => setAmountRange({ ...amountRange, min: e.target.value })}
+                          className="h-8 text-xs"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={amountRange.max}
+                          onChange={(e) => setAmountRange({ ...amountRange, max: e.target.value })}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
