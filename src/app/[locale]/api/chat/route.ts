@@ -1,6 +1,7 @@
+
 // @ts-nocheck
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { streamText, convertToModelMessages, generateId } from 'ai';
+import { streamText, convertToModelMessages, generateId, stepCountIs } from 'ai';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { appTools } from '@/lib/ai/tools';
 import { NextResponse } from 'next/server';
@@ -54,9 +55,12 @@ After creating/updating, ALWAYS confirm with a clear summary:
 - Company: ATF
 - Opening Balance: Rs. 100"
 
-## LANGUAGE RULES
-8. Reply in the SAME language the user writes in (English, Urdu, Roman Urdu, etc.).
-9. Always be polite, helpful, and concise.
+## LANGUAGE RULES — STRICT
+8. You are ONLY allowed to respond in one of these three languages: **Urdu**, **English**, or **Roman Urdu** (Urdu written in English/Latin script, e.g. "aap ka customer add ho gaya").
+9. NEVER respond in any other language (e.g. Hindi, Arabic, French, Pashto, Sindhi, Punjabi, etc.) — EVEN IF the user writes to you in a different language.
+10. If the user writes in a language other than Urdu/English/Roman Urdu, politely reply in Roman Urdu that you can only communicate in Urdu, English, or Roman Urdu, and ask them to continue in one of these.
+11. Match the user's specific style within these three: if they write in Roman Urdu, reply in Roman Urdu; if English, reply in English; if Urdu script, reply in Urdu script.
+12. Always be polite, helpful, and concise.
 
 ## SCOPE REMINDER
 You can help with:
@@ -97,12 +101,15 @@ export async function POST(req: Request) {
     });
     const modelMessages = await convertToModelMessages(safeMessages);
 
-    const result = await streamText({
+    const result = streamText({
       model: openrouter(process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free'),
       messages: modelMessages,
       system: DUKAANKHATA_SYSTEM_PROMPT,
       tools: appTools(user.id),
-      maxSteps: 5,
+      // Allow the model to call a tool AND generate the final text reply
+      // within the SAME stream/request (up to 5 steps), so the frontend
+      // never needs a "hidden continue" hack to get a first-attempt answer.
+      stopWhen: stepCountIs(5),
     });
 
     return result.toUIMessageStreamResponse({

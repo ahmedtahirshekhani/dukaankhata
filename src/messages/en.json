@@ -1490,10 +1490,45 @@
     "invalidPassword": "Invalid password"
   },
   "aiChat": {
-    "aiChatTitle": "AI Assistant",
-    "aiChatDescription": "Ask me anything about your business or manage your customers.",
-    "aiChatInputPlaceholder": "Type a message in any language...",
-    "aiChatSend": "Send",
-    "aiChatEmptyState": "Hello! I am your DukaanKhata AI Assistant. You can ask me to manage your customers."
+    "title": "DukaanKhata AI",
+    "beta": "Beta",
+    "subtitle": "Business Assistant · Only for DukaanKhata",
+    "welcomeTitle": "Your DukaanKhata AI Assistant",
+    "welcomeSubtitle": "I help you manage your business — customers, products, payments, and much more!",
+    "scopeNotice": "I only answer DukaanKhata business matters",
+    "quickActionsTitle": "Quick Actions",
+    "pinnedMessage": "Pinned Message",
+    "welcomeMessage": "Hello! I am your AI Assistant. I can help you manage your customers, products, and transactions. How can I help you today?",
+    "working": "Working on it...",
+    "done": "✓ Done",
+    "errorTitle": "An issue occurred",
+    "errorMessage": "Something went wrong. Please try again.",
+    "placeholder": "Ask anything about DukaanKhata...",
+    "quickActions": {
+      "allCustomers": {
+        "label": "All Customers",
+        "message": "Show list of all customers/parties"
+      },
+      "allProducts": {
+        "label": "All Products",
+        "message": "Show list of all products/items"
+      },
+      "totalCustomers": {
+        "label": "Total Customers",
+        "message": "How many total customers/parties are there? Give a summary"
+      },
+      "totalProducts": {
+        "label": "Total Products",
+        "message": "How many total products/items are there? Give a summary"
+      },
+      "recentTransactions": {
+        "label": "Recent Transactions",
+        "message": "Show recent transactions"
+      },
+      "searchCustomer": {
+        "label": "Search Customer",
+        "message": "Help me search for a customer by name"
+      }
+    }
   }
 }

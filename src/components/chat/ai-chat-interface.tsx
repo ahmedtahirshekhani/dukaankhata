@@ -1,8 +1,9 @@
+
 // @ts-nocheck
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Message } from "ai";
 import { Button } from "@/components/ui/button";
@@ -28,53 +29,11 @@ import {
   PlusCircle,
   ShoppingBag,
   StopCircle,
+  Pin,
+  Search,
 } from "lucide-react";
 
-// ─── Quick action chips ───────────────────────────────────────────────────────
-const QUICK_ACTIONS = [
-  {
-    icon: Users,
-    label: "Mere sab customers",
-    message: "Mere sab customers/parties ki list dikhao",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20",
-  },
-  {
-    icon: CreditCard,
-    label: "Payment In record karo",
-    message: "Mujhe payment in record karne mein help karo",
-    color: "text-green-500",
-    bg: "bg-green-500/10 hover:bg-green-500/20 border-green-500/20",
-  },
-  {
-    icon: Package,
-    label: "Products ki list",
-    message: "Mere sab products/items ki list do",
-    color: "text-orange-500",
-    bg: "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20",
-  },
-  {
-    icon: PlusCircle,
-    label: "Naya customer banao",
-    message: "Mujhe naya customer/party banane mein help karo",
-    color: "text-purple-500",
-    bg: "bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20",
-  },
-  {
-    icon: BarChart2,
-    label: "Total customers count",
-    message: "Mere kitne total customers/parties hain? Summary batao",
-    color: "text-pink-500",
-    bg: "bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/20",
-  },
-  {
-    icon: ShoppingBag,
-    label: "Payment Out record karo",
-    message: "Mujhe payment out record karne mein help karo",
-    color: "text-indigo-500",
-    bg: "bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20",
-  },
-];
+// Removed global QUICK_ACTIONS
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getMessageText(m: Message): string {
@@ -98,30 +57,77 @@ function renderHtml(text: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AiChatInterface() {
   const locale = useLocale();
+  const t = useTranslations('aiChat');
 
-  // Use as any — different AI SDK versions have slightly different APIs
+  const QUICK_ACTIONS = [
+    {
+      icon: Users,
+      label: t('quickActions.allCustomers.label'),
+      message: t('quickActions.allCustomers.message'),
+      color: "text-blue-500",
+      bg: "bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20",
+    },
+    {
+      icon: Package,
+      label: t('quickActions.allProducts.label'),
+      message: t('quickActions.allProducts.message'),
+      color: "text-orange-500",
+      bg: "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20",
+    },
+    {
+      icon: BarChart2,
+      label: t('quickActions.totalCustomers.label'),
+      message: t('quickActions.totalCustomers.message'),
+      color: "text-pink-500",
+      bg: "bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/20",
+    },
+    {
+      icon: ShoppingBag,
+      label: t('quickActions.totalProducts.label'),
+      message: t('quickActions.totalProducts.message'),
+      color: "text-purple-500",
+      bg: "bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20",
+    },
+    {
+      icon: CreditCard,
+      label: t('quickActions.recentTransactions.label'),
+      message: t('quickActions.recentTransactions.message'),
+      color: "text-green-500",
+      bg: "bg-green-500/10 hover:bg-green-500/20 border-green-500/20",
+    },
+    {
+      icon: Search,
+      label: t('quickActions.searchCustomer.label'),
+      message: t('quickActions.searchCustomer.message'),
+      color: "text-indigo-500",
+      bg: "bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20",
+    },
+  ];
+
   const chatHelpers = useChat({
     api: `/${locale}/api/chat`,
-    maxSteps: 5,
   }) as any;
 
-  const { messages, status, stop, error } = chatHelpers;
-
-  // sendMessage is confirmed available in this project's AI SDK version
-  const sendMessage: Function = chatHelpers.sendMessage;
+  const { messages, status, stop, error, sendMessage } = chatHelpers;
 
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoading = status === "submitted" || status === "streaming";
 
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // NOTE: Backend now runs tool-call + final-text generation in a single
+  // request (stopWhen: stepCountIs(5) in the API route), so no client-side
+  // "hidden continue" hack is needed anymore. Removing it also fixes the
+  // loader/stop-button state getting stuck.
+
   const sendText = useCallback(
     (text: string) => {
       if (!text.trim() || isLoading) return;
-      sendMessage({ role: "user", content: text });
+      sendMessage({ role: "user", parts: [{ type: "text", text }] });
       setInput("");
     },
     [sendMessage, isLoading]
@@ -145,13 +151,13 @@ export function AiChatInterface() {
           </div>
           <div>
             <CardTitle className="text-base font-semibold flex items-center gap-1.5">
-              DukaanKhata AI
+              {t('title')}
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Beta
+                {t('beta')}
               </span>
             </CardTitle>
             <CardDescription className="text-xs mt-0.5 text-muted-foreground/80">
-              Business Assistant · Sirf DukaanKhata ke liye
+              {t('subtitle')}
             </CardDescription>
           </div>
         </div>
@@ -173,22 +179,21 @@ export function AiChatInterface() {
 
             <div className="text-center space-y-2 max-w-md">
               <h2 className="text-xl font-bold text-foreground">
-                Aapka DukaanKhata AI Assistant
+                {t('welcomeTitle')}
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Main aapke business ko manage karne mein help karta hoon —
-                customers, products, payments, aur bhi bahut kuch!
+                {t('welcomeSubtitle')}
               </p>
             </div>
 
             <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600">
               <Sparkles className="w-3 h-3" />
-              Sirf DukaanKhata ke business matters ka jawab deta hoon
+              {t('scopeNotice')}
             </div>
 
             <div className="w-full max-w-xl space-y-3">
               <p className="text-xs font-medium text-muted-foreground text-center uppercase tracking-wide">
-                Quick Actions
+                {t('quickActionsTitle')}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {QUICK_ACTIONS.map((action, i) => {
@@ -214,18 +219,33 @@ export function AiChatInterface() {
         ) : (
           /* Chat Messages */
           <>
+            {/* Guaranteed Welcome Message */}
+            <div className="flex gap-2.5 mr-auto max-w-[85%] z-20">
+              <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 bg-gradient-to-br from-primary/80 to-primary text-white shadow-sm">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-muted text-foreground rounded-tl-sm shadow-sm border border-border/50">
+                <div className="flex items-center gap-1.5 mb-2 text-amber-600 font-medium text-xs uppercase tracking-wider">
+                  <Pin className="w-3 h-3 fill-current" /> {t('pinnedMessage')}
+                </div>
+                <div className="whitespace-pre-wrap">{t('welcomeMessage')}</div>
+              </div>
+            </div>
+
             {messages.map((m: Message) => {
               const text = getMessageText(m);
               const hasTools =
                 m.toolInvocations && m.toolInvocations.length > 0;
 
-              // Skip empty assistant messages — no ghost bubbles
+              // Skip empty assistant messages and the welcome message
+              if (m.id === 'welcome') return null;
               if (m.role === "assistant" && !text && !hasTools) return null;
 
               return (
                 <div
                   key={m.id}
                   className={`flex gap-2.5 ${
+                    m.id === 'welcome' ? 'sticky top-4 z-20 w-[95%] mx-auto backdrop-blur-md bg-background/95 p-2 rounded-xl shadow-sm border border-border/50' :
                     m.role === "user"
                       ? "ml-auto flex-row-reverse max-w-[80%]"
                       : "mr-auto max-w-[85%]"
@@ -254,6 +274,11 @@ export function AiChatInterface() {
                         : "bg-muted text-foreground rounded-tl-sm"
                     }`}
                   >
+                    {m.id === 'welcome' && (
+                      <div className="flex items-center gap-1.5 mb-2 text-amber-600 font-medium text-xs uppercase tracking-wider">
+                        <Pin className="w-3 h-3 fill-current" /> {t('pinnedMessage')}
+                      </div>
+                    )}
                     {/* Text */}
                     {text && (
                       <div
@@ -273,7 +298,7 @@ export function AiChatInterface() {
                             >
                               <Loader2 className="w-3 h-3 animate-spin" />
                               <span className="text-xs italic opacity-80">
-                                Kaam kar raha hoon...
+                                {t('working')}
                               </span>
                             </div>
                           ) : !text ? (
@@ -283,7 +308,7 @@ export function AiChatInterface() {
                             >
                               <Zap className="w-3 h-3" />
                               <span className="text-xs font-medium">
-                                ✓ Ho gaya
+                                {t('done')}
                               </span>
                             </div>
                           ) : null
@@ -302,19 +327,23 @@ export function AiChatInterface() {
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <div className="rounded-2xl px-4 py-2.5 text-sm bg-red-50 text-red-600 rounded-tl-sm border border-red-200">
-                  <p className="font-semibold mb-0.5">Koi masla hua</p>
+                  <p className="font-semibold mb-0.5">{t('errorTitle')}</p>
                   <p className="text-xs opacity-80">
                     {error.message ||
-                      "Kuch ghalat ho gaya. Dobara try karein."}
+                      t('errorMessage')}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Typing indicator */}
+            {/* Typing indicator — stays visible until the assistant's
+                actual text content arrives (not just when a message
+                object appears), so it correctly spans tool-call time too */}
             {isLoading &&
               messages.length > 0 &&
-              messages[messages.length - 1].role === "user" && (
+              (messages[messages.length - 1].role === "user" ||
+                (messages[messages.length - 1].role === "assistant" &&
+                  !getMessageText(messages[messages.length - 1]))) && (
                 <div className="flex gap-2.5 max-w-[85%] mr-auto">
                   <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/80 to-primary text-white">
                     <Sparkles className="w-3.5 h-3.5" />
@@ -367,7 +396,7 @@ export function AiChatInterface() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Kuch bhi puchein DukaanKhata ke baare mein..."
+            placeholder={t('placeholder')}
             disabled={isLoading}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
