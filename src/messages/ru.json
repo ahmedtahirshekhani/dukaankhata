@@ -108,7 +108,7 @@
     "counterSaleDescription": "Payment processing",
     "accountStatement": "Account Statement",
     "accountStatementDescription": "Party account statement dekhein",
-    "aiChat": "AI Chat",
+    "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI se insights aur faisle lein",
     "aiChatSubtext": "Aqlmand insights se acha business faisla lein",
     "quotations": "Quotations",
@@ -143,7 +143,7 @@
     "featureModulesDescription": "Application mein makhsoos features ko enable ya disable karain",
     "counterSaleTitle": "Counter Sale",
     "counterSaleDesc": "Fauran transactions ke liye counter sale module enable karain.",
-    "aiChatTitle": "AI Chat",
+    "aiChatTitle": "Dukaan Chat AI",
     "aiChatDesc": "AI chat assistant ko enable karain.",
     "whatsappTitle": "WhatsApp Integration",
     "whatsappDesc": "WhatsApp messaging ki sahoolat enable karain.",
@@ -1507,10 +1507,69 @@
     "invalidPassword": "Password galat hai"
   },
   "aiChat": {
-    "aiChatTitle": "AI Assistant",
-    "aiChatDescription": "Apne karobar ke bare mein kuch bhi puchein ya customers ko manage karein.",
-    "aiChatInputPlaceholder": "Koi bhi language mein message likhein...",
-    "aiChatSend": "Bhejein",
-    "aiChatEmptyState": "Hello! Main aapka DukaanKhata AI Assistant hoon. Aap mujhe customers manage karne ka keh sakte hain."
+    "title": "Dukaan Chat AI",
+    "beta": "Beta",
+    "subtitle": "Business Assistant · Sirf DukaanKhata ke liye",
+    "welcomeTitle": "Aapka DukaanKhata AI Assistant",
+    "welcomeSubtitle": "Main aapke business ko manage karne mein help karta hoon — customers, products, payments, aur bhi bahut kuch!",
+    "scopeNotice": "Sirf DukaanKhata ke business matters ka jawab deta hoon",
+    "quickActionsTitle": "Quick Actions",
+    "pinnedMessage": "Pinned Message",
+    "welcomeMessage": "Salam! Main aapka AI Assistant hoon. Main aapke customers, products aur transactions manage karne mein aapki madad kar sakta hoon. Boliye, main aapki kya madad karoon?",
+    "working": "Kaam kar raha hoon...",
+    "done": "✓ Ho gaya",
+    "errorTitle": "Koi masla hua",
+    "errorMessage": "Kuch ghalat ho gaya. Dobara try karein.",
+    "placeholder": "Kuch bhi puchein DukaanKhata ke baare mein...",
+    "quickActions": {
+      "allCustomers": {
+        "label": "Mere sab customers",
+        "message": "Mere sab customers/parties ki list dikhao"
+      },
+      "allProducts": {
+        "label": "Products ki list",
+        "message": "Mere sab products/items ki list do"
+      },
+      "totalCustomers": {
+        "label": "Total customers count",
+        "message": "Mere kitne total customers/parties hain? Summary batao"
+      },
+      "totalProducts": {
+        "label": "Total products count",
+        "message": "Mere kitne total products/items hain? Summary batao"
+      },
+      "recentTransactions": {
+        "label": "Recent transactions",
+        "message": "Recent transactions dikhao"
+      },
+      "searchCustomer": {
+        "label": "Customer dhoondo",
+        "message": "Naam se kisi customer ko dhoondne mein help karo"
+      },
+      "bestSellers": {
+        "label": "Best Sellers",
+        "message": "What are my best-selling products?"
+      },
+      "todaySales": {
+        "label": "Aaj Ki Sales",
+        "message": "How much did I sell today?"
+      },
+      "lowStock": {
+        "label": "Kam Stock",
+        "message": "Which items are low in stock?"
+      },
+      "pendingPayments": {
+        "label": "Baqaya Payments",
+        "message": "Show my pending payments."
+      },
+      "manageShop": {
+        "label": "Dukaan Manage",
+        "message": "Help me manage my shop."
+      },
+      "salesSummary": {
+        "label": "Sales Summary",
+        "message": "Create a sales summary."
+      }
+    }
   }
 }

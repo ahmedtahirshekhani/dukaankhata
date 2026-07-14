@@ -108,7 +108,7 @@
     "counterSaleDescription": "فوری فروخت",
     "accountStatement": "اکاؤنٹ سٹیٹمنٹ",
     "accountStatementDescription": "پارٹی اکاؤنٹ سٹیٹمنٹ",
-    "aiChat": "AI چیٹ",
+    "aiChat": "دکان چیٹ اے آئی",
     "aiChatDescription": "AI بصیرت",
     "aiChatSubtext": "بہتر کاروباری فیصلے لیں",
     "quotations": "کوٹیشنز",
@@ -143,7 +143,7 @@
     "featureModulesDescription": "ایپلیکیشن میں مخصوص فیچرز کو فعال یا غیر فعال کریں",
     "counterSaleTitle": "کاؤنٹر سیل",
     "counterSaleDesc": "فوری لین دین کے لئے کاؤنٹر سیل ماڈیول فعال کریں.",
-    "aiChatTitle": "اے آئی چیٹ",
+    "aiChatTitle": "دکان چیٹ اے آئی",
     "aiChatDesc": "اے آئی چیٹ اسسٹنٹ کو فعال کریں.",
     "whatsappTitle": "واٹس ایپ انضمام",
     "whatsappDesc": "واٹس ایپ میسجنگ کی صلاحیتوں کو فعال کریں.",
@@ -1507,10 +1507,69 @@
     "invalidPassword": "پاس ورڈ غلط ہے"
   },
   "aiChat": {
-    "aiChatTitle": "اے آئی اسسٹنٹ",
-    "aiChatDescription": "اپنے کاروبار کے بارے میں کچھ بھی پوچھیں یا کسٹمرز کو میسج کریں۔",
-    "aiChatInputPlaceholder": "کسی بھی زبان میں میسج لکھیں...",
-    "aiChatSend": "بھیجیں",
-    "aiChatEmptyState": "ہیلو! میں آپ کا دکان کھاتہ اے آئی اسسٹنٹ ہوں۔ آپ مجھے کسٹمرز کو میسج کرنے کے لیے کہہ سکتے ہیں۔"
+    "title": "دکان چیٹ اے آئی",
+    "beta": "بیٹا",
+    "subtitle": "بزنس اسسٹنٹ · صرف دکان کھاتہ کے لیے",
+    "welcomeTitle": "آپ کا دکان کھاتہ اے آئی اسسٹنٹ",
+    "welcomeSubtitle": "میں آپ کے کاروبار کو منظم کرنے میں مدد کرتا ہوں — کسٹمرز، پروڈکٹس، پیمنٹس، اور بہت کچھ!",
+    "scopeNotice": "میں صرف دکان کھاتہ کے کاروباری معاملات کا جواب دیتا ہوں",
+    "quickActionsTitle": "فوری اقدامات",
+    "pinnedMessage": "پن کردہ پیغام",
+    "welcomeMessage": "سلام! میں آپ کا اے آئی اسسٹنٹ ہوں۔ میں آپ کے کسٹمرز، پروڈکٹس اور لین دین کو منظم کرنے میں آپ کی مدد کر سکتا ہوں۔ بتائیں، میں آپ کی کیا مدد کروں؟",
+    "working": "کام کر رہا ہوں...",
+    "done": "✓ ہو گیا",
+    "errorTitle": "کوئی مسئلہ ہوا",
+    "errorMessage": "کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔",
+    "placeholder": "دکان کھاتہ کے بارے میں کچھ بھی پوچھیں...",
+    "quickActions": {
+      "allCustomers": {
+        "label": "تمام کسٹمرز",
+        "message": "میرے تمام کسٹمرز/پارٹیز کی فہرست دکھاؤ"
+      },
+      "allProducts": {
+        "label": "تمام پروڈکٹس",
+        "message": "میرے تمام پروڈکٹس/آئٹمز کی فہرست دو"
+      },
+      "totalCustomers": {
+        "label": "کل کسٹمرز",
+        "message": "میرے کل کتنے کسٹمرز/پارٹیز ہیں؟ خلاصہ بتاؤ"
+      },
+      "totalProducts": {
+        "label": "کل پروڈکٹس",
+        "message": "میرے کل کتنے پروڈکٹس/آئٹمز ہیں؟ خلاصہ بتاؤ"
+      },
+      "recentTransactions": {
+        "label": "حالیہ لین دین",
+        "message": "حالیہ لین دین دکھاؤ"
+      },
+      "searchCustomer": {
+        "label": "کسٹمر تلاش کریں",
+        "message": "نام سے کسی کسٹمر کو تلاش کرنے میں مدد کرو"
+      },
+      "bestSellers": {
+        "label": "بہترین آئٹمز",
+        "message": "What are my best-selling products?"
+      },
+      "todaySales": {
+        "label": "آج کی سیلز",
+        "message": "How much did I sell today?"
+      },
+      "lowStock": {
+        "label": "کم اسٹاک",
+        "message": "Which items are low in stock?"
+      },
+      "pendingPayments": {
+        "label": "بقایا ادائیگیاں",
+        "message": "Show my pending payments."
+      },
+      "manageShop": {
+        "label": "دکان کا انتظام",
+        "message": "Help me manage my shop."
+      },
+      "salesSummary": {
+        "label": "سیلز کا خلاصہ",
+        "message": "Create a sales summary."
+      }
+    }
   }
 }
