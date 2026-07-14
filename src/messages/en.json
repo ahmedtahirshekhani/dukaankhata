@@ -76,7 +76,7 @@
   "welcome": {
     "title": "Welcome to Dukaan Khata",
     "subtitle": "You have successfully logged in.",
-    "instruction": "Use the sidebar to explore your dashboard features.",
+    "instruction": "Use the <sidebar>sidebar</sidebar> to explore your dashboard features.",
     "videoTutorials": "Video Tutorials",
     "viewAll": "View All",
     "desktop": "Desktop"
@@ -130,7 +130,8 @@
     "revenue": "Revenue",
     "profit": "Profit",
     "cashflow": "Cash Flow",
-    "transactions": "Transactions"
+    "transactions": "Transactions",
+    "clickMenuToStart": "Tap here to explore other features!"
   },
   "configurationPage": {
     "onlyImageFilesAllowed": "Only image files are allowed.",
@@ -1264,7 +1265,7 @@
     "hero": {
       "title": "Starts Here.",
       "titleHighlight": "Smarter Business",
-      "description": "DukaanKhata is an AI-powered business management app built for shopkeepers, retailers, and small businesses across South Asia. Track sales, manage inventory, and handle customer accounts, all in one simple app.",
+      "description": "DukaanKhata is an AI-powered app to help you run and grow your business, sales, inventory, purchases, and accounts, all in one place. Works both online and offline, with different languages.",
       "dashboardButton": "Start Free Trial",
       "joinWaitlistButton": "Join the Waitlist",
       "downloadAppButton": "Download App",

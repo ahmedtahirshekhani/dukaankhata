@@ -76,7 +76,7 @@
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
     "subtitle": "Aap kamyabi se login ho gaye hain.",
-    "instruction": "Dashboard features dekhne ke liye sidebar istemal karein.",
+    "instruction": "Dashboard features dekhne ke liye <sidebar>sidebar</sidebar> istemal karein.",
     "videoTutorials": "Video Tutorials",
     "viewAll": "Sab Dekhein",
     "desktop": "Desktop"
@@ -130,7 +130,8 @@
     "revenue": "Revenue",
     "profit": "Profit",
     "cashflow": "Cash Flow",
-    "transactions": "Transactions"
+    "transactions": "Transactions",
+    "clickMenuToStart": "Explore features dekhne ke liye yahan tap karein!"
   },
   "configurationPage": {
     "onlyImageFilesAllowed": "Sirf image files allowed hain.",
@@ -1264,7 +1265,7 @@
     "hero": {
       "title": "Yahan Se Shuru Hota Hai.",
       "titleHighlight": "Smarter Business",
-      "description": "DukaanKhata ek AI-powered business management app hai jo South Asia ke shopkeepers, retailers, aur chhote businesses ke liye banaya gaya hai. Sales track karain, inventory manage karain, aur customer accounts handle karain, sab kuch ek simple app mein.",
+      "description": "DukaanKhata ek AI-powered app hai jo aapko apne business, sales, inventory, purchases, aur accounts ko ek hi jagah par chalane aur grow karne mein madad karti hai. Yeh online aur offline dono tareeqon se, mukhtalif zabanon mein kaam karti hai.",
       "dashboardButton": "Dashboard par Jayein",
       "joinWaitlistButton": "Waitlist mein Shamil Hoain",
       "downloadAppButton": "App Download Karain",

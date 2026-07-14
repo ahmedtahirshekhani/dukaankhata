@@ -432,9 +432,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
       const delay = Number(process.env.NEXT_PUBLIC_SIGNUP_TIME || 5) * 1000;
 
-      // Redirect to welcome page after delay
+      // Redirect to admin dashboard after delay
       setTimeout(() => {
-        router.push(`/${params.locale}/admin/welcome`);
+        router.push(`/${params.locale}/admin?signup=true`);
       }, delay);
     } catch (err) {
       // Handle network errors, fetch failures, etc.
