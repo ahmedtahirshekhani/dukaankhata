@@ -24,19 +24,31 @@ const apiRequest = (path: string, options?: RequestInit) => {
   return new NextRequest(`http://internal${path}`, options as any);
 };
 
+// List-fetching tools used to default to limit=-1 ("fetch all records"),
+// which let a single tool call return thousands of rows and blow past the
+// model's context window. Every list tool now clamps to this cap; totalCount
+// in each response still reflects the true total, so count-style questions
+// aren't affected — only full listings are capped. Use `search`/filters to
+// narrow results instead of raising the limit.
+const MAX_TOOL_FETCH_LIMIT = 30;
+const clampLimit = (limit?: number) => {
+  if (!limit || limit <= 0 || limit > MAX_TOOL_FETCH_LIMIT) return MAX_TOOL_FETCH_LIMIT;
+  return limit;
+};
+
 export const appTools = (userId: string) => ({
     getCustomers: tool({
-      description: "Get a list of all customers/parties for the user.",
+      description: `Get a list of customers/parties for the user. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first); use 'search' to narrow results. The response's totalCount field reflects the true total regardless of this limit, so use it for count questions.`,
       parameters: z.object({
         search: z.string().optional().describe("Optional search query to filter customers by name, phone, or company."),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all records. Default is -1."),
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, limit, page }: any) => {
         try {
           let path = `/api/customers?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
-          path += `limit=${limit !== undefined ? limit : -1}&`;
+          path += `limit=${clampLimit(limit)}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -150,15 +162,16 @@ export const appTools = (userId: string) => ({
     }),
 
     getCustomerTransactions: tool({
-      description: "Get a list of all transactions (both payments-in from customers and payments-out to vendors/parties). Can be filtered by transaction type and specific name/id.",
+      description: `Get a list of transactions (both payments-in from customers and payments-out to vendors/parties). Can be filtered by transaction type and specific name/id. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call, most recent first.`,
       parameters: z.object({
         type: z.enum(['payment-in', 'payment-out']).optional().describe("Filter by transaction type"),
         customerName: z.string().optional().describe("Optional name of the customer to filter transactions for"),
         customerId: z.string().optional().describe("Optional ID of the customer to filter transactions for"),
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`),
       }),
-      execute: async ({ type, customerName, customerId }: any) => {
+      execute: async ({ type, customerName, customerId, limit }: any) => {
         try {
-          let path = `/api/customer-transactions?limit=${limit !== undefined ? limit : -1}`;
+          let path = `/api/customer-transactions?limit=${clampLimit(limit)}`;
           if (type) path += `&type=${type}`;
           
           const req = apiRequest(path);
@@ -229,11 +242,11 @@ export const appTools = (userId: string) => ({
     }),
 
     getProducts: tool({
-      description: "Get a list of all products. Can be searched by name or SKU.",
+      description: `Get a list of products. Can be searched by name or SKU. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first); use 'search' to narrow results. The response's totalCount field reflects the true total regardless of this limit, so use it for count questions.`,
       parameters: z.object({
         search: z.string().optional().describe("Search term for product name or SKU"),
         type: z.enum(['goods', 'services', 'all']).optional().describe("Filter by product type"),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all. Default is -1."),
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, type, limit, page }: any) => {
@@ -241,7 +254,7 @@ export const appTools = (userId: string) => ({
           let path = `/api/products?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
           if (type && type !== 'all') path += `type=${type}&`;
-          path += `limit=${limit !== undefined ? limit : -1}&`;
+          path += `limit=${clampLimit(limit)}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -357,13 +370,13 @@ export const appTools = (userId: string) => ({
     }),
 
     getOrders: tool({
-      description: "Get a list of all sales orders. Useful to check today's sales, best-selling products, or order history.",
+      description: `Get a list of sales orders. Useful to check today's sales, best-selling products, or order history. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's totalCount field reflects the true total regardless of this limit, so use it for count/sum questions.`,
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/orders?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/orders?limit=${clampLimit(limit)}`);
           const res = await getOrdersApi(req);
           return await res.json();
         } catch (error: any) {
@@ -373,13 +386,13 @@ export const appTools = (userId: string) => ({
     }),
 
     getExpenses: tool({
-      description: "Get a list of all shop expenses.",
+      description: `Get a list of shop expenses. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's totalCount field reflects the true total regardless of this limit, so use it for count/sum questions.`,
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/expenses?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/expenses?limit=${clampLimit(limit)}`);
           const res = await getExpensesApi(req);
           return await res.json();
         } catch (error: any) {
@@ -389,13 +402,13 @@ export const appTools = (userId: string) => ({
     }),
 
     getQuotations: tool({
-      description: "Get a list of all quotations.",
+      description: `Get a list of quotations. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's pagination.totalItems field reflects the true total regardless of this limit, so use it for count questions.`,
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/quotations?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/quotations?limit=${clampLimit(limit)}`);
           const res = await getQuotationsApi(req);
           return await res.json();
         } catch (error: any) {
@@ -405,13 +418,13 @@ export const appTools = (userId: string) => ({
     }),
 
     getPurchaseBills: tool({
-      description: "Get a list of all purchase bills.",
+      description: `Get a list of purchase bills. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's pagination.total field reflects the true total regardless of this limit, so use it for count questions.`,
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/purchase-bills?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/purchase-bills?limit=${clampLimit(limit)}`);
           const res = await getPurchaseBillsApi(req);
           return await res.json();
         } catch (error: any) {

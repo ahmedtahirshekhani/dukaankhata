@@ -518,7 +518,12 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     </span>
                   </div>
                   {!sidebarMinimized && (
-                    <Star className="h-4 w-4 text-amber-500 fill-amber-500 ml-auto flex-shrink-0 drop-shadow-sm" />
+                    <span
+                      title="Dukaan Chat AI"
+                      className="ml-auto flex-shrink-0"
+                    >
+                      <Star className="h-4 w-4 text-amber-500 fill-amber-500 drop-shadow-sm animate-pulse" />
+                    </span>
                   )}
                 </Link>
               </div>

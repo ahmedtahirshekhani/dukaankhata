@@ -48,10 +48,56 @@ function getMessageText(m: Message): string {
   return "";
 }
 
-function renderHtml(text: string) {
-  return text
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formatInline(s: string) {
+  return escapeHtml(s)
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>");
+}
+
+// Detects a GitHub-flavored Markdown pipe table (header row + '|---|---|'
+// separator row) at the start of a text block and renders it as a real
+// <table>, since the model is instructed to return list-style data this way.
+function renderMarkdownTable(block: string): string | null {
+  const lines = block.trim().split("\n").filter((l) => l.trim());
+  if (lines.length < 2) return null;
+
+  const splitRow = (line: string) =>
+    line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+
+  const isSeparatorRow = (line: string) =>
+    /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(line.trim());
+
+  if (!lines[0].includes("|") || !isSeparatorRow(lines[1])) return null;
+
+  const headers = splitRow(lines[0]);
+  const rows = lines.slice(2).filter((l) => l.includes("|")).map(splitRow);
+  if (rows.length === 0) return null;
+
+  const thead = `<thead><tr>${headers
+    .map((h) => `<th class="px-3 py-1.5 text-left font-semibold border-b border-border/60 bg-background/60 whitespace-nowrap">${formatInline(h)}</th>`)
+    .join("")}</tr></thead>`;
+
+  const tbody = `<tbody>${rows
+    .map(
+      (r) =>
+        `<tr class="even:bg-background/40">${r
+          .map((c) => `<td class="px-3 py-1.5 border-b border-border/30">${formatInline(c)}</td>`)
+          .join("")}</tr>`
+    )
+    .join("")}</tbody>`;
+
+  return `<div class="overflow-x-auto my-1.5 rounded-lg border border-border/50" style="white-space:normal"><table class="w-full text-xs border-collapse">${thead}${tbody}</table></div>`;
+}
+
+function renderHtml(text: string) {
+  return text
+    .split(/\n\s*\n/)
+    .map((block) => renderMarkdownTable(block) ?? formatInline(block))
+    .join("\n\n");
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
