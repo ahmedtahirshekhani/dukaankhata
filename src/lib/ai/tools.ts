@@ -142,7 +142,7 @@ export const appTools = (userId: string) => ({
     }),
 
     getCustomerTransactions: tool({
-      description: "Get a list of all transactions (payments in/out). Can be filtered by transaction type and specific customer.",
+      description: "Get a list of all transactions (both payments-in from customers and payments-out to vendors/parties). Can be filtered by transaction type and specific name/id.",
       parameters: z.object({
         type: z.enum(['payment-in', 'payment-out']).optional().describe("Filter by transaction type"),
         customerName: z.string().optional().describe("Optional name of the customer to filter transactions for"),
