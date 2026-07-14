@@ -36,6 +36,7 @@ import {
   CheckCircle,
   RefreshCw,
   Loader2,
+  Star,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -494,6 +495,41 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               </Link>
             </div>
 
+            {/* Utilities - AI Chat */}
+            {enableAiChat && (
+              <div>
+                <Link
+                  href={`/${locale}/admin/ai-chat`}
+                  prefetch={false}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? tNav("aiChat") : ""}
+                >
+                  <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("aiChat")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("aiChatDescription")}
+                    </span>
+                  </div>
+                  {!sidebarMinimized && (
+                    <span
+                      title="Dukaan Chat AI"
+                      className="ml-auto flex-shrink-0"
+                    >
+                      <Star className="h-4 w-4 text-amber-500 fill-amber-500 drop-shadow-sm animate-pulse" />
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
+
+
             {/* Parties / Customers */}
             <div>
               <Link
@@ -853,35 +889,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               )}
             </div>
 
-            {/* Reports - You may need to add a Reports link if needed */}
-
             {/* Backup/Restore - You may need to add this */}
-
-            {/* Utilities - AI Chat */}
-            {enableAiChat && (
-              <div>
-                <Link
-                  href={`/${locale}/admin/ai-chat`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} ${pathWithoutLocale === "/admin/ai-chat" ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("aiChat") : ""}
-                >
-                  <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("aiChat")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("aiChatDescription")}
-                    </span>
-                  </div>
-                </Link>
-              </div>
-            )}
 
             {/* WhatsApp Integration */}
             {enableWhatsApp && (

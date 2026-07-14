@@ -10,25 +10,45 @@ import { GET as getTransactionsApi, POST as createTransactionApi } from "@/app/[
 import { DELETE as deleteTransactionApi } from "@/app/[locale]/api/customer-transactions/[id]/route";
 import { GET as getProductsApi, POST as createProductApi } from "@/app/[locale]/api/products/route";
 import { GET as getProductByIdApi, PUT as updateProductApi, DELETE as deleteProductApi } from "@/app/[locale]/api/products/[productId]/route";
+import { GET as getOrdersApi } from "@/app/[locale]/api/orders/route";
+import { GET as getExpensesApi } from "@/app/[locale]/api/expenses/route";
+import { GET as getQuotationsApi } from "@/app/[locale]/api/quotations/route";
+import { GET as getPurchaseBillsApi } from "@/app/[locale]/api/purchase-bills/route";
+import { GET as getStockReportApi } from "@/app/[locale]/api/reports/stock/route";
+import { GET as getProfitabilityReportApi } from "@/app/[locale]/api/reports/profitability/route";
+import { GET as getReceivableSummaryReportApi } from "@/app/[locale]/api/reports/receivable-summary/route";
+import { GET as getAccountStatementApi } from "@/app/[locale]/api/account-statement/route";
 
 // Helper function to allow using relative URLs like frontend
 const apiRequest = (path: string, options?: RequestInit) => {
   return new NextRequest(`http://internal${path}`, options as any);
 };
 
+// List-fetching tools used to default to limit=-1 ("fetch all records"),
+// which let a single tool call return thousands of rows and blow past the
+// model's context window. Every list tool now clamps to this cap; totalCount
+// in each response still reflects the true total, so count-style questions
+// aren't affected — only full listings are capped. Use `search`/filters to
+// narrow results instead of raising the limit.
+const MAX_TOOL_FETCH_LIMIT = 30;
+const clampLimit = (limit?: number) => {
+  if (!limit || limit <= 0 || limit > MAX_TOOL_FETCH_LIMIT) return MAX_TOOL_FETCH_LIMIT;
+  return limit;
+};
+
 export const appTools = (userId: string) => ({
     getCustomers: tool({
-      description: "Get a list of all customers/parties for the user.",
+      description: `Get a list of customers/parties for the user. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first); use 'search' to narrow results. The response's totalCount field reflects the true total regardless of this limit, so use it for count questions.`,
       parameters: z.object({
         search: z.string().optional().describe("Optional search query to filter customers by name, phone, or company."),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all records. Default is 10."),
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, limit, page }: any) => {
         try {
           let path = `/api/customers?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
-          if (limit !== undefined) path += `limit=${limit}&`;
+          path += `limit=${clampLimit(limit)}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -61,10 +81,11 @@ export const appTools = (userId: string) => ({
     createCustomer: tool({
       description: "Create a new customer/party.",
       parameters: z.object({
-        name: z.string().describe("The name of the customer"),
-        phone: z.string().optional().describe("The phone number of the customer"),
-        company_name: z.string().optional().describe("The company name of the customer"),
-        opening_balance: z.number().optional().describe("The opening balance of the customer. Positive means they owe you, negative means you owe them."),
+        name: z.string().describe("The name of the customer/party"),
+        phone: z.string().optional().describe("The phone number of the customer. Leave empty if user says 'no phone' or 'phone nahi'."),
+        company_name: z.string().optional().describe("The company/business name of the customer. This is DIFFERENT from company_address. Extract from: 'company ka naam', 'dukaan ka naam', 'company name'."),
+        company_address: z.string().optional().describe("The physical address of the company/customer. This is DIFFERENT from company_name. Extract from: 'address', 'ghar ka pata', 'location'."),
+        opening_balance: z.number().optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them."),
       }),
       execute: async (body: any) => {
         try {
@@ -83,13 +104,14 @@ export const appTools = (userId: string) => ({
     }),
 
     updateCustomer: tool({
-      description: "Update an existing customer/party.",
+      description: "Update an existing customer/party's details.",
       parameters: z.object({
         customerId: z.string().describe("The ID of the customer to update"),
-        name: z.string().optional().describe("The updated name"),
+        name: z.string().optional().describe("The updated full name of the customer"),
         phone: z.string().optional().describe("The updated phone number"),
-        company_name: z.string().optional().describe("The updated company name"),
-        balance: z.number().optional().describe("The updated balance"),
+        company_name: z.string().optional().describe("The company/business NAME of the customer. IMPORTANT: This is the company's name (e.g. 'ATF', 'ABC Traders'). It is DIFFERENT from company_address which is a physical location. Use this when user says 'company ka naam change karo' or 'company ATF karo'."),
+        company_address: z.string().optional().describe("The physical address or location of the company. DIFFERENT from company_name. Use this when user says 'address change karo' or 'location update karo'."),
+        balance: z.number().optional().describe("The updated balance amount"),
       }),
       execute: async ({ customerId, ...body }: any) => {
         try {
@@ -140,15 +162,16 @@ export const appTools = (userId: string) => ({
     }),
 
     getCustomerTransactions: tool({
-      description: "Get a list of all transactions (payments in/out). Can be filtered by transaction type and specific customer.",
+      description: `Get a list of transactions (both payments-in from customers and payments-out to vendors/parties). Can be filtered by transaction type and specific name/id. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call, most recent first.`,
       parameters: z.object({
         type: z.enum(['payment-in', 'payment-out']).optional().describe("Filter by transaction type"),
         customerName: z.string().optional().describe("Optional name of the customer to filter transactions for"),
         customerId: z.string().optional().describe("Optional ID of the customer to filter transactions for"),
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`),
       }),
-      execute: async ({ type, customerName, customerId }: any) => {
+      execute: async ({ type, customerName, customerId, limit }: any) => {
         try {
-          let path = `/api/customer-transactions?limit=100`;
+          let path = `/api/customer-transactions?limit=${clampLimit(limit)}`;
           if (type) path += `&type=${type}`;
           
           const req = apiRequest(path);
@@ -219,11 +242,11 @@ export const appTools = (userId: string) => ({
     }),
 
     getProducts: tool({
-      description: "Get a list of all products. Can be searched by name or SKU.",
+      description: `Get a list of products. Can be searched by name or SKU. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first); use 'search' to narrow results. The response's totalCount field reflects the true total regardless of this limit, so use it for count questions.`,
       parameters: z.object({
         search: z.string().optional().describe("Search term for product name or SKU"),
         type: z.enum(['goods', 'services', 'all']).optional().describe("Filter by product type"),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all. Default is 50."),
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, type, limit, page }: any) => {
@@ -231,7 +254,7 @@ export const appTools = (userId: string) => ({
           let path = `/api/products?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
           if (type && type !== 'all') path += `type=${type}&`;
-          path += `limit=${limit !== undefined ? limit : 50}&`;
+          path += `limit=${clampLimit(limit)}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -340,6 +363,141 @@ export const appTools = (userId: string) => ({
           const data = await res.json();
           if (!res.ok) return { error: data.error || "Failed to delete product" };
           return { success: true, message: `Product ${name} deleted successfully.` };
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getOrders: tool({
+      description: `Get a list of sales orders. Useful to check today's sales, best-selling products, or order history. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's totalCount field reflects the true total regardless of this limit, so use it for count/sum questions.`,
+      parameters: z.object({
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/orders?limit=${clampLimit(limit)}`);
+          const res = await getOrdersApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getExpenses: tool({
+      description: `Get a list of shop expenses. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's totalCount field reflects the true total regardless of this limit, so use it for count/sum questions.`,
+      parameters: z.object({
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/expenses?limit=${clampLimit(limit)}`);
+          const res = await getExpensesApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getQuotations: tool({
+      description: `Get a list of quotations. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's pagination.totalItems field reflects the true total regardless of this limit, so use it for count questions.`,
+      parameters: z.object({
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/quotations?limit=${clampLimit(limit)}`);
+          const res = await getQuotationsApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getPurchaseBills: tool({
+      description: `Get a list of purchase bills. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first). The response's pagination.total field reflects the true total regardless of this limit, so use it for count questions.`,
+      parameters: z.object({
+        limit: z.number().optional().describe(`Number of records to fetch, max ${MAX_TOOL_FETCH_LIMIT}.`)
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/purchase-bills?limit=${clampLimit(limit)}`);
+          const res = await getPurchaseBillsApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getStockReport: tool({
+      description: "Get the shop's stock report, low stock items, and total stock valuation.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const req = apiRequest(`/api/reports/stock`);
+          const res = await getStockReportApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getProfitabilityReport: tool({
+      description: "Get the shop's profitability report, showing revenue, cost, profit margins, and net profit.",
+      parameters: z.object({
+        startDate: z.string().optional().describe("Start date for the report in YYYY-MM-DD format."),
+        endDate: z.string().optional().describe("End date for the report in YYYY-MM-DD format.")
+      }),
+      execute: async ({ startDate, endDate }: any) => {
+        try {
+          let url = `/api/reports/profitability`;
+          if (startDate || endDate) {
+            const params = new URLSearchParams();
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+            url += `?${params.toString()}`;
+          }
+          const req = apiRequest(url);
+          const res = await getProfitabilityReportApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getReceivableSummaryReport: tool({
+      description: "Get the shop's receivable and payable summary, showing total amount customers owe you, and total amount you owe to vendors.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const req = apiRequest(`/api/reports/receivable-summary`);
+          const res = await getReceivableSummaryReportApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getAccountStatement: tool({
+      description: "Get the account statement / ledger for a specific customer. Must provide customerId, fromDate, and toDate.",
+      parameters: z.object({
+        customerId: z.string().describe("The ID of the customer."),
+        fromDate: z.string().describe("Start date for the statement in YYYY-MM-DD format."),
+        toDate: z.string().describe("End date for the statement in YYYY-MM-DD format.")
+      }),
+      execute: async ({ customerId, fromDate, toDate }: any) => {
+        try {
+          const params = new URLSearchParams({ customerId, fromDate, toDate });
+          const req = apiRequest(`/api/account-statement?${params.toString()}`);
+          const res = await getAccountStatementApi(req);
+          return await res.json();
         } catch (error: any) {
           return { error: error.message };
         }

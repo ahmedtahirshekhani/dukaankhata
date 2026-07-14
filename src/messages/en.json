@@ -108,7 +108,7 @@
     "counterSaleDescription": "Payment processing",
     "accountStatement": "Account Statement",
     "accountStatementDescription": "View party account statements",
-    "aiChat": "AI Chat",
+    "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI-powered insights and decisions",
     "aiChatSubtext": "Get intelligent insights to make better business decisions",
     "quotations": "Quotations",
@@ -143,7 +143,7 @@
     "featureModulesDescription": "Enable or disable specific features across the application",
     "counterSaleTitle": "Counter Sale",
     "counterSaleDesc": "Enable counter sale module for quick transactions.",
-    "aiChatTitle": "AI Chat",
+    "aiChatTitle": "Dukaan Chat AI",
     "aiChatDesc": "Enable AI chat assistance.",
     "whatsappTitle": "WhatsApp Integration",
     "whatsappDesc": "Enable WhatsApp messaging capabilities.",
@@ -1508,10 +1508,69 @@
     "invalidPassword": "Invalid password"
   },
   "aiChat": {
-    "aiChatTitle": "AI Assistant",
-    "aiChatDescription": "Ask me anything about your business or manage your customers.",
-    "aiChatInputPlaceholder": "Type a message in any language...",
-    "aiChatSend": "Send",
-    "aiChatEmptyState": "Hello! I am your DukaanKhata AI Assistant. You can ask me to manage your customers."
+    "title": "Dukaan Chat AI",
+    "beta": "Beta",
+    "subtitle": "Business Assistant · Only for DukaanKhata",
+    "welcomeTitle": "Your DukaanKhata AI Assistant",
+    "welcomeSubtitle": "I help you manage your business — customers, products, payments, and much more!",
+    "scopeNotice": "I only answer DukaanKhata business matters",
+    "quickActionsTitle": "Quick Actions",
+    "pinnedMessage": "Pinned Message",
+    "welcomeMessage": "Hello! I am your AI Assistant. I can help you manage your customers, products, and transactions. How can I help you today?",
+    "working": "Working on it...",
+    "done": "✓ Done",
+    "errorTitle": "An issue occurred",
+    "errorMessage": "Something went wrong. Please try again.",
+    "placeholder": "Ask anything about DukaanKhata...",
+    "quickActions": {
+      "allCustomers": {
+        "label": "All Customers",
+        "message": "Show list of all customers/parties"
+      },
+      "allProducts": {
+        "label": "All Products",
+        "message": "Show list of all products/items"
+      },
+      "totalCustomers": {
+        "label": "Total Customers",
+        "message": "How many total customers/parties are there? Give a summary"
+      },
+      "totalProducts": {
+        "label": "Total Products",
+        "message": "How many total products/items are there? Give a summary"
+      },
+      "recentTransactions": {
+        "label": "Recent Transactions",
+        "message": "Show recent transactions"
+      },
+      "searchCustomer": {
+        "label": "Search Customer",
+        "message": "Help me search for a customer by name"
+      },
+      "bestSellers": {
+        "label": "Best Sellers",
+        "message": "What are my best-selling products?"
+      },
+      "todaySales": {
+        "label": "Today's Sales",
+        "message": "How much did I sell today?"
+      },
+      "lowStock": {
+        "label": "Low Stock",
+        "message": "Which items are low in stock?"
+      },
+      "pendingPayments": {
+        "label": "Pending Payments",
+        "message": "Show my pending payments."
+      },
+      "manageShop": {
+        "label": "Manage Shop",
+        "message": "Help me manage my shop."
+      },
+      "salesSummary": {
+        "label": "Sales Summary",
+        "message": "Create a sales summary."
+      }
+    }
   }
 }
