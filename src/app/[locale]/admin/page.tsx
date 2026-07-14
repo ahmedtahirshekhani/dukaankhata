@@ -416,6 +416,16 @@ export default function DashboardPage() {
     };
 
     fetchTabData();
+    
+    window.addEventListener("focus", fetchTabData);
+    window.addEventListener("initialSyncComplete", fetchTabData);
+    window.addEventListener("syncComplete", fetchTabData);
+    
+    return () => {
+      window.removeEventListener("focus", fetchTabData);
+      window.removeEventListener("initialSyncComplete", fetchTabData);
+      window.removeEventListener("syncComplete", fetchTabData);
+    };
   }, [activeDashboardTab, currentPage, pageSize, locale]);
 
   // Fetch counter sales total for selected range
@@ -647,7 +657,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="grid flex-1 items-start gap-2 sm:gap-3 md:gap-4">
+    <div className="flex flex-col gap-4 w-full">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
         <div>

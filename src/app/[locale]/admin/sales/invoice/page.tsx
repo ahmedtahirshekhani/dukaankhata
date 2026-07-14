@@ -755,7 +755,6 @@ export default function OrdersPage() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({ status: "all" });
   const [sortBy, setSortBy] = useState("default");
@@ -769,6 +768,7 @@ export default function OrdersPage() {
   const [deleting, setDeleting] = useState(false);
 
   const offlineOrders = useOfflineOrders(debouncedSearchTerm, filters.status) as any[];
+  const loading = offlineOrders === undefined;
 
   useEffect(() => {
     if (offlineOrders) {
@@ -791,9 +791,6 @@ export default function OrdersPage() {
       const skip = limit > 0 ? (currentPage - 1) * limit : 0;
       const paginated = limit > 0 ? processedOrders.slice(skip, skip + limit) : processedOrders;
       setOrders(paginated);
-      setLoading(false);
-    } else {
-      setLoading(true);
     }
   }, [offlineOrders, currentPage, pageSize, sortBy]);
 

@@ -11,12 +11,41 @@ function useSafeLiveQuery<T>(
   const [data, setData] = useState<T | undefined>(undefined);
 
   useEffect(() => {
+    // Standard Dexie liveQuery subscription
     const observable = liveQuery(querier);
     const subscription = observable.subscribe({
       next: (val) => setData(val),
       error: (err) => console.error("useSafeLiveQuery error:", err),
     });
-    return () => subscription.unsubscribe();
+
+    // Manual fetch fallback on window focus to ensure data is immediately retrieved
+    const handleFocus = async () => {
+      try {
+        const result = await querier();
+        setData(result);
+      } catch (err) {
+        console.error("useSafeLiveQuery focus fetch error:", err);
+      }
+    };
+    
+    // Also listen for initialSyncComplete from SyncEngine
+    const handleSync = async () => {
+      try {
+        const result = await querier();
+        setData(result);
+      } catch (err) {}
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("initialSyncComplete", handleSync);
+    window.addEventListener("syncComplete", handleSync);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("initialSyncComplete", handleSync);
+      window.removeEventListener("syncComplete", handleSync);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
