@@ -108,7 +108,7 @@
     "counterSaleDescription": "Payment processing",
     "accountStatement": "Account Statement",
     "accountStatementDescription": "Party account statement dekhein",
-    "aiChat": "AI Chat",
+    "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI se insights aur faisle lein",
     "aiChatSubtext": "Aqlmand insights se acha business faisla lein",
     "quotations": "Quotations",
@@ -143,7 +143,7 @@
     "featureModulesDescription": "Application mein makhsoos features ko enable ya disable karain",
     "counterSaleTitle": "Counter Sale",
     "counterSaleDesc": "Fauran transactions ke liye counter sale module enable karain.",
-    "aiChatTitle": "AI Chat",
+    "aiChatTitle": "Dukaan Chat AI",
     "aiChatDesc": "AI chat assistant ko enable karain.",
     "whatsappTitle": "WhatsApp Integration",
     "whatsappDesc": "WhatsApp messaging ki sahoolat enable karain.",
@@ -1507,7 +1507,7 @@
     "invalidPassword": "Password galat hai"
   },
   "aiChat": {
-    "title": "DukaanKhata AI",
+    "title": "Dukaan Chat AI",
     "beta": "Beta",
     "subtitle": "Business Assistant · Sirf DukaanKhata ke liye",
     "welcomeTitle": "Aapka DukaanKhata AI Assistant",
@@ -1545,6 +1545,30 @@
       "searchCustomer": {
         "label": "Customer dhoondo",
         "message": "Naam se kisi customer ko dhoondne mein help karo"
+      },
+      "bestSellers": {
+        "label": "Best Sellers",
+        "message": "What are my best-selling products?"
+      },
+      "todaySales": {
+        "label": "Aaj Ki Sales",
+        "message": "How much did I sell today?"
+      },
+      "lowStock": {
+        "label": "Kam Stock",
+        "message": "Which items are low in stock?"
+      },
+      "pendingPayments": {
+        "label": "Baqaya Payments",
+        "message": "Show my pending payments."
+      },
+      "manageShop": {
+        "label": "Dukaan Manage",
+        "message": "Help me manage my shop."
+      },
+      "salesSummary": {
+        "label": "Sales Summary",
+        "message": "Create a sales summary."
       }
     }
   }

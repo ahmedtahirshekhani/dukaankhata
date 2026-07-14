@@ -10,6 +10,14 @@ import { GET as getTransactionsApi, POST as createTransactionApi } from "@/app/[
 import { DELETE as deleteTransactionApi } from "@/app/[locale]/api/customer-transactions/[id]/route";
 import { GET as getProductsApi, POST as createProductApi } from "@/app/[locale]/api/products/route";
 import { GET as getProductByIdApi, PUT as updateProductApi, DELETE as deleteProductApi } from "@/app/[locale]/api/products/[productId]/route";
+import { GET as getOrdersApi } from "@/app/[locale]/api/orders/route";
+import { GET as getExpensesApi } from "@/app/[locale]/api/expenses/route";
+import { GET as getQuotationsApi } from "@/app/[locale]/api/quotations/route";
+import { GET as getPurchaseBillsApi } from "@/app/[locale]/api/purchase-bills/route";
+import { GET as getStockReportApi } from "@/app/[locale]/api/reports/stock/route";
+import { GET as getProfitabilityReportApi } from "@/app/[locale]/api/reports/profitability/route";
+import { GET as getReceivableSummaryReportApi } from "@/app/[locale]/api/reports/receivable-summary/route";
+import { GET as getAccountStatementApi } from "@/app/[locale]/api/account-statement/route";
 
 // Helper function to allow using relative URLs like frontend
 const apiRequest = (path: string, options?: RequestInit) => {
@@ -21,14 +29,14 @@ export const appTools = (userId: string) => ({
       description: "Get a list of all customers/parties for the user.",
       parameters: z.object({
         search: z.string().optional().describe("Optional search query to filter customers by name, phone, or company."),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all records. Default is 10."),
+        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all records. Default is -1."),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, limit, page }: any) => {
         try {
           let path = `/api/customers?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
-          if (limit !== undefined) path += `limit=${limit}&`;
+          path += `limit=${limit !== undefined ? limit : -1}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -150,7 +158,7 @@ export const appTools = (userId: string) => ({
       }),
       execute: async ({ type, customerName, customerId }: any) => {
         try {
-          let path = `/api/customer-transactions?limit=100`;
+          let path = `/api/customer-transactions?limit=${limit !== undefined ? limit : -1}`;
           if (type) path += `&type=${type}`;
           
           const req = apiRequest(path);
@@ -225,7 +233,7 @@ export const appTools = (userId: string) => ({
       parameters: z.object({
         search: z.string().optional().describe("Search term for product name or SKU"),
         type: z.enum(['goods', 'services', 'all']).optional().describe("Filter by product type"),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all. Default is 50."),
+        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all. Default is -1."),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, type, limit, page }: any) => {
@@ -233,7 +241,7 @@ export const appTools = (userId: string) => ({
           let path = `/api/products?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
           if (type && type !== 'all') path += `type=${type}&`;
-          path += `limit=${limit !== undefined ? limit : 50}&`;
+          path += `limit=${limit !== undefined ? limit : -1}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -342,6 +350,141 @@ export const appTools = (userId: string) => ({
           const data = await res.json();
           if (!res.ok) return { error: data.error || "Failed to delete product" };
           return { success: true, message: `Product ${name} deleted successfully.` };
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getOrders: tool({
+      description: "Get a list of all sales orders. Useful to check today's sales, best-selling products, or order history.",
+      parameters: z.object({
+        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/orders?limit=${limit !== undefined ? limit : -1}`);
+          const res = await getOrdersApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getExpenses: tool({
+      description: "Get a list of all shop expenses.",
+      parameters: z.object({
+        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/expenses?limit=${limit !== undefined ? limit : -1}`);
+          const res = await getExpensesApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getQuotations: tool({
+      description: "Get a list of all quotations.",
+      parameters: z.object({
+        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/quotations?limit=${limit !== undefined ? limit : -1}`);
+          const res = await getQuotationsApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getPurchaseBills: tool({
+      description: "Get a list of all purchase bills.",
+      parameters: z.object({
+        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+      }),
+      execute: async ({ limit }: any) => {
+        try {
+          const req = apiRequest(`/api/purchase-bills?limit=${limit !== undefined ? limit : -1}`);
+          const res = await getPurchaseBillsApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getStockReport: tool({
+      description: "Get the shop's stock report, low stock items, and total stock valuation.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const req = apiRequest(`/api/reports/stock`);
+          const res = await getStockReportApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getProfitabilityReport: tool({
+      description: "Get the shop's profitability report, showing revenue, cost, profit margins, and net profit.",
+      parameters: z.object({
+        startDate: z.string().optional().describe("Start date for the report in YYYY-MM-DD format."),
+        endDate: z.string().optional().describe("End date for the report in YYYY-MM-DD format.")
+      }),
+      execute: async ({ startDate, endDate }: any) => {
+        try {
+          let url = `/api/reports/profitability`;
+          if (startDate || endDate) {
+            const params = new URLSearchParams();
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+            url += `?${params.toString()}`;
+          }
+          const req = apiRequest(url);
+          const res = await getProfitabilityReportApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getReceivableSummaryReport: tool({
+      description: "Get the shop's receivable and payable summary, showing total amount customers owe you, and total amount you owe to vendors.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const req = apiRequest(`/api/reports/receivable-summary`);
+          const res = await getReceivableSummaryReportApi(req);
+          return await res.json();
+        } catch (error: any) {
+          return { error: error.message };
+        }
+      },
+    }),
+
+    getAccountStatement: tool({
+      description: "Get the account statement / ledger for a specific customer. Must provide customerId, fromDate, and toDate.",
+      parameters: z.object({
+        customerId: z.string().describe("The ID of the customer."),
+        fromDate: z.string().describe("Start date for the statement in YYYY-MM-DD format."),
+        toDate: z.string().describe("End date for the statement in YYYY-MM-DD format.")
+      }),
+      execute: async ({ customerId, fromDate, toDate }: any) => {
+        try {
+          const params = new URLSearchParams({ customerId, fromDate, toDate });
+          const req = apiRequest(`/api/account-statement?${params.toString()}`);
+          const res = await getAccountStatementApi(req);
+          return await res.json();
         } catch (error: any) {
           return { error: error.message };
         }

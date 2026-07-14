@@ -108,7 +108,7 @@
     "counterSaleDescription": "Payment processing",
     "accountStatement": "Account Statement",
     "accountStatementDescription": "View party account statements",
-    "aiChat": "AI Chat",
+    "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI-powered insights and decisions",
     "aiChatSubtext": "Get intelligent insights to make better business decisions",
     "quotations": "Quotations",
@@ -143,7 +143,7 @@
     "featureModulesDescription": "Enable or disable specific features across the application",
     "counterSaleTitle": "Counter Sale",
     "counterSaleDesc": "Enable counter sale module for quick transactions.",
-    "aiChatTitle": "AI Chat",
+    "aiChatTitle": "Dukaan Chat AI",
     "aiChatDesc": "Enable AI chat assistance.",
     "whatsappTitle": "WhatsApp Integration",
     "whatsappDesc": "Enable WhatsApp messaging capabilities.",
@@ -1508,7 +1508,7 @@
     "invalidPassword": "Invalid password"
   },
   "aiChat": {
-    "title": "DukaanKhata AI",
+    "title": "Dukaan Chat AI",
     "beta": "Beta",
     "subtitle": "Business Assistant · Only for DukaanKhata",
     "welcomeTitle": "Your DukaanKhata AI Assistant",
@@ -1546,6 +1546,30 @@
       "searchCustomer": {
         "label": "Search Customer",
         "message": "Help me search for a customer by name"
+      },
+      "bestSellers": {
+        "label": "Best Sellers",
+        "message": "What are my best-selling products?"
+      },
+      "todaySales": {
+        "label": "Today's Sales",
+        "message": "How much did I sell today?"
+      },
+      "lowStock": {
+        "label": "Low Stock",
+        "message": "Which items are low in stock?"
+      },
+      "pendingPayments": {
+        "label": "Pending Payments",
+        "message": "Show my pending payments."
+      },
+      "manageShop": {
+        "label": "Manage Shop",
+        "message": "Help me manage my shop."
+      },
+      "salesSummary": {
+        "label": "Sales Summary",
+        "message": "Create a sales summary."
       }
     }
   }

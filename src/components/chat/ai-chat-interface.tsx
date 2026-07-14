@@ -102,6 +102,48 @@ export function AiChatInterface() {
       color: "text-indigo-500",
       bg: "bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20",
     },
+    {
+      icon: Package,
+      label: t('quickActions.bestSellers.label'),
+      message: t('quickActions.bestSellers.message'),
+      color: "text-blue-500",
+      bg: "bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20",
+    },
+    {
+      icon: BarChart2,
+      label: t('quickActions.todaySales.label'),
+      message: t('quickActions.todaySales.message'),
+      color: "text-green-500",
+      bg: "bg-green-500/10 hover:bg-green-500/20 border-green-500/20",
+    },
+    {
+      icon: ShoppingBag,
+      label: t('quickActions.lowStock.label'),
+      message: t('quickActions.lowStock.message'),
+      color: "text-orange-500",
+      bg: "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20",
+    },
+    {
+      icon: CreditCard,
+      label: t('quickActions.pendingPayments.label'),
+      message: t('quickActions.pendingPayments.message'),
+      color: "text-red-500",
+      bg: "bg-red-500/10 hover:bg-red-500/20 border-red-500/20",
+    },
+    {
+      icon: Users,
+      label: t('quickActions.manageShop.label'),
+      message: t('quickActions.manageShop.message'),
+      color: "text-indigo-500",
+      bg: "bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20",
+    },
+    {
+      icon: Sparkles,
+      label: t('quickActions.salesSummary.label'),
+      message: t('quickActions.salesSummary.message'),
+      color: "text-purple-500",
+      bg: "bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20",
+    },
   ];
 
   const chatHelpers = useChat({
@@ -204,7 +246,7 @@ export function AiChatInterface() {
                       type="button"
                       onClick={() => sendText(action.message)}
                       disabled={isLoading}
-                      className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${action.bg}`}
+                      className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg border text-xs font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${action.bg}`}
                     >
                       <span className={`flex-shrink-0 ${action.color}`}>
                         <Icon className="w-4 h-4" />
@@ -371,7 +413,7 @@ export function AiChatInterface() {
         {/* Compact chips when chatting */}
         {messages.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 w-full scrollbar-hide">
-            {QUICK_ACTIONS.slice(0, 4).map((action, i) => {
+            {QUICK_ACTIONS.slice(0, 10).map((action, i) => {
               const Icon = action.icon;
               return (
                 <button
