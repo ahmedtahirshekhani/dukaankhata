@@ -29,14 +29,14 @@ export const appTools = (userId: string) => ({
       description: "Get a list of all customers/parties for the user.",
       parameters: z.object({
         search: z.string().optional().describe("Optional search query to filter customers by name, phone, or company."),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all records. Default is -1."),
+        limit: z.number().optional().describe("Number of records to fetch. Default is 100. DO NOT use -1 unless absolutely necessary to avoid token limit errors. If looking for a specific customer, ALWAYS use the 'search' parameter instead of fetching all."),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, limit, page }: any) => {
         try {
           let path = `/api/customers?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
-          path += `limit=${limit !== undefined ? limit : -1}&`;
+          path += `limit=${limit !== undefined ? limit : 100}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -158,7 +158,7 @@ export const appTools = (userId: string) => ({
       }),
       execute: async ({ type, customerName, customerId }: any) => {
         try {
-          let path = `/api/customer-transactions?limit=${limit !== undefined ? limit : -1}`;
+          let path = `/api/customer-transactions?limit=${limit !== undefined ? limit : 100}`;
           if (type) path += `&type=${type}`;
           
           const req = apiRequest(path);
@@ -233,7 +233,7 @@ export const appTools = (userId: string) => ({
       parameters: z.object({
         search: z.string().optional().describe("Search term for product name or SKU"),
         type: z.enum(['goods', 'services', 'all']).optional().describe("Filter by product type"),
-        limit: z.number().optional().describe("Number of records to fetch. Set to -1 to fetch all. Default is -1."),
+        limit: z.number().optional().describe("Number of records to fetch. Default is 100. DO NOT use -1 to avoid token limits. Use 'search' for specific products."),
         page: z.number().optional().describe("Page number for pagination. Default is 1.")
       }),
       execute: async ({ search, type, limit, page }: any) => {
@@ -241,7 +241,7 @@ export const appTools = (userId: string) => ({
           let path = `/api/products?`;
           if (search) path += `search=${encodeURIComponent(search)}&`;
           if (type && type !== 'all') path += `type=${type}&`;
-          path += `limit=${limit !== undefined ? limit : -1}&`;
+          path += `limit=${limit !== undefined ? limit : 100}&`;
           if (page !== undefined) path += `page=${page}&`;
           
           const req = apiRequest(path);
@@ -359,11 +359,11 @@ export const appTools = (userId: string) => ({
     getOrders: tool({
       description: "Get a list of all sales orders. Useful to check today's sales, best-selling products, or order history.",
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe("Number of records to fetch. Default is 100 (latest records). Avoid using -1 to prevent token limits.")
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/orders?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/orders?limit=${limit !== undefined ? limit : 100}`);
           const res = await getOrdersApi(req);
           return await res.json();
         } catch (error: any) {
@@ -375,11 +375,11 @@ export const appTools = (userId: string) => ({
     getExpenses: tool({
       description: "Get a list of all shop expenses.",
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe("Number of records to fetch. Default is 100 (latest records). Avoid using -1 to prevent token limits.")
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/expenses?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/expenses?limit=${limit !== undefined ? limit : 100}`);
           const res = await getExpensesApi(req);
           return await res.json();
         } catch (error: any) {
@@ -391,11 +391,11 @@ export const appTools = (userId: string) => ({
     getQuotations: tool({
       description: "Get a list of all quotations.",
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe("Number of records to fetch. Default is 100 (latest records). Avoid using -1 to prevent token limits.")
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/quotations?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/quotations?limit=${limit !== undefined ? limit : 100}`);
           const res = await getQuotationsApi(req);
           return await res.json();
         } catch (error: any) {
@@ -407,11 +407,11 @@ export const appTools = (userId: string) => ({
     getPurchaseBills: tool({
       description: "Get a list of all purchase bills.",
       parameters: z.object({
-        limit: z.number().optional().describe("Number of records to fetch. Default is -1 to fetch all.")
+        limit: z.number().optional().describe("Number of records to fetch. Default is 100 (latest records). Avoid using -1 to prevent token limits.")
       }),
       execute: async ({ limit }: any) => {
         try {
-          const req = apiRequest(`/api/purchase-bills?limit=${limit !== undefined ? limit : -1}`);
+          const req = apiRequest(`/api/purchase-bills?limit=${limit !== undefined ? limit : 100}`);
           const res = await getPurchaseBillsApi(req);
           return await res.json();
         } catch (error: any) {
