@@ -16,14 +16,15 @@ async function main() {
     const db = client.db(dbName);
     const collection = db.collection('configurations');
     
-    // Update all configurations where is_AI_Chat_Enable is not already true
+    // Update ALL configurations, including ones where is_AI_Chat_Enable was
+    // explicitly false — an { $ne: false } filter would have skipped those.
     const result = await collection.updateMany(
-      { is_AI_Chat_Enable: { $ne: true } },
+      {},
       { $set: { is_AI_Chat_Enable: true } }
     );
-    
+
     console.log(`✅ Success!`);
-    console.log(`Matched ${result.matchedCount} users who didn't have AI Chat enabled.`);
+    console.log(`Matched ${result.matchedCount} users.`);
     console.log(`Updated ${result.modifiedCount} users.`);
     console.log(`AI Chat is now enabled for ALL users! 🎉`);
   } catch (error) {

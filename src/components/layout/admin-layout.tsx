@@ -41,7 +41,7 @@ import {
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, clearUserDatabase } from "@/lib/db/offline-db";
@@ -49,23 +49,31 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
 
+// useSearchParams() opts the whole route out of static prerendering unless
+// isolated behind its own Suspense boundary — without this, every page that
+// renders AdminLayout (i.e. all /admin/* routes) fails `next build`.
+function SignupHighlightWatcher({ onSignup }: { onSignup: () => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams && searchParams.get("signup") === "true") {
+      onSignup();
+    }
+  }, [searchParams, onSignup]);
+
+  return null;
+}
+
 export function AdminLayout({ children, isInitialSyncing = false }: { children: React.ReactNode, isInitialSyncing?: boolean }) {
   const pathname = usePathname();
   const locale = useLocale();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const t = useTranslations();
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [highlightHamburger, setHighlightHamburger] = useState(false);
-
-  useEffect(() => {
-    if (searchParams && searchParams.get("signup") === "true") {
-      setHighlightHamburger(true);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     if (highlightHamburger) {
@@ -333,6 +341,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <Suspense fallback={null}>
+        <SignupHighlightWatcher onSignup={() => setHighlightHamburger(true)} />
+      </Suspense>
       <header className={`sticky top-0 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 ${highlightHamburger ? "z-50" : "z-30"}`}>
         <div className="relative sm:hidden">
           {highlightHamburger && (
