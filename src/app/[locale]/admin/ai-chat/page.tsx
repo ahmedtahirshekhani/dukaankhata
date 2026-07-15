@@ -10,7 +10,7 @@ export default function AiChatPage() {
 
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-full p-4 lg:p-8">
+      <div className="w-full p-1 lg:p-4">
         <AiChatInterface />
       </div>
       {/* <div className="flex justify-center mb-4">
