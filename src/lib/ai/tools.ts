@@ -486,15 +486,24 @@ export const appTools = (userId: string) => ({
     }),
 
     getAccountStatement: tool({
-      description: "Get the account statement / ledger for a specific customer. Must provide customerId, fromDate, and toDate.",
+      description: "Get the account statement / ledger for a specific customer. Must provide customerId. fromDate and toDate are optional (defaults to last 30 days).",
       parameters: z.object({
         customerId: z.string().describe("The ID of the customer."),
-        fromDate: z.string().describe("Start date for the statement in YYYY-MM-DD format."),
-        toDate: z.string().describe("End date for the statement in YYYY-MM-DD format.")
+        fromDate: z.string().optional().describe("Start date for the statement in YYYY-MM-DD format."),
+        toDate: z.string().optional().describe("End date for the statement in YYYY-MM-DD format.")
       }),
       execute: async ({ customerId, fromDate, toDate }: any) => {
         try {
-          const params = new URLSearchParams({ customerId, fromDate, toDate });
+          let fDate = fromDate;
+          let tDate = toDate;
+          if (!fDate || !tDate) {
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - 30);
+            tDate = end.toISOString().split('T')[0];
+            fDate = start.toISOString().split('T')[0];
+          }
+          const params = new URLSearchParams({ customerId, fromDate: fDate, toDate: tDate });
           const req = apiRequest(`/api/account-statement?${params.toString()}`);
           const res = await getAccountStatementApi(req);
           return await res.json();

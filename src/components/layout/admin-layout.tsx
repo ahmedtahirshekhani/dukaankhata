@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import {
@@ -41,13 +41,28 @@ import {
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, clearUserDatabase } from "@/lib/db/offline-db";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
+
+// useSearchParams() opts the whole route out of static prerendering unless
+// isolated behind its own Suspense boundary — without this, every page that
+// renders AdminLayout (i.e. all /admin/* routes) fails `next build`.
+function SignupHighlightWatcher({ onSignup }: { onSignup: () => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams && searchParams.get("signup") === "true") {
+      onSignup();
+    }
+  }, [searchParams, onSignup]);
+
+  return null;
+}
 
 export function AdminLayout({ children, isInitialSyncing = false }: { children: React.ReactNode, isInitialSyncing?: boolean }) {
   const pathname = usePathname();
@@ -58,6 +73,18 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const tNav = useTranslations("navigation");
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [highlightHamburger, setHighlightHamburger] = useState(false);
+
+  useEffect(() => {
+    if (highlightHamburger) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [highlightHamburger]);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [salesExpanded, setSalesExpanded] = useState(false);
   const [purchaseExpanded, setPurchaseExpanded] = useState(false);
@@ -314,19 +341,65 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="sm:hidden"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
-          {sidebarOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
+      <Suspense fallback={null}>
+        <SignupHighlightWatcher onSignup={() => setHighlightHamburger(true)} />
+      </Suspense>
+      <header className={`sticky top-0 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 ${highlightHamburger ? "z-50" : "z-30"}`}>
+        <div className="relative sm:hidden">
+          {highlightHamburger && (
+            <>
+              {/* Screen locking overlay (blocks interactions elsewhere) */}
+              <div
+                className="fixed inset-0 z-40 bg-sky-500/10 cursor-default pointer-events-auto"
+              />
+              {/* Cutout/Pulsing Overlay */}
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none z-45 border-2 border-sky-400/70"
+                style={{
+                  boxShadow: "0 0 0 9999px rgba(14, 165, 233, 0.35)",
+                  animation: "hamburger-cutout-pump 2s infinite ease-in-out",
+                }}
+              />
+              {/* Guidance Speech Bubble */}
+              <div className="absolute top-12 left-0 z-50 animate-bounce flex flex-col items-start w-64 pointer-events-none">
+                {/* Arrow pointing up */}
+                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-sky-500 ml-3" />
+                {/* Card body */}
+                <div className="bg-sky-500 text-white text-xs font-semibold p-3.5 rounded-xl shadow-xl flex items-start gap-2 border border-sky-400/60 leading-normal">
+                  <span className="flex-shrink-0 text-sm">✨</span>
+                  <span>{tNav("clickMenuToStart")}</span>
+                </div>
+              </div>
+              <style>{`
+                @keyframes hamburger-cutout-pump {
+                  0%, 100% {
+                    width: 44px;
+                    height: 44px;
+                  }
+                  50% {
+                    width: 56px;
+                    height: 56px;
+                  }
+                }
+              `}</style>
+            </>
           )}
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`relative z-50 ${highlightHamburger ? "bg-background text-foreground shadow-md ring-2 ring-sky-400" : ""}`}
+            onClick={() => {
+              setSidebarOpen(!sidebarOpen);
+              setHighlightHamburger(false);
+            }}
+          >
+            {sidebarOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
         <Link
           href={`/${locale}/admin`}
           className="flex items-center gap-1 sm:gap-2 text-sm sm:text-lg font-semibold flex-shrink-0"
@@ -346,11 +419,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           {/* Offline / Sync Indicator Badge */}
           <div className="flex items-center">
             {!isOnline ? (
-              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("offlineTooltip")}>
-                <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("youAreOffline")}</span>
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Offline</span>
-              </div>
+              <span title={tCommon("offlineTooltip")}>
+                <WifiOff className="w-5 h-5 text-red-500" />
+              </span>
             ) : failedSyncCount > 0 ? (
               <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
                 <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -363,13 +434,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
                 <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Syncing</span>
               </div>
-            ) : (
-              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncedTooltip")}>
-                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("youAreOnline")}</span>
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Online</span>
-              </div>
-            )}
+            ) : null}
           </div>
 
           <Button

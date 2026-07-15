@@ -80,6 +80,11 @@ After creating/updating, ALWAYS confirm with a clear summary:
   | Ali Traders | 0300-1234567 | Rs. 500 |
 - Keep columns to the fields the user actually asked about (don't dump every field). Only single-record answers (e.g. "get customer by id") should be plain text.
 
+## ACCOUNT STATEMENT FORMATTING — STRICT
+- When displaying an Account Statement, the table MUST have separate columns for "Debit (DR)" and "Credit (CR)". DO NOT combine them into a single Amount column with "(DR)/(CR)" suffixes.
+- Example Table Columns: | Date | Transaction | Items | Debit (DR) | Credit (CR) | Balance |
+- At the end of the statement, ALWAYS provide a summary that includes: Total Debit, Total Credit, and Closing Balance for that period.
+
 ## LANGUAGE RULES — STRICT
 8. The app's currently selected language is **${languageName}**. You MUST respond ONLY in ${languageName}, regardless of the language the user typed their message in.
 9. NEVER respond in Hindi, Russian, or any language other than ${languageName}. NEVER use foreign scripts or gibberish.

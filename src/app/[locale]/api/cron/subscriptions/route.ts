@@ -149,19 +149,40 @@ async function runCronJob() {
         );
         blockedCount++;
       } else {
-        // Send reminder email
-        const msg = emailMsgTemplate.replace("{{EXPIRY_DATE}}", expiryDateStr);
-        if (pendingSub.email && MAIL_USER) {
-          try {
-             await sendMailWithFallback({
-                from: MAIL_FROM,
-                to: pendingSub.email,
-                subject: emailSubjectTemplate,
-                html: `<div style="font-family: sans-serif;"><p>${msg}</p></div>`,
-             });
-             emailsSent++;
-          } catch(emailErr) {
-             console.error(`Failed to send grace period email for ${pendingSub.email}:`, emailErr);
+        const emailIntervalDays = parseInt(process.env.GRACE_PERIOD_EMAIL_INTERVAL_DAYS || "3", 10);
+        const lastSent = pendingSub.last_reminder_sent_at ? new Date(pendingSub.last_reminder_sent_at) : null;
+        let shouldSend = false;
+
+        if (!lastSent) {
+          shouldSend = true;
+        } else {
+          const daysSinceLastEmail = Math.floor((now.getTime() - lastSent.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceLastEmail >= emailIntervalDays) {
+            shouldSend = true;
+          }
+        }
+
+        if (shouldSend) {
+          // Send reminder email
+          const msg = emailMsgTemplate.replace("{{EXPIRY_DATE}}", expiryDateStr);
+          if (pendingSub.email && MAIL_USER) {
+            try {
+               await sendMailWithFallback({
+                  from: MAIL_FROM,
+                  to: pendingSub.email,
+                  subject: emailSubjectTemplate,
+                  html: `<div style="font-family: sans-serif;"><p>${msg}</p></div>`,
+               });
+               emailsSent++;
+
+               // Update last_reminder_sent_at to prevent spamming
+               await subscriptionsCollection.updateOne(
+                 { _id: pendingSub._id },
+                 { $set: { last_reminder_sent_at: new Date() } }
+               );
+            } catch(emailErr) {
+               console.error(`Failed to send grace period email for ${pendingSub.email}:`, emailErr);
+            }
           }
         }
       }

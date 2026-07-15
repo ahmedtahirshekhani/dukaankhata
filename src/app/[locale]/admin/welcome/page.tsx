@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Menu } from "lucide-react";
 import { StepVideos } from "./step-videos";
 
 export default function WelcomePage() {
@@ -13,10 +14,21 @@ export default function WelcomePage() {
           <CardTitle className="text-2xl">{t("title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-lg mt-2">
+          <p className="text-muted-foreground text-lg mt-2 leading-relaxed">
             {t("subtitle")}
             <br />
-            {t("instruction")}
+            {t.rich("instruction", {
+              sidebar: (chunks) => (
+                <>
+                  <span className="hidden sm:inline font-bold text-foreground">
+                    {chunks}
+                  </span>
+                  <span className="inline-flex sm:hidden items-center gap-1 font-bold text-foreground bg-muted/80 px-1.5 py-0.5 rounded border border-border">
+                    <Menu className="h-4 w-4 text-sky-500" /> icon
+                  </span>
+                </>
+              ),
+            })}
           </p>
         </CardContent>
       </Card>

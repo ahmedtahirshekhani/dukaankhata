@@ -574,7 +574,7 @@ export function InvoicePreviewDialog({
                     variant="outline"
                     size="sm"
                     className="w-full text-[11px] h-8"
-                    disabled={isActionDisabled}
+                    disabled={isCreatingOrder}
                   >
                     <Printer className="h-3 w-3 mr-1.5" />
                     {tCommon("print")}
@@ -584,7 +584,7 @@ export function InvoicePreviewDialog({
                     variant="default"
                     size="sm"
                     className="w-full text-[11px] h-8"
-                    disabled={isActionDisabled}
+                    disabled={isCreatingOrder}
                   >
                     <Download className="h-3 w-3 mr-1.5" />
                     {t("downloadInvoice")}
@@ -763,7 +763,7 @@ export function InvoicePreviewDialog({
                         variant="outline"
                         size="sm"
                         className="w-24 text-[11px] h-8"
-                        disabled={isActionDisabled}
+                        disabled={isCreatingOrder}
                       >
                         <Printer className="h-3 w-3 mr-1.5" />
                         {tCommon("print")}
@@ -773,7 +773,7 @@ export function InvoicePreviewDialog({
                         variant="outline"
                         size="sm"
                         className="w-24 text-[11px] h-8"
-                        disabled={isActionDisabled}
+                        disabled={isCreatingOrder}
                       >
                         <Download className="h-3 w-3 mr-1.5" />
                         {t("downloadInvoice")}

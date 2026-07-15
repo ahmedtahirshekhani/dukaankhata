@@ -369,10 +369,16 @@ export function AiChatInterface() {
                     )}
                     {/* Text */}
                     {text && (
-                      <div
-                        className="whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: renderHtml(text) }}
-                      />
+                      <div className="whitespace-pre-wrap">
+                        <span dangerouslySetInnerHTML={{ __html: renderHtml(text) }} />
+                        {isLoading && m.id === messages[messages.length - 1]?.id && (
+                          <span className="inline-flex items-center gap-1 ml-2 align-middle">
+                            <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     {/* Tool status */}
