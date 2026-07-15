@@ -23,21 +23,51 @@ export function LanguageSwitcher() {
     router.push(`/${newLocale}${pathWithoutLocale || '/'}`);
   };
 
+  const isDashboardPage = pathname === `/${locale}/admin` || pathname === `/${locale}/admin/`;
+
   const languages = [
-    { value: 'en', label: t('english') },
-    { value: 'ur', label: t('urdu') },
-    { value: 'ru', label: t('romanUrdu') },
+    { value: 'en', label: t('english'), shortLabel: 'EN' },
+    { value: 'ur', label: t('urdu'), shortLabel: 'UR' },
+    { value: 'ru', label: t('romanUrdu'), shortLabel: 'RU' },
   ];
+
+  const currentLang = languages.find((lang) => lang.value === locale);
 
   return (
     <Select value={locale} onValueChange={handleLanguageChange}>
-      <SelectTrigger className="w-[100px] sm:w-[140px] md:w-[180px]">
-        <SelectValue placeholder="Select language" />
+      <SelectTrigger
+        className={
+          isDashboardPage
+            ? "w-[60px] sm:w-[140px] md:w-[180px]"
+            : "w-[100px] sm:w-[140px] md:w-[180px]"
+        }
+      >
+        <SelectValue placeholder="Select language">
+          {currentLang && (
+            <>
+              {isDashboardPage ? (
+                <>
+                  <span className="hidden sm:inline">{currentLang.label}</span>
+                  <span className="sm:hidden">{currentLang.shortLabel}</span>
+                </>
+              ) : (
+                <span>{currentLang.label}</span>
+              )}
+            </>
+          )}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {languages.map((lang) => (
           <SelectItem key={lang.value} value={lang.value}>
-            {lang.label}
+            {isDashboardPage ? (
+              <>
+                <span className="hidden sm:inline">{lang.label}</span>
+                <span className="sm:hidden">{lang.shortLabel}</span>
+              </>
+            ) : (
+              <span>{lang.label}</span>
+            )}
           </SelectItem>
         ))}
       </SelectContent>
