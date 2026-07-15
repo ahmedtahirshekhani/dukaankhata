@@ -5,8 +5,8 @@ import path from 'path';
 // Get URI from .env.local or use default
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-const uri = process.env.MONGODB_URL || "mongodb+srv://ahmedtahirdeveloper_db_user:Dn7DBZbEwLNj5jB0@dukaankhata-dev.1qshlaf.mongodb.net/?appName=dukaankhata-dev";
-const dbName = process.env.MONGODB_DB_NAME || "dukaankhata-dev";
+const uri = process.env.MONGODB_URL;
+const dbName = process.env.MONGODB_DB_NAME;
 
 async function main() {
   if (!uri) {
