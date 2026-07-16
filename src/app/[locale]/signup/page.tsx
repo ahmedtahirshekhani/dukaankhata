@@ -13,6 +13,15 @@ import {
   Home,
   Loader2,
   X,
+  User,
+  Store,
+  Mail,
+  Phone,
+  Lock,
+  Key,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { Button } from "@/components/ui/button";
@@ -75,7 +84,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const signupInputClassName =
-    "border-2 border-foreground/55 bg-muted/40 text-foreground shadow-sm focus-visible:border-foreground/70 focus-visible:ring-1 focus-visible:ring-foreground/35";
+    "h-11 px-4 border-border/80 bg-background/50 hover:bg-background/80 focus:bg-background text-foreground shadow-sm focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 transition-all duration-200 rounded-xl";
 
   useEffect(() => {
     if (!otpSent || resendCooldown <= 0) {
@@ -108,8 +117,8 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       return false;
     }
 
-    if (normalizedPhoneNumber.length < 11) {
-      setError("Phone number must be at least 11 digits");
+    if (normalizedPhoneNumber.length !== 11 || !normalizedPhoneNumber.startsWith("03")) {
+      setError("Phone number must be exactly 11 digits starting with 03");
       return false;
     }
 
@@ -461,6 +470,9 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       if (digitsOnly.length < 2) {
         digitsOnly = "03";
       }
+      if (digitsOnly.length > 11) {
+        digitsOnly = digitsOnly.slice(0, 11);
+      }
 
       setFormData((prev) => ({
         ...prev,
@@ -551,6 +563,47 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       if (!validateStepTwo()) {
         return;
       }
+
+      // Check if email or phone already exists
+      setOtpLoading(true);
+      setError("");
+      setSuccess("");
+      try {
+        const response = await fetch("/api/auth/signup/check-exists", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            phone: fullPhoneNumber,
+          }),
+        });
+
+        if (!response.ok) {
+          let errorMessage = "Registration check failed";
+          try {
+            const data = await response.json();
+            errorMessage = data.error || errorMessage;
+          } catch {}
+
+          const apiError = errorMessage.toLowerCase();
+          if (apiError.includes("email already")) {
+            setError(t("emailAlreadyExists"));
+          } else if (apiError.includes("phone already") || apiError.includes("phone number already")) {
+            setError(t("phoneAlreadyExists"));
+          } else {
+            setError(errorMessage);
+          }
+          return;
+        }
+      } catch (err) {
+        setError("Network error occurred. Please try again.");
+        return;
+      } finally {
+        setOtpLoading(false);
+      }
+
       if (!allowOtp) {
         setCurrentStep(4);
         return;
@@ -577,18 +630,13 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   const isStepTwoComplete =
     formData.email.trim() &&
     formData.phoneNumber.trim() &&
-    normalizedPhoneNumber.length >= 11 &&
+    normalizedPhoneNumber.length === 11 &&
     (!allowOtp ? contactDetailsConfirmed : true);
   const isStepThreeComplete = otp.replace(/\s/g, "").length === 6;
   const isStepFourComplete =
-    formData.password.trim() &&
-    formData.confirmPassword.trim() &&
+    formData.password.length >= 8 &&
+    formData.confirmPassword === formData.password &&
     (emailVerified || !allowOtp);
-
-  const showPasswordMismatch =
-    formData.password.length > 0 &&
-    formData.confirmPassword.length > 0 &&
-    formData.password !== formData.confirmPassword;
 
   const getStepState = (step: SignupStep) => {
     const isComplete = currentStep > step || (step === 3 && currentStep === 3 && emailVerified);
@@ -598,33 +646,83 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   };
 
   const renderStatusBars = () => {
-    const steps: SignupStep[] = allowOtp ? [1, 2, 3, 4] : [1, 2, 4];
+    const steps: { step: SignupStep; label: string; icon: any }[] = allowOtp
+      ? [
+          { step: 1, label: "Business", icon: Store },
+          { step: 2, label: "Contact", icon: Mail },
+          { step: 3, label: "Verify", icon: Key },
+          { step: 4, label: "Security", icon: Lock },
+        ]
+      : [
+          { step: 1, label: "Business", icon: Store },
+          { step: 2, label: "Contact", icon: Mail },
+          { step: 4, label: "Security", icon: Lock },
+        ];
+
+    const leftPercent = allowOtp ? "12.5%" : "16.67%";
+    const totalWidthPercent = allowOtp ? "75%" : "66.67%";
+    
+    let activeWidth = "0%";
+    if (allowOtp) {
+      if (currentStep === 2) activeWidth = "25%";
+      else if (currentStep === 3) activeWidth = "50%";
+      else if (currentStep === 4) activeWidth = "75%";
+    } else {
+      if (currentStep === 2) activeWidth = "33.33%";
+      else if (currentStep === 4) activeWidth = "66.67%";
+    }
+
     return (
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className={`grid gap-2 ${allowOtp ? "grid-cols-4" : "grid-cols-3"}`}>
-          {steps.map((step) => {
-            const { isComplete, isActive } = getStepState(step);
+      <div className="relative w-full max-w-lg mx-auto py-3 px-1 my-2">
+        {/* Connection Line Background */}
+        <div 
+          className="absolute top-[28px] h-[2px] bg-muted -z-0"
+          style={{ left: leftPercent, width: totalWidthPercent }}
+        />
+        {/* Connection Line Active Progress */}
+        <div
+          className="absolute top-[28px] h-[2px] bg-primary transition-all duration-500 -z-0"
+          style={{
+            left: leftPercent,
+            width: activeWidth,
+          }}
+        />
+
+        <div className="relative z-10 flex justify-between items-center w-full">
+          {steps.map((item) => {
+            const StepIcon = item.icon;
+            const isCompleted =
+              currentStep > item.step ||
+              (item.step === 3 && currentStep === 3 && emailVerified);
+            const isActive = currentStep === item.step;
 
             return (
-              <div
-                key={step}
-                className={`h-2 rounded-full transition-colors ${
-                  isComplete
-                    ? "bg-primary"
-                    : isActive
-                      ? "bg-secondary"
-                      : "bg-muted"
-                }`}
-              />
+              <div key={item.step} className="flex flex-col items-center flex-1">
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    isCompleted
+                      ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/25"
+                      : isActive
+                      ? "bg-background border-primary text-primary ring-4 ring-primary/15 font-bold"
+                      : "bg-muted border-muted text-muted-foreground"
+                  }`}
+                >
+                  {isCompleted ? (
+                    <Check className="h-4.5 w-4.5 stroke-[3]" />
+                  ) : (
+                    <StepIcon className="h-4 w-4" />
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] font-semibold tracking-wider uppercase mt-2.5 transition-colors duration-300 ${
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </div>
             );
           })}
-        </div>
-
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Progress</span>
-          <span>
-            {emailVerified ? "Email verified" : currentStep === 3 ? "Verify email" : "Continue"}
-          </span>
         </div>
       </div>
     );
@@ -635,35 +733,39 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       return (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">
-              {t("name")} <span className="text-red-500">*</span>
+            <Label htmlFor="name" className="text-xs font-bold tracking-wider text-foreground uppercase">
+              {t("name")} <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="name"
-              name="name"
-              placeholder="Muhammad Ali Khan"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              disabled={isLoading || otpLoading}
-              className={signupInputClassName}
-            />
+            <div className="relative">
+              <Input
+                id="name"
+                name="name"
+                placeholder="Muhammad Ali Khan"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                disabled={isLoading || otpLoading}
+                className={signupInputClassName}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyName">
-              {t("companyName")} <span className="text-red-500">*</span>
+            <Label htmlFor="companyName" className="text-xs font-bold tracking-wider text-foreground uppercase">
+              {t("companyName")} <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="companyName"
-              name="companyName"
-              placeholder={t("companyNamePlaceholder")}
-              value={formData.companyName}
-              onChange={handleChange}
-              required
-              disabled={isLoading || otpLoading}
-              className={signupInputClassName}
-            />
+            <div className="relative">
+              <Input
+                id="companyName"
+                name="companyName"
+                placeholder={t("companyNamePlaceholder")}
+                value={formData.companyName}
+                onChange={handleChange}
+                required
+                disabled={isLoading || otpLoading}
+                className={signupInputClassName}
+              />
+            </div>
           </div>
         </div>
       );
@@ -673,38 +775,42 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       return (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">
-              {t("email")} <span className="text-red-500">*</span>
+            <Label htmlFor="email" className="text-xs font-bold tracking-wider text-foreground uppercase">
+              {t("email")} <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder={t("emailPlaceholder")}
-              value={formData.email}
-              onChange={handleChange}
-              required
-              disabled={isLoading || otpLoading}
-              className={signupInputClassName}
-            />
+            <div className="relative">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder={t("emailPlaceholder")}
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled={isLoading || otpLoading}
+                className={signupInputClassName}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">
-              Phone Number <span className="text-red-500">*</span>
+            <Label htmlFor="phone" className="text-xs font-bold tracking-wider text-foreground uppercase">
+              Phone Number <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="phone"
-              name="phoneNumber"
-              type="tel"
-              inputMode="numeric"
-              placeholder="0300 1234567"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              required
-              disabled={isLoading || otpLoading}
-              className={signupInputClassName}
-            />
+            <div className="relative">
+              <Input
+                id="phone"
+                name="phoneNumber"
+                type="tel"
+                inputMode="numeric"
+                placeholder="03001234567"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                required
+                disabled={isLoading || otpLoading}
+                className={signupInputClassName}
+              />
+            </div>
           </div>
 
           {!allowOtp && (
@@ -717,7 +823,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               />
               <label
                 htmlFor="confirm-details"
-                className="text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer select-none"
+                className="text-xs font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer select-none"
               >
                 I confirm that my email and phone number are correct.
               </label>
@@ -730,38 +836,26 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     if (currentStep === 3) {
       return (
         <div className="space-y-4">
-          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-foreground space-y-3">
-            <div>
-              We will send a verification code to <span className="font-medium">{formData.email}</span>.
+          <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-sm text-foreground space-y-3">
+            <div className="flex gap-2.5 items-start">
+              <Mail className="h-5 w-5 text-primary mt-0.5 animate-pulse" />
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">Verify your email address</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  We sent a verification code to <span className="font-bold text-foreground">{formData.email}</span>. Please enter the code below.
+                </p>
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              If you do not see it in your inbox, please check your Spam or Junk folder as well.
+            <div className="text-[11px] text-muted-foreground/80 pl-7">
+              If you do not see it in your inbox, please check your spam or junk folder.
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={sendOtp}
-              disabled={isLoading || otpLoading || otpSent}
-            >
-              {otpLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : otpSent ? (
-                "OTP sent"
-              ) : (
-                "Send OTP"
-              )}
-            </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="otp">
-              Email OTP <span className="text-red-500">*</span>
+          <div className="space-y-3">
+            <Label className="text-xs font-bold tracking-wider text-foreground uppercase block text-center">
+              Enter 6-Digit OTP
             </Label>
-            <div className="flex gap-2 justify-between">
+            <div className="flex gap-2 sm:gap-3 justify-center max-w-sm mx-auto">
               {[0, 1, 2, 3, 4, 5].map((index) => (
                 <Input
                   key={index}
@@ -770,21 +864,21 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                   }}
                   type="text"
                   inputMode="numeric"
-                  maxLength={6}
+                  maxLength={1}
                   value={otp[index] && otp[index] !== " " ? otp[index] : ""}
                   onChange={(e) => handleOtpBoxChange(index, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
                   disabled={isLoading || otpLoading || emailVerified}
-                  className={`${signupInputClassName} w-12 h-12 bg-muted/95 text-center text-lg`}
+                  className="w-11 h-11 text-center text-lg font-bold bg-background border-border/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 rounded-xl transition-all duration-200"
                 />
               ))}
             </div>
           </div>
 
           {emailVerified && (
-            <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-secondary/30 px-3 py-2 text-sm text-foreground">
-              <Check className="h-4 w-4" />
-              Email verified.
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400">
+              <Check className="h-4 w-4 stroke-[3]" />
+              <span className="font-semibold">Email verified successfully!</span>
             </div>
           )}
         </div>
@@ -794,40 +888,44 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="password">
-            {t("password")} <span className="text-red-500">*</span>
+          <Label htmlFor="password" className="text-xs font-bold tracking-wider text-foreground uppercase">
+            {t("password")} <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
             <Input
               id="password"
               name="password"
               type={showPassword ? "text" : "password"}
-              placeholder="At least 8 characters"
+              placeholder="Minimum 8 characters"
               value={formData.password}
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
-              className={`${signupInputClassName} ${showPasswordMismatch ? "pr-20" : "pr-10"}`}
+              className={`${signupInputClassName} pr-16`}
             />
-            {showPasswordMismatch && (
-              <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
-                <X size={18} />
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={isLoading || otpLoading}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {formData.password && (
+                formData.password.length >= 8 ? (
+                  <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+                ) : (
+                  <XCircle className="h-4.5 w-4.5 text-destructive shrink-0" />
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading || otpLoading}
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">
-            {t("confirmPassword")} <span className="text-red-500">*</span>
+          <Label htmlFor="confirmPassword" className="text-xs font-bold tracking-wider text-foreground uppercase">
+            {t("confirmPassword")} <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
             <Input
@@ -839,26 +937,36 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               onChange={handleChange}
               required
               disabled={isLoading || otpLoading}
-              className={`${signupInputClassName} ${showPasswordMismatch ? "pr-20" : "pr-10"}`}
+              className={`${signupInputClassName} pr-16`}
             />
-            {showPasswordMismatch && (
-              <div className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
-                <X size={18} />
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              disabled={isLoading || otpLoading}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-            >
-              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {formData.confirmPassword && (
+                (formData.confirmPassword === formData.password && formData.password.length >= 8) ? (
+                  <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+                ) : (
+                  <XCircle className="h-4.5 w-4.5 text-destructive shrink-0" />
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={isLoading || otpLoading}
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
         </div>
 
+        {formData.password && formData.password.length < 8 && (
+          <div className="text-xs text-amber-600 dark:text-amber-400 font-medium pl-1">
+            Password is too short (must be at least 8 characters).
+          </div>
+        )}
+
         {allowOtp && !emailVerified && (
-          <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-secondary/20 px-3 py-2 text-sm text-foreground">
+          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-foreground">
             <Check className="h-4 w-4 text-primary" />
             Verify your email before creating the account.
           </div>
@@ -873,7 +981,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       <div className="md:hidden sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <Link href={`/${params.locale}`}>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2 rounded-lg">
               <Home className="h-4 w-4" />
               {t("home")}
             </Button>
@@ -885,7 +993,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
       {/* Desktop Buttons */}
       <div className="hidden md:block absolute top-4 left-4 z-10">
         <Link href={`/${params.locale}`}>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2 rounded-lg">
             <Home className="h-4 w-4" />
             {t("home")}
           </Button>
@@ -897,8 +1005,8 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
 
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl overflow-hidden border-2 border-foreground/15 shadow-2xl shadow-foreground/5 ring-1 ring-foreground/5">
-          <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-accent" />
+        <Card className="w-full max-w-lg overflow-hidden border border-border/80 bg-background/80 backdrop-blur-md shadow-2xl shadow-foreground/5 rounded-3xl relative">
+          <div className="h-1.5 w-full bg-gradient-to-r from-primary via-secondary to-accent" />
           {isCreatingBusiness ? (
             <CardContent className="flex flex-col items-center justify-center py-24 space-y-6">
               <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -906,7 +1014,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
                 <h3 className="text-2xl font-bold text-foreground">
                   Launching your Dukaan Khata...
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   Please wait while we finalize your account and configure your business.
                 </p>
               </div>
@@ -915,133 +1023,146 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
             <>
               <CardHeader className="space-y-4 pb-4">
                 <div className="space-y-2 text-center">
-              <CardTitle className="text-2xl md:text-3xl text-center">
-                {t("signUpTitle")}
-              </CardTitle>
-              <CardDescription className="text-center">
-                {t("signUpSubtitle")}
-              </CardDescription>
-            </div>
-
-            {renderStatusBars()}
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="p-3 bg-red-50 border-2 border-red-300 rounded text-red-700 text-sm">
-                  {error}
+                  <CardTitle className="text-2xl md:text-3xl text-center font-bold tracking-tight">
+                    {t("signUpTitle")}
+                  </CardTitle>
+                  <CardDescription className="text-center text-muted-foreground text-sm">
+                    {t("signUpSubtitle")}
+                  </CardDescription>
                 </div>
-              )}
 
-              {success && (
-                <div className="p-3 bg-green-50 border-2 border-green-300 rounded text-green-700 text-sm">
-                  {success}
-                </div>
-              )}
+                {renderStatusBars()}
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <div className="flex items-start gap-2.5 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-sm font-medium animate-in fade-in duration-300">
+                      <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                      <span className="leading-relaxed">{error}</span>
+                    </div>
+                  )}
 
-              {renderStepContent()}
+                  {success && (
+                    <div className="flex items-start gap-2.5 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="leading-relaxed">{success}</span>
+                    </div>
+                  )}
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                {currentStep < 4 ? (
-                  <Button
-                    type="button"
-                    className="w-full sm:w-auto sm:ml-auto gap-2"
-                    onClick={goToNextStep}
-                    disabled={
-                      isLoading ||
-                      otpLoading ||
-                      (currentStep === 1 && !isStepOneComplete) ||
-                      (currentStep === 2 && !isStepTwoComplete) ||
-                      (currentStep === 3 && !isStepThreeComplete)
-                    }
-                  >
-                    {otpLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Working...
-                      </>
-                    ) : currentStep === 2 ? (
-                      <>
-                        {allowOtp ? "Send OTP" : "Continue"}
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    ) : currentStep === 3 ? (
-                      <>
-                        {emailVerified ? "Continue" : "Verify Email"}
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    ) : (
-                      <>
-                        Continue
-                        <ArrowRight className="h-4 w-4" />
-                      </>
+                  {renderStepContent()}
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+                    {/* CTA Button (Continue / Submit) */}
+                    <div className="w-full sm:w-auto sm:order-2 sm:ml-auto">
+                      {currentStep < 4 ? (
+                        <Button
+                          type="button"
+                          className="w-full h-11 px-6 rounded-xl gap-2 font-semibold shadow-lg shadow-primary/20"
+                          onClick={goToNextStep}
+                          disabled={
+                            isLoading ||
+                            otpLoading ||
+                            (currentStep === 1 && !isStepOneComplete) ||
+                            (currentStep === 2 && !isStepTwoComplete) ||
+                            (currentStep === 3 && !isStepThreeComplete)
+                          }
+                        >
+                          {otpLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Working...
+                            </>
+                          ) : currentStep === 2 ? (
+                            <>
+                              {allowOtp ? "Send OTP" : "Continue"}
+                              <ArrowRight className="h-4 w-4" />
+                            </>
+                          ) : currentStep === 3 ? (
+                            <>
+                              {emailVerified ? "Continue" : "Verify Email"}
+                              <ArrowRight className="h-4 w-4" />
+                            </>
+                          ) : (
+                            <>
+                              Continue
+                              <ArrowRight className="h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="submit"
+                          className="w-full h-11 px-6 rounded-xl font-semibold shadow-lg shadow-primary/20"
+                          disabled={isLoading || otpLoading || !isStepFourComplete}
+                        >
+                          {isLoading ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              {t("creatingAccount")}
+                            </span>
+                          ) : (
+                            "Create Account"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Resend OTP button */}
+                    {currentStep === 3 && otpSent && !emailVerified && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto h-11 px-4 rounded-xl gap-2 border-border/85 sm:order-1"
+                        onClick={sendOtp}
+                        disabled={isLoading || otpLoading || resendCooldown > 0}
+                      >
+                        {otpLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : resendCooldown > 0 ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Resend in {resendCooldown}s
+                          </>
+                        ) : (
+                          <>
+                            Resend OTP
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
                     )}
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    className="w-full sm:w-auto sm:ml-auto"
-                    disabled={isLoading || otpLoading || !isStepFourComplete}
-                  >
-                    {isLoading ? t("creatingAccount") : "Create Account"}
-                  </Button>
-                )}
 
-                <div className="flex items-center justify-between gap-3 sm:order-first sm:mr-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      setCurrentStep((prev) => {
-                        if (prev === 4 && !allowOtp) return 2;
-                        return prev > 1 ? (prev - 1) as SignupStep : prev;
-                      })
-                    }
-                    disabled={currentStep === 1 || isLoading || otpLoading}
-                  >
-                    Back
-                  </Button>
-
-                  {currentStep === 3 && otpSent && !emailVerified && (
+                    {/* Back Button */}
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={sendOtp}
-                      disabled={isLoading || otpLoading || resendCooldown > 0}
-                      className="gap-2"
+                      className="w-full sm:w-auto h-11 px-5 rounded-xl border-border/85 sm:order-1"
+                      onClick={() =>
+                        setCurrentStep((prev) => {
+                          if (prev === 4 && !allowOtp) return 2;
+                          return prev > 1 ? (prev - 1) as SignupStep : prev;
+                        })
+                      }
+                      disabled={currentStep === 1 || isLoading || otpLoading}
                     >
-                      {otpLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : resendCooldown > 0 ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Resend OTP in {resendCooldown}s
-                        </>
-                      ) : (
-                        <>
-                          Resend OTP
-                          <ArrowRight className="h-4 w-4" />
-                        </>
-                      )}
+                      Back
                     </Button>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              <div className="text-center text-sm">
-                <span>{t("alreadyHaveAccount")} </span>
-                <Link
-                  href={`/${params.locale}/login`}
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  {t("signIn")}
-                </Link>
-              </div>
-            </form>
-          </CardContent>
+                  <div className="text-center text-sm text-muted-foreground pt-2">
+                    <span>{t("alreadyHaveAccount")} </span>
+                    <Link
+                      href={`/${params.locale}/login`}
+                      className="text-primary hover:underline font-semibold"
+                    >
+                      {t("signIn")}
+                    </Link>
+                  </div>
+                </form>
+              </CardContent>
             </>
           )}
         </Card>

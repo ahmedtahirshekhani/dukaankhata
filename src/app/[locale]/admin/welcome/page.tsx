@@ -15,8 +15,6 @@ export default function WelcomePage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-lg mt-2 leading-relaxed">
-            {t("subtitle")}
-            <br />
             {t.rich("instruction", {
               sidebar: (chunks) => (
                 <>

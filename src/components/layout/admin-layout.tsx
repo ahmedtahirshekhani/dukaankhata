@@ -41,7 +41,7 @@ import {
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { signOut } from "next-auth/react";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, clearUserDatabase } from "@/lib/db/offline-db";
@@ -54,9 +54,11 @@ import { toast } from "sonner";
 // renders AdminLayout (i.e. all /admin/* routes) fails `next build`.
 function SignupHighlightWatcher({ onSignup }: { onSignup: () => void }) {
   const searchParams = useSearchParams();
+  const triggeredRef = useRef(false);
 
   useEffect(() => {
-    if (searchParams && searchParams.get("signup") === "true") {
+    if (searchParams && searchParams.get("signup") === "true" && !triggeredRef.current) {
+      triggeredRef.current = true;
       onSignup();
     }
   }, [searchParams, onSignup]);
@@ -74,6 +76,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const { user } = useUserProfile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [highlightHamburger, setHighlightHamburger] = useState(false);
+
+  const handleSignupHighlight = useCallback(() => {
+    setHighlightHamburger(true);
+  }, []);
 
   useEffect(() => {
     if (highlightHamburger) {
@@ -342,55 +348,70 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Suspense fallback={null}>
-        <SignupHighlightWatcher onSignup={() => setHighlightHamburger(true)} />
+        <SignupHighlightWatcher onSignup={handleSignupHighlight} />
       </Suspense>
       <header className={`sticky top-0 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 ${highlightHamburger ? "z-50" : "z-30"}`}>
         <div className="relative sm:hidden">
           {highlightHamburger && (
             <>
-              {/* Screen locking overlay (blocks interactions elsewhere) */}
+              {/* Screen locking premium dark overlay with blur */}
               <div
-                className="fixed inset-0 z-40 bg-sky-500/10 cursor-default pointer-events-auto"
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[1.5px] cursor-default pointer-events-auto transition-all duration-300"
               />
-              {/* Cutout/Pulsing Overlay */}
-              <div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none z-45 border-2 border-sky-400/70"
-                style={{
-                  boxShadow: "0 0 0 9999px rgba(14, 165, 233, 0.35)",
-                  animation: "hamburger-cutout-pump 2s infinite ease-in-out",
-                }}
-              />
-              {/* Guidance Speech Bubble */}
-              <div className="absolute top-12 left-0 z-50 animate-bounce flex flex-col items-start w-64 pointer-events-none">
-                {/* Arrow pointing up */}
-                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-sky-500 ml-3" />
+              
+              {/* Guidance Speech Bubble / Card */}
+              <div className="absolute top-16 left-0 z-50 flex flex-col items-start w-72 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-500">
+                {/* Small Arrow pointing up */}
+                <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[7px] border-b-background dark:border-b-card ml-3.5 drop-shadow-[0_-1px_1px_rgba(0,0,0,0.05)]" />
+                
                 {/* Card body */}
-                <div className="bg-sky-500 text-white text-xs font-semibold p-3.5 rounded-xl shadow-xl flex items-start gap-2 border border-sky-400/60 leading-normal">
-                  <span className="flex-shrink-0 text-sm">✨</span>
-                  <span>{tNav("clickMenuToStart")}</span>
+                <div className="bg-background dark:bg-card text-card-foreground p-4 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-border flex flex-col gap-2.5 leading-normal">
+                  <div className="flex items-center gap-2 text-primary">
+                    <div className="p-1 rounded-lg bg-primary/10">
+                      <Sparkles className="h-4 w-4 animate-pulse fill-primary/10" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/90">
+                      {t("common.welcome")}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-foreground">
+                      {tNav("clickMenuToStart")}
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Tap the highlighted menu icon to start exploring your account dashboard, parties, inventory, and sales.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-primary/80 font-semibold animate-pulse mt-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span>Tap menu button to begin</span>
+                  </div>
                 </div>
               </div>
-              <style>{`
-                @keyframes hamburger-cutout-pump {
-                  0%, 100% {
-                    width: 44px;
-                    height: 44px;
-                  }
-                  50% {
-                    width: 56px;
-                    height: 56px;
-                  }
-                }
-              `}</style>
             </>
+          )}
+          {highlightHamburger && (
+            <span className="absolute inset-0 rounded-lg bg-primary/25 animate-ping opacity-75 pointer-events-none z-45" />
           )}
           <Button
             variant="ghost"
             size="icon"
-            className={`relative z-50 ${highlightHamburger ? "bg-background text-foreground shadow-md ring-2 ring-sky-400" : ""}`}
+            className={`relative z-50 transition-all duration-300 ${
+              highlightHamburger 
+                ? "bg-background text-primary shadow-lg shadow-primary/40 ring-2 ring-primary" 
+                : ""
+            }`}
             onClick={() => {
               setSidebarOpen(!sidebarOpen);
               setHighlightHamburger(false);
+              
+              // Clear the signup parameter from the URL if it is present
+              const params = new URLSearchParams(window.location.search);
+              if (params.has("signup")) {
+                params.delete("signup");
+                const newQuery = params.toString();
+                router.replace(pathname + (newQuery ? `?${newQuery}` : ""));
+              }
             }}
           >
             {sidebarOpen ? (
