@@ -28,6 +28,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Receipt,
 } from "lucide-react";
 import {
   Table,
@@ -860,73 +861,87 @@ export default function PartiesPage() {
                       </p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <Button asChild size="sm" variant="outline" className="h-8 px-2 text-xs">
-                        <Link href={`/${locale}/admin/customer-transactions/${customer.id}`}>
-                          {tDash("viewTransactions") || "View Transactions"}
-                        </Link>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setViewCustomer(customer);
-                          setIsViewCustomerDialogOpen(true);
-                        }}
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span className="sr-only">{t("view")}</span>
-                      </Button>
-                      {customer.balance !== undefined && customer.balance > 0 && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30"
-                          onClick={() => handleWhatsAppClick(customer)}
-                        >
-                          <WhatsAppIcon className="w-4.5 h-4.5" />
-                          <span className="sr-only">{tInvoice("sendOnWhatsApp") || "Send on WhatsApp"}</span>
-                        </Button>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          const balance = customer.balance || 0;
-                          setSelectedCustomerId(customer.id);
-                          setNewCustomerName(customer.name);
-                          setNewCustomerEmail(customer.email);
-                          setNewCustomerPhone(customer.phone);
-                          setNewCustomerCompanyName(
-                            customer.company_name || "",
-                          );
-                          setNewCustomerCompanyAddress(
-                            customer.company_address || "",
-                          );
-                          setNewCustomerOpeningBalance(
-                            Math.abs(balance).toString(),
-                          );
-                          setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
-                          setNewCustomerStatus(customer.status);
-                          setIsEditCustomerDialogOpen(true);
-                        }}
-                      >
-                        <FilePenIcon className="w-4 h-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="danger"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setCustomerToDelete(customer);
-                          setIsDeleteConfirmationOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="sr-only">{t("deleteAction")}</span>
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-md flex-shrink-0"
+                          >
+                            <MoreVertical className="h-4 w-4 text-foreground" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 p-1.5 space-y-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg">
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href={`/${locale}/admin/customer-transactions/${customer.id}`}
+                              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
+                            >
+                              <Receipt className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span>{tDash("viewTransactions") || "View Transaction"}</span>
+                            </Link>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setViewCustomer(customer);
+                              setIsViewCustomerDialogOpen(true);
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
+                          >
+                            <Eye className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <span>{t("view") || "View Details"}</span>
+                          </DropdownMenuItem>
+
+                          {customer.balance !== undefined && customer.balance > 0 && (
+                            <DropdownMenuItem
+                              onClick={() => handleWhatsAppClick(customer)}
+                              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
+                            >
+                              <WhatsAppIcon className="w-4.5 h-4.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                              <span>{tInvoice("sendOnWhatsApp") || "Send Message"}</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const balance = customer.balance || 0;
+                              setSelectedCustomerId(customer.id);
+                              setNewCustomerName(customer.name);
+                              setNewCustomerEmail(customer.email);
+                              setNewCustomerPhone(customer.phone);
+                              setNewCustomerCompanyName(
+                                customer.company_name || "",
+                              );
+                              setNewCustomerCompanyAddress(
+                                customer.company_address || "",
+                              );
+                              setNewCustomerOpeningBalance(
+                                Math.abs(balance).toString(),
+                              );
+                              setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
+                              setNewCustomerStatus(customer.status);
+                              setIsEditCustomerDialogOpen(true);
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
+                          >
+                            <FilePenIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <span>{t("edit") || "Edit"}</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setCustomerToDelete(customer);
+                              setIsDeleteConfirmationOpen(true);
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-red-100/50 dark:border-red-950/50 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 cursor-pointer transition-colors text-xs font-semibold w-full"
+                          >
+                            <Trash2 className="w-4 h-4 flex-shrink-0" />
+                            <span>{t("deleteAction") || "Delete"}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
 
