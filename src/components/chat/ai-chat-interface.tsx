@@ -257,8 +257,8 @@ export function AiChatInterface() {
           /* Welcome Screen */
           <div className="flex flex-col items-center justify-start h-full pt-6 pb-4 space-y-6">
             <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                <Sparkles className="w-10 h-10 text-white" />
+              <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                <Sparkles className="w-10 h-10 text-primary-foreground" />
               </div>
               <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-green-500 rounded-full flex items-center justify-center ring-2 ring-background">
                 <Zap className="w-3.5 h-3.5 text-white" />
@@ -309,7 +309,7 @@ export function AiChatInterface() {
           <>
             {/* Guaranteed Welcome Message */}
             <div className="flex gap-2.5 mr-auto max-w-[85%] z-20">
-              <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 bg-gradient-to-br from-primary/80 to-primary text-white shadow-sm">
+              <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 bg-primary text-primary-foreground shadow-sm">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
               <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-muted text-foreground rounded-tl-sm shadow-sm border border-border/50">
@@ -344,7 +344,7 @@ export function AiChatInterface() {
                     className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${
                       m.role === "user"
                         ? "bg-primary text-primary-foreground"
-                        : "bg-gradient-to-br from-primary/80 to-primary text-white"
+                        : "bg-primary text-primary-foreground"
                     }`}
                   >
                     {m.role === "user" ? (
@@ -439,7 +439,7 @@ export function AiChatInterface() {
                 (messages[messages.length - 1].role === "assistant" &&
                   !getMessageText(messages[messages.length - 1]))) && (
                 <div className="flex gap-2.5 max-w-[85%] mr-auto">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/80 to-primary text-white">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
                     <Sparkles className="w-3.5 h-3.5" />
                   </div>
                   <div className="rounded-2xl px-4 py-3 bg-muted rounded-tl-sm flex items-center gap-1.5">

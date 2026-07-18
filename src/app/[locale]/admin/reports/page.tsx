@@ -50,7 +50,7 @@ export default function ReportsModulePage() {
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/75 bg-clip-text text-transparent">{tNav("reports")}</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{tNav("reports")}</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-1">{tNav("reportsDescription")}</p>
       </div>
 

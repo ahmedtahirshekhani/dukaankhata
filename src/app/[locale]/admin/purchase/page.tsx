@@ -31,7 +31,7 @@ export default function PurchaseModulePage() {
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/75 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
           {tNav("purchase")}
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-1">
