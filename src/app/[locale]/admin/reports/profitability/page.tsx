@@ -424,7 +424,7 @@ export default function ProfitabilityReportPage() {
         </Button>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/75 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               {tProfit("title")}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
