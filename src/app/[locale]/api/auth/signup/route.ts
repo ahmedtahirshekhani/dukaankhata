@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       await configCollection.insertOne({
         user_id: newUser?._id,
         is_counterSale_enable: false,
-        is_AI_Chat_Enable: false,
+        is_AI_Chat_Enable: true,
         is_Whatsapp_enable: false,
         created_at: new Date(),
         updated_at: new Date(),
