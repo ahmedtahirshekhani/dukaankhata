@@ -94,9 +94,6 @@ export function StaffTab() {
     if (!name.trim() || !email.trim() || !selectedRole) {
       return toast.error("Name, email, and role are required");
     }
-    if (!editingStaff && !password) {
-      return toast.error("Password is required for new staff");
-    }
     
     try {
       setIsSaving(true);
@@ -356,6 +353,11 @@ export function StaffTab() {
                 onChange={(e) => setPassword(e.target.value)} 
                 placeholder={editingStaff ? t("passwordPlaceholderEdit") : t("passwordPlaceholder")}
               />
+              {!editingStaff && (
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  {tCommon("leaveBlankExisting", { defaultValue: "Leave empty if the user already has an account." })}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("role")}</Label>

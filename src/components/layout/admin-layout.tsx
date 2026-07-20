@@ -75,7 +75,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const t = useTranslations();
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
-  const { user } = useUserProfile();
+  const { user, updateSession } = useUserProfile();
   const { hasModuleAccess, can } = usePermissions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [highlightHamburger, setHighlightHamburger] = useState(false);
@@ -1069,7 +1069,58 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
             {/* Settings / Configuration - protected by module access */}
             {hasModuleAccess("settings") && (
-              <div className="mt-auto">
+              <div className="mt-auto flex flex-col gap-2">
+                {/* Workspace Switcher */}
+                {user?.workspaces && user.workspaces.length > 0 && (
+                  <div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={`w-full justify-between border-border/50 bg-background/50 hover:bg-accent ${sidebarMinimized ? "px-2" : "px-3"
+                            }`}
+                          title={sidebarMinimized ? t("common.switchWorkspace") : ""}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            {!sidebarMinimized && (
+                              <span className="truncate text-sm font-medium">
+                                {user.workspaces.find(w => w.id === user.active_workspace_id)?.name || tCommon("workspaces")}
+                              </span>
+                            )}
+                          </div>
+                          {!sidebarMinimized && <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56">
+                        <DropdownMenuLabel>{t("common.workspaces")}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {user.workspaces.map((ws: any) => (
+                          <DropdownMenuItem
+                            key={ws.id}
+                            onClick={async () => {
+                              if (ws.id !== user.active_workspace_id) {
+                                await updateSession({ active_workspace_id: ws.id });
+                                router.push(`/${locale}/admin`);
+                              }
+                            }}
+                            className={`flex items-center gap-2 cursor-pointer ${ws.id === user.active_workspace_id ? "bg-accent" : ""
+                              }`}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{ws.name}</span>
+                              <span className="text-xs text-muted-foreground capitalize">{ws.type}</span>
+                            </div>
+                            {ws.id === user.active_workspace_id && (
+                              <CheckCircle className="ml-auto h-4 w-4 text-primary" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
+                
                 <Link
                   href={`/${locale}/admin/configuration`}
                   prefetch={false}
