@@ -284,7 +284,7 @@ export function AiChatInterface() {
                 {t('quickActionsTitle')}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {QUICK_ACTIONS.map((action, i) => {
+                {QUICK_ACTIONS.slice(0, 4).map((action, i) => {
                   const Icon = action.icon;
                   return (
                     <button
@@ -465,7 +465,7 @@ export function AiChatInterface() {
         {/* Compact chips when chatting */}
         {messages.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 w-full scrollbar-hide">
-            {QUICK_ACTIONS.slice(0, 10).map((action, i) => {
+            {QUICK_ACTIONS.slice(0, 9).map((action, i) => {
               const Icon = action.icon;
               return (
                 <button
