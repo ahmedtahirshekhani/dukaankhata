@@ -131,7 +131,11 @@
     "profit": "منافع",
     "cashflow": "کیش فلو",
     "transactions": "لین دین",
-    "clickMenuToStart": "دیگر فیچرز دیکھنے کے لیے یہاں ٹیپ کریں!"
+    "clickMenuToStart": "دیگر فیچرز دیکھنے کے لیے یہاں ٹیپ کریں!",
+    "staffManagement": "اسٹاف مینجمنٹ",
+    "staffManagementDescription": "رولز اور صارفین کا انتظام کریں",
+    "whatsapp": "واٹس ایپ",
+    "whatsappDescription": "واٹس ایپ کنیکٹ کریں"
   },
   "configurationPage": {
     "onlyImageFilesAllowed": "صرف تصاویر کی اجازت ہے",
@@ -1572,5 +1576,48 @@
         "message": "Create a sales summary."
       }
     }
+  },
+  "staffManagement": {
+    "rolesTab": "رولز",
+    "staffTab": "اسٹاف",
+    "createRole": "نیا رول بنائیں",
+    "editRole": "رول میں ترمیم کریں",
+    "roleName": "رول کا نام",
+    "roleNamePlaceholder": "مثال کے طور پر کیشئیر، مینیجر",
+    "permissions": "اجازتیں (Permissions)",
+    "selectAllPermissions": "تمام اجازتیں منتخب کریں",
+    "selectAll": "سب منتخب کریں",
+    "deselectAll": "سب کو غیر منتخب کریں",
+    "cancel": "منسوخ کریں",
+    "saving": "محفوظ ہو رہا ہے...",
+    "saveRole": "رول محفوظ کریں",
+    "deleteRole": "رول حذف کریں",
+    "deleteRoleConfirm": "کیا آپ واقعی اس رول کو حذف کرنا چاہتے ہیں؟ اس رول والے تمام اسٹاف ممبرز اپنی رسائی کھو دیں گے۔",
+    "delete": "حذف کریں",
+    "createStaff": "اسٹاف بنائیں",
+    "editStaff": "اسٹاف میں ترمیم کریں",
+    "name": "نام",
+    "namePlaceholder": "مثال کے طور پر علی",
+    "email": "ای میل",
+    "emailPlaceholder": "ali@example.com",
+    "password": "پاس ورڈ",
+    "passwordPlaceholder": "نئے عملے کے لیے ضروری ہے",
+    "passwordPlaceholderEdit": "موجودہ پاس ورڈ رکھنے کے لیے خالی چھوڑ دیں",
+    "role": "رول",
+    "selectRole": "ایک رول منتخب کریں",
+    "saveStaff": "اسٹاف محفوظ کریں",
+    "deleteStaff": "اسٹاف کو حذف کریں",
+    "deleteStaffConfirm": "کیا آپ واقعی اس عملے کے رکن کو حذف کرنا چاہتے ہیں؟ وہ سسٹم تک رسائی کھو دیں گے۔",
+    "noRolesFound": "کوئی رول نہیں ملا",
+    "noStaffFound": "اسٹاف کا کوئی ممبر نہیں ملا",
+    "noRole": "کوئی رول نہیں",
+    "leaveBlank": "موجودہ پاس ورڈ رکھنے کے لیے خالی چھوڑ دیں",
+    "noRolesAvailable": "کوئی رول دستیاب نہیں۔ پہلے ایک رول بنائیں۔",
+    "description": "اپنے اسٹاف ممبرز اور ان کی رسائی کا انتظام کریں",
+    "actions": "اعمال",
+    "loading": "اسٹاف لوڈ ہو رہا ہے...",
+    "title": "اسٹاف مینجمنٹ",
+    "staffMembersTab": "اسٹاف ممبرز",
+    "rolesPermissionsTab": "رولز اور اجازتیں"
   }
 }

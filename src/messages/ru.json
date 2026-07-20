@@ -131,7 +131,11 @@
     "profit": "Profit",
     "cashflow": "Cash Flow",
     "transactions": "Transactions",
-    "clickMenuToStart": "Explore features dekhne ke liye yahan tap karein!"
+    "clickMenuToStart": "Explore features dekhne ke liye yahan tap karein!",
+    "staffManagement": "Staff Management",
+    "staffManagementDescription": "Roles aur users manage karein",
+    "whatsapp": "WhatsApp",
+    "whatsappDescription": "WhatsApp connect karein"
   },
   "configurationPage": {
     "onlyImageFilesAllowed": "Sirf image files allowed hain.",
@@ -1572,5 +1576,48 @@
         "message": "Create a sales summary."
       }
     }
+  },
+  "staffManagement": {
+    "rolesTab": "Roles",
+    "staffTab": "Staff",
+    "createRole": "Naya Role Banayein",
+    "editRole": "Role Edit Karein",
+    "roleName": "Role ka Naam",
+    "roleNamePlaceholder": "Jaise: Cashier, Manager",
+    "permissions": "Permissions",
+    "selectAllPermissions": "Saari Permissions Select Karein",
+    "selectAll": "Sab Select Karein",
+    "deselectAll": "Sab Deselect Karein",
+    "cancel": "Cancel",
+    "saving": "Save ho raha hai...",
+    "saveRole": "Role Save Karein",
+    "deleteRole": "Role Delete Karein",
+    "deleteRoleConfirm": "Kya aap waqai is role ko delete karna chahte hain? Is role walay sab staff access kho denge.",
+    "delete": "Delete",
+    "createStaff": "Staff Banayein",
+    "editStaff": "Staff Edit Karein",
+    "name": "Naam",
+    "namePlaceholder": "Jaise: Ali",
+    "email": "Email",
+    "emailPlaceholder": "ali@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Naye staff ke liye lazmi hai",
+    "passwordPlaceholderEdit": "Current password rakhne ke liye khali chorein",
+    "role": "Role",
+    "selectRole": "Role select karein",
+    "saveStaff": "Staff Save Karein",
+    "deleteStaff": "Staff Delete Karein",
+    "deleteStaffConfirm": "Kya aap waqai is staff ko delete karna chahte hain? Woh system access kho dega.",
+    "noRolesFound": "Koi role nahi mila",
+    "noStaffFound": "Koi staff nahi mila",
+    "noRole": "Koi Role Nahi",
+    "leaveBlank": "Current password rakhne ke liye khali chorein",
+    "noRolesAvailable": "Koi role nahi hai. Pehle role banayein.",
+    "description": "Apne staff aur unke access ko manage karein",
+    "actions": "Actions",
+    "loading": "Staff load ho raha hai...",
+    "title": "Staff Management",
+    "staffMembersTab": "Staff Members",
+    "rolesPermissionsTab": "Roles aur Permissions"
   }
 }

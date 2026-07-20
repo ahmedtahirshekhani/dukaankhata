@@ -58,6 +58,11 @@ export const COLLECTIONS = {
   ORDER_ITEMS: "order_items",
   PAYMENT_METHODS: "payment_methods",
   PAYMENT_METHOD: "payment_method",
+  MODULES: "modules",
+  PERMISSIONS: "permissions",
+  ROLES: "roles",
+  ROLE_PERMISSIONS: "role_permissions",
+  USER_ROLES: "user_roles",
   PARTY_TRANSACTIONS: "party_transaction",
   CUSTOMER_TRANSACTIONS: "party_transaction", // Alias for backward compatibility
   VENDOR_TRANSACTIONS: "vendor_transaction",
