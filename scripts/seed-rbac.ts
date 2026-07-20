@@ -18,7 +18,6 @@ const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
   'customers': ['view', 'create', 'edit', 'delete'],
   'products': ['view', 'create', 'edit', 'delete'],
   'sales': [
-    'view', 'create', 'edit', 'delete',
     'view_quotations', 'create_quotations', 'edit_quotations', 'delete_quotations',
     'view_invoice', 'create_invoice', 'edit_invoice', 'delete_invoice',
     'view_payment_in', 'create_payment_in', 'edit_payment_in', 'delete_payment_in',
@@ -26,7 +25,6 @@ const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
     'view_counter_sale', 'create_counter_sale', 'edit_counter_sale', 'delete_counter_sale'
   ],
   'purchase': [
-    'view', 'create', 'edit', 'delete',
     'view_purchase_bill', 'create_purchase_bill', 'edit_purchase_bill', 'delete_purchase_bill',
     'view_payment_out', 'create_payment_out', 'edit_payment_out', 'delete_payment_out'
   ],
@@ -35,8 +33,7 @@ const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
     'view_account_statement', 'export_account_statement',
     'view_stock', 'export_stock',
     'view_receivable_summary', 'export_receivable_summary',
-    'view_profitability', 'export_profitability',
-    'export'
+    'view_profitability', 'export_profitability'
   ],
   'staff': ['view', 'create', 'edit', 'delete'],
   'settings': ['view', 'create', 'edit', 'delete'],

@@ -1618,6 +1618,13 @@
     "loading": "اسٹاف لوڈ ہو رہا ہے...",
     "title": "اسٹاف مینجمنٹ",
     "staffMembersTab": "اسٹاف ممبرز",
-    "rolesPermissionsTab": "رولز اور اجازتیں"
+    "rolesPermissionsTab": "رولز اور اجازتیں",
+    "searchStaffPlaceholder": "اسٹاف کو نام یا ای میل سے تلاش کریں...",
+    "searchRolesPlaceholder": "رولز کو نام سے تلاش کریں...",
+    "filterByRole": "رول سے فلٹر کریں",
+    "allRoles": "تمام رولز",
+    "noRecords": "کوئی ریکارڈ نہیں ملا۔",
+    "totalCountLabel": "کل: {count}",
+    "rowsPerPage": "فی صفحہ قطاریں"
   }
 }

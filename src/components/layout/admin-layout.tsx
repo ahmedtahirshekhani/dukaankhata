@@ -108,6 +108,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [enableAiChat, setEnableAiChat] = useState(false);
   const [enableWhatsApp, setEnableWhatsApp] = useState(false);
 
+  // Sub-menu Permission Checks
+  const hasSalesSub = can('sales', 'view_quotations') || can('sales', 'view_invoice') || can('sales', 'view_payment_in') || can('sales', 'view_sale_return') || (enableCounterSale && can('sales', 'view_counter_sale'));
+  const hasPurchaseSub = can('purchase', 'view_purchase_bill') || can('purchase', 'view_payment_out');
+  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability');
+
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
     async () => {
@@ -697,7 +702,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </div>
                 </Link>
 
-                {!sidebarMinimized && (
+                {!sidebarMinimized && hasSalesSub && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -821,7 +826,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </div>
                 </Link>
 
-                {!sidebarMinimized && (
+                {!sidebarMinimized && hasPurchaseSub && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -927,7 +932,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </div>
                 </Link>
 
-                {!sidebarMinimized && (
+                {!sidebarMinimized && hasReportsSub && (
                   <Button
                     type="button"
                     variant="ghost"

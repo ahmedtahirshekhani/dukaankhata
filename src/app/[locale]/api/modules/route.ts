@@ -20,6 +20,7 @@ export async function GET(req: Request) {
       const actions = allPerms
         .filter(p => p.module_code === mod.code)
         .map(p => p.action);
+        
       return {
         ...mod,
         actions

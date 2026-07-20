@@ -1619,6 +1619,13 @@
     "loading": "Loading staff...",
     "title": "Staff Management",
     "staffMembersTab": "Staff Members",
-    "rolesPermissionsTab": "Roles & Permissions"
+    "rolesPermissionsTab": "Roles & Permissions",
+    "searchStaffPlaceholder": "Search staff by name or email...",
+    "searchRolesPlaceholder": "Search roles by name...",
+    "filterByRole": "Filter by Role",
+    "allRoles": "All Roles",
+    "noRecords": "No records found.",
+    "totalCountLabel": "Total: {count}",
+    "rowsPerPage": "Rows per page"
   }
 }

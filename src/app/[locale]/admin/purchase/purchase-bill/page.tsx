@@ -202,7 +202,7 @@ export default function PurchaseBillPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-2">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">{t("purchaseBilldescription")}</p>

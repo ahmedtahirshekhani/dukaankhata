@@ -1618,6 +1618,13 @@
     "loading": "Staff load ho raha hai...",
     "title": "Staff Management",
     "staffMembersTab": "Staff Members",
-    "rolesPermissionsTab": "Roles aur Permissions"
+    "rolesPermissionsTab": "Roles aur Permissions",
+    "searchStaffPlaceholder": "Staff ko naam ya email se search karein...",
+    "searchRolesPlaceholder": "Roles ko naam se search karein...",
+    "filterByRole": "Role se filter karein",
+    "allRoles": "Tamam Roles",
+    "noRecords": "Koi record nahi mila.",
+    "totalCountLabel": "Total: {count}",
+    "rowsPerPage": "Rows per page"
   }
 }
