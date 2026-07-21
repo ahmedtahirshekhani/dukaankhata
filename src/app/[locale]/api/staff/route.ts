@@ -96,16 +96,21 @@ export async function POST(req: Request) {
     
     let staffId;
 
-    if (existingUser && !existingUser.isDeleted) {
-      if (password) {
+    if (existingUser) {
+      if (!existingUser.isDeleted && password) {
         return NextResponse.json({ error: "User already has an account. Please leave the password field empty to invite them." }, { status: 400 });
       }
+      
       staffId = existingUser._id;
       
-      // Check if they already have a role in this shop
-      // We can check if they already have THIS exact role, or any role from this owner.
-      // For now, just add the new user_role mapping. (A user can theoretically have multiple roles in the same shop, but typically it's one).
-      // We should check if they already have this exact role to avoid duplicates.
+      if (existingUser.isDeleted) {
+         // Restore soft-deleted user
+         const updateDoc: any = { isDeleted: false, deleted_at: null, updated_at: new Date(), name };
+         if (password) updateDoc.password_hash = await bcrypt.hash(password, 10);
+         await usersCollection.updateOne({ _id: staffId }, { $set: updateDoc });
+      }
+      
+      // Check if they already have this exact role
       const existingRole = await userRolesColl.findOne({
         user_id: staffId,
         role_id: toObjectId(role_id)

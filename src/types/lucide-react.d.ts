@@ -218,6 +218,7 @@ declare module 'lucide-react' {
   export const Store: Icon;
   export const Bot: Icon;
   export const PlayCircle: Icon;
+  export const Building2: Icon;
 
 
   // Catch-all for any other icons that might be used

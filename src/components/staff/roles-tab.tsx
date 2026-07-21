@@ -15,12 +15,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pagination } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { useOfflineRoles, useOfflineModules } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
+
 export function RolesTab() {
   const t = useTranslations("staffManagement");
   const tCommon = useTranslations("common");
-  const [roles, setRoles] = useState<any[]>([]);
-  const [modules, setModules] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Search & Pagination State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+
+  const roles = useOfflineRoles(searchTerm) || [];
+  const modules = useOfflineModules() || [];
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,32 +45,9 @@ export function RolesTab() {
   // Delete State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Search & Pagination State
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [isPageLoading, setIsPageLoading] = useState(false);
-
   useEffect(() => {
-    fetchData();
+    // fetchData is no longer needed since we're using offline hooks
   }, []);
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const [rolesRes, modulesRes] = await Promise.all([
-        fetch("/api/roles"),
-        fetch("/api/modules")
-      ]);
-      
-      if (rolesRes.ok) setRoles(await rolesRes.json());
-      if (modulesRes.ok) setModules(await modulesRes.json());
-    } catch (err) {
-      toast.error("Failed to load roles data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleOpenModal = (role?: any) => {
     if (role) {
@@ -108,20 +96,20 @@ export function RolesTab() {
     try {
       setIsSaving(true);
       const payload = { name: roleName, permissions: selectedPerms };
-      const url = editingRole ? `/api/roles/${editingRole._id}` : "/api/roles";
-      const method = editingRole ? "PUT" : "POST";
+      const roleId = editingRole ? (editingRole.id || editingRole._id) : undefined;
+      const url = roleId ? `/api/roles/${roleId}` : "/api/roles";
+      const method = roleId ? "PUT" : "POST";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      const localData = {
+        ...payload,
+        id: roleId || "temp-" + Date.now().toString(),
+      };
 
-      if (!res.ok) throw new Error("Failed");
+      await db.roles.put(localData);
+      await SyncEngine.queueOperation("roles", method, url, payload, localData.id);
       
       toast.success(editingRole ? "Role updated successfully" : "Role created successfully");
       setIsModalOpen(false);
-      fetchData();
     } catch (err) {
       toast.error("An error occurred while saving");
     } finally {
@@ -132,21 +120,18 @@ export function RolesTab() {
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      const res = await fetch(`/api/roles/${deletingId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete role");
+      await db.roles.delete(deletingId);
+      await SyncEngine.queueOperation("roles", "DELETE", `/api/roles/${deletingId}`, null, deletingId);
       toast.success("Role deleted successfully");
       setDeletingId(null);
-      fetchData();
     } catch (err) {
       toast.error("Failed to delete role");
     }
   };
 
   const filteredRoles = useMemo(() => {
-    return roles.filter((role) => 
-      role.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [roles, searchTerm]);
+    return roles; // Already filtered by useOfflineRoles
+  }, [roles]);
 
   const totalCount = filteredRoles.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -218,7 +203,7 @@ export function RolesTab() {
                   </TableRow>
                 ) : (
                   paginatedRoles.map((role) => (
-                    <TableRow key={role._id}>
+                    <TableRow key={role.id || role._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -237,7 +222,7 @@ export function RolesTab() {
                           <Button variant="ghost" size="icon" onClick={() => handleOpenModal(role)}>
                             <Edit className="w-4 h-4 text-muted-foreground" />
                           </Button>
-                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(role._id)}>
+                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(role.id || role._id)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>

@@ -55,9 +55,7 @@ export const COLLECTIONS = {
   PARTIES: "parties",
   CUSTOMERS: "parties", // Alias for backward compatibility
   ORDERS: "orders",
-  ORDER_ITEMS: "order_items",
   PAYMENT_METHODS: "payment_methods",
-  PAYMENT_METHOD: "payment_method",
   MODULES: "modules",
   PERMISSIONS: "permissions",
   ROLES: "roles",
@@ -77,12 +75,13 @@ export const COLLECTIONS = {
   PASSWORD_RESETS: "password_resets",
   EMAIL_VERIFICATION_CODES: "email_verification_codes",
   CATEGORIES: "categories",
-  BRANCHES: "branches",
-  WAITLIST: "waitlist",
   QUOTATIONS: "quotations",
   SUBSCRIPTIONS: "subscriptions",
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
   CONFIGURATIONS: "configurations",
+  ORDER_ITEMS: "order_items",
+  PAYMENT_METHOD: "payment_method",
+  WAITLIST: "waitlist",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string

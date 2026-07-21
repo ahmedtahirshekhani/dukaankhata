@@ -21,13 +21,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { useOfflineStaff, useOfflineRoles } from "@/lib/hooks/useOfflineData";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { db } from "@/lib/db/offline-db";
 
 export function StaffTab() {
   const t = useTranslations("staffManagement");
   const tCommon = useTranslations("common");
-  const [staff, setStaff] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  const staff = useOfflineStaff(searchTerm) || [];
+  const roles = useOfflineRoles() || [];
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,35 +51,15 @@ export function StaffTab() {
   // Delete State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Search & Filter State
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    // fetchData is no longer needed with offline hooks
   }, []);
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const [staffRes, rolesRes] = await Promise.all([
-        fetch("/api/staff"),
-        fetch("/api/roles")
-      ]);
-      
-      if (staffRes.ok) setStaff(await staffRes.json());
-      if (rolesRes.ok) setRoles(await rolesRes.json());
-    } catch (err) {
-      toast.error("Failed to load staff data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleOpenModal = (staffMember?: any) => {
     if (staffMember) {
@@ -100,23 +88,32 @@ export function StaffTab() {
       const payload: any = { name, email, role_id: selectedRole };
       if (password) payload.password = password;
 
-      const url = editingStaff ? `/api/staff/${editingStaff._id}` : "/api/staff";
-      const method = editingStaff ? "PUT" : "POST";
+      const staffId = editingStaff ? (editingStaff.id || editingStaff._id) : undefined;
+      const url = staffId ? `/api/staff/${staffId}` : "/api/staff";
+      const method = staffId ? "PUT" : "POST";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      const localData = {
+        ...payload,
+        id: staffId || "temp-" + Date.now().toString(),
+      };
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to save staff member");
+      await db.users.put(localData);
+      
+      // Also update role mappings in user_roles so it shows up immediately offline
+      const tempUserRole = { id: `temp-ur-${Date.now()}`, user_id: localData.id, role_id: selectedRole };
+      if (staffId) {
+        // Find existing to update if needed
+        const existing = await db.user_roles.where('user_id').equals(staffId).toArray();
+        if (existing.length) {
+          tempUserRole.id = existing[0].id;
+        }
       }
+      await db.user_roles.put(tempUserRole);
+
+      await SyncEngine.queueOperation("users", method, url, payload, localData.id);
       
       toast.success(`Staff member ${editingStaff ? "updated" : "created"} successfully`);
       setIsModalOpen(false);
-      fetchData();
     } catch (err: any) {
       toast.error(err.message || "An error occurred while saving");
     } finally {
@@ -127,11 +124,10 @@ export function StaffTab() {
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      const res = await fetch(`/api/staff/${deletingId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to remove staff");
+      await db.users.delete(deletingId);
+      await SyncEngine.queueOperation("users", "DELETE", `/api/staff/${deletingId}`, null, deletingId);
       toast.success("Staff member removed successfully");
       setDeletingId(null);
-      fetchData();
     } catch (err) {
       toast.error("Failed to remove staff member");
     }
@@ -139,15 +135,10 @@ export function StaffTab() {
 
   const filteredStaff = useMemo(() => {
     return staff.filter((member) => {
-      const matchesSearch =
-        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesRole = roleFilter === "all" || member.role_id === roleFilter;
-
-      return matchesSearch && matchesRole;
+      const matchesRole = roleFilter === "all" || member.role_id === roleFilter || (member.roleData && member.roleData.some((r: any) => (r.id || r._id) === roleFilter));
+      return matchesRole;
     });
-  }, [staff, searchTerm, roleFilter]);
+  }, [staff, roleFilter]);
 
   const totalCount = filteredStaff.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -213,15 +204,18 @@ export function StaffTab() {
                     >
                       {t("allRoles")}
                     </DropdownMenuCheckboxItem>
-                    {roles.map((r) => (
-                      <DropdownMenuCheckboxItem
-                        key={r._id}
-                        checked={roleFilter === r._id}
-                        onCheckedChange={(checked) => checked && setRoleFilter(r._id)}
-                      >
-                        {r.name}
-                      </DropdownMenuCheckboxItem>
-                    ))}
+                    {roles.map((r) => {
+                      const rId = r.id || r._id;
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={rId}
+                          checked={roleFilter === rId}
+                          onCheckedChange={(checked) => checked && setRoleFilter(rId)}
+                        >
+                          {r.name}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -249,7 +243,7 @@ export function StaffTab() {
                   </TableRow>
                 ) : (
                   paginatedStaff.map((member) => (
-                    <TableRow key={member._id}>
+                    <TableRow key={member.id || member._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
@@ -260,16 +254,24 @@ export function StaffTab() {
                       </TableCell>
                       <TableCell>{member.email}</TableCell>
                       <TableCell>
-                        <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-md text-xs font-medium border border-amber-500/20">
-                          {member.role_name || t("noRole")}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {member.roles && member.roles.length > 0 ? (
+                            member.roles.map((r: string, idx: number) => (
+                              <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                {r}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-xs italic">No roles assigned</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)}>
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-4 h-4 text-muted-foreground" />
                           </Button>
-                          <Button variant="danger" size="icon" onClick={() => setDeletingId(member._id)}>
+                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(member.id || member._id)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -367,7 +369,7 @@ export function StaffTab() {
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map(role => (
-                    <SelectItem key={role._id} value={role._id}>{role.name}</SelectItem>
+                    <SelectItem key={role.id || role._id} value={role.id || role._id}>{role.name}</SelectItem>
                   ))}
                   {roles.length === 0 && (
                     <SelectItem value="none" disabled>{t("noRolesAvailable")}</SelectItem>
