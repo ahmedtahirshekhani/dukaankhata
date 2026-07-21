@@ -693,6 +693,7 @@
     "sortBy": "ترتیب لحاظ",
     "default": "پہلے سے طے شدہ",
     "totalHighToLow": "کل (زیادہ سے کم)",
+    "totalLowToHigh": "کل (کم سے زیادہ)",
     "balanceHighToLow": "بیلنس (زیادہ سے کم)",
     "filterByStatus": "حالت کے لحاظ سے فلٹر کریں",
     "allStatuses": "تمام حالتیں",
@@ -1112,8 +1113,8 @@
     "filterByCategory": "زمرے سے فلٹر کریں"
   },
   "dashboard": {
-    "analyticalDashboard": "تجزیاتی ڈیش بورڈ",
-    "dashboardDescription": "اپنے کاروبار کی حقیقی وقت کی بصیرت اور تجزیات",
+    "analyticalDashboard": "ڈیش بورڈ",
+    "dashboardDescription": "اپنے کاروبار کا مختصر جائزہ",
     "totalBalanceYoullGet": "کل بیلنس (جو آپ کو ملے گا)",
     "totalPayable": "کل بیلنس (جو آپ کو دینا ہے)",
     "purchases": "خریداری",

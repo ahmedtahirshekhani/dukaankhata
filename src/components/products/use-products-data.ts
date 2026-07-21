@@ -83,9 +83,23 @@ export function useProductsData({
   };
 }
 
+const defaultCategories = [
+  "General",
+  "Electronics",
+  "Clothing",
+  "Books",
+  "Home",
+  "Consulting",
+  "Maintenance",
+  "Delivery",
+  "Installation",
+];
+
 export function useCategories() {
   const cats = useLiveQuery(() => db.categories.toArray());
-  const categories = cats ? ["General", ...cats.map(c => c.name).filter(n => n !== "General")] : ["General"];
+  const categories = cats 
+    ? Array.from(new Set([...defaultCategories, ...cats.map(c => c.name)]))
+    : defaultCategories;
   return { categories };
 }
 
