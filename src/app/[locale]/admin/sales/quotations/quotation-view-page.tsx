@@ -247,7 +247,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
         <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
 
             {/* ── Action Bar ──────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between gap-2 md:gap-4 bg-background p-2 md:p-4 rounded-xl border shadow-sm sticky top-0 z-30 print:hidden overflow-x-auto no-scrollbar">
+            <div className="flex items-center justify-between gap-2 md:gap-4 bg-background p-2 md:p-4 rounded-xl border shadow-sm sticky top-16 z-30 print:hidden overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-2 md:gap-3 shrink-0">
                     <Link href={`../`}>
                         <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 md:h-10 md:w-10">
@@ -357,7 +357,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                 <div style={{ minHeight: "250mm", display: "flex", flexDirection: "column" }}>
 
                     {/* ── HEADER ──────────────────────────────────────────────── */}
-                    <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
+                    <div className="quotation-header" style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
                         <table className="quotation-a4-header" style={{ width: "100%", borderCollapse: "collapse" }}>
                             <tbody>
                                 <tr>
@@ -455,7 +455,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     </div>
 
                     {/* ── CUSTOMER & META ──────────────────────────────────────── */}
-                    <div style={{ padding: "20px 24px" }}>
+                    <div className="quotation-meta-container" style={{ padding: "20px 24px" }}>
                         <table className="quotation-customer-meta" style={{ width: "100%", borderCollapse: "collapse" }}>
                             <tbody>
                                 <tr>
@@ -535,8 +535,8 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     </div>
 
                     {/* ── ITEMS TABLE ──────────────────────────────────────────── */}
-                    <div style={{ padding: "0 24px 24px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <div className="quotation-items-container" style={{ padding: "0 24px 24px" }}>
+                        <table className="quotation-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                             <thead>
                                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                                     <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
@@ -586,7 +586,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     </div>
 
                     {/* ── TOTALS ──────────────────────────────────────────────── */}
-                    <div style={{ padding: "0 24px 24px", display: "flex", justifyContent: "flex-end" }}>
+                    <div className="quotation-totals-container" style={{ padding: "0 24px 24px", display: "flex", justifyContent: "flex-end" }}>
                         <table className="quotation-totals" style={{ width: "280px", borderCollapse: "collapse", fontSize: "13px" }}>
                             <tbody>
                                 <tr>
@@ -640,7 +640,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
                     {/* ── NOTES ───────────────────────────────────────────────── */}
                     {quotation.notes && (
-                        <div style={{ padding: "0 24px 24px" }}>
+                        <div className="quotation-notes-container" style={{ padding: "0 24px 24px" }}>
                             <div style={{
                                 // borderLeft: "3px solid #e2e8f0",
                                 paddingLeft: "12px",
@@ -671,7 +671,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     <div style={{ flex: 1 }} />
 
                     {/* ── SIGNATURES ──────────────────────────────────────────── */}
-                    <div style={{ padding: "0 24px 28px" }}>
+                    <div className="quotation-sig-container" style={{ padding: "0 24px 28px" }}>
                         <table className="quotation-sig-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                             <tbody>
                                 <tr>
@@ -838,6 +838,34 @@ export default function QuotationViewClient({ id }: { id: string }) {
                     .quotation-paper {
                         width: 100% !important;
                         overflow-x: hidden !important;
+                    }
+                    .quotation-header {
+                        padding: 16px 12px 12px !important;
+                    }
+                    .quotation-meta-container {
+                        padding: 12px 12px !important;
+                    }
+                    .quotation-items-container {
+                        padding: 0 12px 12px !important;
+                        overflow-x: auto !important;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .quotation-items-table {
+                        font-size: 11px !important;
+                        min-width: 500px !important;
+                    }
+                    .quotation-items-table th, 
+                    .quotation-items-table td {
+                        padding: 8px 6px !important;
+                    }
+                    .quotation-totals-container {
+                        padding: 0 12px 12px !important;
+                    }
+                    .quotation-notes-container {
+                        padding: 0 12px 12px !important;
+                    }
+                    .quotation-sig-container {
+                        padding: 0 12px 16px !important;
                     }
                 }
                 @media print {

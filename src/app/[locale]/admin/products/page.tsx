@@ -404,18 +404,77 @@ export default function Products() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("pageDescription")}
-        </p>
+      {/* Header Section */}
+      <div className="flex flex-col gap-1 w-full">
+        {/* Row 1: Heading and Actions */}
+        <div className="flex flex-row items-center justify-between w-full gap-2">
+          <h1 className="text-2xl font-bold truncate">{t("title")}</h1>
+          
+          <div className="flex items-center gap-1.5 shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0 flex-shrink-0"
+                  disabled={isDownloading || isImporting}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleDownloadExcel}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleDownloadTemplate}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {t("downloadTemplate")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleImportClick}
+                  disabled={isDownloading || isImporting}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {isImporting ? t("importing") : t("import")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+
+            <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
+              <PlusCircle className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">{t("addProduct")}</span>
+              <span className="inline sm:hidden">Add</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Row 2: Description */}
+        <p className="text-sm text-muted-foreground break-words">{t("pageDescription")}</p>
       </div>
+
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-4">
             {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
+            <div className="flex flex-row items-center gap-2 w-full">
+              <div className="relative flex-1 sm:w-64 sm:flex-none">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
@@ -448,7 +507,7 @@ export default function Products() {
                   capitalizeFirstLetter={capitalizeFirstLetter}
                 />
               </div>
-              <div className="flex md:hidden items-center gap-2">
+              <div className="flex md:hidden items-center shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
@@ -457,7 +516,7 @@ export default function Products() {
                     setMobilePriceRanges(priceRanges);
                     setIsMobileFilterOpen(true);
                   }}
-                  className="h-9 text-xs"
+                  className="h-9 text-xs whitespace-nowrap"
                 >
                   <FilterIcon className="w-3 h-3 mr-1" />
                   {t("filters")}
@@ -496,71 +555,6 @@ export default function Products() {
                 )}
               </div>
             )}
-
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 w-9 p-0"
-                    disabled={isDownloading || isImporting}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDownloadExcel}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {isDownloading ? t("downloading") : t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDownloadTemplate}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  {/* <DropdownMenuItem
-                    onClick={handleDownloadSampleFile}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadSampleFile") || "Download Sample Data"}
-                  </DropdownMenuItem> */}
-                  <DropdownMenuItem
-                    onClick={handleImportClick}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {isImporting ? t("importing") : t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={handleFileSelect}
-                style={{ display: "none" }}
-              />
-              
-              <Button
-                size="sm"
-                onClick={() => setIsProductDialogOpen(true)}
-                className="h-9 text-xs px-3 flex-shrink-0"
-              >
-                <PlusCircle className="w-4 h-4 mr-1.5" />
-                {t("addProduct")}
-              </Button>
-            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">

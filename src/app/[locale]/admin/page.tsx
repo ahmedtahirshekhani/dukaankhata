@@ -385,9 +385,11 @@ export default function DashboardPage() {
         if (activeDashboardTab === "customers") {
             const allCustomers = await db.parties.toArray();
             
+            // Filter inactive and deleted customers
+            const list = allCustomers.filter(p => p.status !== "inactive" && p.is_delete !== 1);
+            
             // Sort by absolute balance in descending order, then take top 10
-            const sortedCustomers = allCustomers
-                .filter(p => p.status !== "inactive" && p.is_delete !== 1)
+            const sortedCustomers = list
                 .sort((a, b) => Math.abs(b.balance || 0) - Math.abs(a.balance || 0))
                 .slice(0, 10);
                 
@@ -659,49 +661,55 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-4 w-full">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">
-            {tDash("analyticalDashboard") || "Analytics Dashboard"}
+      <div className="flex flex-col gap-1 mb-2 w-full">
+        {/* Row 1: Heading and Actions */}
+        <div className="flex flex-row items-center justify-between w-full gap-2">
+          <h1 className="text-xl sm:text-3xl font-bold truncate">
+            {tDash("analyticalDashboard") || "Dashboard"}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {tDash("dashboardDescription") ||
-              "Real-time insights and analytics of your business"}
-          </p>
+          
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <label htmlFor="privacy-toggle" className="text-[10px] sm:text-sm font-medium whitespace-nowrap leading-none">
+              {isPrivacyMode ? tDash("privacyOn") : tDash("privacyOff")}
+            </label>
+
+            <div className="flex items-center scale-[0.8] sm:scale-100 origin-right h-7">
+              <Switch
+                id="privacy-toggle"
+                checked={isPrivacyMode}
+                onCheckedChange={() => {
+                  const newPrivacyMode = !isPrivacyMode;
+                  setIsPrivacyMode(newPrivacyMode);
+                  localStorage.setItem("dashboardPrivacyMode", JSON.stringify(newPrivacyMode));
+                }}
+                className="h-5 w-9 sm:h-6 sm:w-11"
+              />
+            </div>
+
+            <Dialog open={importOpen} onOpenChange={setImportOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-1 sm:gap-2 justify-center h-7 px-2 py-1 text-[10px] sm:h-8 sm:px-3 sm:text-xs" size="sm" variant="outline">
+                  <File className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Import Your Data</span>
+                  <span className="inline sm:hidden">Import</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Import Your Data</DialogTitle>
+                </DialogHeader>
+                <div className="mt-4">
+                  <VyaparImportButton />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        <div className="flex items-center justify-end gap-1.5 sm:gap-3 w-full sm:w-auto">
-          <label htmlFor="privacy-toggle" className="text-xs sm:text-sm font-medium whitespace-nowrap">
-            {isPrivacyMode ? tDash("privacyOn") : tDash("privacyOff")}
-          </label>
-
-          <Switch
-            id="privacy-toggle"
-            checked={isPrivacyMode}
-            onCheckedChange={() => {
-              const newPrivacyMode = !isPrivacyMode;
-              setIsPrivacyMode(newPrivacyMode);
-              localStorage.setItem("dashboardPrivacyMode", JSON.stringify(newPrivacyMode));
-            }}
-            className="h-5 w-9 sm:h-6 sm:w-11"
-          />
-
-          <Dialog open={importOpen} onOpenChange={setImportOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 justify-center" size="sm" variant="outline">
-                <File className="w-4 h-4 sm:w-5 sm:h-5" /> Import Your Data
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Import Your Data</DialogTitle>
-              </DialogHeader>
-              <div className="mt-4">
-                <VyaparImportButton />
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        {/* Row 2: Description */}
+        <p className="text-[11px] sm:text-sm text-muted-foreground break-words">
+          {tDash("dashboardDescription") || "Your business insights overview"}
+        </p>
       </div>
 
       {/* Summary Cards Carousel */}
@@ -724,7 +732,7 @@ export default function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-2 p-3 sm:p-4">
+        <CardHeader className="p-3 sm:p-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
@@ -752,31 +760,7 @@ export default function DashboardPage() {
             </Button>
           </div>
         </CardHeader>
-      </Card>
-
-      <Card>
-        <CardHeader className="p-3 pb-0">
-          {activeDashboardTab === "customers" && (
-            <div className="flex items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-fit">
-              <span className="font-semibold text-muted-foreground">
-                {tCust("legend")}:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
-                <span className="font-medium text-green-700 dark:text-green-400">
-                  {tCust("legendReceive")}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
-                <span className="font-medium text-red-700 dark:text-red-400">
-                  {tCust("legendPay")}
-                </span>
-              </div>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="p-2 sm:p-3 pt-3 relative">
+        <CardContent className="p-2 sm:p-3 pt-1 sm:pt-3 relative">
           {isDataLoading && (
             <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[2px]">
               <Loader2Icon className="h-10 w-10 animate-spin text-primary" />
@@ -931,7 +915,7 @@ export default function DashboardPage() {
                 )}
               >
                 <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-base mb-2">{row.name}</h3>
+                  <h3 className="font-semibold text-base mb-1">{row.name}</h3>
                   {row.balance > 0 && (
                     <Button
                       size="icon"
@@ -947,9 +931,7 @@ export default function DashboardPage() {
                     </Button>
                   )}
                 </div>
-                <div className="space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Email:</span> {row.email}</p>
-                  <p><span className="text-muted-foreground">Phone:</span> {row.phone}</p>
+                <div className="text-sm">
                   <p><span className="text-muted-foreground">Balance:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}</p>
                 </div>
               </div>
@@ -972,8 +954,10 @@ export default function DashboardPage() {
                 <div className="space-y-1 text-sm">
                   <p><span className="text-muted-foreground">Customer:</span> {row.customerName}</p>
                   <p><span className="text-muted-foreground">Total:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.total).toLocaleString()}`}</p>
-                  <p><span className="text-muted-foreground">Paid:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.paid).toLocaleString()}`}</p>
-                  <p><span className="text-muted-foreground">Balance:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}</p>
+                  <div className="flex justify-between items-center gap-2">
+                    <p><span className="text-muted-foreground">Paid:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.paid).toLocaleString()}`}</p>
+                    <p><span className="text-muted-foreground">Balance:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -983,9 +967,11 @@ export default function DashboardPage() {
 
             {activeDashboardTab === "items" && itemRows.map((row) => (
               <div key={row.id} className="border rounded-lg p-4 shadow-sm">
-                <h3 className="font-semibold mb-2">{row.name}</h3>
-                <div className="space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Category:</span> {row.category}</p>
+                <div className="flex justify-between items-center mb-2 gap-2">
+                  <h3 className="font-semibold truncate">{row.name}</h3>
+                  <span className="text-xs text-muted-foreground shrink-0">{row.category}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
                   <p><span className="text-muted-foreground">Stock:</span> {row.stock}</p>
                   <p><span className="text-muted-foreground">Price:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.price).toLocaleString()}`}</p>
                 </div>
