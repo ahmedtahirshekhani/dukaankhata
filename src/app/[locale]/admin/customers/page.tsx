@@ -107,6 +107,7 @@ export default function PartiesPage() {
   const tInvoice = useTranslations("invoice");
   const locale = useLocale();
   const { can } = usePermissions();
+  const canView = can("customers", "view");
   const canCreate = can("customers", "create");
   const canEdit = can("customers", "edit");
   const canDelete = can("customers", "delete");
@@ -860,22 +861,26 @@ export default function PartiesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button asChild size="sm" variant="outline">
-                              <Link href={`/${locale}/admin/customer-transactions/${customer.id}`}>
-                                {tDash("viewTransactions") || "View Transactions"}
-                              </Link>
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => {
-                                setViewCustomer(customer);
-                                setIsViewCustomerDialogOpen(true);
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                              <span className="sr-only">{t("view")}</span>
-                            </Button>
+                            {canView && (
+                              <Button asChild size="sm" variant="outline">
+                                <Link href={`/${locale}/admin/customer-transactions/${customer.id}`}>
+                                  {tDash("viewTransactions") || "View Transactions"}
+                                </Link>
+                              </Button>
+                            )}
+                            {canView && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setViewCustomer(customer);
+                                  setIsViewCustomerDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span className="sr-only">{t("view")}</span>
+                              </Button>
+                            )}
                             {customer.balance !== undefined && customer.balance > 0 && (
                               <Button
                                 size="icon"
@@ -973,26 +978,30 @@ export default function PartiesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56 p-1.5 space-y-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg">
-                          <DropdownMenuItem asChild>
-                            <Link
-                              href={`/${locale}/admin/customer-transactions/${customer.id}`}
+                          {canView && (
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/${locale}/admin/customer-transactions/${customer.id}`}
+                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
+                              >
+                                <Receipt className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                <span>{tDash("viewTransactions") || "View Transaction"}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          )}
+
+                          {canView && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setViewCustomer(customer);
+                                setIsViewCustomerDialogOpen(true);
+                              }}
                               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
                             >
-                              <Receipt className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                              <span>{tDash("viewTransactions") || "View Transaction"}</span>
-                            </Link>
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setViewCustomer(customer);
-                              setIsViewCustomerDialogOpen(true);
-                            }}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
-                          >
-                            <Eye className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span>{t("view") || "View Details"}</span>
-                          </DropdownMenuItem>
+                              <Eye className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span>{t("view") || "View Details"}</span>
+                            </DropdownMenuItem>
+                          )}
 
                           {customer.balance !== undefined && customer.balance > 0 && (
                             <DropdownMenuItem
