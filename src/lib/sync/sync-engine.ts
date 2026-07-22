@@ -105,7 +105,7 @@ export class SyncEngine {
     
     this.isSyncing = true;
     try {
-      const pendingOps = await db.syncQueue.where('status').equals('pending').toArray();
+      const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
       if (pendingOps.length === 0) return true;
 
     let successCount = 0;
