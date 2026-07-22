@@ -47,6 +47,7 @@ export default function QuotationListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("default");
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const debouncedSearch = useDebounce(searchTerm, 500);
 
   const rawQuotations = useOfflineQuotations(debouncedSearch);
@@ -61,6 +62,8 @@ export default function QuotationListPage() {
     
     if (sortBy === "totalHighToLow") {
       filtered.sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
+    } else if (sortBy === "totalLowToHigh") {
+      filtered.sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0));
     }
     
     return filtered;
@@ -199,78 +202,151 @@ export default function QuotationListPage() {
 
   return (
     <>
-      <div className="hidden sm:flex flex-col gap-4 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">{tNav("quotations")}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">{tNav("quotationsDescription")}</p>
+      {/* Header Section */}
+      <div className="flex flex-col gap-1 w-full mb-4 sm:mb-6">
+        {/* Row 1: Heading and Add Button */}
+        <div className="flex flex-row items-center justify-between w-full gap-2">
+          <h1 className="text-2xl font-bold truncate">{tNav("quotations")}</h1>
+          <Button asChild size="sm" className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
+            <Link href={`/${locale}/admin/sales/quotations/new`}>
+              <PlusCircle className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">{t("common.add")}</span>
+              <span className="inline sm:hidden">Add</span>
+            </Link>
+          </Button>
         </div>
+        {/* Row 2: Description */}
+        <p className="text-sm text-muted-foreground break-words">{tNav("quotationsDescription")}</p>
       </div>
 
       <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("common.search") || "Search quotations..."}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-9 h-9 text-sm w-full"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => {
-                    setStatusFilter(value);
-                    setCurrentPage(1);
-                  }}
+          <div className="flex flex-row items-center gap-2 w-full">
+            <div className="hidden sm:block relative sm:w-64 sm:flex-none">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("common.search") || "Search quotations..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-9 h-9 text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  <SelectTrigger className="w-[140px] h-9">
-                    <SelectValue placeholder={tOrders("filterByStatus")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{tOrders("allStatuses")}</SelectItem>
-                    <SelectItem value="open">{tInv("statusOpen")}</SelectItem>
-                    <SelectItem value="converted">{tInv("statusConverted")}</SelectItem>
-                    <SelectItem value="expired">{tInv("statusExpired")}</SelectItem>
-                    <SelectItem value="cancelled">{tInv("statusCancelled")}</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => {
-                    setSortBy(value);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-[160px] h-9">
-                    <SelectValue placeholder={tOrders("sortBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">{tOrders("default")}</SelectItem>
-                    <SelectItem value="totalHighToLow">{tOrders("totalHighToLow")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <Button asChild size="sm" className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
-              <Link href={`/${locale}/admin/sales/quotations/new`}>
-                <PlusCircle className="w-3 h-3 mr-1" />
-                {t("common.add")}
-              </Link>
+            <div className="hidden sm:flex flex-wrap items-center gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => {
+                  setStatusFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue placeholder={tOrders("filterByStatus")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{tOrders("allStatuses")}</SelectItem>
+                  <SelectItem value="open">{tInv("statusOpen")}</SelectItem>
+                  <SelectItem value="converted">{tInv("statusConverted")}</SelectItem>
+                  <SelectItem value="expired">{tInv("statusExpired")}</SelectItem>
+                  <SelectItem value="cancelled">{tInv("statusCancelled")}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={sortBy}
+                onValueChange={(value) => {
+                  setSortBy(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[160px] h-9">
+                  <SelectValue placeholder={tOrders("sortBy")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">{tOrders("default")}</SelectItem>
+                  <SelectItem value="totalHighToLow">{tOrders("totalHighToLow")}</SelectItem>
+                  <SelectItem value="totalLowToHigh">{tOrders("totalLowToHigh") === "totalLowToHigh" ? "Total (Low to High)" : tOrders("totalLowToHigh")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Mobile filter row */}
+          <div className="flex sm:hidden items-center gap-2 mt-2">
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectValue placeholder={tOrders("filterByStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tOrders("allStatuses")}</SelectItem>
+                <SelectItem value="open">{tInv("statusOpen")}</SelectItem>
+                <SelectItem value="converted">{tInv("statusConverted")}</SelectItem>
+                <SelectItem value="expired">{tInv("statusExpired")}</SelectItem>
+                <SelectItem value="cancelled">{tInv("statusCancelled")}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={sortBy}
+              onValueChange={(value) => {
+                setSortBy(value);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectValue placeholder={tOrders("sortBy")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">{tOrders("default")}</SelectItem>
+                <SelectItem value="totalHighToLow">{tOrders("totalHighToLow")}</SelectItem>
+                <SelectItem value="totalLowToHigh">{tOrders("totalLowToHigh") === "totalLowToHigh" ? "Total (Low to High)" : tOrders("totalLowToHigh")}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              size="icon"
+              variant="default"
+              className="h-9 w-9 bg-primary hover:bg-primary/90 text-primary-foreground flex-shrink-0"
+              onClick={() => setShowMobileSearch(!showMobileSearch)}
+            >
+              <SearchIcon className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Mobile Search Box */}
+          {showMobileSearch && (
+            <div className="relative w-full mt-2 block sm:hidden">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("common.search") || "Search quotations..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-9 h-9 text-xs w-full"
+                autoFocus
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </CardHeader>
         
         <CardContent className="p-0 relative">
@@ -377,7 +453,7 @@ export default function QuotationListPage() {
               </div>
 
               {/* Mobile Cards View */}
-              <div className="block md:hidden p-4 space-y-4">
+              <div className="block md:hidden space-y-4">
                 {quotations.map((q, i) => {
                   const quotId = q._id || q.id;
                   return (
@@ -498,7 +574,7 @@ function QuotationCard({
   const quotId = quotation._id || quotation.id;
   
   return (
-    <div className="bg-card border rounded-lg p-4 shadow-sm">
+    <div className="bg-card border rounded-lg p-4 shadow-sm w-full">
       <div className="flex justify-between items-start mb-2">
         <div>
           <h3 className="font-semibold text-base">
@@ -518,19 +594,34 @@ function QuotationCard({
         </span>
       </div>
 
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("common.total") || "Total"}:</span>
-          <span className="font-medium">{formatCurrencyString(quotation.total_amount || 0)}</span>
+      <div className="flex justify-between items-center text-sm">
+        <div>
+          <span className="text-muted-foreground mr-1.5">{t("common.total") || "Total"}:</span>
+          <span className="font-semibold text-foreground">{formatCurrencyString(quotation.total_amount || 0)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{tInv("validity")}:</span>
-          <span>{quotation.validity_date ? new Date(quotation.validity_date).toLocaleDateString() : "-"}</span>
+        <div className="text-xs">
+          <span className="text-muted-foreground mr-1.5">{tInv("validity")}:</span>
+          <span className="font-medium text-foreground">{quotation.validity_date ? new Date(quotation.validity_date).toLocaleDateString() : "-"}</span>
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2 mt-4 pt-3 border-t">
-        <div className="flex gap-1">
+      <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t">
+        {/* Left: Convert to Sale */}
+        <Button 
+          size="sm" 
+          variant="default" 
+          className="h-8 px-2.5 text-white shadow-sm text-[11px]"
+          onClick={onConvert}
+          disabled={isConverting || quotation.status === "converted"}
+        >
+          {isConverting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+          ) : null}
+          {tNav("convertToSale")}
+        </Button>
+
+        {/* Right: Icon actions */}
+        <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" asChild title="View" className="h-8 w-8">
             <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
               <EyeIcon className="h-4 w-4" />
@@ -543,22 +634,7 @@ function QuotationCard({
               <span className="sr-only">{t("common.edit") || "Edit"}</span>
             </Link>
           </Button>
-        </div>
-        
-        <div className="flex gap-1">
-          <Button 
-            size="sm" 
-            variant="default" 
-            className="h-9 px-4 text-white shadow-sm"
-            onClick={onConvert}
-            disabled={isConverting || quotation.status === "converted"}
-          >
-             {isConverting ? (
-               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-             ) : null}
-             {tNav("convertToSale")}
-           </Button>
-           <Button
+          <Button
             size="icon"
             variant="danger"
             onClick={onDelete}

@@ -693,6 +693,7 @@
     "sortBy": "Sort By",
     "default": "Default",
     "totalHighToLow": "Total (High to Low)",
+    "totalLowToHigh": "Total (Low to High)",
     "balanceHighToLow": "Balance (High to Low)",
     "filterByStatus": "Halat ke lihaaz se filter karain",
     "allStatuses": "Tamam Halatein",
@@ -1112,8 +1113,8 @@
     "filterByCategory": "Category se Filter Karein"
   },
   "dashboard": {
-    "analyticalDashboard": "Analytics Dashboard",
-    "dashboardDescription": "Apne Karobar ki Real-time Insights aur Analytics",
+    "analyticalDashboard": "Dashboard",
+    "dashboardDescription": "Apne karobar ka mukhtasar jayza",
     "totalBalanceYoullGet": "Total Balance (Aap ko milay ga)",
     "totalPayable": "Total Balance (Aap ko dena ho ga)",
     "purchases": "Kharidariyaan",
