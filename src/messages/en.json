@@ -1629,6 +1629,13 @@
     "allRoles": "All Roles",
     "noRecords": "No records found.",
     "totalCountLabel": "Total: {count}",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "roleNameRequired": "Role name is required",
+    "roleUpdatedSuccess": "Role updated successfully",
+    "roleCreatedSuccess": "Role created successfully",
+    "roleSaveError": "An error occurred while saving",
+    "roleDeletedSuccess": "Role deleted successfully",
+    "roleDeleteError": "Failed to delete role",
+    "roleInUseError": "This role is currently assigned to one or more staff members. You must unassign it from them before you can delete it."
   }
 }

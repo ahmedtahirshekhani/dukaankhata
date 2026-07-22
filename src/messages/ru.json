@@ -1628,6 +1628,13 @@
     "allRoles": "Tamam Roles",
     "noRecords": "Koi record nahi mila.",
     "totalCountLabel": "Total: {count}",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "roleNameRequired": "Role ka naam zaruri hai",
+    "roleUpdatedSuccess": "Role successfully update ho gaya",
+    "roleCreatedSuccess": "Role successfully ban gaya",
+    "roleSaveError": "Save karte waqt masla pesh aya",
+    "roleDeletedSuccess": "Role successfully delete ho gaya",
+    "roleDeleteError": "Role delete karne mein nakami",
+    "roleInUseError": "Yeh role is waqt aik ya zyada staff members ko assign kiya gaya hai. Delete karne se pehle unse hatana zaroori hai."
   }
 }

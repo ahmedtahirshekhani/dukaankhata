@@ -1628,6 +1628,13 @@
     "allRoles": "تمام رولز",
     "noRecords": "کوئی ریکارڈ نہیں ملا۔",
     "totalCountLabel": "کل: {count}",
-    "rowsPerPage": "فی صفحہ قطاریں"
+    "rowsPerPage": "فی صفحہ قطاریں",
+    "roleNameRequired": "رول کا نام ضروری ہے",
+    "roleUpdatedSuccess": "رول کامیابی سے اپ ڈیٹ ہو گیا",
+    "roleCreatedSuccess": "رول کامیابی سے بن گیا",
+    "roleSaveError": "محفوظ کرتے وقت خرابی پیش آگئی",
+    "roleDeletedSuccess": "رول کامیابی سے حذف ہو گیا",
+    "roleDeleteError": "رول حذف کرنے میں ناکامی",
+    "roleInUseError": "یہ رول اس وقت ایک یا زیادہ اسٹاف ممبرز کو تفویض کیا گیا ہے۔ اسے حذف کرنے سے پہلے آپ کو ان سے ہٹانا ہوگا۔"
   }
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus,  Trash2, Lock, Loader2, SearchIcon, XIcon, PlusCircle, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +45,8 @@ export function RolesTab() {
 
   // Delete State
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     // fetchData is no longer needed since we're using offline hooks
@@ -91,7 +94,7 @@ export function RolesTab() {
   };
 
   const handleSave = async () => {
-    if (!roleName.trim()) return toast.error(t("roleNamePlaceholder"));
+    if (!roleName.trim()) return toast.error(t("roleNameRequired"));
     
     try {
       setIsSaving(true);
@@ -108,12 +111,27 @@ export function RolesTab() {
       await db.roles.put(localData);
       await SyncEngine.queueOperation("roles", method, url, payload, localData.id);
       
-      toast.success(editingRole ? "Role updated successfully" : "Role created successfully");
+      toast.success(editingRole ? t("roleUpdatedSuccess") : t("roleCreatedSuccess"));
       setIsModalOpen(false);
     } catch (err) {
-      toast.error("An error occurred while saving");
+      toast.error(t("roleSaveError"));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteClick = async (roleId: string) => {
+    try {
+      const assignedUsers = await db.user_roles.filter(ur => ur.role_id === roleId).toArray();
+      if (assignedUsers.length > 0) {
+        setErrorMessage(t("roleInUseError") || "This role is currently assigned to one or more staff members. You must unassign it from them before you can delete it.");
+        setErrorDialogOpen(true);
+        return;
+      }
+      setDeletingId(roleId);
+    } catch (err) {
+      console.error(err);
+      setDeletingId(roleId); // Fallback
     }
   };
 
@@ -122,10 +140,10 @@ export function RolesTab() {
     try {
       await db.roles.delete(deletingId);
       await SyncEngine.queueOperation("roles", "DELETE", `/api/roles/${deletingId}`, null, deletingId);
-      toast.success("Role deleted successfully");
+      toast.success(t("roleDeletedSuccess"));
       setDeletingId(null);
     } catch (err) {
-      toast.error("Failed to delete role");
+      toast.error(t("roleDeleteError"));
     }
   };
 
@@ -222,7 +240,7 @@ export function RolesTab() {
                           <Button variant="ghost" size="icon" onClick={() => handleOpenModal(role)}>
                             <Edit className="w-4 h-4 text-muted-foreground" />
                           </Button>
-                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(role.id || role._id)}>
+                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(role.id || role._id)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -364,6 +382,13 @@ export function RolesTab() {
         confirmLabel={t("delete")}
         onConfirm={handleDelete}
         variant="destructive"
+      />
+
+      <ErrorDialog
+        open={errorDialogOpen}
+        onOpenChange={setErrorDialogOpen}
+        title={tCommon("error")}
+        message={errorMessage}
       />
     </div>
   );
