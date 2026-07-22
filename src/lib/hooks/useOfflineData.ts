@@ -638,9 +638,9 @@ export function useOfflineModules() {
     const modules = await db.modules.toArray();
     const permissions = await db.permissions.toArray();
 
-    return modules.map(mod => {
+    return modules.filter(mod => mod.isActive !== false).map(mod => {
       const actions = permissions
-        .filter(p => p.module_code === mod.code)
+        .filter(p => p.module_code === mod.code && p.isActive !== false)
         .map(p => p.action);
         
       return {

@@ -13,8 +13,8 @@ export async function GET(req: Request) {
     const modulesCollection = await getCollection(COLLECTIONS.MODULES);
     const permsColl = await getCollection(COLLECTIONS.PERMISSIONS);
 
-    const modules = await modulesCollection.find({}).toArray();
-    const allPerms = await permsColl.find({}).toArray();
+    const modules = await modulesCollection.find({ isActive: true }).toArray();
+    const allPerms = await permsColl.find({ isActive: true }).toArray();
 
     const modulesWithActions = modules.map(mod => {
       const actions = allPerms

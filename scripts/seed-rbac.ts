@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getCollection, COLLECTIONS } from '../src/lib/db/mongodb';
 
 const BASE_MODULES = [
@@ -51,9 +53,10 @@ async function seedRBAC() {
     // 1. Seed Modules
     console.log('Seeding Modules...');
     for (const mod of BASE_MODULES) {
+      const isActive = mod.code !== 'ai_chat';
       await modulesCollection.updateOne(
         { code: mod.code },
-        { $set: mod },
+        { $set: { ...mod, isActive } },
         { upsert: true }
       );
     }
@@ -62,11 +65,12 @@ async function seedRBAC() {
     console.log('Seeding Permissions...');
     for (const mod of BASE_MODULES) {
       const actions = MODULE_SPECIFIC_ACTIONS[mod.code] || ['view'];
+      const isActive = mod.code !== 'ai_chat';
       
       for (const action of actions) {
         await permissionsCollection.updateOne(
           { module_code: mod.code, action: action },
-          { $set: { module_code: mod.code, action: action } },
+          { $set: { module_code: mod.code, action: action, isActive } },
           { upsert: true }
         );
       }

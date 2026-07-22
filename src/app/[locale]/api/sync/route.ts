@@ -46,8 +46,8 @@ export async function GET(request: Request) {
       { name: 'subscriptions', key: COLLECTIONS.SUBSCRIPTIONS },
       { name: 'configurations', key: COLLECTIONS.CONFIGURATIONS },
       { name: 'users', key: COLLECTIONS.USERS, scope: 'users_and_staff' },
-      { name: 'modules', key: COLLECTIONS.MODULES, scope: 'global' },
-      { name: 'permissions', key: COLLECTIONS.PERMISSIONS, scope: 'global' },
+      { name: 'modules', key: COLLECTIONS.MODULES, scope: 'global_active' },
+      { name: 'permissions', key: COLLECTIONS.PERMISSIONS, scope: 'global_active' },
       { name: 'roles', key: COLLECTIONS.ROLES, scope: 'owner_id' },
       { name: 'role_permissions', key: COLLECTIONS.ROLE_PERMISSIONS, scope: 'global' },
       { name: 'user_roles', key: COLLECTIONS.USER_ROLES, scope: 'shop_roles' },
@@ -64,6 +64,8 @@ export async function GET(request: Request) {
         let currentQuery: any = { ...query };
         if (col.scope === 'global') {
           currentQuery = {};
+        } else if (col.scope === 'global_active') {
+          currentQuery = { isActive: true };
         } else if (col.scope === 'owner_id') {
           currentQuery = { owner_id: toObjectId(user.id) };
         } else if (col.scope === 'none') {

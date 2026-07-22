@@ -97,3 +97,16 @@ export async function POST(req: Request) {
 - Removed generic CRUD actions (`view, edit, create, delete`) from `Sales` and `Purchase` modules in `seed-rbac.ts` as they are just folders/groupings.
 - Applied multi-lingual (i18n) translation support using `next-intl` to the staff and role tables.
 - Ensured UI elements gracefully fallback or disappear if RBAC prevents action, ensuring a smooth User Experience.
+- Added `isActive` flag to modules and permissions during seeding. Any module or permission with `isActive: false` (like AI Chat) is automatically filtered out from APIs and Offline Sync, hiding it from the Roles assignment UI.
+
+## 5. Professional Staff Invitation Workflow (Upcoming)
+Instead of Admins creating passwords manually, Staff are added via an Email Invite system:
+1. Admin enters an Email and Role.
+2. System emails a secure token link via Nodemailer.
+3. User clicks the link. If they already have an account, the shop is instantly linked. If they are new, they just provide their Name and set a new Password to register and join the shop simultaneously.
+
+---
+**Run the Seeding Script with Environment Variables (Crucial for DB Connection):**
+```bash
+npx tsx --env-file=.env.local scripts/seed-rbac.ts
+```
