@@ -2,6 +2,7 @@
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET(
   request: Request,
@@ -9,6 +10,7 @@ export async function GET(
 ) {
   const user = await getCurrentUser() as { id: string } | null
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  await requirePermission("products.view");
 
   const productId = params.productId
   if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
@@ -41,6 +43,7 @@ export async function PUT(
     console.warn('[PUT /api/products/:productId] Unauthorized', { requestId, params })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  await requirePermission("products.edit");
 
   let updatedProduct: Record<string, unknown> = {}
   try {
@@ -121,6 +124,7 @@ export async function DELETE(
 ) {
   const user = await getCurrentUser() as { id: string } | null
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  await requirePermission("products.delete");
 
   const productId = params.productId
   if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
