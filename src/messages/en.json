@@ -261,7 +261,16 @@
     "welcomeProTip": "💡 Pro Tip: The best time to organize your accounts was yesterday. The second best time is right now!",
     "welcomeButtonText": "Login Again",
     "welcomeFooter": "Your business is now in safe hands. Let's make your accounting amazing! 🚀",
-    "accountDeleted": "This account is inactive. Contact an admin at {phone} to restore your account."
+    "accountDeleted": "This account is inactive. Contact an admin at {phone} to restore your account.",
+    "acceptInvitation": "Accept Invitation",
+    "joinWorkspace": "Join the workspace on Dukan Khata",
+    "noTokenProvided": "No token provided",
+    "acceptInvitationFailed": "Failed to accept invitation",
+    "loginRequiredToAccept": "You must be logged in as {email} to accept this invite. Please go to Login.",
+    "invitationAccepted": "Invitation Accepted!",
+    "accountExistsConfirmLink": "You already have an account with this email. Please confirm to link this shop to your existing account.",
+    "createAccountAndAccept": "Create Account & Accept",
+    "loginToDifferentAccount": "Login to a different account?"
   },
   "products": {
     "title": "Items",

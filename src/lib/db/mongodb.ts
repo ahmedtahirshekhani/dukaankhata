@@ -50,6 +50,7 @@ export async function getCollection<T extends Document = Document>(
 
 // Collection names constants
 export const COLLECTIONS = {
+  INVITATIONS: "invitations",
   USERS: "users",
   PRODUCTS: "products",
   PARTIES: "parties",

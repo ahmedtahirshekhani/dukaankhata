@@ -110,12 +110,14 @@ export const authOptions = {
             // 1. Discover all workspaces
             const workspaces = [];
             
-            // Add their own shop (if they are not a legacy pure-staff without their own shop access, but we'll just add it anyway)
-            workspaces.push({
-              id: dbUser._id.toString(),
-              type: "owner",
-              name: dbUser.company_name || `${dbUser.name}'s Shop`
-            });
+            // Add their own shop (if they are not a legacy pure-staff without their own shop access)
+            if (dbUser.role !== "staff" || dbUser.company_name) {
+              workspaces.push({
+                id: dbUser._id.toString(),
+                type: "owner",
+                name: dbUser.company_name || `${dbUser.name}'s Shop`
+              });
+            }
 
             // Find all shops where they are staff
             const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);

@@ -261,7 +261,16 @@
     "welcomeProTip": "💡 Tip: Apne hisaabat ko munazzam karne ka behtar waqt kal tha. Doosra behtar waqt abhi hai!",
     "welcomeButtonText": "Dobara Login Karain",
     "welcomeFooter": "Aapka karobar ab mehfooz hatho mein hai. Aayiye aapki bookkeeping ko shandar banain! 🚀",
-    "accountDeleted": "Yeh account inactive hai. Account restore karne ke liye {phone} par admin se rabta karain"
+    "accountDeleted": "Yeh account inactive hai. Account restore karne ke liye {phone} par admin se rabta karain",
+    "acceptInvitation": "Invitation Qabool Karein",
+    "joinWorkspace": "Dukaan Khata par workspace mein shamil hon",
+    "noTokenProvided": "Token faraham nahi kiya gaya",
+    "acceptInvitationFailed": "Invitation qabool karne mein nakam",
+    "loginRequiredToAccept": "Yeh invitation qabool karne ke liye aap ko {email} ke zariye login hona zaroori hai.",
+    "invitationAccepted": "Invitation qabool kar liya gaya!",
+    "accountExistsConfirmLink": "Is email address ke sath aap ka account pehle se mojood hai. Is dukan ko apne account se munsalik karne ke liye confirm karein.",
+    "createAccountAndAccept": "Account banayein aur qabool karein",
+    "loginToDifferentAccount": "Kisi aur account mein login karein?"
   },
   "products": {
     "title": "Mausoolaat",

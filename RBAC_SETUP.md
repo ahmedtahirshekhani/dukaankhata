@@ -1,112 +1,72 @@
-# Role-Based Access Control (RBAC) Implementation Guide
+# Dukaan Khata: Staff & Role Management Guide
 
-This document summarizes the complete RBAC implementation, how permissions work, and the required steps to deploy this feature to Staging and Production environments.
+Welcome to the **Role-Based Access Control (RBAC)** guide for Dukaan Khata. This document explains how you can control what your staff members can see and do within your shop in simple terms, followed by technical details for developers.
 
-## 1. Overview
-The RBAC system introduces granular control over what a Staff member can view, edit, create, or delete across the application. 
-- **Owner Role**: Full access automatically.
-- **Staff Role**: Permissions are explicitly granted via the `Roles` management section.
-- **Modules & Actions**: Instead of generic permissions for grouping pages (like Sales or Purchase), actions are bound directly to sub-modules (e.g., `view_invoice`, `create_quotations`).
+## 1. What is Role-Based Access Control (RBAC)?
+RBAC is a simple way to manage your employees' permissions. Instead of giving everyone full access to your business data, you can create specific "Roles" (e.g., Cashier, Manager) and assign limited permissions to them.
 
-### Database Schema & Collections
-We use separate collections to provide maximum flexibility, scalability, and data normalization. Here is how they work together:
+- **Owner**: You (the shop creator). You automatically have full access to everything.
+- **Staff**: Your employees. They can only see and do what you explicitly allow them to do.
 
-1. **`modules` Collection**: 
-   - Acts as the source of truth for the primary navigation and feature areas (e.g., `sales`, `purchase`, `reports`).
-   - By keeping this dynamic, we can introduce new features without hardcoding them in the UI.
+## 2. How Permissions Work
+Instead of giving access to broad areas like "Sales" or "Purchases", permissions are very specific. For example, under "Sales", you can allow a staff member to **View Invoices** but restrict them from **Deleting Invoices**.
 
-2. **`permissions` Collection**: 
-   - Stores every specific granular action tied to a module (e.g., `module_code: 'sales', action: 'view_invoice'`).
-   - This allows the `Roles` UI to automatically render checkboxes for new permissions whenever they are seeded into the database, making the UI fully dynamic.
+When you create a role, you will see a list of features (Modules) and specific actions (Permissions) you can check or uncheck.
 
-3. **`roles` Collection**: 
-   - Stores custom user-defined roles (e.g., "Cashier", "Manager", "Admin").
+## 3. The Full Flow: How to Add Staff
 
-4. **`role_permissions` Collection (Pivot/Mapping Table)**:
-   - Maps a `role_id` to multiple `permission_id`s. 
-   - Instead of storing long arrays in a single document, this relational mapping allows fast querying and avoids document size limits if permissions grow.
+Here is the step-by-step flow of how to invite a staff member to your shop:
 
-5. **`user_roles` Collection (Pivot/Mapping Table)**:
-   - Maps a staff user's `user_id` to a `role_id`.
-   - A user can theoretically have multiple roles, and this pivot collection keeps that architecture clean.
+### Step 1: Create a Role
+1. Go to **Settings > Staff Management** and open the **Roles** tab.
+2. Click **Add Role**.
+3. Name the role (e.g., "Junior Cashier").
+4. Check the boxes for the exact permissions you want this role to have (e.g., Create Invoice, View Customers).
+5. Save the role.
 
-6. **`users` Collection**: 
-   - When a staff member logs in, the backend quickly resolves their `user_roles` -> `roles` -> `role_permissions` -> `permissions` to build a flat list of strings (`['sales.view_invoice']`).
-   - This flattened list is injected into their session/JWT token. This ensures that frontend checks and subsequent API calls are blazing fast (`user.permissions.includes('x')`) without running complex DB joins every time.
+### Step 2: Invite Your Staff
+1. Switch to the **Staff** tab in Staff Management.
+2. Click **Invite Staff**.
+3. Enter your staff member's Email address and select the Role you just created for them.
+4. An invitation email will be sent securely to their inbox.
 
-## 2. Deployment Steps (Staging / Production)
+### Step 3: Staff Accepts the Invite
+1. Your staff member opens their email and clicks the **Accept Invitation** link.
+2. They will be taken to Dukaan Khata.
+3. **If they are new:** They just need to enter their Name and choose a Password to create their account.
+4. **If they already have an account:** They just log in, and your shop will automatically be linked to their account.
+5. Once logged in, they will *only* see the sections of the app that you allowed in their Role. (They will not get a separate empty shop of their own, they will only have access to your shop).
 
-When deploying to a new environment, the modules and permissions must be seeded into the database before users can be assigned roles.
+---
 
-**Step 1: Set Environment Variables**
-Ensure `.env.local` (or your production environment variables) contains the valid database connection string:
+## For Developers & IT Administrators (Technical Details)
+
+If you are a developer deploying this system, here is how the backend operates.
+
+### Database Architecture
+We use specialized collections to maintain a flexible and scalable permission system:
+- **`modules`**: The main navigation categories (e.g., `sales`, `reports`).
+- **`permissions`**: Granular actions tied to modules (e.g., `sales.view_invoice`).
+- **`roles`**: Custom user-created roles (e.g., "Cashier").
+- **`role_permissions`**: Maps roles to permissions.
+- **`user_roles`**: Maps a user to a role.
+
+### Deployment & Setup
+To deploy RBAC to a new environment (Staging/Production), the database must be seeded first.
+
+**1. Set Environment Variables**
+Ensure `.env.local` contains your DB string:
 ```env
 MONGODB_URL="mongodb+srv://<user>:<password>@cluster.mongodb.net/dukaankhata"
 ```
 
-**Step 2: Run the Seeding Script**
-Run the `seed-rbac.ts` script to populate the `modules` and `permissions` collections in MongoDB. 
-*Note: We have updated this script to ensure generic 'view/edit/delete/create' are NOT generated for grouping modules like Sales and Purchase.*
-
-```bash
-# Using tsx to run the TypeScript file
-npx tsx scripts/seed-rbac.ts
-```
-
-*Expected Output:*
-```
-Starting RBAC seeding...
-Seeding Modules...
-Seeding Permissions...
-RBAC seeding completed successfully.
-```
-
-**Step 3: Database Cleanup (If Upgrading Existing DB)**
-If you are deploying this to a database that had an older version of RBAC, you must remove the obsolete generic permissions from `sales` and `purchase` directly from the `permissions` collection. You can do this by running a quick Mongo script or manually deleting documents where `module_code` is `sales` or `purchase` AND `action` is `view`, `create`, `edit`, or `delete`.
-
-## 3. How the Code Works
-
-### Frontend / UI (React)
-We use a custom hook `usePermissions()` (`src/hooks/use-permissions.ts`) to manage frontend visibility.
-- **`hasModuleAccess(module)`**: Checks if the user has **any** permission starting with `module.`. Used to show/hide the main Sidebar sections (like Sales or Purchase).
-- **`can(module, action)`**: Checks for a specific granular permission. Example: `can('sales', 'view_invoice')`. Used to show/hide specific sub-links or buttons (Edit/Delete).
-
-**Protected Pages & Redirects**
-- **Sidebar (`admin-layout.tsx`)**: The Sales, Purchase, and Reports dropdowns will only render if the user has at least one sub-permission in those categories. If a dropdown has no accessible items, the collapse/chevron icon is hidden entirely.
-- **Module Parent Pages (`admin/sales/page.tsx`, etc.)**: If a user navigates to the `/sales` page via direct link but has no sales-related permissions, the `useEffect` hook redirects them to the main Dashboard (`/admin`). The cards on these pages are also filtered based on permissions.
-- **Roles Tab (`roles-tab.tsx`)**: The UI dynamically renders checkboxes for every sub-action belonging to a module.
-
-### Backend / API Routes
-API Routes are protected using `requirePermission(permission)` from `src/lib/auth/rbac.ts`.
-
-Example:
-```typescript
-import { requirePermission } from "@/lib/auth/rbac";
-
-export async function POST(req: Request) {
-  // Enforce create permission for invoices
-  const auth = await requirePermission('sales.create_invoice');
-  if (!auth.allowed) return auth.response;
-  
-  // Proceed with DB creation...
-}
-```
-
-## 4. Summary of Recent Fixes
-- Standardized UI for Staff Management (`staff-tab.tsx` and `roles-tab.tsx`) to match the `PaymentInPage` (tables, search bars, pagination).
-- Removed generic CRUD actions (`view, edit, create, delete`) from `Sales` and `Purchase` modules in `seed-rbac.ts` as they are just folders/groupings.
-- Applied multi-lingual (i18n) translation support using `next-intl` to the staff and role tables.
-- Ensured UI elements gracefully fallback or disappear if RBAC prevents action, ensuring a smooth User Experience.
-- Added `isActive` flag to modules and permissions during seeding. Any module or permission with `isActive: false` (like AI Chat) is automatically filtered out from APIs and Offline Sync, hiding it from the Roles assignment UI.
-
-## 5. Professional Staff Invitation Workflow (Upcoming)
-Instead of Admins creating passwords manually, Staff are added via an Email Invite system:
-1. Admin enters an Email and Role.
-2. System emails a secure token link via Nodemailer.
-3. User clicks the link. If they already have an account, the shop is instantly linked. If they are new, they just provide their Name and set a new Password to register and join the shop simultaneously.
-
----
-**Run the Seeding Script with Environment Variables (Crucial for DB Connection):**
+**2. Run the Seeding Script**
+Run this script to inject modules and permissions into the database. (Note: Modules with `isActive: false` are hidden).
 ```bash
 npx tsx --env-file=.env.local scripts/seed-rbac.ts
 ```
+
+### Code Implementation Highlights
+- **Frontend (`usePermissions`)**: We use a React hook (`can('sales', 'view_invoice')`) to show or hide buttons and pages.
+- **Backend API (`requirePermission`)**: API routes are securely locked down using `requirePermission('sales.create_invoice')` before any database action occurs.
+- **Login Optimization**: When a staff member logs in, their permissions are flattened into a simple array (`['sales.view_invoice', ...]`) and stored in their session token. This makes permission checking lightning-fast without constant database queries.

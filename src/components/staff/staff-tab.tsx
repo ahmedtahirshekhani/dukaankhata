@@ -44,7 +44,6 @@ export function StaffTab() {
   // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -66,42 +65,49 @@ export function StaffTab() {
       setEditingStaff(staffMember);
       setName(staffMember.name);
       setEmail(staffMember.email);
-      setPassword("");
       setSelectedRole(staffMember.role_id || "");
     } else {
       setEditingStaff(null);
       setName("");
       setEmail("");
-      setPassword("");
       setSelectedRole("");
     }
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !email.trim() || !selectedRole) {
-      return toast.error("Name, email, and role are required");
+    if (!email.trim() || !selectedRole) {
+      return toast.error("Email and role are required");
     }
     
     try {
       setIsSaving(true);
-      const payload: any = { name, email, role_id: selectedRole };
-      if (password) payload.password = password;
-
-      const staffId = editingStaff ? (editingStaff.id || editingStaff._id) : undefined;
-      const url = staffId ? `/api/staff/${staffId}` : "/api/staff";
-      const method = staffId ? "PUT" : "POST";
-
-      const localData = {
-        ...payload,
-        id: staffId || "temp-" + Date.now().toString(),
-      };
-
-      await db.users.put(localData);
       
-      // Also update role mappings in user_roles so it shows up immediately offline
-      const tempUserRole = { id: `temp-ur-${Date.now()}`, user_id: localData.id, role_id: selectedRole };
-      if (staffId) {
+      if (!editingStaff) {
+        // Queue new invite offline
+        const payload = { email, role_id: selectedRole };
+        const tempId = `temp-inv-${Date.now()}`;
+        
+        await SyncEngine.queueOperation("invitations", "POST", "/api/staff/invite", payload, tempId);
+        
+        toast.success("Invitation queued! It will be sent automatically.");
+        setIsModalOpen(false);
+      } else {
+        // Edit existing staff
+        const payload: any = { name, email, role_id: selectedRole };
+        const staffId = editingStaff.id || editingStaff._id;
+        const url = `/api/staff/${staffId}`;
+
+        const localData = {
+          ...payload,
+          id: staffId,
+        };
+
+        await db.users.put(localData);
+        
+        // Also update role mappings in user_roles so it shows up immediately offline
+        const tempUserRole = { id: `temp-ur-${Date.now()}`, user_id: localData.id, role_id: selectedRole };
+        
         // Find existing to update if needed
         const existing = await db.user_roles.filter(ur => String(ur.user_id) === String(staffId)).toArray();
         if (existing.length > 0) {
@@ -110,13 +116,14 @@ export function StaffTab() {
             await db.user_roles.bulkDelete(existingIds);
           }
         }
-      }
-      await db.user_roles.put(tempUserRole);
+        
+        await db.user_roles.put(tempUserRole);
 
-      await SyncEngine.queueOperation("users", method, url, payload, localData.id);
-      
-      toast.success(`Staff member ${editingStaff ? "updated" : "created"} successfully`);
-      setIsModalOpen(false);
+        await SyncEngine.queueOperation("users", "PUT", url, payload, localData.id);
+        
+        toast.success("Staff member updated successfully");
+        setIsModalOpen(false);
+      }
     } catch (err: any) {
       toast.error(err.message || "An error occurred while saving");
     } finally {
@@ -338,7 +345,7 @@ export function StaffTab() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingStaff ? t("editStaff") : t("createStaff")}</DialogTitle>
+            <DialogTitle>{editingStaff ? t("editStaff") : t("inviteStaff", { defaultValue: "Invite Staff" })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -357,20 +364,6 @@ export function StaffTab() {
                 onChange={(e) => setEmail(e.target.value)} 
                 placeholder={t("emailPlaceholder")}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("password")} {editingStaff && `(${t("leaveBlank")})`}</Label>
-              <Input 
-                type="password"
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder={editingStaff ? t("passwordPlaceholderEdit") : t("passwordPlaceholder")}
-              />
-              {!editingStaff && (
-                <p className="text-[11px] text-muted-foreground leading-tight">
-                  {tCommon("leaveBlankExisting", { defaultValue: "Leave empty if the user already has an account." })}
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <Label>{t("role")}</Label>

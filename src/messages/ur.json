@@ -261,7 +261,16 @@
     "welcomeProTip": "💡 ٹپ: اپنے حسابات کو منظم کرنے کا بہترین وقت کل تھا۔ دوسرا بہترین وقت ابھی ہے!",
     "welcomeButtonText": "دوبارہ لاگ ان کریں",
     "welcomeFooter": "آپ کا کاروبار اب محفوظ ہاتھوں میں ہے۔ آئیے آپ کی بک کپنگ کو شاندار بنائیں! 🚀",
-    "accountDeleted": "یہ اکاؤنٹ غیر فعال ہے۔ اکاؤنٹ بحال کرنے کے لیے {phone} پر منتظم سے رابطہ کریں"
+    "accountDeleted": "یہ اکاؤنٹ غیر فعال ہے۔ اکاؤنٹ بحال کرنے کے لیے {phone} پر منتظم سے رابطہ کریں",
+    "acceptInvitation": "Daawat Qabool Karein",
+    "joinWorkspace": "Dukan Khata par workspace join karein",
+    "noTokenProvided": "Koi token nahi diya gaya",
+    "acceptInvitationFailed": "Daawat qabool karne mein masla hua",
+    "loginRequiredToAccept": "Aap ko {email} ke zariye login hona zaroori hai. Please Login par jayen.",
+    "invitationAccepted": "Daawat Qabool Karli Gayi!",
+    "accountExistsConfirmLink": "Is email par aapka account pehle se maujood hai. Apni dukaan ko link karne ke liye confirm karein.",
+    "createAccountAndAccept": "Account Banayein & Qabool Karein",
+    "loginToDifferentAccount": "Kisi aur account se login karein?"
   },
   "products": {
     "title": "مصنوعات",
