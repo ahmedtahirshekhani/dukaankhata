@@ -122,7 +122,7 @@ export function RolesTab() {
 
   const handleDeleteClick = async (roleId: string) => {
     try {
-      const assignedUsers = await db.user_roles.filter(ur => ur.role_id === roleId).toArray();
+      const assignedUsers = await db.user_roles.filter(ur => String(ur.role_id) === String(roleId)).toArray();
       if (assignedUsers.length > 0) {
         setErrorMessage(t("roleInUseError") || "This role is currently assigned to one or more staff members. You must unassign it from them before you can delete it.");
         setErrorDialogOpen(true);
@@ -139,6 +139,20 @@ export function RolesTab() {
     if (!deletingId) return;
     try {
       await db.roles.delete(deletingId);
+
+      // Clean up offline relations
+      const relatedUserRoles = await db.user_roles.filter(ur => String(ur.role_id) === String(deletingId)).toArray();
+      if (relatedUserRoles.length > 0) {
+        const urIds = relatedUserRoles.map(ur => ur.id).filter(Boolean);
+        await db.user_roles.bulkDelete(urIds);
+      }
+      
+      const relatedRolePerms = await db.role_permissions.filter(rp => String(rp.role_id) === String(deletingId)).toArray();
+      if (relatedRolePerms.length > 0) {
+        const rpIds = relatedRolePerms.map(rp => rp.id).filter(Boolean);
+        await db.role_permissions.bulkDelete(rpIds);
+      }
+
       await SyncEngine.queueOperation("roles", "DELETE", `/api/roles/${deletingId}`, null, deletingId);
       toast.success(t("roleDeletedSuccess"));
       setDeletingId(null);

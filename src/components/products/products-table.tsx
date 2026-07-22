@@ -154,16 +154,9 @@ export function ProductsTable({
       <div className="md:hidden space-y-3">
         {products.map((product) => (
           <Card key={product.id} className="p-4">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm">{product.name}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {capitalizeFirstLetter(
-                    truncateDescription(product.description),
-                  )}
-                </p>
-              </div>
-              <div className="flex gap-1">
+            <div className="flex justify-between items-center mb-3 gap-2">
+              <h3 className="font-semibold text-sm truncate">{product.name}</h3>
+              <div className="flex items-center gap-1 shrink-0">
                 <Button
                   size="icon"
                   variant="ghost"

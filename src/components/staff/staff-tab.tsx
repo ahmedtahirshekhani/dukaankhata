@@ -103,9 +103,12 @@ export function StaffTab() {
       const tempUserRole = { id: `temp-ur-${Date.now()}`, user_id: localData.id, role_id: selectedRole };
       if (staffId) {
         // Find existing to update if needed
-        const existing = await db.user_roles.where('user_id').equals(staffId).toArray();
-        if (existing.length) {
-          tempUserRole.id = existing[0].id;
+        const existing = await db.user_roles.filter(ur => String(ur.user_id) === String(staffId)).toArray();
+        if (existing.length > 0) {
+          const existingIds = existing.map(e => e.id).filter(Boolean);
+          if (existingIds.length > 0) {
+            await db.user_roles.bulkDelete(existingIds);
+          }
         }
       }
       await db.user_roles.put(tempUserRole);
@@ -125,6 +128,14 @@ export function StaffTab() {
     if (!deletingId) return;
     try {
       await db.users.delete(deletingId);
+      
+      // Clean up user_roles offline
+      const existing = await db.user_roles.filter(ur => String(ur.user_id) === String(deletingId)).toArray();
+      const existingIds = existing.map(e => e.id).filter(Boolean);
+      if (existingIds.length > 0) {
+        await db.user_roles.bulkDelete(existingIds);
+      }
+
       await SyncEngine.queueOperation("users", "DELETE", `/api/staff/${deletingId}`, null, deletingId);
       toast.success("Staff member removed successfully");
       setDeletingId(null);

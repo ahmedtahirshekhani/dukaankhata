@@ -700,6 +700,7 @@
     "sortBy": "Sort By",
     "default": "Default",
     "totalHighToLow": "Total (High to Low)",
+    "totalLowToHigh": "Total (Low to High)",
     "balanceHighToLow": "Balance (High to Low)",
     "filterByStatus": "Filter by Status",
     "allStatuses": "All Statuses",
@@ -1119,8 +1120,8 @@
     "filterByCategory": "Filter by Category"
   },
   "dashboard": {
-    "analyticalDashboard": "Analytics Dashboard",
-    "dashboardDescription": "Real-time insights and analytics of your business",
+    "analyticalDashboard": "Dashboard",
+    "dashboardDescription": "Your business insights overview",
     "totalBalanceYoullGet": "Total Balance (You'll get)",
     "totalPayable": "Total Balance (You'll give)",
     "purchases": "Purchases",

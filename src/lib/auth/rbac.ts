@@ -65,3 +65,19 @@ export async function hasPermission(permission: string): Promise<boolean> {
   const permissions = user.permissions || [];
   return permissions.includes('*') || permissions.includes(permission);
 }
+
+/**
+ * Checks if the user has any permission for a given module.
+ */
+export async function hasModuleAccess(module: string): Promise<boolean> {
+  const session = await auth();
+  if (!session?.user) return false;
+
+  const user = session.user as any;
+  if (user.role === "owner" || !user.role) return true;
+
+  const permissions = user.permissions || [];
+  if (permissions.includes('*')) return true;
+
+  return permissions.some((p: string) => p.startsWith(`${module}.`));
+}

@@ -465,7 +465,7 @@ export function AiChatInterface() {
         {/* Compact chips when chatting */}
         {messages.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 w-full scrollbar-hide">
-            {QUICK_ACTIONS.slice(0, 9).map((action, i) => {
+            {QUICK_ACTIONS.slice(0, 4).map((action, i) => {
               const Icon = action.icon;
               return (
                 <button

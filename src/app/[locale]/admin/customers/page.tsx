@@ -29,6 +29,7 @@ import {
   ArrowDown,
   ArrowUpDown,
   Receipt,
+  X,
 } from "lucide-react";
 import {
   Table,
@@ -149,6 +150,7 @@ export default function PartiesPage() {
 
   const [balanceFilter, setBalanceFilter] = useState<"all" | "receive" | "pay">("all");
   const [balanceSort, setBalanceSort] = useState<"asc" | "desc" | null>(null);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [errorDialog, setErrorDialog] = useState<{
@@ -590,122 +592,207 @@ export default function PartiesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+      {/* Header Section */}
+      <div className="flex flex-col gap-1 w-full">
+        {/* Row 1: Heading and Actions */}
+        <div className="flex flex-row items-center justify-between w-full gap-2">
+          <h1 className="text-2xl font-bold truncate">{t("title")}</h1>
+          
+          <div className="flex items-center gap-1.5 shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0 flex-shrink-0"
+                  disabled={isDownloading || isImporting}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleDownloadExcel}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleDownloadTemplate}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {t("downloadTemplate")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleImportClick}
+                  disabled={isDownloading || isImporting}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {isImporting ? t("importing") : t("import")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+
+            <Button size="sm" onClick={() => setShowNewCustomerDialog(true)} className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
+              <PlusCircle className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">{t("addCustomer")}</span>
+              <span className="inline sm:hidden">Add</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Row 2: Description */}
+        <p className="text-sm text-muted-foreground break-words">{t("pageDescription")}</p>
       </div>
+
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 md:gap-4">
-            <div className="flex flex-col gap-3 w-full xl:w-auto flex-1">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
-                <div className="relative w-full sm:w-56 md:w-64 flex-shrink-0">
-                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={t("searchPlaceholder")}
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="pl-9 pr-9 h-9 text-sm w-full"
-                  />
-                </div>
-                <div className="flex items-center rounded-md border overflow-x-auto text-xs font-medium h-9 w-full sm:w-auto flex-shrink-0 scrollbar-none">
+          {/* Desktop Search & Filter */}
+          <div className="hidden sm:flex flex-row items-center gap-3 w-full">
+            <div className="relative sm:w-56 md:w-64 flex-shrink-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchTerm}
+                onChange={handleSearch}
+                className="pl-9 pr-9 h-9 text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center rounded-md border overflow-x-auto text-xs font-medium h-9 w-full sm:w-auto flex-shrink-0 scrollbar-none">
+              {(["all", "receive", "pay"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setBalanceFilter(f)}
+                  className={cn(
+                    "px-3 h-full transition-colors flex-1 sm:flex-none whitespace-nowrap flex items-center justify-center gap-1.5",
+                    balanceFilter === f
+                      ? f === "receive" 
+                        ? "bg-green-500 text-white" 
+                        : f === "pay" 
+                          ? "bg-red-500 text-white" 
+                          : "bg-primary text-primary-foreground"
+                      : "hover:bg-muted text-muted-foreground"
+                  )}
+                >
+                  {f === "receive" && (
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shrink-0 border",
+                      balanceFilter === f ? "bg-white border-white" : "bg-green-500 border-green-600"
+                    )} />
+                  )}
+                  {f === "pay" && (
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shrink-0 border",
+                      balanceFilter === f ? "bg-white border-white" : "bg-red-500 border-red-600"
+                    )} />
+                  )}
+                  <span>
+                    {f === "all" ? t("filterAll") || "All" : f === "receive" ? t("legendReceive") : t("legendPay")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile Search Button & Filter */}
+          <div className="flex sm:hidden flex-col gap-2 w-full">
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div className="flex-1 overflow-hidden">
+                <div className="flex items-center rounded-md border overflow-x-auto text-xs font-medium h-9 w-full scrollbar-none">
                   {(["all", "receive", "pay"] as const).map((f) => (
                     <button
                       key={f}
                       onClick={() => setBalanceFilter(f)}
                       className={cn(
-                        "px-3 h-full transition-colors flex-1 sm:flex-none whitespace-nowrap",
+                        "px-3 h-full transition-colors flex-1 whitespace-nowrap flex items-center justify-center gap-1.5",
                         balanceFilter === f
-                          ? f === "receive" ? "bg-green-500 text-white" : f === "pay" ? "bg-red-500 text-white" : "bg-primary text-primary-foreground"
+                          ? f === "receive" 
+                            ? "bg-green-500 text-white" 
+                            : f === "pay" 
+                              ? "bg-red-500 text-white" 
+                              : "bg-primary text-primary-foreground"
                           : "hover:bg-muted text-muted-foreground"
                       )}
                     >
-                      {f === "all" ? t("filterAll") || "All" : f === "receive" ? t("legendReceive") : t("legendPay")}
+                      {f === "receive" && (
+                        <div className={cn(
+                          "w-2 h-2 rounded-full shrink-0 border",
+                          balanceFilter === f ? "bg-white border-white" : "bg-green-500 border-green-600"
+                        )} />
+                      )}
+                      {f === "pay" && (
+                        <div className={cn(
+                          "w-2 h-2 rounded-full shrink-0 border",
+                          balanceFilter === f ? "bg-white border-white" : "bg-red-500 border-red-600"
+                        )} />
+                      )}
+                      <span>
+                        {f === "all" ? t("filterAll") || "All" : f === "receive" ? t("legendReceive") : t("legendPay")}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-1.5 w-full xl:w-auto justify-end">
-              {/* Desktop Legend */}
-              <div className="hidden md:flex items-center gap-2 text-[9px] border rounded-md px-1.5 py-1 bg-muted/30 whitespace-nowrap">
-                <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 border border-green-600" />
-                  <span className="font-medium text-green-700 dark:text-green-400 leading-none">{t("legendReceive")}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 border border-red-600" />
-                  <span className="font-medium text-red-700 dark:text-red-400 leading-none">{t("legendPay")}</span>
-                </div>
-              </div>
-
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 w-9 p-0 flex-shrink-0"
-                    disabled={isDownloading || isImporting}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDownloadExcel}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {isDownloading ? t("downloading") : t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDownloadTemplate}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleImportClick}
-                    disabled={isDownloading || isImporting}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {isImporting ? t("importing") : t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={handleFileSelect}
-                style={{ display: "none" }}
-              />
-              
-              <Button size="sm" onClick={() => setShowNewCustomerDialog(true)} className="h-9 text-xs px-3 flex-shrink-0 whitespace-nowrap">
-                <PlusCircle className="w-4 h-4 mr-1.5" />
-                {t("addCustomer")}
+              <Button
+                type="button"
+                size="icon"
+                className="h-9 w-9 p-0 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white shrink-0 shadow-sm"
+                onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                title={t("searchPlaceholder") || "Search"}
+              >
+                <SearchIcon className="h-4 w-4" />
               </Button>
             </div>
-          </div>
 
-          <div className="flex md:hidden items-center gap-4 text-[10px] sm:text-xs border rounded-md px-3 py-1.5 bg-muted/30 w-full overflow-x-auto whitespace-nowrap scrollbar-none mt-3">
-            <span className="font-semibold text-muted-foreground uppercase tracking-tight">{t("legend")}:</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-green-500 border border-green-600" />
-              <span className="font-medium text-green-700 dark:text-green-400">{t("legendReceive")}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 border border-red-600" />
-              <span className="font-medium text-red-700 dark:text-red-400">{t("legendPay")}</span>
-            </div>
+            {isMobileSearchOpen && (
+              <div className="relative w-full">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={t("searchPlaceholder")}
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pl-9 pr-9 h-9 text-sm w-full"
+                  autoFocus
+                />
+                {searchTerm ? (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsMobileSearchOpen(false)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
@@ -965,18 +1052,6 @@ export default function PartiesPage() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Company Address */}
-                  {customer.company_address && (
-                    <div className="w-full">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Company Address
-                      </p>
-                      <p className="text-xs text-foreground line-clamp-2">
-                        {customer.company_address}
-                      </p>
-                    </div>
-                  )}
 
                   {/* Email */}
                   {customer.email && (
