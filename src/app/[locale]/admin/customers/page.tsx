@@ -74,6 +74,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type Customer = {
   id: string;
@@ -105,6 +106,10 @@ export default function PartiesPage() {
   const tDash = useTranslations("dashboard");
   const tInvoice = useTranslations("invoice");
   const locale = useLocale();
+  const { can } = usePermissions();
+  const canCreate = can("customers", "create");
+  const canEdit = can("customers", "edit");
+  const canDelete = can("customers", "delete");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -599,43 +604,45 @@ export default function PartiesPage() {
           <h1 className="text-2xl font-bold truncate">{t("title")}</h1>
           
           <div className="flex items-center gap-1.5 shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-9 p-0 flex-shrink-0"
-                  disabled={isDownloading || isImporting}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleDownloadExcel}
-                  disabled={isDownloading || isImporting}
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  {isDownloading ? t("downloading") : t("downloadExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDownloadTemplate}
-                  disabled={isDownloading || isImporting}
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  {t("downloadTemplate")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleImportClick}
-                  disabled={isDownloading || isImporting}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {isImporting ? t("importing") : t("import")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canCreate && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 w-9 p-0 flex-shrink-0"
+                    disabled={isDownloading || isImporting}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDownloadExcel}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {isDownloading ? t("downloading") : t("downloadExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDownloadTemplate}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadTemplate")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleImportClick}
+                    disabled={isDownloading || isImporting}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isImporting ? t("importing") : t("import")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <input
               ref={fileInputRef}
@@ -645,11 +652,13 @@ export default function PartiesPage() {
               style={{ display: "none" }}
             />
 
-            <Button size="sm" onClick={() => setShowNewCustomerDialog(true)} className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
-              <PlusCircle className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">{t("addCustomer")}</span>
-              <span className="inline sm:hidden">Add</span>
-            </Button>
+            {canCreate && (
+              <Button size="sm" onClick={() => setShowNewCustomerDialog(true)} className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
+                <PlusCircle className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">{t("addCustomer")}</span>
+                <span className="inline sm:hidden">Add</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -878,44 +887,48 @@ export default function PartiesPage() {
                                 <span className="sr-only">{tInvoice("sendOnWhatsApp") || "Send on WhatsApp"}</span>
                               </Button>
                             )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => {
-                                const balance = customer.balance || 0;
-                                setSelectedCustomerId(customer.id);
-                                setNewCustomerName(customer.name);
-                                setNewCustomerEmail(customer.email);
-                                setNewCustomerPhone(customer.phone);
-                                setNewCustomerCompanyName(
-                                  customer.company_name || "",
-                                );
-                                setNewCustomerCompanyAddress(
-                                  customer.company_address || "",
-                                );
-                                setNewCustomerOpeningBalance(
-                                  Math.abs(balance).toString(),
-                                );
-                                setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
-                                setNewCustomerStatus(customer.status);
-                                setIsEditCustomerDialogOpen(true);
-                              }}
-                            >
-                              <FilePenIcon className="w-4 h-4" />
-                              <span className="sr-only">{t("edit")}</span>
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="danger"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setCustomerToDelete(customer);
-                                setIsDeleteConfirmationOpen(true);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="sr-only">{t("deleteAction")}</span>
-                            </Button>
+                            {canEdit && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  const balance = customer.balance || 0;
+                                  setSelectedCustomerId(customer.id);
+                                  setNewCustomerName(customer.name);
+                                  setNewCustomerEmail(customer.email);
+                                  setNewCustomerPhone(customer.phone);
+                                  setNewCustomerCompanyName(
+                                    customer.company_name || "",
+                                  );
+                                  setNewCustomerCompanyAddress(
+                                    customer.company_address || "",
+                                  );
+                                  setNewCustomerOpeningBalance(
+                                    Math.abs(balance).toString(),
+                                  );
+                                  setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
+                                  setNewCustomerStatus(customer.status);
+                                  setIsEditCustomerDialogOpen(true);
+                                }}
+                              >
+                                <FilePenIcon className="w-4 h-4" />
+                                <span className="sr-only">{t("edit")}</span>
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                size="icon"
+                                variant="danger"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setCustomerToDelete(customer);
+                                  setIsDeleteConfirmationOpen(true);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="sr-only">{t("deleteAction")}</span>
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
