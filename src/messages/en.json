@@ -270,6 +270,7 @@
     "invitationAccepted": "Invitation Accepted!",
     "accountExistsConfirmLink": "You already have an account with this email. Please confirm to link this shop to your existing account.",
     "createAccountAndAccept": "Create Account & Accept",
+    "loginToAccept": "Login to Accept",
     "loginToDifferentAccount": "Login to a different account?"
   },
   "products": {

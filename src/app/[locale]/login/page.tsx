@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -23,6 +23,8 @@ import { proAccessPaymentInfo } from "@/lib/contact-info";
 export default function LoginPage({ params }: { params: { locale: string } }) {
   const t = useTranslations("auth");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl");
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -113,8 +115,12 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
       if (result?.error) {
         setError(mapAuthError(result.error));
       } else if (result?.ok) {
-        // Successful login - redirect to welcome page
-        router.push(`/${params.locale}/admin/welcome`);
+        // Successful login - redirect to callback or welcome page
+        if (callbackUrl) {
+          router.push(callbackUrl);
+        } else {
+          router.push(`/${params.locale}/admin/welcome`);
+        }
       } else {
         // Unexpected result state
         setError(t("loginError"));

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import type { QuotationDoc } from "../route";
 
 export async function GET(
@@ -13,6 +14,9 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.view_quotations");
+    if (!authCheck.allowed) return authCheck.response;
 
     const { id } = await params;
     if (!id || !isValidObjectId(id)) {
@@ -97,6 +101,9 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.edit_quotations");
+    if (!authCheck.allowed) return authCheck.response;
 
     const { id } = await params;
     if (!id || !isValidObjectId(id)) {
@@ -194,6 +201,9 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.delete_quotations");
+    if (!authCheck.allowed) return authCheck.response;
 
     const { id } = await params;
     if (!id || !isValidObjectId(id)) {

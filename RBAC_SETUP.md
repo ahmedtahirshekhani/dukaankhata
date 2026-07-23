@@ -8,6 +8,8 @@ RBAC is a simple way to manage your employees' permissions. Instead of giving ev
 - **Owner**: You (the shop creator). You automatically have full access to everything.
 - **Staff**: Your employees. They can only see and do what you explicitly allow them to do.
 
+*(Note: The currently logged-in user is hidden from the staff list to prevent accidental self-modifications and maintain a clean view of the employees).*
+
 ## 2. How Permissions Work
 Instead of giving access to broad areas like "Sales" or "Purchases", permissions are very specific. For example, under "Sales", you can allow a staff member to **View Invoices** but restrict them from **Deleting Invoices**.
 
@@ -33,9 +35,14 @@ Here is the step-by-step flow of how to invite a staff member to your shop:
 ### Step 3: Staff Accepts the Invite
 1. Your staff member opens their email and clicks the **Accept Invitation** link.
 2. They will be taken to Dukaan Khata.
-3. **If they are new:** They just need to enter their Name and choose a Password to create their account.
-4. **If they already have an account:** They just log in, and your shop will automatically be linked to their account.
-5. Once logged in, they will *only* see the sections of the app that you allowed in their Role. (They will not get a separate empty shop of their own, they will only have access to your shop).
+3. **If they are new:** They will be prompted to enter their Name and choose a Password to create their account and accept the invite simultaneously. After accepting, they will be redirected to the login page.
+4. **If they already have an account:** They will see a "Login to Accept" button. Clicking this redirects them to the login screen. Once they successfully log in with the invited email, the system will automatically route them back, accept the invite, and redirect them straight to their dashboard.
+5. Once logged in, they will *only* see the sections of the app that you allowed in their Role.
+
+### Step 4: Removing a Staff Member
+1. If you no longer want a staff member to access your shop, you can click **Delete** next to their name in the Staff tab.
+2. **Safe Removal:** The system will permanently remove their access to *your* shop. They will immediately lose access to your shop data.
+3. **Data Integrity:** Their core user account remains safely in the database. This ensures that if they also work at a different shop, their access to that other shop is not interrupted. It also means you can easily re-invite them in the future using the same email address without encountering any "already exists" errors.
 
 ---
 
@@ -50,6 +57,12 @@ We use specialized collections to maintain a flexible and scalable permission sy
 - **`roles`**: Custom user-created roles (e.g., "Cashier").
 - **`role_permissions`**: Maps roles to permissions.
 - **`user_roles`**: Maps a user to a role.
+
+### Offline-First Functionality
+Staff management logic utilizes local offline databases (via Dexie) and `SyncEngine` for a smooth offline-first experience:
+- Fetched users are stored locally in the Dexie `users` table.
+- Role assignments map into local `user_roles`.
+- We utilize hooks like `useOfflineStaff` and `useOfflineRoles` which directly query the Dexie DB for real-time offline reactivity.
 
 ### Deployment & Setup
 To deploy RBAC to a new environment (Staging/Production), the database must be seeded first.
@@ -70,3 +83,4 @@ npx tsx --env-file=.env.local scripts/seed-rbac.ts
 - **Frontend (`usePermissions`)**: We use a React hook (`can('sales', 'view_invoice')`) to show or hide buttons and pages.
 - **Backend API (`requirePermission`)**: API routes are securely locked down using `requirePermission('sales.create_invoice')` before any database action occurs.
 - **Login Optimization**: When a staff member logs in, their permissions are flattened into a simple array (`['sales.view_invoice', ...]`) and stored in their session token. This makes permission checking lightning-fast without constant database queries.
+- **Invitation Flow Resiliency**: Implements secure redirection loops leveraging `callbackUrl` with language/locale preservation (`/${locale}/login?callbackUrl=...`) and checks `sessionData` upfront.

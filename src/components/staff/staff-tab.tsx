@@ -25,7 +25,10 @@ import { useOfflineStaff, useOfflineRoles } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
 
+import { useSession } from "next-auth/react";
+
 export function StaffTab() {
+  const { data: session } = useSession();
   const t = useTranslations("staffManagement");
   const tCommon = useTranslations("common");
   const [isLoading, setIsLoading] = useState(false);
@@ -153,10 +156,15 @@ export function StaffTab() {
 
   const filteredStaff = useMemo(() => {
     return staff.filter((member) => {
+      // Exclude the currently logged-in user
+      if (session?.user?.email && member.email === session.user.email) {
+        return false;
+      }
+
       const matchesRole = roleFilter === "all" || member.role_id === roleFilter || (member.roleData && member.roleData.some((r: any) => (r.id || r._id) === roleFilter));
       return matchesRole;
     });
-  }, [staff, roleFilter]);
+  }, [staff, roleFilter, session]);
 
   const totalCount = filteredStaff.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;

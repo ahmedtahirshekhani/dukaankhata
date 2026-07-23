@@ -270,6 +270,7 @@
     "invitationAccepted": "Invitation qabool kar liya gaya!",
     "accountExistsConfirmLink": "Is email address ke sath aap ka account pehle se mojood hai. Is dukan ko apne account se munsalik karne ke liye confirm karein.",
     "createAccountAndAccept": "Account banayein aur qabool karein",
+    "loginToAccept": "Login karein aur qabool karein",
     "loginToDifferentAccount": "Kisi aur account mein login karein?"
   },
   "products": {

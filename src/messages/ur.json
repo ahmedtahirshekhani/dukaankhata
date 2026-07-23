@@ -270,6 +270,7 @@
     "invitationAccepted": "Daawat Qabool Karli Gayi!",
     "accountExistsConfirmLink": "Is email par aapka account pehle se maujood hai. Apni dukaan ko link karne ke liye confirm karein.",
     "createAccountAndAccept": "Account Banayein & Qabool Karein",
+    "loginToAccept": "Login Karein aur Qabool Karein",
     "loginToDifferentAccount": "Kisi aur account se login karein?"
   },
   "products": {

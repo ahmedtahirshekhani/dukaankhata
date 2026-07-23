@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 
 function InviteContent() {
   const t = useTranslations("auth"); // Using auth translations for basic text
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -76,6 +77,19 @@ function InviteContent() {
         setIsSubmitting(false);
         return;
       }
+    } else if (inviteData && inviteData.userExists) {
+      // Check if we have session and if it matches
+      try {
+        const res = await fetch('/api/auth/session');
+        const sessionData = await res.json();
+        
+        if (!sessionData?.user || sessionData.user.email !== inviteData.email) {
+          router.push(`/${locale}/login?callbackUrl=${encodeURIComponent(`/${locale}/invite?token=${token}`)}`);
+          return;
+        }
+      } catch (err) {
+        // Continue to API call if session check fails, let backend handle it
+      }
     }
 
     try {
@@ -94,7 +108,11 @@ function InviteContent() {
       } else {
         setSuccess(true);
         setTimeout(() => {
-          router.push("/login");
+          if (inviteData?.userExists) {
+            router.push(`/${locale}/admin/welcome`);
+          } else {
+            router.push(`/${locale}/login`);
+          }
         }, 2000);
       }
     } catch (err) {
@@ -128,7 +146,7 @@ function InviteContent() {
                 {error}
               </div>
               <Button asChild className="w-full" variant="outline">
-                <Link href="/login">Go to Login</Link>
+                <Link href={`/${locale}/login`}>Go to Login</Link>
               </Button>
             </div>
           ) : success ? (
@@ -199,12 +217,12 @@ function InviteContent() {
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {inviteData.userExists ? t("acceptInvitation") : t("createAccountAndAccept")}
+                {inviteData.userExists ? t("loginToAccept", { defaultValue: "Login to Accept" }) : t("createAccountAndAccept")}
               </Button>
               
               {inviteData.userExists && (
                 <div className="text-center mt-2">
-                  <Link href={`/login?callbackUrl=${encodeURIComponent(`/invite?token=${token}`)}`} className="text-sm text-primary hover:underline">
+                  <Link href={`/${locale}/login?callbackUrl=${encodeURIComponent(`/${locale}/invite?token=${token}`)}`} className="text-sm text-primary hover:underline">
                     {t("loginToDifferentAccount")}
                   </Link>
                 </div>
