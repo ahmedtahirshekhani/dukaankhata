@@ -1608,6 +1608,7 @@
     "deleteRoleConfirm": "Kya aap waqai is role ko delete karna chahte hain? Is role walay sab staff access kho denge.",
     "delete": "Delete",
     "createStaff": "Staff Banayein",
+    "inviteStaff": "Staff ko Invite Karein",
     "editStaff": "Staff Edit Karein",
     "name": "Naam",
     "namePlaceholder": "Jaise: Ali",

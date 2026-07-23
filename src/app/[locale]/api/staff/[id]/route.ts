@@ -69,14 +69,20 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     const ownerId = user.id;
 
     const usersCollection = await getCollection(COLLECTIONS.USERS);
-    // Soft delete
-    const result = await usersCollection.updateOne(
-      { _id: toObjectId(params.id), owner_id: toObjectId(ownerId), role: "staff" },
-      { $set: { isDeleted: true, deleted_at: new Date() } }
-    );
+    const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
+    const rolesColl = await getCollection(COLLECTIONS.ROLES);
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+    // 1. Delete user_role mappings for this shop
+    const shopRoles = await rolesColl.find({ owner_id: toObjectId(ownerId) }).toArray();
+    const shopRoleIds = shopRoles.map(r => r._id);
+
+    const deleteRolesResult = await userRolesColl.deleteMany({
+      user_id: toObjectId(params.id),
+      role_id: { $in: shopRoleIds }
+    });
+
+    if (deleteRolesResult.deletedCount === 0) {
+      return NextResponse.json({ error: "Staff not found in this shop" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });

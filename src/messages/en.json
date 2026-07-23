@@ -1609,6 +1609,7 @@
     "deleteRoleConfirm": "Are you sure you want to delete this role? Any staff members with this role will lose their access.",
     "delete": "Delete",
     "createStaff": "Create Staff",
+    "inviteStaff": "Invite Staff",
     "editStaff": "Edit Staff",
     "name": "Name",
     "namePlaceholder": "e.g. Ali",
