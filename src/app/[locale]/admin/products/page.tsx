@@ -65,6 +65,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
 import * as XLSX from "xlsx";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -74,6 +75,11 @@ const capitalizeFirstLetter = (str: string | undefined | null): string => {
 export default function Products() {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
+  const canCreate = can("products", "create");
+  const canEdit = can("products", "edit");
+  const canDelete = can("products", "delete");
+  const canExport = can("products", "view");
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     category: "all",
@@ -411,57 +417,78 @@ export default function Products() {
           <h1 className="text-2xl font-bold truncate">{t("title")}</h1>
           
           <div className="flex items-center gap-1.5 shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-9 p-0 flex-shrink-0"
-                  disabled={isDownloading || isImporting}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleDownloadExcel}
-                  disabled={isDownloading || isImporting}
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  {isDownloading ? t("downloading") : t("downloadExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDownloadTemplate}
-                  disabled={isDownloading || isImporting}
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  {t("downloadTemplate")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleImportClick}
-                  disabled={isDownloading || isImporting}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {isImporting ? t("importing") : t("import")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {(canCreate || canExport) && (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0 flex-shrink-0"
+                      disabled={isDownloading || isImporting}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {canExport && (
+                      <DropdownMenuItem
+                        onClick={handleDownloadExcel}
+                        disabled={isDownloading || isImporting}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {isDownloading ? t("downloading") : t("downloadExcel")}
+                      </DropdownMenuItem>
+                    )}
+                    {canExport && (
+                      <DropdownMenuItem
+                        onClick={handleDownloadTemplate}
+                        disabled={isDownloading || isImporting}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t("downloadTemplate")}
+                      </DropdownMenuItem>
+                    )}
+                    {canCreate && (
+                      <DropdownMenuItem
+                        onClick={handleImportClick}
+                        disabled={isDownloading || isImporting}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {isImporting ? t("importing") : t("import")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              onChange={handleFileSelect}
-              style={{ display: "none" }}
-            />
+                {canCreate && (
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    onChange={handleFileSelect}
+                    style={{ display: "none" }}
+                  />
+                )}
+              </>
+            )}
 
-            <Button size="sm" onClick={() => setIsProductDialogOpen(true)} className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
-              <PlusCircle className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">{t("addProduct")}</span>
-              <span className="inline sm:hidden">Add</span>
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setIsProductDialogOpen(true);
+                }}
+                size="sm"
+                className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap"
+              >
+                <PlusCircle className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">{t("addProduct")}</span>
+                <span className="inline sm:hidden">Add</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -569,6 +596,8 @@ export default function Products() {
               setProductToDelete(product);
               setIsDeleteConfirmationOpen(true);
             }}
+            canEdit={canEdit}
+            canDelete={canDelete}
             capitalizeFirstLetter={capitalizeFirstLetter}
           />
         </CardContent>

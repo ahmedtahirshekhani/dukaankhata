@@ -6,11 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FileText, Receipt, Coins, RotateCcw, Store } from "lucide-react";
 import { useState, useEffect } from "react";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useRouter } from "next/navigation";
 
 export default function SalesModulePage() {
   const locale = useLocale();
   const tNav = useTranslations("navigation");
   const tSales = useTranslations("salesModule");
+  const { can } = usePermissions();
+  const router = useRouter();
 
   const [enableCounterSale, setEnableCounterSale] = useState(false);
 
@@ -27,6 +31,19 @@ export default function SalesModulePage() {
     window.addEventListener("featureSettingsUpdated", loadFeatures);
     return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
+
+  const hasSalesSub = can('sales', 'view_quotations') || 
+                      can('sales', 'view_invoice') || 
+                      can('sales', 'view_payment_in') || 
+                      can('sales', 'view_sale_return') || 
+                      (enableCounterSale && can('sales', 'view_counter_sale'));
+
+  useEffect(() => {
+    // Also wait a tick for permissions to load if needed, but assuming they are loaded
+    if (!hasSalesSub) {
+      router.replace(`/${locale}/admin`);
+    }
+  }, [hasSalesSub, router, locale]);
 
   const salesList = [
     {
@@ -78,7 +95,16 @@ export default function SalesModulePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {salesList.filter(item => item.href.includes('counter-sale') ? enableCounterSale : true).map((item, idx) => {
+        {salesList
+          .filter(item => {
+            if (item.href.includes('quotations') && !can('sales', 'view_quotations')) return false;
+            if (item.href.includes('invoice') && !can('sales', 'view_invoice')) return false;
+            if (item.href.includes('payment-in') && !can('sales', 'view_payment_in')) return false;
+            if (item.href.includes('sale-return') && !can('sales', 'view_sale_return')) return false;
+            if (item.href.includes('counter-sale') && (!enableCounterSale || !can('sales', 'view_counter_sale'))) return false;
+            return true;
+          })
+          .map((item, idx) => {
           const Icon = item.icon;
           return (
             <Card key={idx} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-foreground/20">

@@ -5,12 +5,28 @@ import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Package, Users, TrendingUp } from "lucide-react";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function ReportsModulePage() {
   const locale = useLocale();
   const tNav = useTranslations("navigation");
   const tReports = useTranslations("reportsModule");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
+  const router = useRouter();
+
+  const hasReportsSub = can('reports', 'view_account_statement') || 
+                        can('reports', 'view_stock') || 
+                        can('reports', 'view_receivable_summary') || 
+                        can('reports', 'view_profitability');
+
+  useEffect(() => {
+    if (!hasReportsSub) {
+      router.replace(`/${locale}/admin`);
+    }
+  }, [hasReportsSub, router, locale]);
 
   const reportsList = [
     {
@@ -55,7 +71,15 @@ export default function ReportsModulePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {reportsList.map((report, idx) => {
+        {reportsList
+          .filter(report => {
+            if (report.href.includes('account-statement') && !can('reports', 'view_account_statement')) return false;
+            if (report.href.includes('stock') && !can('reports', 'view_stock')) return false;
+            if (report.href.includes('receivable-summary') && !can('reports', 'view_receivable_summary')) return false;
+            if (report.href.includes('profitability') && !can('reports', 'view_profitability')) return false;
+            return true;
+          })
+          .map((report, idx) => {
           const Icon = report.icon;
           return (
             <Card key={idx} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-foreground/20">

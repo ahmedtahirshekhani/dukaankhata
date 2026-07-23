@@ -35,6 +35,7 @@ import {
   Activity,
   File,
 } from "lucide-react";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -144,6 +145,12 @@ export default function DashboardPage() {
   const tInvoice = useTranslations("invoice");
   const router = useRouter();
   const params = useParams();
+  const { hasModuleAccess } = usePermissions();
+  const canViewCustomers = hasModuleAccess("customers");
+  const canViewSales = hasModuleAccess("sales");
+  const canViewProducts = hasModuleAccess("products");
+  const canViewPurchases = hasModuleAccess("purchase");
+  const canViewExpenses = hasModuleAccess("expenses");
   const locale =
     typeof params?.locale === "string"
       ? params.locale
@@ -207,6 +214,19 @@ export default function DashboardPage() {
   const [activeDashboardTab, setActiveDashboardTab] = useState<
     "customers" | "sales" | "items"
   >("customers");
+
+  useEffect(() => {
+    if (activeDashboardTab === "customers" && !canViewCustomers) {
+      if (canViewSales) setActiveDashboardTab("sales");
+      else if (canViewProducts) setActiveDashboardTab("items");
+    } else if (activeDashboardTab === "sales" && !canViewSales) {
+      if (canViewCustomers) setActiveDashboardTab("customers");
+      else if (canViewProducts) setActiveDashboardTab("items");
+    } else if (activeDashboardTab === "items" && !canViewProducts) {
+      if (canViewCustomers) setActiveDashboardTab("customers");
+      else if (canViewSales) setActiveDashboardTab("sales");
+    }
+  }, [canViewCustomers, canViewSales, canViewProducts, activeDashboardTab]);
 
   const dateLocale = locale === "ru" ? "en" : locale;
   const currentMonthName = new Date().toLocaleDateString(dateLocale, {
@@ -494,138 +514,150 @@ export default function DashboardPage() {
   // Summary Cards
   const summaryCards = useMemo(
     () => [
-      {
-        key: "balance",
-        node: (
-          <StatCard
-            title={tDash("totalBalanceYoullGet") || "Total Balance (You'll get)"}
-            value={totalBalance}
-            icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-          />
-        ),
-      },
-      {
-        key: "payable",
-        node: (
-          <StatCard
-            title={tDash("totalPayable")}
-            value={totalPayable}
-            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-            isExpense
-          />
-        ),
-      },
-      {
-        key: "sales",
-        node: (
-          <StatCard
-            title={`${tDash("sales") || "Sales"} (${currentMonthName})`}
-            value={totalRevenue}
-            icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-          />
-        ),
-      },
-      {
-        key: "purchases",
-        node: (
-          <StatCard
-            title={`${tDash("purchases")} (${currentMonthName})`}
-            value={totalPurchases}
-            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-            isExpense
-          />
-        ),
-      },
-      {
-        key: "expenses",
-        node: (
-          <StatCard
-            title={`${tDash("totalExpenses") || "Total Expense"} (${currentMonthName})`}
-            value={totalExpenses}
-            icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-            isExpense
-          />
-        ),
-      },
-      {
-        key: "counter-sales",
-        node: (
-          <StatCard
-            title={tDash("counterSales") || "Counter Sales"}
-            value={counterSales}
-            icon={
-              <Select
-                value={counterSalesRange}
-                onValueChange={(v) => {
-                  setIsCounterSalesLoading(true);
-                  setCounterSalesRange(v as CounterRange);
-                }}
-              >
-                <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="thisWeek">This Week</SelectItem>
-                  <SelectItem value="lastWeek">Last Week</SelectItem>
-                  <SelectItem value="thisMonth">This Month</SelectItem>
-                  <SelectItem value="lastMonth">Last Month</SelectItem>
-                  <SelectItem value="ytd">Year to date</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-            isLoading={isCounterSalesLoading}
-            noIconBg
-          />
-        ),
-      },
-      {
-        key: "counter-expenses",
-        node: (
-          <StatCard
-            title={tDash("counterExpenses") || "Counter Expenses"}
-            value={counterExpenses}
-            icon={
-              <Select
-                value={counterExpensesRange}
-                onValueChange={(v) => {
-                  setIsCounterExpensesLoading(true);
-                  setCounterExpensesRange(v as CounterRange);
-                }}
-              >
-                <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="thisWeek">This Week</SelectItem>
-                  <SelectItem value="lastWeek">Last Week</SelectItem>
-                  <SelectItem value="thisMonth">This Month</SelectItem>
-                  <SelectItem value="lastMonth">Last Month</SelectItem>
-                  <SelectItem value="ytd">Year to date</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-            isPrivacy={isPrivacyMode}
-            currency="PKR"
-            isExpense
-            isLoading={isCounterExpensesLoading}
-            noIconBg
-          />
-        ),
-      },
+      ...(canViewCustomers ? [
+        {
+          key: "balance",
+          node: (
+            <StatCard
+              title={tDash("totalBalanceYoullGet") || "Total Balance (You'll get)"}
+              value={totalBalance}
+              icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+            />
+          ),
+        },
+        {
+          key: "payable",
+          node: (
+            <StatCard
+              title={tDash("totalPayable")}
+              value={totalPayable}
+              icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+              isExpense
+            />
+          ),
+        }
+      ] : []),
+      ...(canViewSales ? [
+        {
+          key: "sales",
+          node: (
+            <StatCard
+              title={`${tDash("sales") || "Sales"} (${currentMonthName})`}
+              value={totalRevenue}
+              icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+            />
+          ),
+        }
+      ] : []),
+      ...(canViewPurchases ? [
+        {
+          key: "purchases",
+          node: (
+            <StatCard
+              title={`${tDash("purchases")} (${currentMonthName})`}
+              value={totalPurchases}
+              icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+              isExpense
+            />
+          ),
+        }
+      ] : []),
+      ...(canViewExpenses ? [
+        {
+          key: "expenses",
+          node: (
+            <StatCard
+              title={`${tDash("totalExpenses") || "Total Expense"} (${currentMonthName})`}
+              value={totalExpenses}
+              icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+              isExpense
+            />
+          ),
+        }
+      ] : []),
+      ...(canViewSales ? [
+        {
+          key: "counter-sales",
+          node: (
+            <StatCard
+              title={tDash("counterSales") || "Counter Sales"}
+              value={counterSales}
+              icon={
+                <Select
+                  value={counterSalesRange}
+                  onValueChange={(v) => {
+                    setIsCounterSalesLoading(true);
+                    setCounterSalesRange(v as CounterRange);
+                  }}
+                >
+                  <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="thisWeek">This Week</SelectItem>
+                    <SelectItem value="lastWeek">Last Week</SelectItem>
+                    <SelectItem value="thisMonth">This Month</SelectItem>
+                    <SelectItem value="lastMonth">Last Month</SelectItem>
+                    <SelectItem value="ytd">Year to date</SelectItem>
+                  </SelectContent>
+                </Select>
+              }
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+              isLoading={isCounterSalesLoading}
+              noIconBg
+            />
+          ),
+        }
+      ] : []),
+      ...(canViewExpenses ? [
+        {
+          key: "counter-expenses",
+          node: (
+            <StatCard
+              title={tDash("counterExpenses") || "Counter Expenses"}
+              value={counterExpenses}
+              icon={
+                <Select
+                  value={counterExpensesRange}
+                  onValueChange={(v) => {
+                    setIsCounterExpensesLoading(true);
+                    setCounterExpensesRange(v as CounterRange);
+                  }}
+                >
+                  <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="thisWeek">This Week</SelectItem>
+                    <SelectItem value="lastWeek">Last Week</SelectItem>
+                    <SelectItem value="thisMonth">This Month</SelectItem>
+                    <SelectItem value="lastMonth">Last Month</SelectItem>
+                    <SelectItem value="ytd">Year to date</SelectItem>
+                  </SelectContent>
+                </Select>
+              }
+              isPrivacy={isPrivacyMode}
+              currency="PKR"
+              isExpense
+              isLoading={isCounterExpensesLoading}
+              noIconBg
+            />
+          ),
+        }
+      ] : []),
     ],
     [
       totalBalance,
@@ -642,6 +674,10 @@ export default function DashboardPage() {
       isCounterExpensesLoading,
       tDash,
       enableCounterSale,
+      canViewCustomers,
+      canViewSales,
+      canViewPurchases,
+      canViewExpenses,
     ],
   ).filter(card => {
     if (!enableCounterSale) {
@@ -734,30 +770,36 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="p-3 sm:p-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={activeDashboardTab === "customers" ? "default" : "outline"}
-              onClick={() => setActiveDashboardTab("customers")}
-            >
-              {tDash("customers") || "Customers"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activeDashboardTab === "sales" ? "default" : "outline"}
-              onClick={() => setActiveDashboardTab("sales")}
-            >
-              {tDash("sales") || "Sales"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activeDashboardTab === "items" ? "default" : "outline"}
-              onClick={() => setActiveDashboardTab("items")}
-            >
-              {tDash("items") || "Items"}
-            </Button>
+            {canViewCustomers && (
+              <Button
+                type="button"
+                size="sm"
+                variant={activeDashboardTab === "customers" ? "default" : "outline"}
+                onClick={() => setActiveDashboardTab("customers")}
+              >
+                {tDash("customers") || "Customers"}
+              </Button>
+            )}
+            {canViewSales && (
+              <Button
+                type="button"
+                size="sm"
+                variant={activeDashboardTab === "sales" ? "default" : "outline"}
+                onClick={() => setActiveDashboardTab("sales")}
+              >
+                {tDash("sales") || "Sales"}
+              </Button>
+            )}
+            {canViewProducts && (
+              <Button
+                type="button"
+                size="sm"
+                variant={activeDashboardTab === "items" ? "default" : "outline"}
+                onClick={() => setActiveDashboardTab("items")}
+              >
+                {tDash("items") || "Items"}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-2 sm:p-3 pt-1 sm:pt-3 relative">

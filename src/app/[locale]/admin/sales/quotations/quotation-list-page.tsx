@@ -31,6 +31,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { useOfflineQuotations } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export default function QuotationListPage() {
   const t = useTranslations();
@@ -40,6 +41,12 @@ export default function QuotationListPage() {
   const tOrders = useTranslations("orders");
   const locale = useLocale();
   const router = useRouter();
+
+  const { can } = usePermissions();
+  const canCreate = can("sales", "create_quotations");
+  const canEdit = can("sales", "edit_quotations");
+  const canDelete = can("sales", "delete_quotations");
+  const canConvert = can("sales", "create_invoice");
   
   // Pagination & Search & Filters States
   const [currentPage, setCurrentPage] = useState(1);
@@ -207,13 +214,15 @@ export default function QuotationListPage() {
         {/* Row 1: Heading and Add Button */}
         <div className="flex flex-row items-center justify-between w-full gap-2">
           <h1 className="text-2xl font-bold truncate">{tNav("quotations")}</h1>
-          <Button asChild size="sm" className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
-            <Link href={`/${locale}/admin/sales/quotations/new`}>
-              <PlusCircle className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">{t("common.add")}</span>
-              <span className="inline sm:hidden">Add</span>
-            </Link>
-          </Button>
+          {canCreate && (
+            <Button asChild size="sm" className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
+              <Link href={`/${locale}/admin/sales/quotations/new`}>
+                <PlusCircle className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">{t("common.add")}</span>
+                <span className="inline sm:hidden">Add</span>
+              </Link>
+            </Button>
+          )}
         </div>
         {/* Row 2: Description */}
         <p className="text-sm text-muted-foreground break-words">{tNav("quotationsDescription")}</p>
@@ -408,7 +417,7 @@ export default function QuotationListPage() {
                           </TableCell>
                           <TableCell className="w-[1%] whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              {q.status !== "converted" && (
+                              {q.status !== "converted" && canConvert && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -428,21 +437,25 @@ export default function QuotationListPage() {
                                   <span className="sr-only">{tCommon("view") || "View"}</span>
                                 </Link>
                               </Button>
-                              <Button size="icon" variant="ghost" asChild>
-                                <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
-                                  <Edit className="h-4 w-4" />
-                                  <span className="sr-only">{tCommon("edit") || "Edit"}</span>
-                                </Link>
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="danger"
-                                className="h-8 w-8"
-                                onClick={() => handleDeleteClick(q)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">{tCommon("delete") || "Delete"}</span>
-                              </Button>
+                              {canEdit && (
+                                <Button size="icon" variant="ghost" asChild>
+                                  <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
+                                    <Edit className="h-4 w-4" />
+                                    <span className="sr-only">{tCommon("edit") || "Edit"}</span>
+                                  </Link>
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button
+                                  size="icon"
+                                  variant="danger"
+                                  className="h-8 w-8"
+                                  onClick={() => handleDeleteClick(q)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">{tCommon("delete") || "Delete"}</span>
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -464,6 +477,9 @@ export default function QuotationListPage() {
                       onDelete={() => handleDeleteClick(q)}
                       onConvert={() => handleConvertClick(quotId)}
                       isConverting={isConverting === quotId}
+                      canEdit={canEdit}
+                      canDelete={canDelete}
+                      canConvert={canConvert}
                       t={t}
                       tNav={tNav}
                       tInv={tInv}
@@ -557,6 +573,9 @@ function QuotationCard({
   onDelete,
   onConvert,
   isConverting,
+  canEdit,
+  canDelete,
+  canConvert,
   t,
   tNav,
   tInv,
@@ -566,6 +585,9 @@ function QuotationCard({
   onDelete: () => void;
   onConvert: () => void;
   isConverting: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canConvert: boolean;
   t: (key: string) => string;
   tNav: (key: string) => string;
   tInv: (key: string) => string;
@@ -607,18 +629,20 @@ function QuotationCard({
 
       <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t">
         {/* Left: Convert to Sale */}
-        <Button 
-          size="sm" 
-          variant="default" 
-          className="h-8 px-2.5 text-white shadow-sm text-[11px]"
-          onClick={onConvert}
-          disabled={isConverting || quotation.status === "converted"}
-        >
-          {isConverting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-          ) : null}
-          {tNav("convertToSale")}
-        </Button>
+        {canConvert ? (
+          <Button 
+            size="sm" 
+            variant="default" 
+            className="h-8 px-2.5 text-white shadow-sm text-[11px]"
+            onClick={onConvert}
+            disabled={isConverting || quotation.status === "converted"}
+          >
+            {isConverting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+            ) : null}
+            {tNav("convertToSale")}
+          </Button>
+        ) : <div />}
 
         {/* Right: Icon actions */}
         <div className="flex items-center gap-1">
@@ -628,20 +652,24 @@ function QuotationCard({
               <span className="sr-only">{t("common.view") || "View"}</span>
             </Link>
           </Button>
-          <Button size="icon" variant="ghost" asChild title="Edit" className="h-8 w-8">
-            <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
-              <Edit className="h-4 w-4" />
-              <span className="sr-only">{t("common.edit") || "Edit"}</span>
-            </Link>
-          </Button>
-          <Button
-            size="icon"
-            variant="danger"
-            onClick={onDelete}
-            className="h-8 w-8"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {canEdit && (
+            <Button size="icon" variant="ghost" asChild title="Edit" className="h-8 w-8">
+              <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
+                <Edit className="h-4 w-4" />
+                <span className="sr-only">{t("common.edit") || "Edit"}</span>
+              </Link>
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              size="icon"
+              variant="danger"
+              onClick={onDelete}
+              className="h-8 w-8"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -4,23 +4,25 @@ export class SyncEngine {
   
   static async pullInitialData() {
     try {
-      const response = await fetch('/api/sync');
+      const lastSyncTimestamp = localStorage.getItem('last_sync_timestamp');
+      const url = lastSyncTimestamp ? `/api/sync?last_sync=${encodeURIComponent(lastSyncTimestamp)}&_t=${Date.now()}` : `/api/sync?_t=${Date.now()}`;
+      const response = await fetch(url, { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to fetch initial sync data');
       
       const { data, server_timestamp } = await response.json();
       
       // Save everything to IndexedDB
       await db.transaction('rw', 
-        [db.products, db.parties, db.orders, db.order_items, 
+        [db.products, db.parties, db.orders, 
         db.party_transactions, db.party_ledger_entries, db.party_balance_state,
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.payment_methods,
-        db.payment_method, db.vendor_transactions, db.sale_return_transactions,
-        db.transactions, db.branches, db.subscriptions, db.configurations],
+        db.vendor_transactions, db.sale_return_transactions,
+        db.transactions, db.subscriptions, db.configurations,
+        db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
         async () => {
           if (data.products?.length) await db.products.bulkPut(data.products);
           if (data.parties?.length) await db.parties.bulkPut(data.parties);
           if (data.orders?.length) await db.orders.bulkPut(data.orders);
-          if (data.order_items?.length) await db.order_items.bulkPut(data.order_items);
           if (data.party_transactions?.length) await db.party_transactions.bulkPut(data.party_transactions);
           if (data.party_ledger_entries?.length) await db.party_ledger_entries.bulkPut(data.party_ledger_entries);
           if (data.party_balance_state?.length) await db.party_balance_state.bulkPut(data.party_balance_state);
@@ -28,13 +30,37 @@ export class SyncEngine {
           if (data.expenses?.length) await db.expenses.bulkPut(data.expenses);
           if (data.quotations?.length) await db.quotations.bulkPut(data.quotations);
           if (data.categories?.length) await db.categories.bulkPut(data.categories);
-          if (data.payment_methods?.length) await db.payment_methods.bulkPut(data.payment_methods);
-          if (data.payment_method?.length) await db.payment_method.bulkPut(data.payment_method);
           if (data.vendor_transactions?.length) await db.vendor_transactions.bulkPut(data.vendor_transactions);
           if (data.sale_return_transactions?.length) await db.sale_return_transactions.bulkPut(data.sale_return_transactions);
           if (data.transactions?.length) await db.transactions.bulkPut(data.transactions);
-          if (data.branches?.length) await db.branches.bulkPut(data.branches);
           if (data.subscriptions?.length) await db.subscriptions.bulkPut(data.subscriptions);
+          if (data.users?.length) await db.users.bulkPut(data.users);
+          if (data.modules?.length) await db.modules.bulkPut(data.modules);
+          
+          if (data.payment_methods?.length) {
+            try {
+              // console.log("Saving payment_methods to Dexie:", data.payment_methods);
+              await db.payment_methods.bulkPut(data.payment_methods);
+              // console.log("payment_methods saved successfully.");
+            } catch (err) {
+              console.error("Failed to save payment_methods:", err);
+            }
+          }
+          
+          if (data.permissions?.length) {
+            try {
+              // console.log("Saving permissions to Dexie:", data.permissions);
+              await db.permissions.bulkPut(data.permissions);
+              // console.log("permissions saved successfully.");
+            } catch (err) {
+              console.error("Failed to save permissions:", err);
+            }
+          }
+          
+          if (data.roles?.length) await db.roles.bulkPut(data.roles);
+          if (data.role_permissions?.length) await db.role_permissions.bulkPut(data.role_permissions);
+          if (data.user_roles?.length) await db.user_roles.bulkPut(data.user_roles);
+          
           if (data.configurations?.length) {
             await db.configurations.bulkPut(data.configurations);
             // Also sync to localStorage for immediate UI availability
@@ -79,7 +105,7 @@ export class SyncEngine {
     
     this.isSyncing = true;
     try {
-      const pendingOps = await db.syncQueue.where('status').equals('pending').toArray();
+      const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
       if (pendingOps.length === 0) return true;
 
     let successCount = 0;
@@ -147,6 +173,15 @@ export class SyncEngine {
               
               if (modified) {
                 await db.syncQueue.put(otherOp);
+              }
+            }
+
+            // Fix foreign keys in local Dexie tables specifically for users/user_roles
+            if (op.collection === 'users' && op.localId) {
+              const userRoles = await db.user_roles.where('user_id').equals(op.localId).toArray();
+              for (const ur of userRoles) {
+                ur.user_id = result.id;
+                await db.user_roles.put(ur);
               }
             }
           }

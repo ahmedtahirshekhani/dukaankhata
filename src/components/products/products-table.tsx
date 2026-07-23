@@ -22,6 +22,8 @@ interface ProductsTableProps {
   onDelete: (product: Product) => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
   isLoading?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function ProductsTable({
@@ -30,6 +32,8 @@ export function ProductsTable({
   onDelete,
   capitalizeFirstLetter,
   isLoading = false,
+  canEdit = true,
+  canDelete = true,
 }: ProductsTableProps) {
   const t = useTranslations("products");
   const nameLabel = t("name");
@@ -125,23 +129,27 @@ export function ProductsTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => onEdit(product)}
-                    >
-                      <FilePenIcon className="w-4 h-4" />
-                      <span className="sr-only">{editLabel}</span>
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="danger"
-                      className="h-8 w-8"
-                      onClick={() => onDelete(product)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span className="sr-only">{deleteLabel}</span>
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => onEdit(product)}
+                      >
+                        <FilePenIcon className="w-4 h-4" />
+                        <span className="sr-only">{editLabel}</span>
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        size="icon"
+                        variant="danger"
+                        className="h-8 w-8"
+                        onClick={() => onDelete(product)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sr-only">{deleteLabel}</span>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -157,22 +165,26 @@ export function ProductsTable({
             <div className="flex justify-between items-center mb-3 gap-2">
               <h3 className="font-semibold text-sm truncate">{product.name}</h3>
               <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onEdit(product)}
-                  className="h-8 w-8"
-                >
-                  <FilePenIcon className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onDelete(product)}
-                  className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {canEdit && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onEdit(product)}
+                    className="h-8 w-8"
+                  >
+                    <FilePenIcon className="w-4 h-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onDelete(product)}
+                    className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
 

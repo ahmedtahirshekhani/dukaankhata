@@ -9,6 +9,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import { NextResponse } from "next/server";
 import { setCustomerBalanceTarget } from "@/lib/ledger/customer-ledger";
 
@@ -18,6 +19,7 @@ export async function GET(
 ) {
   const user = (await getCurrentUser()) as { id: string } | null;
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  await requirePermission("customers.view");
 
   const customerId = params.customerId;
   if (!isValidObjectId(customerId)) return NextResponse.json({ error: "Invalid customer ID" }, { status: 400 });
@@ -46,6 +48,7 @@ export async function PUT(
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  await requirePermission("customers.edit");
 
   let updatedCustomer = await request.json();
   const customerId = params.customerId;
@@ -132,6 +135,7 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  await requirePermission("customers.delete");
 
   const customerId = params.customerId;
 

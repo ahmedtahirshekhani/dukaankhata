@@ -5,11 +5,24 @@ import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Receipt, CreditCard } from "lucide-react";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function PurchaseModulePage() {
   const locale = useLocale();
   const tNav = useTranslations("navigation");
   const tPurchase = useTranslations("purchaseModule");
+  const { can } = usePermissions();
+  const router = useRouter();
+
+  const hasPurchaseSub = can('purchase', 'view_purchase_bill') || can('purchase', 'view_payment_out');
+
+  useEffect(() => {
+    if (!hasPurchaseSub) {
+      router.replace(`/${locale}/admin`);
+    }
+  }, [hasPurchaseSub, router, locale]);
 
   const purchaseList = [
     {
@@ -40,7 +53,13 @@ export default function PurchaseModulePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {purchaseList.map((item, idx) => {
+        {purchaseList
+          .filter(item => {
+            if (item.href.includes('purchase-bill') && !can('purchase', 'view_purchase_bill')) return false;
+            if (item.href.includes('payment-out') && !can('purchase', 'view_payment_out')) return false;
+            return true;
+          })
+          .map((item, idx) => {
           const Icon = item.icon;
           return (
             <Card key={idx} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-foreground/20">
