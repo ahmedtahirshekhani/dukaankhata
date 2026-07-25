@@ -76,6 +76,7 @@ export const COLLECTIONS = {
   PASSWORD_RESETS: "password_resets",
   EMAIL_VERIFICATION_CODES: "email_verification_codes",
   CATEGORIES: "categories",
+  BRANCHES: "branches",
   QUOTATIONS: "quotations",
   SUBSCRIPTIONS: "subscriptions",
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",

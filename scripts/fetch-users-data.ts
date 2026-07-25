@@ -65,6 +65,9 @@ ${JSON.stringify(usersData, null, 2)}
     console.log("---- START OF DATA ----");
     console.log(markdownContent);
     console.log("---- END OF DATA ----");
+
+    const artifactPath = path.resolve(process.cwd(), 'users-data-export.md');
+    fs.writeFileSync(artifactPath, markdownContent);
     console.log('Done! Data saved to ' + artifactPath);
 
   } catch (err) {

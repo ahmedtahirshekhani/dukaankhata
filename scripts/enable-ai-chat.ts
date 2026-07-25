@@ -1,3 +1,5 @@
+export {};
+
 const { MongoClient } = require('mongodb');
 
 // Get URI from .env.local or use default

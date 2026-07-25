@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -20,7 +20,7 @@ import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { supportContact } from "@/lib/constants";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
 
-export default function LoginPage({ params }: { params: { locale: string } }) {
+function LoginForm({ params }: { params: { locale: string } }) {
   const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -263,5 +263,13 @@ export default function LoginPage({ params }: { params: { locale: string } }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage({ params }: { params: { locale: string } }) {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm params={params} />
+    </Suspense>
   );
 }

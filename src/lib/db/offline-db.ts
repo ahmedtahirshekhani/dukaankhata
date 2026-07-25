@@ -35,6 +35,7 @@ export class DukanKhataDB extends Dexie {
   roles!: Table<any, string>;
   role_permissions!: Table<any, string>;
   user_roles!: Table<any, string>;
+  branches!: Table<any, string>;
   syncQueue!: Table<SyncOperation, number>;
 
   constructor(dbName: string = 'DukanKhataOfflineDB') {
@@ -62,6 +63,35 @@ export class DukanKhataDB extends Dexie {
       roles: 'id, owner_id',
       role_permissions: 'id, role_id',
       user_roles: 'id, user_id',
+      syncQueue: '++id, status, timestamp, collection'
+    });
+    // v2: added branches, which was previously dropped when the RBAC tables were merged in.
+    // A new version is required (rather than editing version(1) in place) so that Dexie
+    // actually creates the store for browsers whose local DB already exists at version 1.
+    this.version(2).stores({
+      products: 'id, name, sku, category',
+      parties: 'id, name, phone, company_name, type, is_delete',
+      orders: 'id, party_id, created_at, status',
+      party_transactions: 'id, party_id, date, type',
+      party_ledger_entries: 'id, party_id, created_at, effective_at',
+      party_balance_state: 'id, party_id',
+      purchase_bills: 'id, party_id, created_at',
+      expenses: 'id, date, category',
+      quotations: 'id, party_id, created_at, status',
+      categories: 'id, name',
+      payment_methods: 'id, name',
+      vendor_transactions: 'id, party_id, date, type',
+      sale_return_transactions: 'id, party_id, date',
+      transactions: 'id, order_id, type',
+      subscriptions: 'id, status, expiry_date',
+      configurations: 'id, user_id',
+      users: 'id, email',
+      modules: 'id, name',
+      permissions: 'id, module_id',
+      roles: 'id, owner_id',
+      role_permissions: 'id, role_id',
+      user_roles: 'id, user_id',
+      branches: 'id, name',
       syncQueue: '++id, status, timestamp, collection'
     });
   }
