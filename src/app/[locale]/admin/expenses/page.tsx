@@ -532,102 +532,100 @@ export default function ExpensesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t("pageDescription")}
-        </p>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            {t("pageDescription")}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={openAddDialog}
+          className="h-9 text-xs px-3 shrink-0"
+        >
+          <PlusCircle className="w-3.5 h-3.5 mr-1" />
+          <span>{t("addExpense")}</span>
+        </Button>
       </div>
 
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={
-                    typeof tCommon("search") === "string" && tCommon("search")
-                      ? tCommon("search")
-                      : "Search..."
-                  }
-                  className="pl-9 pr-9 h-9 text-sm w-full bg-background"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={
+                  typeof tCommon("search") === "string" && tCommon("search")
+                    ? tCommon("search")
+                    : "Search..."
+                }
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full bg-background"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
                     setPage(1);
                   }}
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setPage(1);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 shrink-0"
-                    >
-                      <FilterIcon className="w-4 h-4" />
-                      <span>{tCommon("filter")}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-56 max-h-80 overflow-y-auto"
-                  >
-                    <DropdownMenuLabel>
-                      {t("filterByCategory") || "Filter by Category"}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={filterCategory === "all"}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setFilterCategory("all");
-                          setPage(1);
-                        }
-                      }}
-                    >
-                      {tCommon("all", { defaultValue: "All" })}
-                    </DropdownMenuCheckboxItem>
-                    {categoryOptions.map((cat) => (
-                      <DropdownMenuCheckboxItem
-                        key={cat.value}
-                        checked={filterCategory === cat.value}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setFilterCategory(cat.value);
-                            setPage(1);
-                          }
-                        }}
-                      >
-                        {cat.label}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <Button
-              size="sm"
-              onClick={openAddDialog}
-              className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto"
-            >
-              <PlusCircle className="w-3 h-3 mr-1" />
-              {t("addExpense")}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-9 px-2.5 sm:px-3 text-xs shrink-0"
+                >
+                  <FilterIcon className="h-3.5 w-3.5" />
+                  <span>{tCommon("filter")}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 max-h-80 overflow-y-auto"
+              >
+                <DropdownMenuLabel>
+                  {t("filterByCategory") || "Filter by Category"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={filterCategory === "all"}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setFilterCategory("all");
+                      setPage(1);
+                    }
+                  }}
+                >
+                  {tCommon("all", { defaultValue: "All" })}
+                </DropdownMenuCheckboxItem>
+                {categoryOptions.map((cat) => (
+                  <DropdownMenuCheckboxItem
+                    key={cat.value}
+                    checked={filterCategory === cat.value}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFilterCategory(cat.value);
+                        setPage(1);
+                      }
+                    }}
+                  >
+                    {cat.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -1058,7 +1056,17 @@ export default function ExpensesPage() {
   );
 }
 
-// Mobile Card Component for Expense Row
+// Helper function for date formatting (DD-MM-YYYY)
+function formatDateDMY(dateStr?: string) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+// Mobile Card Component for Expense
 function ExpenseCard({
   expense,
   onEdit,
@@ -1073,53 +1081,64 @@ function ExpenseCard({
   tCommon: (key: string) => string;
 }) {
   return (
-    <div className="bg-card border rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h3 className="font-semibold text-base">{expense.expenseNumber}</h3>
-          <p className="text-xs text-muted-foreground">{expense.date}</p>
+    <div className="bg-card border rounded-lg p-3.5 shadow-sm">
+      {/* Header Row: Expense Item Name & ID below it on Left, Action Icons on Right */}
+      <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+        <div className="min-w-0 flex-1 pr-2">
+          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
+            {expense.itemName || "-"}
+          </h3>
+          <p className="text-[11px] text-muted-foreground font-medium truncate">
+            {expense.expenseNumber}
+          </p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             size="icon"
             variant="ghost"
             onClick={onEdit}
-            className="h-8 w-8"
+            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="w-4 h-4 text-sky-500" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
           <Button
             size="icon"
-            variant="danger"
+            variant="ghost"
             onClick={onDelete}
-            className="h-8 w-8"
+            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="w-4 h-4 text-red-500" />
             <span className="sr-only">{tCommon("delete")}</span>
           </Button>
         </div>
       </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("category")}:</span>
-          <span>{expense.category}</span>
+
+      <div className="space-y-2 text-xs sm:text-sm">
+        {/* Row 1: Date on Left & Category on Right in theme grey without labels */}
+        <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
+          <span>{formatDateDMY(expense.date)}</span>
+          <span>{expense.category || "-"}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("itemName")}:</span>
-          <span>{expense.itemName}</span>
+
+        {/* Row 2: Rate to Left & Qty to Right */}
+        <div className="flex justify-between items-center text-xs">
+          <span>
+            <span className="text-muted-foreground">{t("rate")}: </span>
+            <span className="font-medium text-foreground">Rs. {formatNumber(expense.rate)}</span>
+          </span>
+          <span>
+            <span className="text-muted-foreground">{t("qty")}: </span>
+            <span className="font-medium text-foreground">{formatNumber(expense.qty)}</span>
+          </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("qty")}:</span>
-          <span>{formatNumber(expense.qty)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("rate")}:</span>
-          <span>{formatNumber(expense.rate)}</span>
-        </div>
-        <div className="flex justify-between pt-1 border-t">
-          <span className="font-medium">{t("amount")}:</span>
-          <span className="font-bold">{formatNumber(expense.amount)}</span>
+
+        {/* Row 3: Total Amount */}
+        <div className="flex justify-between items-center text-xs pt-1 border-t border-zinc-100 dark:border-zinc-800/40">
+          <span className="text-muted-foreground font-medium">{t("amount")}:</span>
+          <span className="font-semibold text-foreground text-sm">
+            Rs. {formatNumber(expense.amount)}
+          </span>
         </div>
       </div>
     </div>

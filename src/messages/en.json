@@ -115,7 +115,7 @@
     "aiChatDescription": "AI-powered insights and decisions",
     "aiChatSubtext": "Get intelligent insights to make better business decisions",
     "quotations": "Quotations",
-    "quotationsDescription": "Create, manage, and print quotations/estimates",
+    "quotationsDescription": "Create and manage quotations",
     "convertToSale": "Convert to Sale",
     "configuration": "Configuration",
     "configurationDescription": "Upload company logo and signature",
@@ -395,7 +395,7 @@
   },
   "paymentIn": {
     "title": "Payment In",
-    "pageDescription": "Record and manage party payments received",
+    "pageDescription": "Manage party payments received",
     "customer": "Party",
     "paymentAmount": "Payment Amount",
     "paymentMethod": "Payment Method",
@@ -428,7 +428,7 @@
   },
   "paymentOut": {
     "title": "Payment Out",
-    "pageDescription": "Record and manage party payments made",
+    "pageDescription": "Manage party payments made",
     "party": "Party",
     "paymentAmount": "Payment Amount",
     "paymentMethod": "Payment Method",
@@ -468,7 +468,7 @@
   },
   "stockReportPage": {
     "title": "Stock Report",
-    "description": "Real-time overview of current inventory levels, valuation, and potential profit margins.",
+    "description": "Manage business inventory stock",
     "totalStockItems": "Total Stock Items",
     "costValuation": "Cost Valuation",
     "retailValuation": "Retail Valuation",
@@ -556,7 +556,7 @@
   "saleReturn": {
     "title": "Sale Return",
     "creditNote": "Credit Note",
-    "pageDescription": "Record and manage party transactions",
+    "pageDescription": "Manage party sale returns",
     "customer": "Party",
     "party": "Party",
     "items": "Items",
@@ -1022,7 +1022,7 @@
   },
   "accountStatement": {
     "title": "Account Statement",
-    "modalDescription": "Select a party and date range to generate an account statement.",
+    "modalDescription": "Generate party statement for date range",
     "selectCustomer": "Party",
     "searchCustomer": "Search Party",
     "selectCustomerPlaceholder": "Select Party",
@@ -1097,7 +1097,7 @@
   },
   "expenses": {
     "title": "Expenses",
-    "pageDescription": "Record expenses with category, item, quantity and rate.",
+    "pageDescription": "Record and manage expenses",
     "expenseNumber": "Expense Number",
     "category": "Category",
     "itemName": "Expense Item Name",
@@ -1196,7 +1196,7 @@
   },
   "purchaseBill": {
     "title": "Purchase Bill",
-    "purchaseBilldescription": "Create and manage purchase bills",
+    "purchaseBilldescription": "Manage party purchase bills",
     "searchPlaceholder": "Search by party, amount, status...",
     "billDetails": "Bill Details",
     "partyName": "Party Name",
@@ -1209,7 +1209,7 @@
     "billedItems": "Billed Items",
     "noItems": "No items added",
     "addItems": "Add Items",
-    "addBills": "Add Purchase Bill",
+    "addBills": "Add Bill",
     "selectProduct": "Select Product",
     "product": "Product",
     "quantity": "Quantity",

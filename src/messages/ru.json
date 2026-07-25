@@ -115,7 +115,7 @@
     "aiChatDescription": "AI se insights aur faisle lein",
     "aiChatSubtext": "Aqlmand insights se acha business faisla lein",
     "quotations": "Quotations",
-    "quotationsDescription": "Quotations banayein, manage karein, aur print karein",
+    "quotationsDescription": "Create and manage quotations",
     "convertToSale": "Convert to Sale",
     "configuration": "Settings",
     "configurationDescription": "Company logo aur signature upload karain",
@@ -395,7 +395,7 @@
   },
   "paymentIn": {
     "title": "Payment In",
-    "pageDescription": "Record and manage customer payments received",
+    "pageDescription": "Manage party payments received",
     "customer": "Party",
     "paymentAmount": "Payment Amount",
     "paymentMethod": "Payment Method",
@@ -428,7 +428,7 @@
   },
   "paymentOut": {
     "title": "Payment Out",
-    "pageDescription": "Record and manage party payments made",
+    "pageDescription": "Manage party payments made",
     "party": "Party",
     "paymentAmount": "Payment Amount",
     "paymentMethod": "Payment Method",
@@ -468,7 +468,7 @@
   },
   "stockReportPage": {
     "title": "Stock Report",
-    "description": "Maujuda stock levels, valuation, aur expected profit margins ka real-time overview.",
+    "description": "Manage business inventory stock",
     "totalStockItems": "Total Stock Items",
     "costValuation": "Cost Valuation",
     "retailValuation": "Retail Valuation",
@@ -556,7 +556,7 @@
   "saleReturn": {
     "title": "Sale Return",
     "creditNote": "Credit Note",
-    "pageDescription": "Record aur manage customer sale returns",
+    "pageDescription": "Manage party sale returns",
     "customer": "Customer",
     "party": "Party",
     "items": "Items",
@@ -1022,7 +1022,7 @@
   },
   "accountStatement": {
     "title": "Account Statement",
-    "modalDescription": "Account statement banane ke liye party aur date range chunein.",
+    "modalDescription": "Generate party statement for date range",
     "selectCustomer": "Party",
     "searchCustomer": "Search Party",
     "selectCustomerPlaceholder": "Party Chunein",
@@ -1096,8 +1096,8 @@
     "exportCSV": "CSV mein Baramad Karain"
   },
   "expenses": {
-    "title": "Kharchen",
-    "pageDescription": "Category, item, quantity aur rate ke sath kharche record karain.",
+    "title": "Expenses",
+    "pageDescription": "Record and manage expenses",
     "expenseNumber": "Kharcha Number",
     "category": "Zamaraa",
     "itemName": "Kharcha Item Name",
@@ -1195,8 +1195,8 @@
     "showNumbers": "Numbers Dikhain"
   },
   "purchaseBill": {
-    "title": "Khareedari Bill",
-    "purchaseBilldescription": "Khareedari ke bills banain aur manage karain",
+    "title": "Purchase Bill",
+    "purchaseBilldescription": "Manage party purchase bills",
     "searchPlaceholder": "Party, raqam ya status se search karein...",
     "billDetails": "Bill ki Tafseelat",
     "partyName": "Party ka Naam",
