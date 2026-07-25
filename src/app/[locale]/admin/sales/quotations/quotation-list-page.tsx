@@ -13,7 +13,7 @@ import {
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Trash2, EyeIcon, Loader2, SearchIcon, X, Edit, PlusCircle } from "lucide-react";
+import { Download, Trash2, EyeIcon, Loader2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ArrowUpDown } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -27,6 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { useOfflineQuotations } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
@@ -218,8 +226,8 @@ export default function QuotationListPage() {
             <Button asChild size="sm" className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap">
               <Link href={`/${locale}/admin/sales/quotations/new`}>
                 <PlusCircle className="w-4 h-4 mr-1.5" />
-                <span className="hidden sm:inline">{t("common.add")}</span>
-                <span className="inline sm:hidden">Add</span>
+                <span className="hidden sm:inline">Create Quotation</span>
+                <span className="inline sm:hidden">Create</span>
               </Link>
             </Button>
           )}
@@ -230,14 +238,14 @@ export default function QuotationListPage() {
 
       <Card className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-row items-center gap-2 w-full">
-            <div className="hidden sm:block relative sm:w-64 sm:flex-none">
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t("common.search") || "Search quotations..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-9 h-9 text-sm w-full"
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full"
               />
               {searchTerm && (
                 <button
@@ -248,114 +256,83 @@ export default function QuotationListPage() {
                 </button>
               )}
             </div>
-            <div className="hidden sm:flex flex-wrap items-center gap-2">
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => {
-                  setStatusFilter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[140px] h-9">
-                  <SelectValue placeholder={tOrders("filterByStatus")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{tOrders("allStatuses")}</SelectItem>
-                  <SelectItem value="open">{tInv("statusOpen")}</SelectItem>
-                  <SelectItem value="converted">{tInv("statusConverted")}</SelectItem>
-                  <SelectItem value="expired">{tInv("statusExpired")}</SelectItem>
-                  <SelectItem value="cancelled">{tInv("statusCancelled")}</SelectItem>
-                </SelectContent>
-              </Select>
 
-              <Select
-                value={sortBy}
-                onValueChange={(value) => {
-                  setSortBy(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[160px] h-9">
-                  <SelectValue placeholder={tOrders("sortBy")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">{tOrders("default")}</SelectItem>
-                  <SelectItem value="totalHighToLow">{tOrders("totalHighToLow")}</SelectItem>
-                  <SelectItem value="totalLowToHigh">{tOrders("totalLowToHigh") === "totalLowToHigh" ? "Total (Low to High)" : tOrders("totalLowToHigh")}</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3 text-xs">
+                    <FilterIcon className="w-3.5 h-3.5" />
+                    <span>{tOrders("filters") || "Filters"}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{tOrders("filterByStatus") || "Filter by Status"}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter === "all"}
+                    onCheckedChange={() => { setStatusFilter("all"); setCurrentPage(1); }}
+                  >
+                    {tOrders("allStatuses") || "All Statuses"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter === "open"}
+                    onCheckedChange={() => { setStatusFilter("open"); setCurrentPage(1); }}
+                  >
+                    {tInv("statusOpen") || "Open"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter === "converted"}
+                    onCheckedChange={() => { setStatusFilter("converted"); setCurrentPage(1); }}
+                  >
+                    {tInv("statusConverted") || "Converted"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter === "expired"}
+                    onCheckedChange={() => { setStatusFilter("expired"); setCurrentPage(1); }}
+                  >
+                    {tInv("statusExpired") || "Expired"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter === "cancelled"}
+                    onCheckedChange={() => { setStatusFilter("cancelled"); setCurrentPage(1); }}
+                  >
+                    {tInv("statusCancelled") || "Cancelled"}
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3 text-xs">
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <span>{tOrders("sort") || "Sort"}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{tOrders("sortBy") || "Sort By"}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={sortBy === "default"}
+                    onCheckedChange={() => { setSortBy("default"); setCurrentPage(1); }}
+                  >
+                    {tOrders("default") || "Default"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={sortBy === "totalHighToLow"}
+                    onCheckedChange={() => { setSortBy("totalHighToLow"); setCurrentPage(1); }}
+                  >
+                    {tOrders("totalHighToLow") || "Total (High to Low)"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={sortBy === "totalLowToHigh"}
+                    onCheckedChange={() => { setSortBy("totalLowToHigh"); setCurrentPage(1); }}
+                  >
+                    {tOrders("totalLowToHigh") === "totalLowToHigh" ? "Total (Low to High)" : tOrders("totalLowToHigh")}
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-
-          {/* Mobile filter row */}
-          <div className="flex sm:hidden items-center gap-2 mt-2">
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="flex-1 h-9 text-xs">
-                <SelectValue placeholder={tOrders("filterByStatus")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tOrders("allStatuses")}</SelectItem>
-                <SelectItem value="open">{tInv("statusOpen")}</SelectItem>
-                <SelectItem value="converted">{tInv("statusConverted")}</SelectItem>
-                <SelectItem value="expired">{tInv("statusExpired")}</SelectItem>
-                <SelectItem value="cancelled">{tInv("statusCancelled")}</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={sortBy}
-              onValueChange={(value) => {
-                setSortBy(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="flex-1 h-9 text-xs">
-                <SelectValue placeholder={tOrders("sortBy")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">{tOrders("default")}</SelectItem>
-                <SelectItem value="totalHighToLow">{tOrders("totalHighToLow")}</SelectItem>
-                <SelectItem value="totalLowToHigh">{tOrders("totalLowToHigh") === "totalLowToHigh" ? "Total (Low to High)" : tOrders("totalLowToHigh")}</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              size="icon"
-              variant="default"
-              className="h-9 w-9 bg-primary hover:bg-primary/90 text-primary-foreground flex-shrink-0"
-              onClick={() => setShowMobileSearch(!showMobileSearch)}
-            >
-              <SearchIcon className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Mobile Search Box */}
-          {showMobileSearch && (
-            <div className="relative w-full mt-2 block sm:hidden">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t("common.search") || "Search quotations..."}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-9 h-9 text-xs w-full"
-                autoFocus
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          )}
         </CardHeader>
         
         <CardContent className="p-0 relative">

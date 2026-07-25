@@ -115,7 +115,7 @@
     "aiChatDescription": "AI بصیرت",
     "aiChatSubtext": "بہتر کاروباری فیصلے لیں",
     "quotations": "کوٹیشنز",
-    "quotationsDescription": "کوٹیشنز اور تخمینے",
+    "quotationsDescription": "کوٹیشنز اور تخمینے منظم کریں",
     "convertToSale": "سیل میں بدلیں",
     "configuration": "سیٹنگز",
     "configurationDescription": "لوگو اور دستخط",
@@ -395,7 +395,7 @@
   },
   "paymentIn": {
     "title": "پیمنٹ ان",
-    "pageDescription": "پارٹیز کی ادائیگیاں ریکارڈ اور انتظام کریں",
+    "pageDescription": "موصولہ پارٹیز ادائیگیاں منظم کریں",
     "customer": "پارٹیز",
     "paymentAmount": "ادائیگی کی رقم",
     "paymentMethod": "ادائیگی کا طریقہ",
@@ -428,7 +428,7 @@
   },
   "paymentOut": {
     "title": "ادائیگی بھیجیں",
-    "pageDescription": "پارٹی کی ادائیگیاں ریکارڈ کریں اور منظم کریں",
+    "pageDescription": "پارٹی کی ادائیگیاں منظم کریں",
     "party": "پارٹی",
     "paymentAmount": "ادائیگی کی رقم",
     "paymentMethod": "ادائیگی کا طریقہ",
@@ -468,7 +468,7 @@
   },
   "stockReportPage": {
     "title": "اسٹاک رپورٹ",
-    "description": "موجودہ انوینٹری کی سطح، مالیت، اور متوقع منافع کے مارجن کا حقیقی وقت میں جائزہ۔",
+    "description": "انوینٹری اسٹاک منظم کریں",
     "totalStockItems": "کل اسٹاک اشیاء",
     "costValuation": "لاگت کی مالیت",
     "retailValuation": "خردہ مالیت",
@@ -556,7 +556,7 @@
   "saleReturn": {
     "title": "سیل ریٹرن",
     "creditNote": "کریڈٹ نوٹ",
-    "pageDescription": "گاہک کے سیل ریٹرن ریکارڈ اور انتظام کریں",
+    "pageDescription": "پارٹی سیل ریٹرن منظم کریں",
     "customer": "گاہک",
     "party": "پارٹی",
     "items": "آئٹمز",
@@ -1022,7 +1022,7 @@
   },
   "accountStatement": {
     "title": "اکاؤنٹ سٹیٹمنٹ",
-    "modalDescription": "اکاؤنٹ سٹیٹمنٹ بنانے کے لیے پارٹی اور تاریخ کی حد منتخب کریں۔",
+    "modalDescription": "تاریخ کی حد کا اسٹیٹمنٹ بنائیں",
     "selectCustomer": "پارٹی",
     "searchCustomer": "پارٹی تلاش...",
     "selectCustomerPlaceholder": "پارٹی منتخب کریں",
@@ -1097,7 +1097,7 @@
   },
   "expenses": {
     "title": "اخراجات",
-    "pageDescription": "زمرہ، آئٹم، مقدار اور ریٹ کے ساتھ اخراجات ریکارڈ کریں۔",
+    "pageDescription": "اپنے اخراجات منظم کریں",
     "expenseNumber": "اخراج نمبر",
     "category": "زمرہ",
     "itemName": "اخراج آئٹم کا نام",
@@ -1195,8 +1195,8 @@
     "showNumbers": "نمبر دکھائیں"
   },
   "purchaseBill": {
-    "title": "خریداری بل",
-    "purchaseBilldescription": "خریداری کے بلز بنائیں اور منظم کریں",
+    "title": "پرچیز بل",
+    "purchaseBilldescription": "خریداری کے بلز منظم کریں",
     "searchPlaceholder": "پارٹی، رقم یا اسٹیٹس سے تلاش...",
     "billDetails": "بل کی تفصیلات",
     "partyName": "فریق کا نام",

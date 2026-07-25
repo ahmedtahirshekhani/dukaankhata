@@ -19,6 +19,7 @@ import {
   EyeIcon,
   XIcon,
   ArrowUpDown,
+  MoreVertical,
 } from "lucide-react";
 import {
   Table,
@@ -52,6 +53,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
@@ -884,108 +886,109 @@ export default function OrdersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
+        </div>
+        <Button asChild size="sm" className="h-9 text-xs px-3 shrink-0">
+          <Link href={`/${locale}/admin/sales/invoice/new`}>
+            <PlusCircle className="w-3.5 h-3.5 mr-1" />
+            {t("createOrder")}
+          </Link>
+        </Button>
       </div>
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="pl-9 pr-9 h-9 text-sm w-full"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => { setSearchTerm(""); handleSearch({ target: { value: "" } } as any); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1 h-9">
-                      <FilterIcon className="w-4 h-4" />
-                      <span>{t("filters")}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={filters.status === "all"}
-                      onCheckedChange={() => handleFilterChange("all")}
-                    >
-                      {t("allStatuses")}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={filters.status === "completed"}
-                      onCheckedChange={() => handleFilterChange("completed")}
-                    >
-                      {t("completed")}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={filters.status === "pending"}
-                      onCheckedChange={() => handleFilterChange("pending")}
-                    >
-                      {t("pending")}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={filters.status === "cancelled"}
-                      onCheckedChange={() => handleFilterChange("cancelled")}
-                    >
-                      {t("cancelled")}
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1 h-9">
-                      <ArrowUpDown className="w-4 h-4" />
-                      <span>{t("sort") || "Sort"}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>{t("sortBy") || "Sort By"}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "default"}
-                      onCheckedChange={() => { setSortBy("default"); setCurrentPage(1); }}
-                    >
-                      {t("default") || "Default"}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "totalHighToLow"}
-                      onCheckedChange={() => { setSortBy("totalHighToLow"); setCurrentPage(1); }}
-                    >
-                      {t("totalHighToLow") || "Total (High to Low)"}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "balanceHighToLow"}
-                      onCheckedChange={() => { setSortBy("balanceHighToLow"); setCurrentPage(1); }}
-                    >
-                      {t("balanceHighToLow") || "Balance (High to Low)"}
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchTerm}
+                onChange={handleSearch}
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => { setSearchTerm(""); handleSearch({ target: { value: "" } } as any); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <Button asChild size="sm" className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
-              <Link href={`/${locale}/admin/sales/invoice/new`}>
-                <PlusCircle className="w-3 h-3 mr-1" />
-                {t("createOrder")}
-              </Link>
-            </Button>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3 text-xs">
+                    <FilterIcon className="w-3.5 h-3.5" />
+                    <span>{t("filters")}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{t("filterByStatus")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "all"}
+                    onCheckedChange={() => handleFilterChange("all")}
+                  >
+                    {t("allStatuses")}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "completed"}
+                    onCheckedChange={() => handleFilterChange("completed")}
+                  >
+                    {t("completed")}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "pending"}
+                    onCheckedChange={() => handleFilterChange("pending")}
+                  >
+                    {t("pending")}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.status === "cancelled"}
+                    onCheckedChange={() => handleFilterChange("cancelled")}
+                  >
+                    {t("cancelled")}
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3 text-xs">
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <span>{t("sort") || "Sort"}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{t("sortBy") || "Sort By"}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={sortBy === "default"}
+                    onCheckedChange={() => { setSortBy("default"); setCurrentPage(1); }}
+                  >
+                    {t("default") || "Default"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={sortBy === "totalHighToLow"}
+                    onCheckedChange={() => { setSortBy("totalHighToLow"); setCurrentPage(1); }}
+                  >
+                    {t("totalHighToLow") || "Total (High to Low)"}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={sortBy === "balanceHighToLow"}
+                    onCheckedChange={() => { setSortBy("balanceHighToLow"); setCurrentPage(1); }}
+                  >
+                    {t("balanceHighToLow") || "Balance (High to Low)"}
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardHeader>
 
@@ -1092,7 +1095,7 @@ export default function OrdersPage() {
               </div>
             ) : (
               filteredOrders.map((order) => (
-                <Card key={order.id} className="p-4">
+                <Card key={order.id} className="p-3.5 shadow-sm border border-zinc-200 dark:border-zinc-800">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col items-start gap-0.5">
@@ -1104,62 +1107,45 @@ export default function OrdersPage() {
                           {order.invoice_no || `ORD-${order.id}`}
                         </span>
                       </div>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
-                          <FilePenIcon className="w-4 h-4" />
-                        </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => handleEditOrder(order)} className="gap-2 cursor-pointer text-xs">
+                            <FilePenIcon className="w-4 h-4 text-muted-foreground" />
+                            <span>{t("edit")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => {
                               setSelectedInvoiceOrder(order);
                               setInvoiceDialogOpen(true);
                             }}
-                            className="h-8 w-8"
+                            className="gap-2 cursor-pointer text-xs"
                           >
-                            <EyeIcon className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
+                            <EyeIcon className="w-4 h-4 text-muted-foreground" />
+                            <span>{t("showInvoice")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => handleDeleteClick(order)}
+                            className="gap-2 cursor-pointer text-xs text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                            <span>{t("delete")}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("customer")}</p>
-                      <p className="font-medium text-sm">{order.customer?.name || "-"}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("total")}</p>
-                        <p className="font-semibold text-sm">
-                          {/* {t("currencySymbol")}  */}
-                          {Math.floor(order.total_amount)}
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/60 space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <p className="font-medium text-foreground">
+                          <span className="text-muted-foreground">{t("customer")}:</span>{" "}
+                          <span className="font-semibold">{order.customer?.name || "-"}</span>
                         </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("paid")}</p>
-                        <p className="font-semibold text-sm">
-                          {/* {t("currencySymbol")}  */}
-                          {Math.floor(order.payment?.paid_amount || 0)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("balance")}</p>
-                        <p className="font-semibold text-sm">
-                          {/* {t("currencySymbol")}{" "} */}
-                          {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("date")}</p>
-                        <p className="font-semibold text-sm">
+                        <p className="text-muted-foreground text-xs">
                           {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
                             weekday: "short",
                             year: "numeric",
@@ -1167,6 +1153,20 @@ export default function OrdersPage() {
                             day: "numeric",
                           })}
                         </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                        <div className="bg-muted/40 p-2 rounded">
+                          <span className="text-[10px] text-muted-foreground">{t("total")}</span>
+                          <p className="font-semibold text-xs">{Math.floor(order.total_amount)}</p>
+                        </div>
+                        <div className="bg-muted/40 p-2 rounded">
+                          <span className="text-[10px] text-muted-foreground">{t("paid")}</span>
+                          <p className="font-semibold text-xs">{Math.floor(order.payment?.paid_amount || 0)}</p>
+                        </div>
+                        <div className="bg-muted/40 p-2 rounded">
+                          <span className="text-[10px] text-muted-foreground">{t("balance")}</span>
+                          <p className="font-semibold text-xs">{Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}</p>
+                        </div>
                       </div>
                     </div>
                   </div>

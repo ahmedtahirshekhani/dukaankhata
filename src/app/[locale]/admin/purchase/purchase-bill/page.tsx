@@ -202,125 +202,95 @@ export default function PurchaseBillPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-6 space-y-4 px-4 sm:px-2">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("purchaseBilldescription")}</p>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t("purchaseBilldescription")}</p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new`)}
+          className="h-9 text-xs px-3 shrink-0"
+        >
+          <PlusCircle className="w-3.5 h-3.5 mr-1" />
+          <span>Add Bill</span>
+        </Button>
       </div>
 
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder") || "Search purchase bills..."}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-9 h-9 text-sm w-full"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => { setSearchTerm(""); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 gap-1 shrink-0">
-                      Year
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[150px]">
-                    <DropdownMenuLabel>Select Year</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={selectedYear === null}
-                      onCheckedChange={() => setSelectedYear(null)}
-                    >
-                      All Years
-                    </DropdownMenuCheckboxItem>
-                    {availableYears.map((year) => (
-                      <DropdownMenuCheckboxItem
-                        key={year}
-                        checked={selectedYear === year}
-                        onCheckedChange={() => setSelectedYear(year)}
-                      >
-                        {year}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 gap-1 shrink-0">
-                      <FilterIcon className="h-4 w-4" />
-                      Filters
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[200px]">
-                    <DropdownMenuLabel>Status</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={statusFilter === "all"}
-                      onCheckedChange={() => setStatusFilter("all")}
-                    >
-                      All
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={statusFilter === "paid"}
-                      onCheckedChange={() => setStatusFilter("paid")}
-                    >
-                      Paid
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={statusFilter === "pending"}
-                      onCheckedChange={() => setStatusFilter("pending")}
-                    >
-                      Pending
-                    </DropdownMenuCheckboxItem>
-
-                    <DropdownMenuSeparator />
-                    <div className="p-3">
-                      <Label className="text-xs font-semibold mb-2 block">Amount Range</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          placeholder="Min"
-                          value={amountRange.min}
-                          onChange={(e) => setAmountRange({ ...amountRange, min: e.target.value })}
-                          className="h-8 text-xs"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Max"
-                          value={amountRange.max}
-                          onChange={(e) => setAmountRange({ ...amountRange, max: e.target.value })}
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder") || "Search purchase bills..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => { setSearchTerm(""); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <Button
-              size="sm"
-              onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new`)}
-              className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto"
-            >
-              <PlusCircle className="w-3 h-3 mr-1" />
-              {t("addBills") || "Add Purchase Bill"}
-            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-1 px-2.5 sm:px-3 text-xs shrink-0">
+                  <FilterIcon className="h-3.5 w-3.5" />
+                  <span>{tCommon("filter") || "Filters"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={statusFilter === "all"}
+                  onCheckedChange={() => setStatusFilter("all")}
+                >
+                  All
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={statusFilter === "paid"}
+                  onCheckedChange={() => setStatusFilter("paid")}
+                >
+                  Paid
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={statusFilter === "pending"}
+                  onCheckedChange={() => setStatusFilter("pending")}
+                >
+                  Pending
+                </DropdownMenuCheckboxItem>
+
+                <DropdownMenuSeparator />
+                <div className="p-3">
+                  <Label className="text-xs font-semibold mb-2 block">Amount Range</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={amountRange.min}
+                      onChange={(e) => setAmountRange({ ...amountRange, min: e.target.value })}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={amountRange.max}
+                      onChange={(e) => setAmountRange({ ...amountRange, max: e.target.value })}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
@@ -403,7 +373,7 @@ export default function PurchaseBillPage() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="md:hidden p-4 space-y-4">
+              <div className="md:hidden space-y-3">
                 {bills.map((bill) => (
                   <PurchaseBillCard
                     key={bill.id}
@@ -489,6 +459,17 @@ export default function PurchaseBillPage() {
   );
 }
 
+// Helper function to format date as date-month-year (DD-MM-YYYY)
+function formatDateDMY(dateStr?: string) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 // Mobile Card Component for Purchase Bill
 function PurchaseBillCard({
   bill,
@@ -505,56 +486,72 @@ function PurchaseBillCard({
   tCommon: (key: string) => string;
   locale: string;
 }) {
+  const tOrders = useTranslations("orders");
+
   return (
-    <div className="bg-card border rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-base truncate max-w-[70%]">
-          {bill.party_name}
+    <div className="bg-card border rounded-lg p-3.5 shadow-sm">
+      <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+        <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[65%]">
+          {bill.party_name || "-"}
         </h3>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             size="icon"
             variant="ghost"
             onClick={onEdit}
-            className="h-8 w-8"
+            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="w-4 h-4 text-sky-500" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
           <Button
             size="icon"
-            variant="danger"
+            variant="ghost"
             onClick={onDelete}
-            className="h-8 w-8"
+            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="w-4 h-4 text-red-500" />
             <span className="sr-only">{tCommon("delete")}</span>
           </Button>
         </div>
       </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("totalAmount") || "Total"}:</span>
-          <span className="font-medium">{formatCurrencyString(bill.total_amount)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("paidAmount") || "Paid"}:</span>
-          <span>{formatCurrencyString(bill.paid_amount || 0)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("balanceDue") || "Balance"}:</span>
-          <span className={(bill.balance_due || 0) > 0 ? "text-destructive font-medium" : "text-green-600"}>
-            {formatCurrencyString(bill.balance_due || 0)}
+
+      <div className="space-y-2 text-xs sm:text-sm">
+        {/* Row 1: Date (date-month-year) on Left & Light Sky Blue Status Box on Right */}
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground text-xs font-medium">
+            {formatDateDMY(bill.created_at)}
           </span>
-        </div>
-        <div className="flex justify-between items-center pt-1">
-          <span className="text-muted-foreground">{t("status") || "Status"}:</span>
-          <Badge variant={bill.is_paid ? "default" : "secondary"}>
+          <Badge
+            variant="outline"
+            className={
+              bill.is_paid
+                ? "bg-sky-50 text-sky-600 border-sky-200 dark:bg-sky-950/50 dark:text-sky-400 dark:border-sky-800 text-[10px] px-2 py-0.5 font-medium"
+                : "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800 text-[10px] px-2 py-0.5 font-medium"
+            }
+          >
             {bill.is_paid ? t("paid") || "Paid" : t("pending") || "Pending"}
           </Badge>
         </div>
-        <div className="flex justify-between pt-1 text-xs text-muted-foreground border-t">
-          <span>{bill.created_at ? new Date(bill.created_at).toLocaleDateString(locale) : "-"}</span>
+
+        {/* Row 2: Total Amount */}
+        <div className="flex justify-between items-center text-xs">
+          <span>
+            <span className="text-muted-foreground">{tOrders("total") || "Total"}: </span>
+            <span className="font-semibold text-foreground">Rs. {Math.round(bill.total_amount || 0)}</span>
+          </span>
+        </div>
+
+        {/* Row 3: Paid on Left & Balance on Right */}
+        <div className="flex justify-between items-center text-xs">
+          <span>
+            <span className="text-muted-foreground">{tOrders("paid") || "Paid"}: </span>
+            <span className="font-semibold text-foreground">Rs. {Math.round(bill.paid_amount || 0)}</span>
+          </span>
+          <span>
+            <span className="text-muted-foreground">{tOrders("balance") || "Balance"}: </span>
+            <span className="font-semibold text-foreground">Rs. {Math.round(bill.balance_due || 0)}</span>
+          </span>
         </div>
       </div>
     </div>
