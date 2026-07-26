@@ -1,7 +1,14 @@
 {
   "common": {
     "appName": "DukaanKhata",
-    "appDescription": "Sales aur Business Management System",
+    "addNewShop": "Nayi Dukan Add Karein",
+    "addNewShopDescription": "Ek aur karobar ke liye naya workspace banayein. Aap is nayi dukan ke owner honge.",
+    "companyName": "Dukan Ka Naam",
+    "shopNamePlaceholder": "e.g. Ali Traders 2",
+    "create": "Banayein",
+    "networkError": "Network error",
+    "failedToCreateShop": "Dukan bananey mein nakami",
+    "appDescription": "Sales & Business Management System",
     "welcome": "Khush Amdeed",
     "logout": "Logout Karain",
     "login": "Login Karain",

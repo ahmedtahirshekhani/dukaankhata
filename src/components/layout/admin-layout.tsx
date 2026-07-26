@@ -214,6 +214,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
       if (currentUserId !== user.id) {
         localStorage.setItem("tenant_info", JSON.stringify({ userId: user.id }));
+        localStorage.removeItem("last_sync_timestamp"); // Critical: Force full sync for new workspace
         // Only reload if we are switching from another user
         if (currentUserId !== null) {
           window.location.reload();

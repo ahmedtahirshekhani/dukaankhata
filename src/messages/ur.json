@@ -1,7 +1,14 @@
 {
   "common": {
-    "appName": "دکان خاتہ",
-    "appDescription": "بک ریکارڈنگ اور بزنس مینجمنٹ سسٹم",
+    "appName": "دکان کھاتہ",
+    "addNewShop": "نئی دکان شامل کریں",
+    "addNewShopDescription": "ایک اور کاروبار کے لیے نیا ورک اسپیس بنائیں۔ آپ اس نئی دکان کے مالک ہوں گے۔",
+    "companyName": "دکان کا نام",
+    "shopNamePlaceholder": "مثلاً علی ٹریڈرز 2",
+    "create": "بنائیں",
+    "networkError": "نیٹ ورک کی خرابی",
+    "failedToCreateShop": "دکان بنانے میں ناکامی",
+    "appDescription": "سیلز اور بزنس مینجمنٹ سسٹم",
     "welcome": "خوش آمدید",
     "logout": "لاگ آؤٹ",
     "login": "لاگ ان",

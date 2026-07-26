@@ -1,6 +1,13 @@
 {
   "common": {
     "appName": "DukaanKhata",
+    "addNewShop": "Add New Shop",
+    "addNewShopDescription": "Create a new workspace for another business. You will be the owner of this new shop.",
+    "companyName": "Shop Name",
+    "shopNamePlaceholder": "e.g. Ali Traders 2",
+    "create": "Create",
+    "networkError": "Network error",
+    "failedToCreateShop": "Failed to create shop",
     "appDescription": "Sales & Business Management System",
     "welcome": "Welcome",
     "logout": "Logout",

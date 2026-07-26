@@ -104,6 +104,20 @@ export async function POST(request: NextRequest) {
 
     const newUser = await usersCollection.findOne({ _id: result.insertedId });
 
+    // Create the default shop for the user
+    try {
+      const shopsCollection = await getCollection(COLLECTIONS.SHOPS);
+      await shopsCollection.insertOne({
+        _id: result.insertedId,
+        name: companyName,
+        owner_user_id: result.insertedId,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    } catch (err) {
+      console.error("Failed to create default shop for user", err);
+    }
+
     // Create default party: Walk In Customer
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
