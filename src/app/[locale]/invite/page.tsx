@@ -28,7 +28,7 @@ function InviteContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   
-  const [inviteData, setInviteData] = useState<{ email: string; userExists: boolean } | null>(null);
+  const [inviteData, setInviteData] = useState<{ email: string; userExists: boolean; shopName?: string; isLoggedInAsInvitedUser?: boolean } | null>(null);
   
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +36,7 @@ function InviteContent() {
 
   useEffect(() => {
     if (!token) {
-      setError("No token provided");
+      setError(t("noTokenProvided"));
       setIsLoading(false);
       return;
     }
@@ -136,7 +136,12 @@ function InviteContent() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">{t("acceptInvitation")}</CardTitle>
           <CardDescription>
-            {t("joinWorkspace")}
+            {inviteData?.shopName 
+              ? t.rich("joinWorkspaceCompany", { 
+                  shopName: inviteData.shopName,
+                  bold: (chunks) => <strong className="font-semibold text-foreground">{chunks}</strong>
+                })
+              : t("joinWorkspace")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -146,7 +151,7 @@ function InviteContent() {
                 {error}
               </div>
               <Button asChild className="w-full" variant="outline">
-                <Link href={`/${locale}/login`}>Go to Login</Link>
+                <Link href={`/${locale}/login`}>{t("goToLogin")}</Link>
               </Button>
             </div>
           ) : success ? (
@@ -157,7 +162,7 @@ function InviteContent() {
                 </svg>
               </div>
               <h3 className="text-lg font-medium">{t("invitationAccepted")}</h3>
-              <p className="text-sm text-muted-foreground">{t("redirectingToLogin")}</p>
+              <p className="text-sm text-muted-foreground">{inviteData?.userExists ? t("redirectingToDashboard") : t("redirectingToLogin")}</p>
             </div>
           ) : inviteData ? (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -174,7 +179,9 @@ function InviteContent() {
 
               {inviteData.userExists ? (
                 <div className="text-sm text-muted-foreground rounded-md bg-muted p-3">
-                  {t("accountExistsConfirmLink")}
+                  {inviteData.isLoggedInAsInvitedUser 
+                    ? t("loggedInAsInvitedUser", { email: inviteData.email, defaultValue: `You are logged in as ${inviteData.email}. Click below to accept the invite.` })
+                    : t("accountExistsConfirmLink")}
                 </div>
               ) : (
                 <>
@@ -217,7 +224,9 @@ function InviteContent() {
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {inviteData.userExists ? t("loginToAccept", { defaultValue: "Login to Accept" }) : t("createAccountAndAccept")}
+                {inviteData.userExists 
+                  ? (inviteData.isLoggedInAsInvitedUser ? t("acceptInvitation") : t("loginToAccept", { defaultValue: "Login to Accept" })) 
+                  : t("createAccountAndAccept")}
               </Button>
               
               {inviteData.userExists && (
