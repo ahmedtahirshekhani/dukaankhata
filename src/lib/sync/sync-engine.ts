@@ -4,7 +4,18 @@ export class SyncEngine {
   
   static async pullInitialData() {
     try {
-      const lastSyncTimestamp = localStorage.getItem('last_sync_timestamp');
+      let lastSyncTimestamp = localStorage.getItem('last_sync_timestamp');
+      
+      if (lastSyncTimestamp) {
+        // If essential RBAC tables are empty, the cache is outdated (prior to RBAC feature).
+        // Ignore the timestamp to force a full resync and populate these tables.
+        const modulesCount = await db.modules.count();
+        if (modulesCount === 0) {
+          console.warn("RBAC modules missing in local DB. Forcing full resync to recover from old cache.");
+          lastSyncTimestamp = null;
+        }
+      }
+
       const url = lastSyncTimestamp ? `/api/sync?last_sync=${encodeURIComponent(lastSyncTimestamp)}&_t=${Date.now()}` : `/api/sync?_t=${Date.now()}`;
       const response = await fetch(url, { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to fetch initial sync data');

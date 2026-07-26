@@ -62,6 +62,15 @@ export function RolesTab() {
       const savedWa = localStorage.getItem("setting_wa");
       if (savedWa) setEnableWhatsApp(savedWa === "true");
     }
+
+    // Force a sync if modules are empty (meaning old cache or first time)
+    const checkAndSync = async () => {
+      const count = await db.modules.count();
+      if (count === 0) {
+        SyncEngine.pullInitialData();
+      }
+    };
+    checkAndSync();
   }, []);
 
   const modules = useMemo(() => {
