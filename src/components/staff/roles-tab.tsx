@@ -32,7 +32,7 @@ export function RolesTab() {
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   const roles = useOfflineRoles(searchTerm) || [];
-  const modules = useOfflineModules() || [];
+  const rawModules = useOfflineModules() || [];
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,9 +48,37 @@ export function RolesTab() {
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Feature Toggles
+  const [enableCounterSale, setEnableCounterSale] = useState(true);
+  const [enableAiChat, setEnableAiChat] = useState(true);
+  const [enableWhatsApp, setEnableWhatsApp] = useState(true);
+
   useEffect(() => {
-    // fetchData is no longer needed since we're using offline hooks
+    if (typeof window !== "undefined") {
+      const savedCounter = localStorage.getItem("setting_counterSale");
+      if (savedCounter) setEnableCounterSale(savedCounter === "true");
+      const savedAi = localStorage.getItem("setting_aiChat");
+      if (savedAi) setEnableAiChat(savedAi === "true");
+      const savedWa = localStorage.getItem("setting_wa");
+      if (savedWa) setEnableWhatsApp(savedWa === "true");
+    }
   }, []);
+
+  const modules = useMemo(() => {
+    return rawModules.filter(mod => {
+      if (mod.code === "ai_chat" && !enableAiChat) return false;
+      if (mod.code === "whatsapp" && !enableWhatsApp) return false;
+      return true;
+    }).map(mod => {
+      if (!enableCounterSale) {
+        return {
+          ...mod,
+          actions: mod.actions.filter((a: string) => !a.includes("counter_sale"))
+        };
+      }
+      return mod;
+    }).filter(mod => mod.actions.length > 0);
+  }, [rawModules, enableAiChat, enableWhatsApp, enableCounterSale]);
 
   const handleOpenModal = (role?: any) => {
     if (role) {
