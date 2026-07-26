@@ -497,7 +497,7 @@
   },
   "receivableSummaryPage": {
     "title": "Receivable Summary",
-    "description": "Summary of outstanding receivables from all parties",
+    "description": "Summary of outstanding receivables",
     "totalOutstanding": "Total Outstanding",
     "totalOutstandingDesc": "Cumulative receivables across all active parties",
     "totalDebtors": "Total Debtors",
@@ -509,7 +509,7 @@
     "searchPlaceholder": "Search parties by name or phone...",
     "partyName": "Party Name",
     "companyName": "Company Name",
-    "contactInformation": "Contact Information",
+    "contactInformation": "Contact",
     "outstandingBalance": "Outstanding Balance",
     "status": "Status",
     "active": "Active",
@@ -520,7 +520,7 @@
   },
   "profitabilityPage": {
     "title": "Profitability Report",
-    "description": "Track business sales, expenses, and profit margins over time",
+    "description": "Track sales and profits",
     "totalRevenue": "Total Sales",
     "totalExpenses": "Total Expenses",
     "netProfit": "Net Profit",
@@ -773,8 +773,8 @@
     "noOrdersFound": "No Orders Found"
   },
   "counterSale": {
-    "title": "Counter Sale Transactions",
-    "pageDescription": "Manage your counter sale transactions",
+    "title": "Counter Sale",
+    "pageDescription": "Manage quick counter sales",
     "transactionId": "Transaction ID",
     "date": "Date",
     "amount": "Amount",

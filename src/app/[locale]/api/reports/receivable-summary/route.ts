@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get("limit");
     const limit = limitParam === "-1" ? 0 : parseInt(limitParam || "10");
     const search = searchParams.get("search") || "";
+    const statusParam = searchParams.get("status") || "all";
+    const minBalanceParam = searchParams.get("minBalance");
+    const maxBalanceParam = searchParams.get("maxBalance");
     
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
       balance: { $gt: 0 }
     };
 
-    // Filtered query for list display (supports search)
+    // Filtered query for list display (supports search & filters)
     const listQuery: any = { ...baseQuery };
     if (search) {
       listQuery.$or = [
@@ -35,6 +38,21 @@ export async function GET(request: NextRequest) {
         { phone: { $regex: search, $options: "i" } },
         { company_name: { $regex: search, $options: "i" } },
       ];
+    }
+
+    if (statusParam && statusParam !== "all") {
+      listQuery.status = statusParam;
+    }
+
+    if (minBalanceParam || maxBalanceParam) {
+      const balanceCond: any = { $gt: 0 };
+      if (minBalanceParam && !isNaN(parseFloat(minBalanceParam))) {
+        balanceCond.$gte = parseFloat(minBalanceParam);
+      }
+      if (maxBalanceParam && !isNaN(parseFloat(maxBalanceParam))) {
+        balanceCond.$lte = parseFloat(maxBalanceParam);
+      }
+      listQuery.balance = balanceCond;
     }
 
     // 1. Calculate summary statistics for the same filtered result set used by the list/pagination

@@ -31,6 +31,7 @@ import {
   ChevronRight,
   Home,
   Sparkles,
+  Receipt,
   BarChart,
   WifiOff,
   CheckCircle,
@@ -897,7 +898,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("expenses") : ""}
               >
-                <Sparkles className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <Receipt className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
