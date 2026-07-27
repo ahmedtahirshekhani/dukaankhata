@@ -36,6 +36,17 @@ const clampLimit = (limit?: number) => {
   return limit;
 };
 
+// Safe number parser to handle cases where LLM passes strings with units/currencies (e.g. "900/Piece", "Rs. 500")
+const parseSafeNumber = (val: any, fallback = 0) => {
+  if (val === undefined || val === null || val === '') return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  if (typeof val === 'string') {
+    const parsed = parseFloat(val.replace(/[^0-9.-]+/g, ''));
+    return isNaN(parsed) ? fallback : parsed;
+  }
+  return fallback;
+};
+
 export const appTools = (userId: string) => ({
     getCustomers: tool({
       description: `Get a list of customers/parties for the user. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first); use 'search' to narrow results. The response's totalCount field reflects the true total regardless of this limit, so use it for count questions.`,
@@ -85,13 +96,21 @@ export const appTools = (userId: string) => ({
         phone: z.string().optional().describe("The phone number of the customer. Leave empty if user says 'no phone' or 'phone nahi'."),
         company_name: z.string().optional().describe("The company/business name of the customer. This is DIFFERENT from company_address. Extract from: 'company ka naam', 'dukaan ka naam', 'company name'."),
         company_address: z.string().optional().describe("The physical address of the company/customer. This is DIFFERENT from company_name. Extract from: 'address', 'ghar ka pata', 'location'."),
-        opening_balance: z.number().optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them."),
+        opening_balance: z.any().optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them. Pass only the number."),
       }),
       execute: async (body: any) => {
         try {
+          const payload = {
+            name: String(body.name || 'Unnamed Customer').trim(),
+            phone: body.phone || '',
+            company_name: body.company_name || '',
+            company_address: body.company_address || '',
+            opening_balance: parseSafeNumber(body.opening_balance ?? body.balance ?? 0),
+          };
+
           const req = apiRequest(`/api/customers`, {
             method: 'POST',
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
           });
           const res = await createCustomerApi(req);
           const data = await res.json();
@@ -111,10 +130,13 @@ export const appTools = (userId: string) => ({
         phone: z.string().optional().describe("The updated phone number"),
         company_name: z.string().optional().describe("The company/business NAME of the customer. IMPORTANT: This is the company's name (e.g. 'ATF', 'ABC Traders'). It is DIFFERENT from company_address which is a physical location. Use this when user says 'company ka naam change karo' or 'company ATF karo'."),
         company_address: z.string().optional().describe("The physical address or location of the company. DIFFERENT from company_name. Use this when user says 'address change karo' or 'location update karo'."),
-        balance: z.number().optional().describe("The updated balance amount"),
+        balance: z.any().optional().describe("The updated balance amount (number only)"),
       }),
-      execute: async ({ customerId, ...body }: any) => {
+      execute: async ({ customerId, balance, opening_balance, ...body }: any) => {
         try {
+          if (balance !== undefined || opening_balance !== undefined) {
+             body.balance = parseSafeNumber(balance ?? opening_balance);
+          }
           const req = apiRequest(`/api/customers/${customerId}`, {
             method: 'PUT',
             body: JSON.stringify(body),
@@ -200,13 +222,17 @@ export const appTools = (userId: string) => ({
       description: "Create a new customer transaction (payment received or given).",
       parameters: z.object({
         customerId: z.string().describe("The ID of the customer"),
-        paymentAmount: z.number().describe("The amount of the payment"),
+        paymentAmount: z.any().describe("The amount of the payment (number only)"),
         paymentMethodId: z.string().describe("The ID of the payment method (or 'cash', 'cheque')"),
         type: z.enum(['payment-in', 'payment-out']).describe("Type of transaction"),
         date: z.string().optional().describe("Date in YYYY-MM-DD format"),
       }),
-      execute: async (body: any) => {
+      execute: async ({ paymentAmount, ...rest }: any) => {
         try {
+          const body = {
+            ...rest,
+            paymentAmount: parseSafeNumber(paymentAmount),
+          };
           const req = apiRequest(`/api/customer-transactions`, {
             method: 'POST',
             body: JSON.stringify(body),
@@ -286,21 +312,43 @@ export const appTools = (userId: string) => ({
     }),
 
     createProduct: tool({
-      description: "Create a new product or service.",
+      description: "Create a new product or service. IMPORTANT RULE: Before calling this tool, you MUST ask the user for all relevant details if they haven't provided them. This includes: name, type (goods/services), selling price, cost price, quantity in stock, category, unit of measurement, and branch. Do not make up values for these. If the user explicitly says they don't know or want to skip, you can proceed with defaults.",
       parameters: z.object({
-        name: z.string().describe("The name of the product"),
-        type: z.enum(['goods', 'services']).describe("The type of product (goods or services)"),
-        sell_price: z.number().describe("The selling price of the product"),
-        cost_price: z.number().optional().describe("The cost price of the product"),
-        sku: z.string().optional().describe("The SKU or barcode of the product"),
-        quantity: z.number().optional().describe("Current stock quantity"),
-        category: z.string().optional().describe("Product category"),
-      }),
+        name: z.any().optional().describe("The name of the product"),
+        type: z.any().optional().describe("The type of product (goods or services)"),
+        sell_price: z.any().optional().describe("The selling price of the product (number only)"),
+        cost_price: z.any().optional().describe("The cost price of the product (number only)"),
+        sku: z.any().optional().describe("The SKU or barcode of the product"),
+        quantity: z.any().optional().describe("Current stock quantity (number only)"),
+        category: z.any().optional().describe("Product category"),
+        unit_of_measurement: z.any().optional().describe("Unit of measurement (e.g. piece, kg, liter, gram, meter, box, pack, dozen)"),
+        branch: z.any().optional().describe("Branch name (e.g. Main)"),
+        description: z.any().optional().describe("Product description"),
+      }).passthrough(),
       execute: async (body: any) => {
         try {
+          // Strictly map the payload to ensure consistent DB schema
+          const payload = {
+            type: body.type || 'goods',
+            name: String(body.name || body.product_name || 'Unnamed Product').trim(),
+            description: body.description || '',
+            category: body.category || 'General',
+            sell_price: parseSafeNumber(body.sell_price ?? body.price ?? body.selling_price_pkr ?? body.selling_price ?? 0),
+            cost_price: parseSafeNumber(body.cost_price ?? body.cost_price_pkr ?? 0),
+            quantity: parseSafeNumber(body.quantity ?? body.stock ?? body.quantity_in_stock ?? 0),
+            unit_of_measurement: body.unit_of_measurement ?? body.unit ?? 'piece',
+            branch: body.branch || 'Main',
+            sku: body.sku || '',
+          };
+
+          // Skip empty hallucinated extra calls (sometimes LLM calls it again with empty name)
+          if (!payload.name || payload.name === 'Unnamed Product') {
+             return { success: false, message: 'Skipped invalid product creation (name missing).' };
+          }
+
           const req = apiRequest(`/api/products`, {
             method: 'POST',
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
           });
           const res = await createProductApi(req);
           const data = await res.json();
@@ -317,13 +365,19 @@ export const appTools = (userId: string) => ({
       parameters: z.object({
         productId: z.string().describe("The ID of the product to update"),
         name: z.string().optional(),
-        sell_price: z.number().optional(),
-        cost_price: z.number().optional(),
-        quantity: z.number().optional(),
+        sell_price: z.any().optional(),
+        cost_price: z.any().optional(),
+        quantity: z.any().optional(),
         category: z.string().optional(),
+        unit_of_measurement: z.string().optional(),
+        branch: z.string().optional(),
       }),
-      execute: async ({ productId, ...body }: any) => {
+      execute: async ({ productId, sell_price, cost_price, quantity, ...body }: any) => {
         try {
+          if (sell_price !== undefined) body.sell_price = parseSafeNumber(sell_price);
+          if (cost_price !== undefined) body.cost_price = parseSafeNumber(cost_price);
+          if (quantity !== undefined) body.quantity = parseSafeNumber(quantity);
+
           const req = apiRequest(`/api/products/${productId}`, {
             method: 'PUT',
             body: JSON.stringify(body),

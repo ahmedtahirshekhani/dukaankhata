@@ -194,6 +194,11 @@ export function AiChatInterface() {
 
   const chatHelpers = useChat({
     api: `/${locale}/api/chat`,
+    onFinish: () => {
+      import("@/lib/sync/sync-engine").then(({ SyncEngine }) => {
+        SyncEngine.pullInitialData().catch(console.error);
+      });
+    },
   }) as any;
 
   const { messages, status, stop, error, sendMessage } = chatHelpers;
