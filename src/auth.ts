@@ -150,7 +150,7 @@ export const authOptions = {
 
             // Make sure active_workspace_id is valid
             if (!workspaces.find(w => w.id === token.active_workspace_id)) {
-               token.active_workspace_id = workspaces[0].id;
+               token.active_workspace_id = workspaces[0]?.id || token.real_user_id;
             }
 
             const activeWorkspace = workspaces.find(w => w.id === token.active_workspace_id);

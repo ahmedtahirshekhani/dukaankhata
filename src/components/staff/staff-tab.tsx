@@ -59,7 +59,14 @@ export function StaffTab() {
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   useEffect(() => {
-    // fetchData is no longer needed with offline hooks
+    // Force a sync if modules are empty (meaning old cache or first time)
+    const checkAndSync = async () => {
+      const count = await db.modules.count();
+      if (count === 0) {
+        SyncEngine.pullInitialData();
+      }
+    };
+    checkAndSync();
   }, []);
 
 
