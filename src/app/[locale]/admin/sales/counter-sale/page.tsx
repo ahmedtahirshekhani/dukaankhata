@@ -114,6 +114,16 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
+function formatDateDMY(dateInput?: Date | string) {
+  if (!dateInput) return "-";
+  const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(d.getTime())) return String(dateInput);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 export default function CounterSale() {
   const t = useTranslations("counterSale");
   const tCommon = useTranslations("common");
@@ -1158,200 +1168,186 @@ export default function CounterSale() {
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
-        </div>
-        <Card className="flex flex-col gap-6 p-6 w-full">
-          <CardHeader className="p-0">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-                <div className="relative w-full sm:w-64">
-                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={t("searchItems")}
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="pl-9 pr-9 h-9 text-sm w-full"
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => {
-                        setSearchTerm("");
-                        setCurrentPage(1);
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <XIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1 shrink-0 h-9"
-                      >
-                        <FilterIcon className="w-4 h-4" />
-                        <span>{tCommon("filter")}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-64 p-2 max-h-96 overflow-y-auto">
-                      <DropdownMenuLabel>{t("typeFilter")}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuCheckboxItem
-                        checked={filters.type === "all"}
-                        onCheckedChange={() => handleFilterChange("type", "all")}
-                      >
-                        {t("all")}
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filters.type === "income"}
-                        onCheckedChange={() => handleFilterChange("type", "income")}
-                      >
-                        {t("income")}
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filters.type === "expense"}
-                        onCheckedChange={() => handleFilterChange("type", "expense")}
-                      >
-                        {t("expense")}
-                      </DropdownMenuCheckboxItem>
-
-                      <DropdownMenuSeparator className="my-2" />
-                      <DropdownMenuLabel>{t("amountRange")}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <div className="p-2 space-y-2">
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            placeholder={t("min")}
-                            value={amountRange.min}
-                            onChange={(e) =>
-                              handleAmountRangeChange("min", e.target.value)
-                            }
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            type="number"
-                            placeholder={t("max")}
-                            value={amountRange.max}
-                            onChange={(e) =>
-                              handleAmountRangeChange("max", e.target.value)
-                            }
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearAllFilters}
-                      className="h-9 gap-1"
-                    >
-                      <XIcon className="w-4 h-4" />
-                      <span className="hidden sm:inline">{t("clear")}</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full md:w-auto">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium whitespace-nowrap hidden sm:inline">
-                    {t("year")}:
-                  </span>
-                  <Select
-                    value={selectedYear.toString()}
-                    onValueChange={(value) => setSelectedYear(parseInt(value))}
-                  >
-                    <SelectTrigger className="w-[100px] h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allYears.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold">
+              {t("title").replace(/ transactions/gi, "").replace(/ transactions/gi, "")}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              className="h-9"
+              onClick={() => setIsAddFormOpen((prev) => !prev)}
+            >
+              {isAddFormOpen ? (
+                <>
+                  <XIcon className="w-4 h-4 mr-1.5" />
+                  {t("close")}
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="w-4 h-4 mr-1.5" />
+                  {t("add")}
+                </>
+              )}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
+                  variant="outline"
                   size="sm"
-                  className="h-9"
-                  onClick={() => setIsAddFormOpen((prev) => !prev)}
+                  className="h-9 w-9 p-0"
+                  disabled={isDownloading || isImporting}
                 >
-                  {isAddFormOpen ? <><XIcon className="w-4 h-4 mr-2" />{t("close")}</> : <><PlusCircle className="w-4 h-4 mr-2" />{t("add")}</>}
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      disabled={isDownloading || isImporting}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleDownloadExcel}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {isDownloading ? t("downloading") : t("downloadExcel")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setIsDateRangeDialogOpen(true)}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {t("downloadDateRange")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleDownloadTemplate}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {t("downloadTemplate")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleImportClick}
-                      disabled={isDownloading || isImporting}
-                    >
-                      <Upload className="mr-2 h-4 w-4" />
-                      {isImporting ? t("importing") : t("import")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  onChange={handleFileSelect}
-                  style={{ display: "none" }}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleDownloadExcel}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {isDownloading ? t("downloading") : t("downloadExcel")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setIsDateRangeDialogOpen(true)}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {t("downloadDateRange")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleDownloadTemplate}
+                  disabled={isDownloading || isImporting}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {t("downloadTemplate")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleImportClick}
+                  disabled={isDownloading || isImporting}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {isImporting ? t("importing") : t("import")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+          </div>
+        </div>
+
+        <Card className="flex flex-col gap-6 p-3.5 sm:p-6 shadow-md overflow-hidden">
+          <CardHeader className="p-0">
+            <div className="flex items-center gap-2 w-full">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pl-9 pr-8 h-9 text-sm w-full"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
-              <div className="w-full text-xs text-muted-foreground sm:hidden mt-2">
-                {t("total")}: {pageInfo.total.toLocaleString()}
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 shrink-0 h-9"
+                  >
+                    <FilterIcon className="w-4 h-4" />
+                    <span>{tCommon("filter")}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 p-2 max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel>{t("typeFilter")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "all"}
+                    onCheckedChange={() => handleFilterChange("type", "all")}
+                  >
+                    {t("all")}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "income"}
+                    onCheckedChange={() => handleFilterChange("type", "income")}
+                  >
+                    {t("income")}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.type === "expense"}
+                    onCheckedChange={() => handleFilterChange("type", "expense")}
+                  >
+                    {t("expense")}
+                  </DropdownMenuCheckboxItem>
+
+                  <DropdownMenuSeparator className="my-2" />
+                  <DropdownMenuLabel>{t("amountRange")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="p-2 space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder={t("min")}
+                        value={amountRange.min}
+                        onChange={(e) =>
+                          handleAmountRangeChange("min", e.target.value)
+                        }
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        placeholder={t("max")}
+                        value={amountRange.max}
+                        onChange={(e) =>
+                          handleAmountRangeChange("max", e.target.value)
+                        }
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearAllFilters}
+                  className="h-9 gap-1 shrink-0 px-2"
+                >
+                  <XIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t("clear")}</span>
+                </Button>
+              )}
             </div>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-0 relative">
 
             {/* Desktop Table View */}
             <div className="hidden md:block">
@@ -1850,431 +1846,319 @@ export default function CounterSale() {
             </div>
 
             {/* Mobile View - Cards */}
-            <div className="md:hidden space-y-3">
-              {/* Mobile Filter Section */}
-              <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border">
-                <div className="flex flex-col gap-3">
-                  {/* Search */}
-                  <div className="relative w-full">
-                    <Input
-                      type="text"
-                      placeholder={t("searchItems")}
-                      value={searchTerm}
-                      onChange={handleSearch}
-                      className="pr-8 h-9 text-sm w-full"
-                    />
-                    <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  </div>
-
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {/* Type Filter */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 h-9 text-xs flex-shrink-0"
-                        >
-                          <span className="text-muted-foreground">Type:</span>
-                          <span>
-                            {filters.type === "all" ? "All" : filters.type}
-                          </span>
-                          <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-[200px]">
-                        <DropdownMenuLabel>Type</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuCheckboxItem
-                          checked={filters.type === "all"}
-                          onCheckedChange={() =>
-                            handleFilterChange("type", "all")
-                          }
-                        >
-                          All
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                          checked={filters.type === "income"}
-                          onCheckedChange={() =>
-                            handleFilterChange("type", "income")
-                          }
-                        >
-                          Income
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                          checked={filters.type === "expense"}
-                          onCheckedChange={() =>
-                            handleFilterChange("type", "expense")
-                          }
-                        >
-                          Expense
-                        </DropdownMenuCheckboxItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {/* Amount Range Filter */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 h-9 flex-shrink-0"
-                        >
-                          <FilterIcon className="w-3 h-3" />
-                          <span className="text-xs">Amount</span>
-                          <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="start"
-                        className="w-[280px] p-4"
-                      >
-                        <div className="space-y-3">
-                          <Label className="text-xs font-semibold">
-                            Amount Range
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              placeholder="Min"
-                              value={amountRange.min}
-                              onChange={(e) =>
-                                handleAmountRangeChange("min", e.target.value)
-                              }
-                              className="h-8 text-xs"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Max"
-                              value={amountRange.max}
-                              onChange={(e) =>
-                                handleAmountRangeChange("max", e.target.value)
-                              }
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                        </div>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {/* Reset Filters Button */}
-                    {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearAllFilters}
-                        className="h-9 px-2 flex-shrink-0 text-xs"
-                      >
-                        <XIcon className="w-4 h-4 mr-1" />
-                        Clear
-                      </Button>
-                    )}
-                  </div>
+            <div className="block md:hidden space-y-3">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2Icon className="h-8 w-8 animate-spin text-primary mb-2" />
+                  <p>{tCommon("loading")}</p>
                 </div>
-              </div>
-
-              {/* Transaction Cards */}
-              {filteredTransactions.map((transaction) => (
-                <div key={transaction.id}>
-                  {editingId === transaction.id ? (
-                    // Mobile Edit Card
-                    <div className="bg-white dark:bg-slate-900 border rounded-lg p-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-semibold text-sm">
-                          Edit Transaction
-                        </h4>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditFormData({});
-                          }}
-                          className="h-6 w-6"
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">Item</label>
-                        <ProductDropdown
-                          value={
-                            editFormData.productId
-                              ? String(editFormData.productId)
-                              : ""
-                          }
-                          onValueChange={(value, product) => {
-                            if (product) {
-                              setEditFormData((prev) => ({
-                                ...prev,
-                                productId: (product._id
-                                  ? String(product._id)
-                                  : String(product.id)) as any,
-                                productName: product.name,
-                                productDescription: product.description,
-                                unitPrice: product.sell_price || 0,
-                                uom: product.unit_of_measurement || "unit",
-                                quantity: 1,
-                                amount: (product.sell_price || 0) * 1,
-                              }));
-                            }
-                          }}
-                          placeholder="Select Item"
-                          className="w-full truncate text-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">Type</label>
-                        <Select
-                          value={editFormData.type || "income"}
-                          onValueChange={(value) =>
-                            setEditFormData({
-                              ...editFormData,
-                              type: value as TransactionType,
-                            })
-                          }
-                        >
-                          <SelectTrigger className="text-sm h-9">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="income">Income</SelectItem>
-                            <SelectItem value="expense">Expense</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium">
-                            Unit Price
-                          </label>
-                          <Input
-                            name="unitPrice"
-                            type="number"
-                            value={editFormData.unitPrice || ""}
-                            onChange={handleEditInputChange}
-                            placeholder="Price"
-                            className="text-sm h-9"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium">UOM</label>
-                          <Select
-                            value={editFormData.uom}
-                            onValueChange={(value) =>
-                              handleUOMChange(value, true)
-                            }
-                          >
-                            <SelectTrigger className="text-sm h-9">
-                              <SelectValue placeholder="UOM" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {UNITS_OF_MEASUREMENT.map((unit) => (
-                                <SelectItem key={unit.value} value={unit.value}>
-                                  {unit.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium">Quantity</label>
-                          <Input
-                            name="quantity"
-                            type="number"
-                            value={editFormData.quantity || ""}
-                            onChange={handleEditInputChange}
-                            placeholder="Qty"
-                            className="text-sm h-9"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium">Amount</label>
-                          <Input
-                            name="amount"
-                            type="number"
-                            value={editFormData.amount || ""}
-                            onChange={handleEditInputChange}
-                            placeholder="Amount"
-                            className="text-sm h-9"
-                            readOnly
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">Date</label>
-                        <div className="relative">
-                          <Input
-                            name="created_at"
-                            type="date"
-                            value={isoToDateInput(
-                              editFormData.created_at || transaction.created_at,
-                            )}
-                            onChange={handleEditInputChange}
-                            className="text-sm h-9 w-full pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
-                          />
-                          <CalendarIcon
-                            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
-                            onClick={(e) => {
-                              (
-                                e.currentTarget
-                                  .previousElementSibling as HTMLInputElement
-                              )?.showPicker?.();
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">
-                          Customer Name
-                        </label>
-                        <Input
-                          name="customerName"
-                          value={editFormData.customerName || ""}
-                          onChange={handleEditInputChange}
-                          placeholder="Name (Optional)"
-                          className="text-sm h-9"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium">
-                          Customer Number
-                        </label>
-                        <Input
-                          name="customerNumber"
-                          value={editFormData.customerNumber || ""}
-                          onChange={handleEditInputChange}
-                          placeholder="Number (Optional)"
-                          className="text-sm h-9"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleUpdateTransaction(transaction.id)}
-                          className="flex-1 text-sm"
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditFormData({});
-                          }}
-                          className="flex-1 text-sm"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    // Mobile Transaction Card
-                    <div className="bg-white dark:bg-slate-900 border rounded-lg p-3 space-y-2">
-                      <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded space-y-1">
-                        <div className="font-medium">
-                          {transaction.productName || "-"}
-                        </div>
-                        {transaction.productDescription && (
-                          <div className="text-muted-foreground text-xs">
-                            {truncateWords(transaction.productDescription, 3)}
-                          </div>
-                        )}
-                        <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
-                          {transaction.unitPrice && (
-                            <span>
-                              Price: Rs. {transaction.unitPrice}
-                              {transaction.uom ? `/${transaction.uom}` : ""}
-                            </span>
-                          )}
-                          {transaction.quantity && (
-                            <span>Qty: {transaction.quantity}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex gap-2">
-                          <Button
-                            aria-haspopup="true"
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => handleOpenEdit(transaction)}
-                            title="Edit"
-                          >
-                            <Edit2Icon className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          <Button
-                            aria-haspopup="true"
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => handleDownloadPDF(transaction)}
-                            title="Download"
-                          >
-                            <DownloadIcon className="h-4 w-4" />
-                            <span className="sr-only">Download</span>
-                          </Button>
-                          <Button
-                            aria-haspopup="true"
-                            size="icon"
-                            variant="danger"
-                            className="h-7 w-7"
-                            onClick={() => {
-                              setTransactionToDelete(transaction);
-                              setIsDeleteConfirmationOpen(true);
-                            }}
-                            title="Delete"
-                          >
-                            <Trash2Icon className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        </div>
-                      </div>
-                      {(transaction.customerName ||
-                        transaction.customerNumber) && (
-                          <div className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded">
-                            {transaction.customerName && (
-                              <p className="font-medium text-gray-900 dark:text-white">
-                                {transaction.customerName}
-                              </p>
-                            )}
-                            {transaction.customerNumber && (
-                              <p className="text-muted-foreground">
-                                {transaction.customerNumber}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <span>
-                          {formatDate(transaction.created_at, false, {
-                            year: "numeric",
-                            month: "short",
-                            day: "2-digit",
-                          })}
-                        </span>
-                        <span className="text-gray-400">|</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          Rs. {Math.floor(transaction.amount)}
-                        </span>
-                        <span className="text-gray-400">|</span>
-                        <Badge
-                          variant={transaction.type}
-                          className="text-[10px] px-2 py-0.5 capitalize"
-                        >
-                          {transaction.type}
-                        </Badge>
-                      </div>
-                    </div>
+              ) : filteredTransactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <SearchIcon className="h-10 w-10 opacity-20" />
+                  <p>{searchTerm ? tCommon("noResults") : t("noRecords")}</p>
+                  {searchTerm && (
+                    <Button variant="link" onClick={() => setSearchTerm("")}>
+                      {tCommon("clearSearch")}
+                    </Button>
                   )}
                 </div>
-              ))}
+              ) : (
+                filteredTransactions.map((transaction) => (
+                  <div key={transaction.id}>
+                    {editingId === transaction.id ? (
+                      // Mobile Edit Card
+                      <div className="bg-card border rounded-lg p-3.5 sm:p-4 shadow-sm space-y-3">
+                        <div className="flex justify-between items-center pb-2 border-b">
+                          <h4 className="font-semibold text-sm sm:text-base text-foreground">
+                            Edit Transaction
+                          </h4>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditFormData({});
+                            }}
+                            className="h-7 w-7"
+                          >
+                            <XIcon className="h-4 w-4" />
+                            <span className="sr-only">Close</span>
+                          </Button>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">{t("item")}</Label>
+                          <ProductDropdown
+                            value={
+                              editFormData.productId
+                                ? String(editFormData.productId)
+                                : ""
+                            }
+                            onValueChange={(value, product) => {
+                              if (product) {
+                                setEditFormData((prev) => ({
+                                  ...prev,
+                                  productId: (product._id
+                                    ? String(product._id)
+                                    : String(product.id)) as any,
+                                  productName: product.name,
+                                  productDescription: product.description,
+                                  unitPrice: product.sell_price || 0,
+                                  uom: product.unit_of_measurement || "unit",
+                                  quantity: 1,
+                                  amount: (product.sell_price || 0) * 1,
+                                }));
+                              }
+                            }}
+                            placeholder={t("selectItem")}
+                            className="w-full truncate text-sm"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("type")}</Label>
+                            <Select
+                              value={editFormData.type || "income"}
+                              onValueChange={(value) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  type: value as TransactionType,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="text-sm h-9">
+                                <SelectValue placeholder={t("type")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="income">Income</SelectItem>
+                                <SelectItem value="expense">Expense</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("date")}</Label>
+                            <div className="relative">
+                              <Input
+                                name="created_at"
+                                type="date"
+                                value={isoToDateInput(
+                                  editFormData.created_at || transaction.created_at,
+                                )}
+                                onChange={handleEditInputChange}
+                                className="text-sm h-9 w-full pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer"
+                              />
+                              <CalendarIcon
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                                onClick={(e) => {
+                                  (
+                                    e.currentTarget
+                                      .previousElementSibling as HTMLInputElement
+                                  )?.showPicker?.();
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("unitPrice")}</Label>
+                            <Input
+                              name="unitPrice"
+                              type="number"
+                              value={editFormData.unitPrice || ""}
+                              onChange={handleEditInputChange}
+                              placeholder={t("price")}
+                              className="text-sm h-9"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("uom")}</Label>
+                            <Select
+                              value={editFormData.uom}
+                              onValueChange={(value) =>
+                                handleUOMChange(value, true)
+                              }
+                            >
+                              <SelectTrigger className="text-sm h-9">
+                                <SelectValue placeholder="UOM" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNITS_OF_MEASUREMENT.map((unit) => (
+                                  <SelectItem key={unit.value} value={unit.value}>
+                                    {unit.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("qty")}</Label>
+                            <Input
+                              name="quantity"
+                              type="number"
+                              value={editFormData.quantity || ""}
+                              onChange={handleEditInputChange}
+                              placeholder={t("qty")}
+                              className="text-sm h-9"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("amount")}</Label>
+                            <Input
+                              name="amount"
+                              type="number"
+                              value={editFormData.amount || ""}
+                              onChange={handleEditInputChange}
+                              placeholder={t("amount")}
+                              className="text-sm h-9"
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("customerName")}</Label>
+                            <Input
+                              name="customerName"
+                              value={editFormData.customerName || ""}
+                              onChange={handleEditInputChange}
+                              placeholder={t("name")}
+                              className="text-sm h-9"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">{t("customerNumber")}</Label>
+                            <Input
+                              name="customerNumber"
+                              value={editFormData.customerNumber || ""}
+                              onChange={handleEditInputChange}
+                              placeholder={t("number")}
+                              className="text-sm h-9"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button
+                            onClick={() => handleUpdateTransaction(transaction.id)}
+                            className="flex-1 text-sm h-9"
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditFormData({});
+                            }}
+                            className="flex-1 text-sm h-9"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Mobile Transaction Card
+                      <div className="bg-card border rounded-lg p-3.5 shadow-sm space-y-2.5">
+                        {/* Header Row: Item Name & 3-Dots Action Menu */}
+                        <div className="flex justify-between items-center pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+                          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[75%]">
+                            {transaction.productName || "-"}
+                          </h3>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">Actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuItem onClick={() => handleOpenEdit(transaction)}>
+                                <Edit2Icon className="mr-2 h-4 w-4 text-sky-500" />
+                                <span>{tCommon("edit")}</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadPDF(transaction)}>
+                                <DownloadIcon className="mr-2 h-4 w-4 text-indigo-500" />
+                                <span>Download</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setTransactionToDelete(transaction);
+                                  setIsDeleteConfirmationOpen(true);
+                                }}
+                                className="text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40"
+                              >
+                                <Trash2Icon className="mr-2 h-4 w-4 text-red-500" />
+                                <span>{tCommon("delete")}</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <div className="space-y-2 text-xs sm:text-sm">
+                          {/* Row 1: Date (DD-MM-YYYY) & Type Badge */}
+                          <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
+                            <span>
+                              {formatDateDMY(transaction.created_at)}
+                            </span>
+                            <Badge
+                              variant={transaction.type}
+                              className="text-[10px] px-2 py-0.5 capitalize"
+                            >
+                              {transaction.type}
+                            </Badge>
+                          </div>
+
+                          {/* Row 2: Price & Qty */}
+                          <div className="flex justify-between items-center text-xs">
+                            <span>
+                              <span className="text-muted-foreground">{t("price")}: </span>
+                              <span className="font-medium text-foreground">
+                                Rs. {transaction.unitPrice ?? 0}
+                                {transaction.uom ? ` / ${transaction.uom}` : ""}
+                              </span>
+                            </span>
+                            <span>
+                              <span className="text-muted-foreground">{t("qty")}: </span>
+                              <span className="font-medium text-foreground">{transaction.quantity ?? 0}</span>
+                            </span>
+                          </div>
+
+                          {/* Row 3: Total Amount */}
+                          <div className="flex justify-between items-center text-xs pt-1.5 border-t border-zinc-100 dark:border-zinc-800/40">
+                            <span className="text-muted-foreground font-medium">{t("amount")}:</span>
+                            <span className="font-semibold text-foreground text-sm">
+                              Rs. {Math.floor(transaction.amount)}
+                            </span>
+                          </div>
+
+                          {/* Row 4: Customer Details if available */}
+                          {(transaction.customerName || transaction.customerNumber) && (
+                            <div className="flex justify-between items-center text-xs text-muted-foreground pt-1 border-t border-zinc-100 dark:border-zinc-800/20">
+                              <span>
+                                {transaction.customerName && (
+                                  <span className="font-medium text-foreground">{transaction.customerName}</span>
+                                )}
+                              </span>
+                              <span>
+                                {transaction.customerNumber && (
+                                  <span>{transaction.customerNumber}</span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Pagination */}

@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 
 export async function POST(
@@ -18,6 +19,9 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("sales.create_invoice");
+  if (!authCheck.allowed) return authCheck.response;
 
   const { id } = params;
   if (!isValidObjectId(id)) {

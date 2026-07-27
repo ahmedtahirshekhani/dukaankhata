@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText, convertToModelMessages, generateId, stepCountIs } from 'ai';
@@ -39,6 +38,7 @@ const getSystemPrompt = (locale: string) => {
 5. Execute tools IMMEDIATELY and AUTONOMOUSLY. NEVER ask "Should I check your customers?" — just do it.
 6. If you need customer ID for a transaction, first run getCustomers to find them, then proceed.
 7. Always confirm what action you took after using a tool. Show the user what was created/updated/deleted with all the details.
+7b. Be efficient: call each tool only ONCE per fact you need. Don't re-fetch data you already retrieved earlier in this same turn.
 
 ## CUSTOMER / PARTY FIELDS — VERY IMPORTANT DISTINCTION
 There are TWO separate company-related fields. NEVER confuse them:
@@ -79,6 +79,7 @@ After creating/updating, ALWAYS confirm with a clear summary:
   |---|---|---|
   | Ali Traders | 0300-1234567 | Rs. 500 |
 - Keep columns to the fields the user actually asked about (don't dump every field). Only single-record answers (e.g. "get customer by id") should be plain text.
+- Keep tables SHORT: show at most 10-15 rows even if more data exists, and mention the total count in one line instead of listing every record. Long tables slow down your response for no benefit to the user.
 
 ## ACCOUNT STATEMENT FORMATTING — STRICT
 - When displaying an Account Statement, the table MUST have separate columns for "Debit (DR)" and "Credit (CR)". DO NOT combine them into a single Amount column with "(DR)/(CR)" suffixes.
@@ -91,6 +92,9 @@ After creating/updating, ALWAYS confirm with a clear summary:
 10. If you cannot express something naturally in ${languageName}, keep numbers/product names as-is but write all surrounding text in ${languageName}.
 11. Do not switch language based on the user's message — always stay in ${languageName} since that is the language selected in the app.
 12. Always be polite, helpful, and concise. Do NOT hallucinate weird words.
+
+## RESPONSE LENGTH — STRICT
+13b. Be concise. Answer directly without unnecessary preamble, repeated confirmations, or restating the question back to the user. Shorter, focused answers are required — this is a chat app, not a report.
 
 ## SCOPE REMINDER
 You can help with:
@@ -114,13 +118,19 @@ You CANNOT help with:
 
 // How many of the most recent model messages to keep. Older messages are
 // dropped entirely so the conversation doesn't grow unbounded turn over turn.
-const MAX_HISTORY_MESSAGES = 20;
+// Lowered from 20 -> 12: fewer tokens sent every turn = faster time-to-first-token.
+const MAX_HISTORY_MESSAGES = 12;
 
 // Tool results can be large (full customer/product/order lists). Only the
 // most recent N tool-result messages are kept in full; older ones are
 // replaced with a placeholder so they stop being re-billed as context on
 // every subsequent turn.
 const MAX_FULL_TOOL_RESULTS = 2;
+
+// Caps how much text the model can generate per turn. Long, rambling
+// answers are the single biggest driver of perceived "slowness" once the
+// model has started streaming — capping this keeps replies snappy.
+const MAX_OUTPUT_TOKENS = 700;
 
 // Trims the message history sent to the model: caps total message count and
 // collapses stale tool-result payloads, since the client resends the full
@@ -189,7 +199,14 @@ export async function POST(req: Request, { params }: { params: { locale: string 
     const modelMessages = trimMessageHistory(await convertToModelMessages(safeMessages));
 
     const result = streamText({
-      model: openrouter(process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free'),
+      // ⚠️ SPEED: ':free' OpenRouter models run on shared/queued capacity and
+      // are frequently the slowest option available — often 2-5x slower than
+      // a paid low-cost model. Set OPENROUTER_MODEL in your .env to a paid,
+      // fast model for a big speed win, e.g.:
+      //   google/gemini-2.0-flash-001   (fast + cheap, recommended)
+      //   openai/gpt-4o-mini
+      //   anthropic/claude-3-5-haiku
+      model: openrouter(process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001'),
       messages: modelMessages,
       system: getSystemPrompt(params.locale),
       tools: appTools(user.id),
@@ -197,6 +214,11 @@ export async function POST(req: Request, { params }: { params: { locale: string 
       // within the SAME stream/request (up to 5 steps), so the frontend
       // never needs a "hidden continue" hack to get a first-attempt answer.
       stopWhen: stepCountIs(5),
+      // Lower temperature -> more direct, less "thinking out loud" text,
+      // which in practice means shorter generations and faster replies.
+      temperature: 0.3,
+      // Hard cap on generation length (see MAX_OUTPUT_TOKENS above).
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
     });
 
     return result.toUIMessageStreamResponse({

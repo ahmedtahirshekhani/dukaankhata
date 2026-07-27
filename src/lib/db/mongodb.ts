@@ -50,14 +50,18 @@ export async function getCollection<T extends Document = Document>(
 
 // Collection names constants
 export const COLLECTIONS = {
+  INVITATIONS: "invitations",
   USERS: "users",
   PRODUCTS: "products",
   PARTIES: "parties",
   CUSTOMERS: "parties", // Alias for backward compatibility
   ORDERS: "orders",
-  ORDER_ITEMS: "order_items",
   PAYMENT_METHODS: "payment_methods",
-  PAYMENT_METHOD: "payment_method",
+  MODULES: "modules",
+  PERMISSIONS: "permissions",
+  ROLES: "roles",
+  ROLE_PERMISSIONS: "role_permissions",
+  USER_ROLES: "user_roles",
   PARTY_TRANSACTIONS: "party_transaction",
   CUSTOMER_TRANSACTIONS: "party_transaction", // Alias for backward compatibility
   VENDOR_TRANSACTIONS: "vendor_transaction",
@@ -73,11 +77,13 @@ export const COLLECTIONS = {
   EMAIL_VERIFICATION_CODES: "email_verification_codes",
   CATEGORIES: "categories",
   BRANCHES: "branches",
-  WAITLIST: "waitlist",
   QUOTATIONS: "quotations",
   SUBSCRIPTIONS: "subscriptions",
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
   CONFIGURATIONS: "configurations",
+  ORDER_ITEMS: "order_items",
+  PAYMENT_METHOD: "payment_method",
+  WAITLIST: "waitlist",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string

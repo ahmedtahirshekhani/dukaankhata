@@ -346,118 +346,118 @@ export default function PaymentOutPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
+        </div>
+        <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 shrink-0">
+          <PlusCircle className="w-3.5 h-3.5 mr-1" />
+          <span>{t("addRecord")}</span>
+        </Button>
       </div>
-      <Card className="flex flex-col gap-6 p-6">
+
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-9 h-9 text-sm w-full"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => { setSearchTerm(""); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <DropdownMenu onOpenChange={(open) => {
-                  if (open) setFilterPartyPage(1);
-                }}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 h-9"
-                    >
-                      <FilterIcon className="w-4 h-4" />
-                      <span>{tCommon("filter")}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-56 max-h-80 overflow-y-auto"
-                    onScroll={(e) => {
-                      const target = e.currentTarget;
-                      if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
-                        if (hasMoreFilterParties) {
-                          setFilterPartyPage(prev => prev + 1);
-                        }
-                      }
-                    }}
-                  >
-                    <DropdownMenuLabel>
-                      {t("filterByPaymentMethod")}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={filters.paymentMethod === "all"}
-                      onCheckedChange={(checked) =>
-                        checked && handleFilterPaymentMethod("all")
-                      }
-                    >
-                      {t("allPaymentMethods")}
-                    </DropdownMenuCheckboxItem>
-                    {paymentMethods.map((pm) => (
-                      <DropdownMenuCheckboxItem
-                        key={pm.id}
-                        checked={filters.paymentMethod === pm.id}
-                        onCheckedChange={(checked) =>
-                          checked && handleFilterPaymentMethod(pm.id)
-                        }
-                      >
-                        {pm.name}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>{t("filterByParty")}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={filters.party === "all"}
-                      onCheckedChange={(checked) =>
-                        checked && handleFilterParty("all")
-                      }
-                    >
-                      {t("allParties")}
-                    </DropdownMenuCheckboxItem>
-                    {displayParties.map((p) => {
-                      return (
-                        <DropdownMenuCheckboxItem
-                          key={p.id}
-                          checked={filters.party === p.id}
-                          onCheckedChange={(checked) =>
-                            checked && handleFilterParty(p.id)
-                          }
-                        >
-                          {p.name}
-                        </DropdownMenuCheckboxItem>
-                      );
-                    })}
-                    {hasMoreFilterParties && (
-                      <div className="flex justify-center p-2">
-                        <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => { setSearchTerm(""); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
-              <PlusCircle className="w-3 h-3 mr-1" />
-              {t("addRecord")}
-            </Button>
+
+            <DropdownMenu onOpenChange={(open) => {
+              if (open) setFilterPartyPage(1);
+            }}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-9 px-2.5 sm:px-3 text-xs shrink-0"
+                >
+                  <FilterIcon className="h-3.5 w-3.5" />
+                  <span>{tCommon("filter")}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 max-h-80 overflow-y-auto"
+                onScroll={(e) => {
+                  const target = e.currentTarget;
+                  if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                    if (hasMoreFilterParties) {
+                      setFilterPartyPage(prev => prev + 1);
+                    }
+                  }
+                }}
+              >
+                <DropdownMenuLabel>
+                  {t("filterByPaymentMethod")}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={filters.paymentMethod === "all"}
+                  onCheckedChange={(checked) =>
+                    checked && handleFilterPaymentMethod("all")
+                  }
+                >
+                  {t("allPaymentMethods")}
+                </DropdownMenuCheckboxItem>
+                {paymentMethods.map((pm) => (
+                  <DropdownMenuCheckboxItem
+                    key={pm.id}
+                    checked={filters.paymentMethod === pm.id}
+                    onCheckedChange={(checked) =>
+                      checked && handleFilterPaymentMethod(pm.id)
+                    }
+                  >
+                    {pm.name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t("filterByParty")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={filters.party === "all"}
+                  onCheckedChange={(checked) =>
+                    checked && handleFilterParty("all")
+                  }
+                >
+                  {t("allParties")}
+                </DropdownMenuCheckboxItem>
+                {displayParties.map((p) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={p.id}
+                      checked={filters.party === p.id}
+                      onCheckedChange={(checked) =>
+                        checked && handleFilterParty(p.id)
+                      }
+                    >
+                      {p.name}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+                {hasMoreFilterParties && (
+                  <div className="flex justify-center p-2">
+                    <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -824,7 +824,18 @@ export default function PaymentOutPage() {
   );
 }
 
-// Mobile Card Component for Payment Out Transaction
+// Helper function for date formatting (DD-MM-YYYY)
+function formatDateDMY(dateStr?: string) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+// Mobile Card Component for Payment Out
 function PaymentOutCard({
   transaction,
   onEdit,
@@ -839,44 +850,45 @@ function PaymentOutCard({
   tCommon: (key: string) => string;
 }) {
   return (
-    <div className="bg-card border rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-base truncate max-w-[70%]">
+    <div className="bg-card border rounded-lg p-3.5 shadow-sm">
+      <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+        <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[65%]">
           {transaction.customerName || "-"}
         </h3>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             size="icon"
             variant="ghost"
             onClick={onEdit}
-            className="h-8 w-8"
+            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
           >
-            <FilePenIcon className="w-4 h-4" />
+            <FilePenIcon className="w-4 h-4 text-sky-500" />
             <span className="sr-only">{tCommon("edit")}</span>
           </Button>
           <Button
             size="icon"
-            variant="danger"
+            variant="ghost"
             onClick={onDelete}
-            className="h-8 w-8"
+            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4 text-red-500" />
             <span className="sr-only">{tCommon("delete")}</span>
           </Button>
         </div>
       </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("paymentAmount")}:</span>
-          <span className="font-medium">Rs. {Math.round(transaction.paymentAmount).toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("paymentMethod")}:</span>
+      <div className="space-y-2 text-xs sm:text-sm">
+        {/* Row 1: Date on Left & Method on Right in theme grey without labels */}
+        <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
+          <span>{formatDateDMY(transaction.date)}</span>
           <span>{transaction.paymentMethodName || "-"}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("date")}:</span>
-          <span>{transaction.date || "-"}</span>
+
+        {/* Row 2: Payment Amount */}
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-muted-foreground">{t("paymentAmount")}:</span>
+          <span className="font-semibold text-foreground">
+            Rs. {Math.round(transaction.paymentAmount || 0).toLocaleString()}
+          </span>
         </div>
       </div>
     </div>

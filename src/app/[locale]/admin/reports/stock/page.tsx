@@ -31,6 +31,18 @@ import {
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   Package,
   Search,
   FileDown,
@@ -44,9 +56,24 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  Filter as FilterIcon,
+  X,
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportStockReportToExcel } from "@/lib/excel";
+
+interface StockProduct {
+  id: string;
+  name: string;
+  category?: string;
+  branch?: string;
+  quantity?: number;
+  unit_of_measurement?: string;
+  cost_price?: number;
+  sell_price?: number;
+  damaged_quantity?: number;
+  [key: string]: any;
+}
 
 export default function StockReportPage() {
   const locale = useLocale();
@@ -65,7 +92,8 @@ export default function StockReportPage() {
   const [pageSize, setPageSize] = useState(10);
 
   // States for API data
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<StockProduct[]>([]);
+  const [pdfProducts, setPdfProducts] = useState<StockProduct[]>([]);
   const [summary, setSummary] = useState<any>({
     totalProducts: 0,
     totalStock: 0,
@@ -84,6 +112,26 @@ export default function StockReportPage() {
   // States for dynamic Categories & Branches loaded from active products in stock
   const [availableCategories, setAvailableCategories] = useState<string[]>(["General"]);
   const [availableBranches, setAvailableBranches] = useState<string[]>(["Main"]);
+
+  const DEFAULT_ITEM_CATEGORIES = useMemo(() => [
+    "General",
+    "Electronics",
+    "Clothing",
+    "Books",
+    "Home",
+    "Consulting",
+    "Maintenance",
+    "Delivery",
+    "Installation",
+  ], []);
+
+  const categoryOptions = useMemo(() => {
+    const merged = new Set([
+      ...DEFAULT_ITEM_CATEGORIES,
+      ...availableCategories,
+    ]);
+    return Array.from(merged).filter(Boolean).sort();
+  }, [DEFAULT_ITEM_CATEGORIES, availableCategories]);
 
   // Branding for PDF Export
   const [branding, setBranding] = useState({
@@ -214,19 +262,21 @@ export default function StockReportPage() {
 
   // PDF Export Handler
   const handleExportPdf = useCallback(async () => {
-    if (!reportRef.current) return;
     setIsExportingPdf(true);
-    const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
+
     try {
-      if (pdfHeader) pdfHeader.style.display = "block";
-      
-      reportRef.current.classList.add("is-exporting");
-      
-      // Reset scroll of horizontally scrollable elements for capture
-      const scrollContainers = reportRef.current.querySelectorAll(".overflow-x-auto");
-      scrollContainers.forEach((el: any) => {
-        el.scrollLeft = 0;
-      });
+      // Fetch ALL filtered stock items (limit = -1) across all pages
+      const allFilteredProducts = await fetchStockReport(true);
+      const itemsToExport = allFilteredProducts && allFilteredProducts.length > 0 ? allFilteredProducts : products;
+      setPdfProducts(itemsToExport);
+
+      // Allow React 350ms to mount and layout all items in the preview dialog template
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      if (!reportRef.current) {
+        setIsExportingPdf(false);
+        return;
+      }
 
       const mod = await import("html2pdf.js");
       const html2pdf = (mod as any).default || mod;
@@ -240,13 +290,16 @@ export default function StockReportPage() {
             scale: 2,
             useCORS: true,
             letterRendering: true,
+            scrollY: 0,
+            scrollX: 0,
+            windowWidth: 720,
           },
           jsPDF: {
             unit: "mm",
             format: "a4",
-            orientation: "landscape"
+            orientation: "portrait",
           },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
         })
         .from(reportRef.current)
         .toPdf()
@@ -256,11 +309,11 @@ export default function StockReportPage() {
           for (let i = 1; i <= totalPages; i++) {
             pdf.setPage(i);
             pdf.setFontSize(8);
-            pdf.setTextColor(148, 163, 184); // #94a3b8
+            pdf.setTextColor(148, 163, 184);
             pdf.text(
               tCommon("pdfWatermarkText"),
-              297 / 2, // Center of landscape A4 (297mm width)
-              210 - 4, // 4mm from the bottom of A4 (210mm height)
+              210 / 2, // Center of Portrait A4 (210mm width)
+              297 - 4, // 4mm from bottom of Portrait A4 (297mm height)
               { align: "center" }
             );
           }
@@ -269,11 +322,10 @@ export default function StockReportPage() {
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {
-      if (pdfHeader) pdfHeader.style.display = "none";
-      if (reportRef.current) reportRef.current.classList.remove("is-exporting");
+      // Auto-close preview popup once download is done
       setIsExportingPdf(false);
     }
-  }, [tCommon]);
+  }, [fetchStockReport, products, tCommon]);
 
   const handleClearFilters = () => {
     setSearchTerm("");
@@ -365,53 +417,48 @@ export default function StockReportPage() {
   ], [summary, tStock]);
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-4">
       {/* Top Header Controls */}
-      <div className="flex flex-col gap-2">
-        <Button asChild variant="ghost" className="w-fit -ml-2 text-muted-foreground hover:text-foreground">
-          <Link href={`/${locale}/admin/reports`} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            <span>{tCommon("back") || "Back"}</span>
-          </Link>
-        </Button>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-              {tStock("title")}
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              {tStock("description")}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
-            {/* Download Report (PDF) */}
-            <Button
-              variant="outline"
-              onClick={handleExportPdf}
-              disabled={isExportingPdf || products.length === 0}
-              className="w-full sm:w-auto h-10 px-4 rounded-xl border-gray-200 shadow-sm"
-            >
-              {isExportingPdf ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Printer className="mr-2 h-4 w-4" />
-              )}
-              {tStock("downloadPdf")}
-            </Button>
-            {/* Export Excel */}
-            <Button
-              onClick={handleExportExcel}
-              disabled={isExporting || products.length === 0}
-              className="w-full sm:w-auto h-10 px-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 bg-[#7CD2F1] hover:bg-[#6bc2e1] text-white border-none"
-            >
-              {isExporting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" />
-              )}
-              {tStock("exportExcel")}
-            </Button>
-          </div>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {tStock("title")}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            {tStock("description")}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {/* Export Excel (Top, White Default) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isExporting || products.length === 0}
+            className="h-7 text-[11px] px-2 gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-none w-full justify-center"
+          >
+            {isExporting ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <FileDown className="h-3 w-3" />
+            )}
+            <span>{tStock("exportExcel")}</span>
+          </Button>
+
+          {/* Download Report (PDF) (Below, Theme Sky Blue) */}
+          <Button
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf || products.length === 0}
+            className="h-7 text-[11px] px-2 gap-1 bg-sky-500 hover:bg-sky-600 text-white shadow-none w-full justify-center"
+          >
+            {isExportingPdf ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Printer className="h-3 w-3" />
+            )}
+            <span>{tStock("downloadPdf")}</span>
+          </Button>
         </div>
       </div>
 
@@ -496,249 +543,387 @@ export default function StockReportPage() {
         </div>
       </div>
 
-      {/* Main Table Container (Interactive Panel) */}
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center justify-between">
-            {/* Search filter input */}
-            <div className="relative flex-1 max-w-md">
+      {/* Main Panel Container */}
+      <Card className="flex flex-col gap-3 sm:gap-4 p-4 sm:p-6 shadow-md">
+        <CardHeader className="p-0">
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                type="text"
                 placeholder={tStock("searchProducts")}
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setLoading(true);
                 }}
-                className="pl-10 h-10 rounded-xl"
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full bg-background"
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            </div>
-
-            {/* Selector drop downs */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Category selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">
-                  {tStock("category")}:
-                </span>
-                <Select
-                  value={categoryFilter}
-                  onValueChange={(value) => {
-                    setCategoryFilter(value);
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
                     setLoading(true);
                   }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  <SelectTrigger className="w-[140px] sm:w-[160px] h-10 rounded-xl">
-                    <SelectValue placeholder={tStock("category")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{tStock("all")}</SelectItem>
-                    {availableCategories.map((cat, idx) => (
-                      <SelectItem key={idx} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Branch selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">
-                  {tStock("branch")}:
-                </span>
-                <Select
-                  value={branchFilter}
-                  onValueChange={(value) => {
-                    setBranchFilter(value);
-                    setLoading(true);
-                  }}
-                >
-                  <SelectTrigger className="w-[140px] sm:w-[160px] h-10 rounded-xl">
-                    <SelectValue placeholder={tStock("branch")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{tStock("all")}</SelectItem>
-                    {availableBranches.map((br, idx) => (
-                      <SelectItem key={idx} value={br}>
-                        {br}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Clear Filters options */}
-              {(searchTerm || categoryFilter !== "all" || branchFilter !== "all") && (
-                <Button variant="ghost" onClick={handleClearFilters} className="h-10 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl">
-                  {tCommon("clearFilters") || "Clear Filters"}
-                </Button>
+                  <X className="h-4 w-4" />
+                </button>
               )}
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-9 px-2.5 sm:px-3 text-xs shrink-0"
+                >
+                  <FilterIcon className="h-3.5 w-3.5" />
+                  <span>{tCommon("filter")}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 p-3 space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    {tStock("category")}
+                  </Label>
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={(value) => {
+                      setCategoryFilter(value);
+                      setLoading(true);
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder={tStock("category")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{tStock("all")}</SelectItem>
+                      {categoryOptions.map((cat, idx) => (
+                        <SelectItem key={idx} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    {tStock("branch")}
+                  </Label>
+                  <Select
+                    value={branchFilter}
+                    onValueChange={(value) => {
+                      setBranchFilter(value);
+                      setLoading(true);
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder={tStock("branch")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{tStock("all")}</SelectItem>
+                      {availableBranches.map((br, idx) => (
+                        <SelectItem key={idx} value={br}>
+                          {br}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(searchTerm || categoryFilter !== "all" || branchFilter !== "all") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearFilters}
+                    className="w-full h-8 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 mt-1"
+                  >
+                    {tCommon("clearFilters") || "Clear Filters"}
+                  </Button>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
 
-        {/* Capture Report Block for Landscape PDF */}
-        <div ref={reportRef}>
-          <style dangerouslySetInnerHTML={{ __html: `
-            .is-exporting table {
-              font-size: 10px !important;
-            }
-            .is-exporting th, .is-exporting td {
-              padding: 6px 8px !important;
-            }
-          `}} />
-          {/* A4 Landscape PDF Header (Hidden in UI viewport, displayed only in captured PDF) */}
-          <div className="pdf-header" style={{ display: "none", backgroundColor: "white", color: "black" }}>
-            <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  <tr>
-                    {/* Brand logo */}
-                    <td style={{ width: "25%", verticalAlign: "top" }}>
-                      {branding.logo && (
-                        <Image
-                          src={branding.logo}
-                          alt="Company Logo"
-                          width={150}
-                          height={64}
-                          unoptimized
-                          style={{
-                            height: "64px",
-                            width: "auto",
-                            objectFit: "contain",
-                            display: "block",
-                          }}
-                        />
-                      )}
-                    </td>
-                    {/* Brand details */}
-                    <td style={{ width: "50%", textAlign: "center", verticalAlign: "top" }}>
-                      <div style={{
-                        fontWeight: 900,
-                        fontSize: "22px",
-                        color: "#0f172a",
-                        textTransform: "uppercase",
-                        letterSpacing: "-0.5px",
-                        lineHeight: 1.2,
-                      }}>
-                        {branding.name}
-                      </div>
-                      <div style={{
-                        fontSize: "11px",
-                        color: "#64748b",
-                        marginTop: "4px",
-                        lineHeight: 1.5,
-                        whiteSpace: "pre-line",
-                      }}>
-                        {branding.address}
-                      </div>
-                      {(branding.phone || branding.email) && (
-                        <table style={{ margin: "6px auto 0", borderCollapse: "collapse" }}>
-                          <tbody>
-                            <tr>
-                              {branding.phone && (
-                                <td style={{
-                                  paddingRight: branding.email ? "20px" : "0",
-                                  fontSize: "11px",
-                                  color: "#64748b",
-                                  verticalAlign: "middle",
-                                  whiteSpace: "nowrap",
-                                }}>
-                                  <span style={{ fontSize: "12px", marginRight: "4px" }}>☎</span>
-                                  <span>{branding.phone}</span>
-                                </td>
-                              )}
-                              {branding.email && (
-                                <td style={{
-                                  fontSize: "11px",
-                                  color: "#64748b",
-                                  verticalAlign: "middle",
-                                  whiteSpace: "nowrap",
-                                }}>
-                                  <span style={{ fontSize: "12px", marginRight: "4px" }}>✉</span>
-                                  <span style={{ textTransform: "lowercase" }}>{branding.email}</span>
-                                </td>
-                              )}
-                            </tr>
-                          </tbody>
-                        </table>
-                      )}
-                    </td>
-                    {/* PDF Title */}
-                    <td style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
-                      <div style={{
-                        fontWeight: 900,
-                        fontSize: "22px",
-                        color: "#0f172a",
-                        textTransform: "uppercase",
-                        letterSpacing: "-0.5px",
-                      }}>
-                        {tStock("title")}
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        {/* PDF Preview & Auto-Download Dialog Modal */}
+        <Dialog
+          open={isExportingPdf}
+          onOpenChange={(open) => {
+            if (!open) setIsExportingPdf(false);
+          }}
+        >
+          <DialogContent className="max-w-4xl w-full p-4 max-h-[90vh] flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-900 border border-border">
+            <DialogHeader className="pb-3 border-b border-border flex flex-row items-center justify-between shrink-0">
+              <div>
+                <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                  <Printer className="h-4 w-4 text-sky-500" />
+                  <span>PDF Report Preview</span>
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
+                  <span>Preparing & downloading your A4 stock report PDF...</span>
+                </p>
+              </div>
+            </DialogHeader>
 
-            {/* Filter Params Meta Grid inside PDF */}
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[11px]">
-                <div className="flex justify-between border-b border-gray-100 pb-1">
-                  <span className="text-gray-500 font-medium">{tStock("category")}:</span>
-                  <span className="font-bold">{categoryFilter === "all" ? tStock("all") : categoryFilter}</span>
+            {/* Scrollable Preview Area containing printable reportRef */}
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-zinc-200/50 dark:bg-zinc-950/50 rounded-lg my-2">
+              <div
+                ref={reportRef}
+                style={{
+                  width: "700px",
+                  backgroundColor: "#ffffff",
+                  color: "#0f172a",
+                  padding: "20px",
+                  fontFamily: "sans-serif",
+                  boxSizing: "border-box",
+                  margin: "0 auto",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  borderRadius: "4px",
+                }}
+              >
+                {/* PDF Minimal Header */}
+                <div style={{ paddingBottom: "14px", marginBottom: "14px", borderBottom: "2px solid #0f172a" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: "55%", verticalAlign: "top" }}>
+                          {branding.logo ? (
+                            <Image
+                              src={branding.logo}
+                              alt="Company Logo"
+                              width={130}
+                              height={45}
+                              unoptimized
+                              style={{
+                                height: "45px",
+                                width: "auto",
+                                objectFit: "contain",
+                                display: "block",
+                                marginBottom: "6px",
+                              }}
+                            />
+                          ) : (
+                            <div style={{ fontWeight: 900, fontSize: "18px", color: "#0f172a", textTransform: "uppercase" }}>
+                              {branding.name}
+                            </div>
+                          )}
+                          <div style={{ fontSize: "10px", color: "#475569", lineHeight: 1.4 }}>
+                            {branding.address}
+                          </div>
+                          {(branding.phone || branding.email) && (
+                            <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>
+                              {branding.phone ? `Phone: ${branding.phone}` : ""}
+                              {branding.phone && branding.email ? " | " : ""}
+                              {branding.email ? `Email: ${branding.email}` : ""}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ width: "45%", textAlign: "right", verticalAlign: "top" }}>
+                          <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                            {tStock("title") || "STOCK REPORT"}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#475569", marginTop: "4px" }}>
+                            Date: <span style={{ fontWeight: 700, color: "#0f172a" }}>{new Date().toLocaleDateString(locale)}</span>
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#475569", marginTop: "2px" }}>
+                            Total Products: <span style={{ fontWeight: 700, color: "#0284c7" }}>{summary.totalProducts || 0}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex justify-between border-b border-gray-100 pb-1">
-                  <span className="text-gray-500 font-medium">{tStock("branch")}:</span>
-                  <span className="font-bold">{branchFilter === "all" ? tStock("all") : branchFilter}</span>
+
+                {/* Minimal Metadata Summary Grid */}
+                <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "10px 14px", marginBottom: "14px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", tableLayout: "fixed" }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: "33%", color: "#64748b", fontWeight: 500 }}>
+                          Category: <span style={{ color: "#0f172a", fontWeight: 700 }}>{categoryFilter === "all" ? tStock("all") : categoryFilter}</span>
+                        </td>
+                        <td style={{ width: "33%", color: "#64748b", fontWeight: 500 }}>
+                          Branch: <span style={{ color: "#0f172a", fontWeight: 600 }}>{branchFilter === "all" ? tStock("all") : branchFilter}</span>
+                        </td>
+                        <td style={{ width: "34%", textAlign: "right", color: "#64748b", fontWeight: 500 }}>
+                          Total Stock Items: <span style={{ color: "#0f172a", fontWeight: 700 }}>{summary.totalStock || 0}</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex justify-between border-b border-gray-100 pb-1">
-                  <span className="text-gray-500 font-medium">Generated On:</span>
-                  <span className="font-medium text-gray-700">{new Date().toLocaleDateString(locale)} at {new Date().toLocaleTimeString(locale)}</span>
+
+                {/* Valuation Summary Bar */}
+                <div style={{ marginBottom: "16px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", tableLayout: "fixed" }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: "8px 10px", textAlign: "center", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                          <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("costValuation")}</div>
+                          <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                            Rs. {formatCurrency(summary.totalCostValue)}
+                          </div>
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "center", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                          <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("retailValuation")}</div>
+                          <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0284c7", marginTop: "2px" }}>
+                            Rs. {formatCurrency(summary.totalSellValue)}
+                          </div>
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "center", backgroundColor: "#f1f5f9" }}>
+                          <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("profitPotential")}</div>
+                          <div style={{ fontSize: "12px", fontWeight: "bold", color: "#16a34a", marginTop: "2px" }}>
+                            Rs. {formatCurrency(summary.totalProfitPotential)}
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex justify-between border-b border-gray-100 pb-1">
-                  <span className="text-gray-500 font-medium">{tStock("totalStockItems")}:</span>
-                  <span className="font-bold text-emerald-600">{summary.totalStock || 0} ({summary.totalProducts || 0} {tStock("products")})</span>
-                </div>
+
+                {/* Minimal Table Form for Stock Data */}
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", tableLayout: "fixed" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
+                      <th style={{ width: "5%", padding: "7px 6px", textAlign: "left", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>#</th>
+                      <th style={{ width: "27%", padding: "7px 6px", textAlign: "left", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>{tStock("productName")}</th>
+                      <th style={{ width: "17%", padding: "7px 6px", textAlign: "left", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>{tStock("category")}</th>
+                      <th style={{ width: "11%", padding: "7px 6px", textAlign: "center", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>{tStock("quantity")}</th>
+                      <th style={{ width: "13%", padding: "7px 6px", textAlign: "right", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>{tStock("costPrice")}</th>
+                      <th style={{ width: "13%", padding: "7px 6px", textAlign: "right", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>{tStock("sellPrice")}</th>
+                      <th style={{ width: "14%", padding: "7px 6px", textAlign: "right", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>{tStock("totalRetailValuation")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(pdfProducts.length > 0 ? pdfProducts : products).map((p, idx) => {
+                      const qty = p.quantity || 0;
+                      const cost = p.cost_price || 0;
+                      const sell = p.sell_price || 0;
+                      const isOut = qty <= 0;
+                      return (
+                        <tr key={p.id || idx} style={{ backgroundColor: idx % 2 === 0 ? "#ffffff" : "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "6px", color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{idx + 1}</td>
+                          <td style={{ padding: "6px", fontWeight: "600", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</td>
+                          <td style={{ padding: "6px", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.category || "-"}</td>
+                          <td style={{ padding: "6px", textAlign: "center", fontWeight: "600", color: isOut ? "#ef4444" : "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {qty} {p.unit_of_measurement || ""}
+                          </td>
+                          <td style={{ padding: "6px", textAlign: "right", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Rs. {formatCurrency(cost)}</td>
+                          <td style={{ padding: "6px", textAlign: "right", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Rs. {formatCurrency(sell)}</td>
+                          <td style={{ padding: "6px", textAlign: "right", fontWeight: "700", color: "#0284c7", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Rs. {formatCurrency(qty * sell)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
 
-            {/* PDF Summary Stats Row */}
-            <div style={{ padding: "0 24px 20px" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
-                <tbody>
-                  <tr>
-                    <td style={{ padding: "12px", textAlign: "center", borderRight: "1px solid #e2e8f0" }}>
-                      <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("costValuation")}</div>
-                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0f172a", marginTop: "4px" }}>
-                        <span style={{ fontSize: "11px", fontWeight: "normal", color: "#64748b", marginRight: "4px" }}>PKR</span>
-                        <span>{formatCurrency(summary.totalCostValue)}</span>
+        {/* Interactive Products Table Data / Mobile Cards */}
+        <CardContent className="p-0 relative">
+          {/* Mobile View: Cards Layout */}
+          <div className="block md:hidden space-y-3">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">
+                  {tCommon("loading") || "Loading..."}
+                </span>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+                <Info className="h-10 w-10 text-muted-foreground/50" />
+                <span className="text-sm font-medium">
+                  {tStock("noData")}
+                </span>
+              </div>
+            ) : (
+              products.map((product) => {
+                const qty = product.quantity || 0;
+                const cost = product.cost_price || 0;
+                const sell = product.sell_price || 0;
+                const isLow = qty > 0 && qty < 5;
+                const isOut = qty <= 0;
+
+                return (
+                  <div
+                    key={product.id}
+                    className="bg-card border rounded-lg p-3.5 shadow-sm space-y-2.5"
+                  >
+                    {/* Header Row: Product Name & Stock Status Badge */}
+                    <div className="flex justify-between items-start gap-2 border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
+                      <h3 className="font-semibold text-sm text-foreground truncate max-w-[70%]">
+                        {product.name}
+                      </h3>
+                      <div className="shrink-0 flex items-center gap-1">
+                        <span
+                          className={`font-semibold text-xs ${
+                            isOut
+                              ? "text-rose-500"
+                              : isLow
+                              ? "text-amber-500"
+                              : "text-foreground"
+                          }`}
+                        >
+                          {qty} {product.unit_of_measurement || ""}
+                        </span>
+                        {isOut && (
+                          <span className="text-[10px] font-semibold bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded uppercase">
+                            {tStock("outOfStock")}
+                          </span>
+                        )}
+                        {isLow && (
+                          <span className="text-[10px] font-semibold bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded uppercase">
+                            {tStock("lowStock")}
+                          </span>
+                        )}
                       </div>
-                    </td>
-                    <td style={{ padding: "12px", textAlign: "center", borderRight: "1px solid #e2e8f0" }}>
-                      <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("retailValuation")}</div>
-                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0f172a", marginTop: "4px" }}>
-                        <span style={{ fontSize: "11px", fontWeight: "normal", color: "#64748b", marginRight: "4px" }}>PKR</span>
-                        <span>{formatCurrency(summary.totalSellValue)}</span>
+                    </div>
+
+                    {/* Details Section */}
+                    <div className="space-y-2 text-xs">
+                      {/* Row 1: Category & Branch */}
+                      <div className="flex justify-between items-center text-muted-foreground font-medium">
+                        <span>Category: <span className="text-foreground">{product.category || "-"}</span></span>
+                        <span>Branch: <span className="text-foreground">{product.branch || "-"}</span></span>
                       </div>
-                    </td>
-                    <td style={{ padding: "12px", textAlign: "center" }}>
-                      <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{tStock("profitPotential")}</div>
-                      <div style={{ fontSize: "16px", fontWeight: "bold", color: "#8b5cf6", marginTop: "4px" }}>
-                        <span style={{ fontSize: "11px", fontWeight: "normal", color: "#64748b", marginRight: "4px" }}>PKR</span>
-                        <span>{formatCurrency(summary.totalProfitPotential)}</span>
+
+                      {/* Row 2: Cost & Sell Price */}
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span>Cost: <span className="text-foreground font-medium">Rs. {formatCurrency(cost)}</span></span>
+                        <span>Sell: <span className="text-foreground font-medium">Rs. {formatCurrency(sell)}</span></span>
                       </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+
+                      {/* Damaged Quantity line if any */}
+                      {product.damaged_quantity && product.damaged_quantity > 0 ? (
+                        <div className="flex items-center gap-1 text-rose-500 font-medium text-xs">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span>Damaged Qty: {product.damaged_quantity}</span>
+                        </div>
+                      ) : null}
+
+                      {/* Row 3: Total Retail Valuation */}
+                      <div className="flex justify-between items-center pt-2 border-t border-zinc-100 dark:border-zinc-800/40 text-xs">
+                        <span className="text-muted-foreground font-medium">{tStock("totalRetailValuation")}:</span>
+                        <span className="font-semibold text-sky-600 dark:text-sky-400 text-sm">
+                          Rs. {formatCurrency(qty * sell)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
-          {/* Interactive Products Table Data */}
-          <CardContent className="p-0 relative">
-            <div className="overflow-x-auto md:overflow-visible [.is-exporting_&]:overflow-visible">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto [.is-exporting_&]:block">
               <Table className="min-w-[800px] md:min-w-full">
                 <TableHeader>
                   <TableRow className="bg-gray-50 border-b border-gray-100">
@@ -873,7 +1058,6 @@ export default function StockReportPage() {
               </Table>
             </div>
           </CardContent>
-        </div>
 
         {/* Footer with Pagination */}
         <CardFooter className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 border-t gap-4">

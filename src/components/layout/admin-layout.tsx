@@ -31,17 +31,22 @@ import {
   ChevronRight,
   Home,
   Sparkles,
+  Receipt,
   BarChart,
   WifiOff,
   CheckCircle,
   RefreshCw,
   Loader2,
   Star,
+  Users,
+  Store,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, Suspense, useCallback, useRef } from "react";
+import { usePermissions } from "@/hooks/use-permissions";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, clearUserDatabase } from "@/lib/db/offline-db";
@@ -73,7 +78,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const t = useTranslations();
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
-  const { user } = useUserProfile();
+  const { user, updateSession } = useUserProfile();
+  const { hasModuleAccess, can } = usePermissions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [highlightHamburger, setHighlightHamburger] = useState(false);
 
@@ -104,6 +110,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [enableCounterSale, setEnableCounterSale] = useState(false);
   const [enableAiChat, setEnableAiChat] = useState(false);
   const [enableWhatsApp, setEnableWhatsApp] = useState(false);
+
+  // Sub-menu Permission Checks
+  const hasSalesSub = can('sales', 'view_quotations') || can('sales', 'view_invoice') || can('sales', 'view_payment_in') || can('sales', 'view_sale_return') || (enableCounterSale && can('sales', 'view_counter_sale'));
+  const hasPurchaseSub = can('purchase', 'view_purchase_bill') || can('purchase', 'view_payment_out');
+  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability');
 
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
@@ -537,6 +548,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             className={`flex h-full overflow-y-auto flex-col gap-1.5 py-3 md:py-4 ${sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-3"
               }`}
           >
+            {/* Workspace Switcher at the very top */}
+            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} />
+
             {/* Home */}
             <div>
               <Link
@@ -582,7 +596,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             </div>
 
             {/* Utilities - AI Chat */}
-            {enableAiChat && (
+            {enableAiChat && hasModuleAccess("ai_chat") && (
               <div>
                 <Link
                   href={`/${locale}/admin/ai-chat`}
@@ -617,6 +631,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
 
             {/* Parties / Customers */}
+            {hasModuleAccess("customers") && (
             <div>
               <Link
                 href={`/${locale}/admin/customers`}
@@ -639,8 +654,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </div>
               </Link>
             </div>
+            )}
 
             {/* Items / Products */}
+            {hasModuleAccess("products") && (
             <div>
               <Link
                 href={`/${locale}/admin/products`}
@@ -663,8 +680,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </div>
               </Link>
             </div>
+            )}
 
             {/* Sale Section */}
+            {hasModuleAccess("sales") && (
             <div>
               <div className="flex items-stretch gap-1">
                 <Link
@@ -689,7 +708,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </div>
                 </Link>
 
-                {!sidebarMinimized && (
+                {!sidebarMinimized && hasSalesSub && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -711,56 +730,64 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
               {!sidebarMinimized && salesExpanded && (
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
-                  <Link
-                    href={`/${locale}/admin/sales/quotations`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/sales/quotations" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/quotations"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("quotations")}
-                  </Link>
-                  <Link
-                    href={`/${locale}/admin/sales/invoice`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/sales/invoice" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/invoice"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("invoice")}
-                  </Link>
+                  {can('sales', 'view_quotations') && (
+                    <Link
+                      href={`/${locale}/admin/sales/quotations`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/sales/quotations" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/quotations"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("quotations")}
+                    </Link>
+                  )}
+                  {can('sales', 'view_invoice') && (
+                    <Link
+                      href={`/${locale}/admin/sales/invoice`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/sales/invoice" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/invoice"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("invoice")}
+                    </Link>
+                  )}
 
-                  <Link
-                    href={`/${locale}/admin/sales/payment-in`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/sales/payment-in" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/payment-in"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("paymentIn")}
-                  </Link>
-                  <Link
-                    href={`/${locale}/admin/sales/sale-return`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/sales/sale-return" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/sale-return"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("saleReturn")}
-                  </Link>
-                  {enableCounterSale && (
+                  {can('sales', 'view_payment_in') && (
+                    <Link
+                      href={`/${locale}/admin/sales/payment-in`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/sales/payment-in" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/payment-in"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("paymentIn")}
+                    </Link>
+                  )}
+                  {can('sales', 'view_sale_return') && (
+                    <Link
+                      href={`/${locale}/admin/sales/sale-return`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/sales/sale-return" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/sale-return"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("saleReturn")}
+                    </Link>
+                  )}
+                  {enableCounterSale && can('sales', 'view_counter_sale') && (
                     <Link
                       href={`/${locale}/admin/sales/counter-sale`}
                       prefetch={false}
@@ -777,8 +804,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </div>
               )}
             </div>
+            )}
 
             {/* Purchase Section */}
+            {hasModuleAccess("purchase") && (
             <div>
               <div className="flex items-stretch gap-1">
                 <Link
@@ -803,7 +832,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </div>
                 </Link>
 
-                {!sidebarMinimized && (
+                {!sidebarMinimized && hasPurchaseSub && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -825,35 +854,41 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
               {!sidebarMinimized && purchaseExpanded && (
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
-                  <Link
-                    href={`/${locale}/admin/purchase/purchase-bill`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/purchase/purchase-bill" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/purchase-bill"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("purchaseBill")}
-                  </Link>
-                  <Link
-                    href={`/${locale}/admin/purchase/payment-out`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/purchase/payment-out" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/payment-out"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("paymentOut")}
-                  </Link>
+                  {can('purchase', 'view_purchase_bill') && (
+                    <Link
+                      href={`/${locale}/admin/purchase/purchase-bill`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/purchase/purchase-bill" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/purchase-bill"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("purchaseBill")}
+                    </Link>
+                  )}
+                  {can('purchase', 'view_payment_out') && (
+                    <Link
+                      href={`/${locale}/admin/purchase/payment-out`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/purchase/payment-out" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/payment-out"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("paymentOut")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
+            )}
 
             {/* Expenses */}
+            {hasModuleAccess("expenses") && (
             <div>
               <Link
                 href={`/${locale}/admin/expenses`}
@@ -863,7 +898,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("expenses") : ""}
               >
-                <Sparkles className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <Receipt className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >
@@ -876,8 +911,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </div>
               </Link>
             </div>
+            )}
 
             {/* Reports Section */}
+            {hasModuleAccess("reports") && (
             <div>
               <div className="flex items-stretch gap-1">
                 <Link
@@ -901,7 +938,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </div>
                 </Link>
 
-                {!sidebarMinimized && (
+                {!sidebarMinimized && hasReportsSub && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -923,62 +960,71 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
               {!sidebarMinimized && reportsExpanded && (
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
-                  <Link
-                    href={`/${locale}/admin/reports/account-statement`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/reports/account-statement" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/account-statement"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("accountStatement")}
-                  </Link>
-                  <Link
-                    href={`/${locale}/admin/reports/stock`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/stock"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("stockReport")}
-                  </Link>
-                  <Link
-                    href={`/${locale}/admin/reports/receivable-summary`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("receivableSummary")}
-                  </Link>
-                  <Link
-                    href={`/${locale}/admin/reports/profitability`}
-                    prefetch={false}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
-                    className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/profitability"
-                      ? "bg-accent/80 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                  >
-                    {tNav("profitability")}
-                  </Link>
+                  {can('reports', 'view_account_statement') && (
+                    <Link
+                      href={`/${locale}/admin/reports/account-statement`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/account-statement" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/account-statement"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("accountStatement")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_stock') && (
+                    <Link
+                      href={`/${locale}/admin/reports/stock`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/stock"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("stockReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_receivable_summary') && (
+                    <Link
+                      href={`/${locale}/admin/reports/receivable-summary`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("receivableSummary")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_profitability') && (
+                    <Link
+                      href={`/${locale}/admin/reports/profitability`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
+                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/profitability"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("profitability")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
+            )}
 
             {/* Backup/Restore - You may need to add this */}
 
             {/* WhatsApp Integration */}
-            {enableWhatsApp && (
+            {enableWhatsApp && hasModuleAccess("whatsapp") && (
               <div>
                 <Link
                   href={`/${locale}/admin/whatsapp-integration`}
@@ -992,41 +1038,70 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                   >
                     <span className="font-medium leading-none">
-                      WhatsApp
+                      {tNav("whatsapp")}
                     </span>
                     <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      Connect WhatsApp
+                      {tNav("whatsappDescription")}
                     </span>
                   </div>
                 </Link>
               </div>
             )}
 
-            {/* Settings / Configuration - moved to bottom */}
-            <div className="mt-auto">
-              <Link
-                href={`/${locale}/admin/configuration`}
-                prefetch={false}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${pathWithoutLocale === "/admin/configuration"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-                  } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
-                title={sidebarMinimized ? tNav("configuration") : ""}
-              >
-                <Settings className="h-5 w-5 flex-shrink-0" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+            {/* Staff Management - Protected by module access */}
+            {hasModuleAccess("staff") && (
+              <div>
+                <Link
+                  href={`/${locale}/admin/staff`}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`${navItemBase} ${pathWithoutLocale === "/admin/staff" ? navItemActive : navItemInactive
+                    } ${navItemCompact}`}
+                  title={sidebarMinimized ? "Staff" : ""}
                 >
-                  <span className="font-medium text-xs md:text-sm">
-                    {tNav("configuration")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block">
-                    {tNav("configurationDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
+                  <Users className="h-5 w-5 flex-shrink-0 opacity-90" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium leading-none">
+                      {tNav("staffManagement")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                      {tNav("staffManagementDescription")}
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
+
+            {/* Settings / Configuration - protected by module access */}
+            {hasModuleAccess("settings") && (
+              <div className="mt-auto flex flex-col gap-2">
+                {/* Workspace Switcher moved to top */}
+                
+                <Link
+                  href={`/${locale}/admin/configuration`}
+                  prefetch={false}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${pathWithoutLocale === "/admin/configuration"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                    } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
+                  title={sidebarMinimized ? tNav("configuration") : ""}
+                >
+                  <Settings className="h-5 w-5 flex-shrink-0" />
+                  <div
+                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                  >
+                    <span className="font-medium text-xs md:text-sm">
+                      {tNav("configuration")}
+                    </span>
+                    <span className="text-xs opacity-70 hidden md:block">
+                      {tNav("configurationDescription")}
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
           </nav>
         </aside>
         <main

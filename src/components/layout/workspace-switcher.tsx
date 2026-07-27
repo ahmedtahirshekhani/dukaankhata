@@ -1,0 +1,118 @@
+"use client";
+
+import { useTranslations, useLocale } from "next-intl";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { useRouter } from "next/navigation";
+import { Store, ChevronRight, CheckCircle, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
+interface WorkspaceSwitcherProps {
+  sidebarMinimized?: boolean;
+}
+
+export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) {
+  const t = useTranslations("common");
+  const locale = useLocale();
+  const router = useRouter();
+  const { user, updateSession } = useUserProfile();
+
+  if (!user?.workspaces || user.workspaces.length === 0) {
+    return null;
+  }
+
+  const activeWorkspace = user.workspaces.find(
+    (w) => w.id === user.active_workspace_id
+  );
+
+  return (
+    <div className="mb-4 w-full">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div
+            role="button"
+            tabIndex={0}
+            className={`w-full h-auto py-2.5 flex items-center border border-primary/20 bg-primary/5 hover:bg-gradient-to-r hover:from-primary/15 hover:to-primary/5 text-primary transition-all duration-300 shadow-sm rounded-xl cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+              sidebarMinimized ? "justify-center sm:px-0" : "justify-between px-3"
+            }`}
+            title={sidebarMinimized ? t("switchWorkspace") : ""}
+          >
+            <div className={`flex items-center gap-3 truncate ${sidebarMinimized ? "sm:pr-0" : "pr-3"}`}>
+              <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-lg w-8 h-8 shrink-0 shadow-md">
+                <Store className="h-4 w-4" />
+              </div>
+              <div className={`flex flex-col items-start min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                <span className="truncate text-sm font-bold tracking-tight">
+                  {activeWorkspace?.name || t("workspaces")}
+                </span>
+                <span className="text-[10px] text-primary/80 font-semibold tracking-wider uppercase mt-0.5">
+                  {activeWorkspace?.type || "Workspace"}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className={`h-4 w-4 shrink-0 opacity-50 ${sidebarMinimized ? "sm:hidden" : ""}`} />
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-64 p-2 shadow-2xl rounded-xl border-primary/10">
+          <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider font-bold">
+            {t("switchWorkspace")}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="my-1.5" />
+          <div className="space-y-1">
+            {user.workspaces.map((ws: any) => {
+              const isActive = ws.id === user.active_workspace_id;
+              return (
+                <DropdownMenuItem
+                  key={ws.id}
+                  onClick={async () => {
+                    if (!isActive) {
+                      await updateSession({ active_workspace_id: ws.id });
+                      router.push(`/${locale}/admin`);
+                    }
+                  }}
+                  className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all ${
+                    isActive
+                      ? "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary"
+                      : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                  }`}
+                >
+                  <div
+                    className={`flex items-center justify-center rounded-md w-8 h-8 shrink-0 border ${
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border"
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span
+                      className={`truncate text-sm font-medium ${
+                        isActive ? "font-bold text-primary" : ""
+                      }`}
+                    >
+                      {ws.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {ws.type}
+                    </span>
+                  </div>
+                  {isActive && (
+                    <CheckCircle className="h-4 w-4 text-primary shrink-0 drop-shadow-sm" />
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
