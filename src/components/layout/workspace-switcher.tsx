@@ -2,7 +2,7 @@
 
 import { useTranslations, useLocale } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Store, ChevronRight, CheckCircle, Building2, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 
 interface WorkspaceSwitcherProps {
   sidebarMinimized?: boolean;
@@ -40,6 +41,30 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
   const [newShopName, setNewShopName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+  const [showOfflineAlert, setShowOfflineAlert] = useState(false);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    
+    // Also listen to the custom appNetworkStatus event from admin-layout
+    const handleAppNetwork = (e: any) => {
+      if (e.detail !== undefined) setIsOnline(e.detail.isOnline);
+    };
+    window.addEventListener("appNetworkStatus", handleAppNetwork);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("appNetworkStatus", handleAppNetwork);
+    };
+  }, []);
 
   const handleCreateShop = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,16 +150,23 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
               return (
                 <DropdownMenuItem
                   key={ws.id}
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    if (!isOnline && !isActive) {
+                      e.preventDefault();
+                      setShowOfflineAlert(true);
+                      return;
+                    }
                     if (!isActive) {
                       await updateSession({ active_workspace_id: ws.id });
                       router.push(`/${locale}/admin`);
                     }
                   }}
                   className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all ${
-                    isActive
-                      ? "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary"
-                      : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    !isOnline && !isActive 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : isActive
+                        ? "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary"
+                        : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                   }`}
                 >
                   <div
@@ -166,8 +198,19 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
             })}
             <DropdownMenuSeparator className="my-1.5" />
             <DropdownMenuItem
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all text-primary hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
+              onClick={(e) => {
+                if (!isOnline) {
+                  e.preventDefault();
+                  setShowOfflineAlert(true);
+                  return;
+                }
+                setIsModalOpen(true);
+              }}
+              className={`flex items-center gap-3 p-2 rounded-lg transition-all ${
+                !isOnline
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer text-primary hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
+              }`}
             >
               <div className="flex items-center justify-center rounded-md w-8 h-8 shrink-0 border border-primary/20 bg-primary/5">
                 <PlusCircle className="h-4 w-4" />
@@ -221,6 +264,16 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
           </form>
         </DialogContent>
       </Dialog>
+      
+      <ConfirmDialog
+        open={showOfflineAlert}
+        onOpenChange={setShowOfflineAlert}
+        title={t("offlineWorkspaceSwitchErrorTitle")}
+        description={t("offlineWorkspaceSwitchErrorDesc")}
+        confirmLabel={t("understood")}
+        onConfirm={() => setShowOfflineAlert(false)}
+        variant="warning"
+      />
     </div>
   );
 }

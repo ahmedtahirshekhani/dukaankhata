@@ -81,7 +81,9 @@
     "cacheClearedSuccess": "Cache cleared successfully",
     "syncingData": "Syncing Data...",
     "pleaseWait": "Please wait while we set up your offline database.",
-    "all": "All"
+    "all": "All",
+    "offlineWorkspaceSwitchErrorTitle": "Action Unavailable Offline",
+    "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",

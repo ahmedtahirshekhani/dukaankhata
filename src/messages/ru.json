@@ -81,7 +81,9 @@
     "cacheClearedSuccess": "Cache successfully clear ho gaya",
     "syncingData": "Data sync ho raha hai...",
     "pleaseWait": "Barae meharbani intezar karein, offline database tayar kiya ja raha hai.",
-    "all": "Sab"
+    "all": "Sab",
+    "offlineWorkspaceSwitchErrorTitle": "Action Offline Available Nahi",
+    "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein."
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
