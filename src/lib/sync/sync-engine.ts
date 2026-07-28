@@ -116,12 +116,13 @@ export class SyncEngine {
     
     this.isSyncing = true;
     try {
-      const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
-      if (pendingOps.length === 0) return true;
-
-    let successCount = 0;
-    
-    for (const originalOp of pendingOps) {
+      let successCount = 0;
+      
+      while (true) {
+        const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
+        if (pendingOps.length === 0) break;
+        
+        for (const originalOp of pendingOps) {
       try {
         // Re-fetch to ensure we have latest data (e.g. ID replacements from earlier ops in this sync loop)
         const op = await db.syncQueue.get(originalOp.id!);
@@ -236,7 +237,10 @@ export class SyncEngine {
       }
     }
     
-    return successCount === pendingOps.length;
+    // Check again to see if more items were added during the sync
+    }
+    
+    return true;
     } finally {
       this.isSyncing = false;
     }

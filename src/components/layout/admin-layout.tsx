@@ -191,13 +191,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     }
   }, [isOnline]);
 
-  // Fetch company name from localStorage or session
+  // Fetch company name from session or offline cache
   useEffect(() => {
-    const savedCompanyName = localStorage.getItem("companyName");
-    if (savedCompanyName) {
-      setCompanyName(savedCompanyName);
-    } else if (user?.company) {
-      setCompanyName(user.company);
+    if (user?.id) {
+      const cachedCompanyName = typeof window !== "undefined" ? localStorage.getItem(`companyName_${user.id}`) : null;
+      if (cachedCompanyName) {
+        setCompanyName(cachedCompanyName);
+      } else if (user?.company) {
+        setCompanyName(user.company);
+      }
     }
   }, [user]);
 
@@ -550,7 +552,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               }`}
           >
             {/* Workspace Switcher at the very top */}
-            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} />
+            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} />
 
             {/* Home */}
             <div>

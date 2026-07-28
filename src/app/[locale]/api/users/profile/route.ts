@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     }
 
     const users = await getCollection(COLLECTIONS.USERS);
-    const userId = (session.user as any).id as string;
+    // User profile belongs to the real user, not the workspace (shop)
+    const userId = (session.user as any).real_user_id as string;
 
     const update: Record<string, any> = {
       updated_at: new Date(),
@@ -38,14 +39,10 @@ export async function POST(req: NextRequest) {
       update.name = name;
     }
 
-    if (company !== undefined) {
-      update.company_name = company;
-    }
-
     const result = await setLastUpdated(
       users,
       { _id: toObjectId(userId) },
-      update // update mein pehle se name, company_name etc hain
+      update
     );
 
 

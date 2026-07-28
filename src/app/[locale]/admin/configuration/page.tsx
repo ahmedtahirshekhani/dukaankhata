@@ -57,30 +57,33 @@ export default function ConfigurationPage({
           const savedWa = localStorage.getItem("setting_wa");
           if (savedWa) setEnableWhatsApp(savedWa === "true");
           
+          const wsId = (session?.user as any)?.id || "";
+          
           // Pre-fill from local storage to allow offline viewing immediately
-          setCompanyName(localStorage.getItem("companyName") || (session?.user as any)?.company || "");
-          setCompanyAddress(localStorage.getItem("companyAddress") || "");
-          setCompanyPhone(localStorage.getItem("companyPhone") || "");
-          setCompanyEmail(localStorage.getItem("companyEmail") || "");
-          setCompanyLogo(localStorage.getItem("companyLogo") || null);
-          setSignatureImage(localStorage.getItem("invoiceSignature") || null);
+          setCompanyName(localStorage.getItem(`companyName_${wsId}`) || (session?.user as any)?.company || "");
+          setCompanyAddress(localStorage.getItem(`companyAddress_${wsId}`) || "");
+          setCompanyPhone(localStorage.getItem(`companyPhone_${wsId}`) || "");
+          setCompanyEmail(localStorage.getItem(`companyEmail_${wsId}`) || "");
+          setCompanyLogo(localStorage.getItem(`companyLogo_${wsId}`) || null);
+          setSignatureImage(localStorage.getItem(`invoiceSignature_${wsId}`) || null);
         }
 
         try {
           const res = await fetch(`/${params.locale}/api/configuration/assets`);
           if (res.ok) {
             const data = await res.json();
-            const savedCompanyName = data.companyName || localStorage.getItem("companyName") || (session?.user as any)?.company || "";
-            const savedCompanyAddress = data.companyAddress || localStorage.getItem("companyAddress") || "";
-            const savedCompanyPhone = data.companyPhone || localStorage.getItem("companyPhone") || "";
-            const savedCompanyEmail = data.companyEmail || localStorage.getItem("companyEmail") || "";
+            const wsId = (session?.user as any)?.id || "";
+            const savedCompanyName = data.companyName || localStorage.getItem(`companyName_${wsId}`) || (session?.user as any)?.company || "";
+            const savedCompanyAddress = data.companyAddress || localStorage.getItem(`companyAddress_${wsId}`) || "";
+            const savedCompanyPhone = data.companyPhone || localStorage.getItem(`companyPhone_${wsId}`) || "";
+            const savedCompanyEmail = data.companyEmail || localStorage.getItem(`companyEmail_${wsId}`) || "";
             
             setCompanyName(savedCompanyName);
             setCompanyAddress(savedCompanyAddress as string);
             setCompanyPhone(savedCompanyPhone as string);
             setCompanyEmail(savedCompanyEmail as string);
-            setCompanyLogo(data.companyLogo || localStorage.getItem("companyLogo") || null);
-            setSignatureImage(data.signatureImage || localStorage.getItem("invoiceSignature") || null);
+            setCompanyLogo(data.companyLogo || localStorage.getItem(`companyLogo_${wsId}`) || null);
+            setSignatureImage(data.signatureImage || localStorage.getItem(`invoiceSignature_${wsId}`) || null);
           }
         } catch (fetchErr) {
           console.warn("Offline or failed to fetch config from server, using local data");
@@ -181,36 +184,37 @@ export default function ConfigurationPage({
     setIsSaving(true);
     setMessage("");
     try {
+      const wsId = (session?.user as any)?.id || "";
       // Update localStorage so invoice and other components can use cached values immediately
       if (companyName) {
-        localStorage.setItem("companyName", companyName);
+        localStorage.setItem(`companyName_${wsId}`, companyName);
       } else {
-        localStorage.removeItem("companyName");
+        localStorage.removeItem(`companyName_${wsId}`);
       }
       if (companyAddress) {
-        localStorage.setItem("companyAddress", companyAddress);
+        localStorage.setItem(`companyAddress_${wsId}`, companyAddress);
       } else {
-        localStorage.removeItem("companyAddress");
+        localStorage.removeItem(`companyAddress_${wsId}`);
       }
       if (companyPhone) {
-        localStorage.setItem("companyPhone", companyPhone);
+        localStorage.setItem(`companyPhone_${wsId}`, companyPhone);
       } else {
-        localStorage.removeItem("companyPhone");
+        localStorage.removeItem(`companyPhone_${wsId}`);
       }
       if (companyEmail) {
-        localStorage.setItem("companyEmail", companyEmail);
+        localStorage.setItem(`companyEmail_${wsId}`, companyEmail);
       } else {
-        localStorage.removeItem("companyEmail");
+        localStorage.removeItem(`companyEmail_${wsId}`);
       }
       if (companyLogo) {
-        localStorage.setItem("companyLogo", companyLogo);
+        localStorage.setItem(`companyLogo_${wsId}`, companyLogo);
       } else {
-        localStorage.removeItem("companyLogo");
+        localStorage.removeItem(`companyLogo_${wsId}`);
       }
       if (signatureImage) {
-        localStorage.setItem("invoiceSignature", signatureImage);
+        localStorage.setItem(`invoiceSignature_${wsId}`, signatureImage);
       } else {
-        localStorage.removeItem("invoiceSignature");
+        localStorage.removeItem(`invoiceSignature_${wsId}`);
       }
 
       // Queue the sync operations
@@ -225,17 +229,6 @@ export default function ConfigurationPage({
         status: 'pending',
         timestamp: new Date().toISOString()
       });
-
-      if (companyName) {
-        await db.syncQueue.add({
-          collection: 'users',
-          method: 'POST',
-          url: `/${params.locale}/api/users/profile`,
-          data: { company: companyName },
-          status: 'pending',
-          timestamp: new Date().toISOString()
-        });
-      }
       
       SyncEngine.pushQueue();
 

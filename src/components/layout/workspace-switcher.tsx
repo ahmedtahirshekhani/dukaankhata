@@ -27,9 +27,10 @@ import { Label } from "@/components/ui/label";
 
 interface WorkspaceSwitcherProps {
   sidebarMinimized?: boolean;
+  activeCompanyName?: string;
 }
 
-export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: WorkspaceSwitcherProps) {
   const t = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -83,6 +84,8 @@ export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) 
     (w) => w.id === user.active_workspace_id
   );
 
+  const displayShopName = activeCompanyName || activeWorkspace?.name || "My Shop";
+
   return (
     <div className="mb-4 w-full">
       <DropdownMenu>
@@ -101,7 +104,7 @@ export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) 
               </div>
               <div className={`flex flex-col items-start min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                 <span className="truncate text-sm font-bold tracking-tight">
-                  {activeWorkspace?.name || t("workspaces")}
+                  {displayShopName}
                 </span>
                 <span className="text-[10px] text-primary/80 font-semibold tracking-wider uppercase mt-0.5">
                   {activeWorkspace?.type || "Workspace"}

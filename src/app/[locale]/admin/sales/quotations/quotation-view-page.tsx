@@ -73,13 +73,16 @@ export default function QuotationViewClient({ id }: { id: string }) {
         fetchQuotation();
         const loadBranding = async () => {
             try {
+                const tenantInfo = typeof window !== "undefined" ? localStorage.getItem("tenant_info") : null;
+                const wsId = tenantInfo ? JSON.parse(tenantInfo).userId : "";
+
                 // 1. Try to load branding from localStorage first (offline support)
-                const cachedLogo = typeof window !== "undefined" ? localStorage.getItem("companyLogo") : null;
-                const cachedSignature = typeof window !== "undefined" ? localStorage.getItem("invoiceSignature") : null;
-                const cachedName = typeof window !== "undefined" ? localStorage.getItem("companyName") : null;
-                const cachedAddress = typeof window !== "undefined" ? localStorage.getItem("companyAddress") : null;
-                const cachedPhone = typeof window !== "undefined" ? localStorage.getItem("companyPhone") : null;
-                const cachedEmail = typeof window !== "undefined" ? localStorage.getItem("companyEmail") : null;
+                const cachedLogo = typeof window !== "undefined" ? localStorage.getItem(`companyLogo_${wsId}`) : null;
+                const cachedSignature = typeof window !== "undefined" ? localStorage.getItem(`invoiceSignature_${wsId}`) : null;
+                const cachedName = typeof window !== "undefined" ? localStorage.getItem(`companyName_${wsId}`) : null;
+                const cachedAddress = typeof window !== "undefined" ? localStorage.getItem(`companyAddress_${wsId}`) : null;
+                const cachedPhone = typeof window !== "undefined" ? localStorage.getItem(`companyPhone_${wsId}`) : null;
+                const cachedEmail = typeof window !== "undefined" ? localStorage.getItem(`companyEmail_${wsId}`) : null;
 
                 setBranding({
                     name: cachedName || "Dukan Khata",
