@@ -98,14 +98,33 @@ export async function POST(req: Request) {
       }
     }
 
+    const now = new Date();
+
+    // Idempotency guard: if a pending, unexpired invite for this email/shop was already
+    // sent moments ago (e.g. duplicate submits, or the offline sync queue retrying a
+    // request that actually succeeded server-side), skip re-sending a duplicate email.
+    const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+    const recentInvite = await invColl.findOne({
+      email,
+      owner_id: toObjectId(owner_id),
+      status: "pending",
+    });
+    if (
+      recentInvite &&
+      recentInvite.last_sent_at &&
+      now.getTime() - new Date(recentInvite.last_sent_at).getTime() < RESEND_COOLDOWN_MS
+    ) {
+      return NextResponse.json({ success: true, message: "Invitation already sent" });
+    }
+
     // Generate token
     const token = crypto.randomBytes(32).toString("hex");
-    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expires_at = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Insert/Update invitation
     await invColl.updateOne(
-      { email, owner_id },
-      { $set: { email, role_id: toObjectId(role_id), owner_id: toObjectId(owner_id), token, status: "pending", expires_at } },
+      { email, owner_id: toObjectId(owner_id) },
+      { $set: { email, role_id: toObjectId(role_id), owner_id: toObjectId(owner_id), token, status: "pending", expires_at, last_sent_at: now } },
       { upsert: true }
     );
 
