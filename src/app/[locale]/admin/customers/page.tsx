@@ -1013,42 +1013,46 @@ export default function PartiesPage() {
                             </DropdownMenuItem>
                           )}
 
-                          <DropdownMenuItem
-                            onClick={() => {
-                              const balance = customer.balance || 0;
-                              setSelectedCustomerId(customer.id);
-                              setNewCustomerName(customer.name);
-                              setNewCustomerEmail(customer.email);
-                              setNewCustomerPhone(customer.phone);
-                              setNewCustomerCompanyName(
-                                customer.company_name || "",
-                              );
-                              setNewCustomerCompanyAddress(
-                                customer.company_address || "",
-                              );
-                              setNewCustomerOpeningBalance(
-                                Math.abs(balance).toString(),
-                              );
-                              setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
-                              setNewCustomerStatus(customer.status);
-                              setIsEditCustomerDialogOpen(true);
-                            }}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
-                          >
-                            <FilePenIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span>{t("edit") || "Edit"}</span>
-                          </DropdownMenuItem>
+                          {canEdit && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const balance = customer.balance || 0;
+                                setSelectedCustomerId(customer.id);
+                                setNewCustomerName(customer.name);
+                                setNewCustomerEmail(customer.email);
+                                setNewCustomerPhone(customer.phone);
+                                setNewCustomerCompanyName(
+                                  customer.company_name || "",
+                                );
+                                setNewCustomerCompanyAddress(
+                                  customer.company_address || "",
+                                );
+                                setNewCustomerOpeningBalance(
+                                  Math.abs(balance).toString(),
+                                );
+                                setNewCustomerOpeningBalanceType(balance < 0 ? "pay" : "receive");
+                                setNewCustomerStatus(customer.status);
+                                setIsEditCustomerDialogOpen(true);
+                              }}
+                              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer transition-colors text-xs font-semibold text-foreground w-full"
+                            >
+                              <FilePenIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span>{t("edit") || "Edit"}</span>
+                            </DropdownMenuItem>
+                          )}
 
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setCustomerToDelete(customer);
-                              setIsDeleteConfirmationOpen(true);
-                            }}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-red-100/50 dark:border-red-950/50 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 cursor-pointer transition-colors text-xs font-semibold w-full"
-                          >
-                            <Trash2 className="w-4 h-4 flex-shrink-0" />
-                            <span>{t("deleteAction") || "Delete"}</span>
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setCustomerToDelete(customer);
+                                setIsDeleteConfirmationOpen(true);
+                              }}
+                              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-red-100/50 dark:border-red-950/50 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 cursor-pointer transition-colors text-xs font-semibold w-full"
+                            >
+                              <Trash2 className="w-4 h-4 flex-shrink-0" />
+                              <span>{t("deleteAction") || "Delete"}</span>
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

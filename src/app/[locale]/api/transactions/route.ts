@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
@@ -15,6 +16,13 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requireAnyPermission([
+    "sales.view_payment_in", 
+    "purchase.view_payment_out", 
+    "expenses.view"
+  ]);
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
@@ -100,6 +108,13 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requireAnyPermission([
+    "sales.create_payment_in", 
+    "purchase.create_payment_out", 
+    "expenses.create"
+  ]);
+  if (!authCheck.allowed) return authCheck.response!;
 
   const newTransaction = await request.json();
   const now = new Date();

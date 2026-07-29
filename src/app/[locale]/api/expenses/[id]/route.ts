@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { COLLECTIONS, getCollection, isValidObjectId, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { setDateToCurrentTime } from "@/lib/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 type Params = {
   params: {
@@ -17,6 +18,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("expenses.edit");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!id || !isValidObjectId(id)) {
@@ -81,6 +85,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("expenses.delete");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!id || !isValidObjectId(id)) {

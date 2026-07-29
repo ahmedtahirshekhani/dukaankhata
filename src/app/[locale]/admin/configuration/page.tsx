@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,11 @@ export default function ConfigurationPage({
   const t = useTranslations("configurationPage");
   const { data: session } = useSession();
   const { refreshSession } = useUserProfile();
+  const { can } = usePermissions();
+
+  const canViewConfig = can("configuration", "view");
+  const canEditConfig = can("configuration", "edit");
+  const canViewPaymentMethods = can("payment_methods", "view");
 
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
@@ -56,9 +62,9 @@ export default function ConfigurationPage({
           if (savedAi) setEnableAiChat(savedAi === "true");
           const savedWa = localStorage.getItem("setting_wa");
           if (savedWa) setEnableWhatsApp(savedWa === "true");
-          
+
           const wsId = (session?.user as any)?.id || "";
-          
+
           // Pre-fill from local storage to allow offline viewing immediately
           setCompanyName(localStorage.getItem(`companyName_${wsId}`) || (session?.user as any)?.company || "");
           setCompanyAddress(localStorage.getItem(`companyAddress_${wsId}`) || "");
@@ -77,7 +83,7 @@ export default function ConfigurationPage({
             const savedCompanyAddress = data.companyAddress || localStorage.getItem(`companyAddress_${wsId}`) || "";
             const savedCompanyPhone = data.companyPhone || localStorage.getItem(`companyPhone_${wsId}`) || "";
             const savedCompanyEmail = data.companyEmail || localStorage.getItem(`companyEmail_${wsId}`) || "";
-            
+
             setCompanyName(savedCompanyName);
             setCompanyAddress(savedCompanyAddress as string);
             setCompanyPhone(savedCompanyPhone as string);
@@ -104,11 +110,11 @@ export default function ConfigurationPage({
       is_AI_Chat_Enable: updates.aiChat ?? enableAiChat,
       is_Whatsapp_enable: updates.wa ?? enableWhatsApp,
     };
-    
+
     try {
       const { db } = await import('@/lib/db/offline-db');
       const { SyncEngine } = await import('@/lib/sync/sync-engine');
-      
+
       await db.syncQueue.add({
         collection: 'configurations',
         method: 'PUT',
@@ -118,7 +124,7 @@ export default function ConfigurationPage({
         timestamp: new Date().toISOString()
       });
       SyncEngine.pushQueue();
-    } catch(err) {
+    } catch (err) {
       console.error(err);
     }
   };
@@ -220,7 +226,7 @@ export default function ConfigurationPage({
       // Queue the sync operations
       const { db } = await import('@/lib/db/offline-db');
       const { SyncEngine } = await import('@/lib/sync/sync-engine');
-      
+
       await db.syncQueue.add({
         collection: 'configurations', // Using a generic collection name for UI purposes
         method: 'POST',
@@ -229,7 +235,7 @@ export default function ConfigurationPage({
         status: 'pending',
         timestamp: new Date().toISOString()
       });
-      
+
       SyncEngine.pushQueue();
 
       // Dispatch custom event to update UI across all components
@@ -269,188 +275,200 @@ export default function ConfigurationPage({
             <p className="text-gray-600 mt-2">
               {tNav("configurationDescription")}
             </p>
-            <PaymentMethodSection locale={params.locale} />
+            {canViewPaymentMethods && <PaymentMethodSection locale={params.locale} />}
           </div>
 
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>{t("featureModules")}</CardTitle>
-              <CardDescription>{t("featureModulesDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>{t("counterSaleTitle")}</Label>
-                  <p className="text-sm text-gray-500">{t("counterSaleDesc")}</p>
-                </div>
-                <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>{t("aiChatTitle")}</Label>
-                  <p className="text-sm text-gray-500">{t("aiChatDesc")}</p>
-                </div>
-                <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>{t("whatsappTitle")}</Label>
-                  <p className="text-sm text-gray-500">{t("whatsappDesc")}</p>
-                </div>
-                <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {message && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-              {message}
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="p-4 text-sm text-muted-foreground">
-              {t("loading")}
-            </div>
-          ) : (
+          {canViewConfig && (
             <>
-              <Card>
+              <Card className="mb-8">
                 <CardHeader>
-                  <CardTitle>{t("companyDetails")}</CardTitle>
-                  <CardDescription>
-                    {t("companyDetailsDescription")}
-                  </CardDescription>
+                  <CardTitle>{t("featureModules")}</CardTitle>
+                  <CardDescription>{t("featureModulesDescription")}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {/* Company Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="company-name">{t("companyName")}</Label>
-                      <Input
-                        id="company-name"
-                        type="text"
-                        placeholder={t("enterCompanyName")}
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                      />
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t("counterSaleTitle")}</Label>
+                      <p className="text-sm text-gray-500">{t("counterSaleDesc")}</p>
                     </div>
-
-                    {/* Company Address */}
-                    <div className="space-y-2">
-                      <Label htmlFor="company-address">{t("companyAddress")}</Label>
-                      <Input
-                        id="company-address"
-                        type="text"
-                        placeholder={t("enterCompanyAddress")}
-                        value={companyAddress}
-                        onChange={(e) => setCompanyAddress(e.target.value)}
-                      />
+                    <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t("aiChatTitle")}</Label>
+                      <p className="text-sm text-gray-500">{t("aiChatDesc")}</p>
                     </div>
-
-                    {/* Company Phone */}
-                    <div className="space-y-2">
-                      <Label htmlFor="company-phone">{t("companyPhone")}</Label>
-                      <Input
-                        id="company-phone"
-                        type="text"
-                        placeholder={t("enterCompanyPhone")}
-                        value={companyPhone}
-                        onChange={(e) => setCompanyPhone(e.target.value)}
-                      />
+                    <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t("whatsappTitle")}</Label>
+                      <p className="text-sm text-gray-500">{t("whatsappDesc")}</p>
                     </div>
-
-                    {/* Company Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="company-email">{t("companyEmail")}</Label>
-                      <Input
-                        id="company-email"
-                        type="email"
-                        placeholder={t("enterCompanyEmail")}
-                        value={companyEmail}
-                        onChange={(e) => setCompanyEmail(e.target.value)}
-                      />
-                    </div>
-
-                    {/* Company Logo */}
-                    <div className="space-y-2">
-                      <Label htmlFor="company-logo">{t("companyLogo")}</Label>
-                      <Input
-                        id="company-logo"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                      />
-                      {logoError && (
-                        <p className="text-xs text-red-600">{logoError}</p>
-                      )}
-                      {companyLogo && (
-                        <div className="mt-2">
-                          <img
-                            src={companyLogo}
-                            alt={t("companyLogoAlt")}
-                            className="h-16 w-auto rounded border"
-                          />
-                          <div className="mt-2 flex gap-2">
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                setCompanyLogo(null);
-                              }}
-                            >
-                              {tCommon("delete")}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Authorized Signature */}
-                    <div className="space-y-2">
-                      <Label htmlFor="authorized-signature">
-                        {t("authorizedSignature")}
-                      </Label>
-                      <Input
-                        id="authorized-signature"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleSignatureChange}
-                      />
-                      {signatureError && (
-                        <p className="text-xs text-red-600">{signatureError}</p>
-                      )}
-                      {signatureImage && (
-                        <div className="mt-2">
-                          <img
-                            src={signatureImage}
-                            alt={t("authorizedSignatureAlt")}
-                            className="h-16 w-auto rounded border"
-                          />
-                          <div className="mt-2 flex gap-2">
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                setSignatureImage(null);
-                              }}
-                            >
-                              {tCommon("delete")}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="mt-6 flex justify-end">
-                <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? t("saving") : t("saveDetails")}
-                </Button>
-              </div>
+              {message && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
+                  {message}
+                </div>
+              )}
+
+              {isLoading ? (
+                <div className="p-4 text-sm text-muted-foreground">
+                  {t("loading")}
+                </div>
+              ) : (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t("companyDetails")}</CardTitle>
+                      <CardDescription>
+                        {t("companyDetailsDescription")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {/* Company Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="company-name">{t("companyName")}</Label>
+                          <Input
+                            id="company-name"
+                            type="text"
+                            placeholder={t("enterCompanyName")}
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Company Address */}
+                        <div className="space-y-2">
+                          <Label htmlFor="company-address">{t("companyAddress")}</Label>
+                          <Input
+                            id="company-address"
+                            type="text"
+                            placeholder={t("enterCompanyAddress")}
+                            value={companyAddress}
+                            onChange={(e) => setCompanyAddress(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Company Phone */}
+                        <div className="space-y-2">
+                          <Label htmlFor="company-phone">{t("companyPhone")}</Label>
+                          <Input
+                            id="company-phone"
+                            type="text"
+                            placeholder={t("enterCompanyPhone")}
+                            value={companyPhone}
+                            onChange={(e) => setCompanyPhone(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Company Email */}
+                        <div className="space-y-2">
+                          <Label htmlFor="company-email">{t("companyEmail")}</Label>
+                          <Input
+                            id="company-email"
+                            type="email"
+                            placeholder={t("enterCompanyEmail")}
+                            value={companyEmail}
+                            onChange={(e) => setCompanyEmail(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Company Logo */}
+                        <div className="space-y-2">
+                          <Label htmlFor="company-logo">{t("companyLogo")}</Label>
+                          <Input
+                            id="company-logo"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoChange}
+                          />
+                          {logoError && (
+                            <p className="text-xs text-red-600">{logoError}</p>
+                          )}
+                          {companyLogo && (
+                            <div className="mt-2">
+                              <img
+                                src={companyLogo}
+                                alt={t("companyLogoAlt")}
+                                className="h-16 w-auto rounded border"
+                              />
+                              <div className="mt-2 flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setCompanyLogo(null);
+                                  }}
+                                >
+                                  {tCommon("delete")}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Authorized Signature */}
+                        <div className="space-y-2">
+                          <Label htmlFor="authorized-signature">
+                            {t("authorizedSignature")}
+                          </Label>
+                          <Input
+                            id="authorized-signature"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSignatureChange}
+                          />
+                          {signatureError && (
+                            <p className="text-xs text-red-600">{signatureError}</p>
+                          )}
+                          {signatureImage && (
+                            <div className="mt-2">
+                              <img
+                                src={signatureImage}
+                                alt={t("authorizedSignatureAlt")}
+                                className="h-16 w-auto rounded border"
+                              />
+                              <div className="mt-2 flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setSignatureImage(null);
+                                  }}
+                                >
+                                  {tCommon("delete")}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {canEditConfig && (
+                    <div className="mt-6 flex justify-end">
+                      <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? t("saving") : t("saveDetails")}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
+
+          {!canViewConfig && !canViewPaymentMethods && (
+                <div className="text-center p-8 text-muted-foreground border rounded-lg bg-gray-50 mt-8">
+                  You do not have permission to view configuration or payment methods.
+                </div>
+              )}
+            </div>
         </div>
-      </div>
     </ProtectedRoute>
   );
 }

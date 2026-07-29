@@ -3,6 +3,7 @@
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
+import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function PUT(
   request: Request,
@@ -13,6 +14,13 @@ export async function PUT(
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const authCheck = await requireAnyPermission([
+    "sales.edit_payment_in", 
+    "purchase.edit_payment_out", 
+    "expenses.edit"
+  ]);
+  if (!authCheck.allowed) return authCheck.response!;
 
   const updatedTransaction = await request.json();
   const transactionId = params.transactionId;
@@ -70,6 +78,13 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const authCheck = await requireAnyPermission([
+    "sales.delete_payment_in", 
+    "purchase.delete_payment_out", 
+    "expenses.delete"
+  ]);
+  if (!authCheck.allowed) return authCheck.response!;
 
   const transactionId = params.transactionId;
 

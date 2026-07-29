@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET() {
   try {
@@ -8,6 +9,9 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("configuration.view");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const shops = await getCollection(COLLECTIONS.SHOPS);
     const shopId = (session.user as any).id as string;
@@ -37,6 +41,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("configuration.edit");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await req.json();
     const { companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage } = body || {};

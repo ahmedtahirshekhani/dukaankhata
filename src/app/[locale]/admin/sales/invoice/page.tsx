@@ -58,6 +58,7 @@ import {
 import Link from "next/link";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
+import { usePermissions } from "@/hooks/use-permissions";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -749,6 +750,7 @@ type Order = {
 export default function OrdersPage() {
   const t = useTranslations("orders");
   const locale = useLocale();
+  const { can } = usePermissions();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -891,12 +893,14 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
         </div>
-        <Button asChild size="sm" className="h-9 text-xs px-3 shrink-0">
-          <Link href={`/${locale}/admin/sales/invoice/new`}>
-            <PlusCircle className="w-3.5 h-3.5 mr-1" />
-            {t("createOrder")}
-          </Link>
-        </Button>
+        {can("sales", "create_invoice") && (
+          <Button asChild size="sm" className="h-9 text-xs px-3 shrink-0">
+            <Link href={`/${locale}/admin/sales/invoice/new`}>
+              <PlusCircle className="w-3.5 h-3.5 mr-1" />
+              {t("createOrder")}
+            </Link>
+          </Button>
+        )}
       </div>
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
@@ -1053,31 +1057,37 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
-                            <FilePenIcon className="w-4 h-4" />
-                            <span className="sr-only">{t("edit")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setSelectedInvoiceOrder(order);
-                              setInvoiceDialogOpen(true);
-                            }}
-                          >
-                            <EyeIcon className="w-4 h-4" />
-                            <span className="sr-only">{t("showInvoice")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
-                            onClick={() => handleDeleteClick(order)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span className="sr-only">{t("delete")}</span>
-                          </Button>
+                          {can("sales", "edit_invoice") && (
+                            <Button size="icon" variant="ghost" onClick={() => handleEditOrder(order)} className="h-8 w-8">
+                              <FilePenIcon className="w-4 h-4" />
+                              <span className="sr-only">{t("edit")}</span>
+                            </Button>
+                          )}
+                          {can("sales", "view_invoice") && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSelectedInvoiceOrder(order);
+                                setInvoiceDialogOpen(true);
+                              }}
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                              <span className="sr-only">{t("showInvoice")}</span>
+                            </Button>
+                          )}
+                          {can("sales", "delete_invoice") && (
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => handleDeleteClick(order)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">{t("delete")}</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1115,27 +1125,33 @@ export default function OrdersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onClick={() => handleEditOrder(order)} className="gap-2 cursor-pointer text-xs">
-                            <FilePenIcon className="w-4 h-4 text-muted-foreground" />
-                            <span>{t("edit")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedInvoiceOrder(order);
-                              setInvoiceDialogOpen(true);
-                            }}
-                            className="gap-2 cursor-pointer text-xs"
-                          >
-                            <EyeIcon className="w-4 h-4 text-muted-foreground" />
-                            <span>{t("showInvoice")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteClick(order)}
-                            className="gap-2 cursor-pointer text-xs text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>{t("delete")}</span>
-                          </DropdownMenuItem>
+                          {can("sales", "edit_invoice") && (
+                            <DropdownMenuItem onClick={() => handleEditOrder(order)} className="gap-2 cursor-pointer text-xs">
+                              <FilePenIcon className="w-4 h-4 text-muted-foreground" />
+                              <span>{t("edit")}</span>
+                            </DropdownMenuItem>
+                          )}
+                          {can("sales", "view_invoice") && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedInvoiceOrder(order);
+                                setInvoiceDialogOpen(true);
+                              }}
+                              className="gap-2 cursor-pointer text-xs"
+                            >
+                              <EyeIcon className="w-4 h-4 text-muted-foreground" />
+                              <span>{t("showInvoice")}</span>
+                            </DropdownMenuItem>
+                          )}
+                          {can("sales", "delete_invoice") && (
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(order)}
+                              className="gap-2 cursor-pointer text-xs text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>{t("delete")}</span>
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

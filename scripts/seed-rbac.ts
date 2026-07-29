@@ -13,6 +13,8 @@ const BASE_MODULES = [
   { code: 'ai_chat', name: 'AI Chat' },
   { code: 'staff', name: 'Staff Management' },
   { code: 'settings', name: 'Settings & Config' },
+  { code: 'payment_methods', name: 'Payment Methods' },
+  { code: 'configuration', name: 'Configuration' },
   { code: 'whatsapp', name: 'WhatsApp Integration' }
 ];
 
@@ -39,6 +41,8 @@ const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
   ],
   'staff': ['view', 'create', 'edit', 'delete'],
   'settings': ['view', 'create', 'edit', 'delete'],
+  'payment_methods': ['view', 'create', 'edit', 'delete'],
+  'configuration': ['view', 'create', 'edit', 'delete'],
   'whatsapp': ['view', 'create', 'edit', 'delete'],
   'ai_chat': ['view']
 };
@@ -56,7 +60,7 @@ async function seedRBAC() {
       const isActive = mod.code !== 'ai_chat';
       await modulesCollection.updateOne(
         { code: mod.code },
-        { $set: { ...mod, isActive } },
+        { $setOnInsert: { ...mod, isActive } },
         { upsert: true }
       );
     }
@@ -70,7 +74,7 @@ async function seedRBAC() {
       for (const action of actions) {
         await permissionsCollection.updateOne(
           { module_code: mod.code, action: action },
-          { $set: { module_code: mod.code, action: action, isActive } },
+          { $setOnInsert: { module_code: mod.code, action: action, isActive } },
           { upsert: true }
         );
       }

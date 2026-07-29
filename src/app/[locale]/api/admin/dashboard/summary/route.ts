@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
-import { hasModuleAccess } from "@/lib/auth/rbac";
+import { hasModuleAccess, requireAnyPermission } from "@/lib/auth/rbac";
 
 interface DashboardData {
   totalBalance: number;
@@ -49,6 +49,15 @@ export async function GET(): Promise<NextResponse> {
     if (!user?.id || typeof user.id !== "string" || user.id.length !== 24) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
+
+    const authCheck = await requireAnyPermission([
+      "sales.view_invoice", 
+      "purchase.view_purchase_bill", 
+      "expenses.view", 
+      "customers.view", 
+      "reports.view"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const userId = toObjectId(user.id);
     const [ordersCollection, saleReturnCollection, purchaseBillsCollection, expensesCollection, partiesCollection] = await Promise.all([

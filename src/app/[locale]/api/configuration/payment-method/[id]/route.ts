@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { auth } from '@/auth';
+import { requirePermission } from '@/lib/auth/rbac';
 import {
   getCollection,
   COLLECTIONS,
@@ -38,6 +39,9 @@ export async function GET(
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission('payment_methods.view');
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {
@@ -82,6 +86,9 @@ export async function PUT(
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission('payment_methods.edit');
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {
@@ -160,6 +167,9 @@ export async function DELETE(
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission('payment_methods.delete');
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {

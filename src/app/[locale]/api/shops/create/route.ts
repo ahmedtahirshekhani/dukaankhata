@@ -72,6 +72,35 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create configurations for new shop", err);
     }
     
+    // Check if real user has any subscription record. If not (e.g. staff creating their first shop), create a trial.
+    try {
+      const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
+      const existingSub = await subscriptionsCollection.findOne({ user_id: toObjectId(realUserId) });
+      
+      if (!existingSub) {
+        const trialDays = parseInt(process.env.NEXT_PUBLIC_TRIAL_NUMBER_OF_DAYS || "14", 10);
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + trialDays);
+
+        await subscriptionsCollection.insertOne({
+          user_id: toObjectId(realUserId),
+          email: user.email,
+          plan: "trial",
+          status: "in_trial",
+          amount: 0,
+          trial_days: trialDays,
+          created_at: new Date(),
+          expiry_date: expiryDate,
+          activated_date: new Date(),
+          billing_cycle_start: new Date(),
+          billing_cycle_end: expiryDate,
+          next_billing_date: expiryDate,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to check or create trial subscription on shop creation", err);
+    }
+    
     return NextResponse.json({
       success: true,
       shopId: result.insertedId.toString(),

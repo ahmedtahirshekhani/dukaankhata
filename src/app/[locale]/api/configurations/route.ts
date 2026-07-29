@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function PUT(request: NextRequest) {
   try {
@@ -8,6 +9,9 @@ export async function PUT(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("configuration.edit");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await request.json();
     const configCollection = await getCollection(COLLECTIONS.CONFIGURATIONS);

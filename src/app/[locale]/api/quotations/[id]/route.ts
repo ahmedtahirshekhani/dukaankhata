@@ -16,7 +16,7 @@ export async function GET(
     }
 
     const authCheck = await requirePermission("sales.view_quotations");
-    if (!authCheck.allowed) return authCheck.response;
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { id } = await params;
     if (!id || !isValidObjectId(id)) {
@@ -103,7 +103,7 @@ export async function PUT(
     }
 
     const authCheck = await requirePermission("sales.edit_quotations");
-    if (!authCheck.allowed) return authCheck.response;
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { id } = await params;
     if (!id || !isValidObjectId(id)) {
@@ -203,7 +203,7 @@ export async function DELETE(
     }
 
     const authCheck = await requirePermission("sales.delete_quotations");
-    if (!authCheck.allowed) return authCheck.response;
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { id } = await params;
     if (!id || !isValidObjectId(id)) {

@@ -139,7 +139,8 @@ export const authOptions = {
               workspaces.push({
                 id: shop._id.toString(),
                 type: "owner",
-                name: shop.name
+                name: shop.name,
+                owner_user_id: shop.owner_user_id ? shop.owner_user_id.toString() : dbUser._id.toString()
               });
             }
 
@@ -164,7 +165,8 @@ export const authOptions = {
                   workspaces.push({
                     id: sId,
                     type: "staff",
-                    name: shopDoc.name
+                    name: shopDoc.name,
+                    owner_user_id: shopDoc.owner_user_id ? shopDoc.owner_user_id.toString() : shopDoc._id.toString()
                   });
                 }
               }
@@ -180,6 +182,7 @@ export const authOptions = {
             const activeWorkspace = workspaces.find(w => w.id === token.active_workspace_id);
             token.role = activeWorkspace?.type || "owner";
             token.company = activeWorkspace?.name || "";
+            token.workspace_owner_id = activeWorkspace?.owner_user_id || token.real_user_id;
             
             // Mask the token.id to act as the shop owner's ID for all backend API routes!
             token.id = token.active_workspace_id;
@@ -229,6 +232,7 @@ export const authOptions = {
         // Multi-tenancy specific additions:
         (session.user as any).real_user_id = token.real_user_id as string;
         (session.user as any).active_workspace_id = token.active_workspace_id as string;
+        (session.user as any).workspace_owner_id = token.workspace_owner_id as string;
         (session.user as any).workspaces = token.workspaces as any[];
         
         session.user.name = token.name as string;

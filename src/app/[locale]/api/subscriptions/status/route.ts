@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const subscriptionStatus = await getSubscriptionStatus(user.id);
+    // Use workspace_owner_id if available (so staff members check the owner's subscription)
+    // Fallback to real_user_id, then id
+    const targetUserId = (user as any).workspace_owner_id || (user as any).real_user_id || user.id;
+    const subscriptionStatus = await getSubscriptionStatus(targetUserId);
 
     return NextResponse.json(subscriptionStatus, { status: 200 });
   } catch (error) {
