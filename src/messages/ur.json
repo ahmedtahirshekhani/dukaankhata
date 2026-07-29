@@ -1,7 +1,14 @@
 {
   "common": {
-    "appName": "دکان خاتہ",
-    "appDescription": "بک ریکارڈنگ اور بزنس مینجمنٹ سسٹم",
+    "appName": "دکان کھاتہ",
+    "addNewShop": "نئی دکان شامل کریں",
+    "addNewShopDescription": "ایک اور کاروبار کے لیے نیا ورک اسپیس بنائیں۔ آپ اس نئی دکان کے مالک ہوں گے۔",
+    "companyName": "دکان کا نام",
+    "shopNamePlaceholder": "مثلاً علی ٹریڈرز 2",
+    "create": "بنائیں",
+    "networkError": "نیٹ ورک کی خرابی",
+    "failedToCreateShop": "دکان بنانے میں ناکامی",
+    "appDescription": "سیلز اور بزنس مینجمنٹ سسٹم",
     "welcome": "خوش آمدید",
     "logout": "لاگ آؤٹ",
     "login": "لاگ ان",
@@ -74,7 +81,9 @@
     "cacheClearedSuccess": "کیشے کامیابی سے کلیئر ہو گیا",
     "syncingData": "ڈیٹا سنک ہو رہا ہے...",
     "pleaseWait": "براہ کرم انتظار کریں، آف لائن ڈیٹا بیس تیار کیا جا رہا ہے۔",
-    "all": "تمام"
+    "all": "تمام",
+    "offlineWorkspaceSwitchErrorTitle": "آف لائن کارروائی ممکن نہیں",
+    "offlineWorkspaceSwitchErrorDesc": "یہ کام کرنے کے لیے آپ کا آن لائن ہونا ضروری ہے۔ براہ کرم اپنا انٹرنیٹ کنکشن چیک کریں۔"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",

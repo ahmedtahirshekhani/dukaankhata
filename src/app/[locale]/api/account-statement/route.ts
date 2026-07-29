@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import {
   getCollection,
   COLLECTIONS,
@@ -75,6 +76,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("reports.view_account_statement");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");

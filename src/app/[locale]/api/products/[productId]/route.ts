@@ -10,7 +10,8 @@ export async function GET(
 ) {
   const user = await getCurrentUser() as { id: string } | null
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  await requirePermission("products.view");
+  const authCheck = await requirePermission("products.view");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const productId = params.productId
   if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
@@ -43,7 +44,8 @@ export async function PUT(
     console.warn('[PUT /api/products/:productId] Unauthorized', { requestId, params })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  await requirePermission("products.edit");
+  const authCheck = await requirePermission("products.edit");
+  if (!authCheck.allowed) return authCheck.response!;
 
   let updatedProduct: Record<string, unknown> = {}
   try {
@@ -124,7 +126,8 @@ export async function DELETE(
 ) {
   const user = await getCurrentUser() as { id: string } | null
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  await requirePermission("products.delete");
+  const authCheck = await requirePermission("products.delete");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const productId = params.productId
   if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })

@@ -1,6 +1,13 @@
 {
   "common": {
     "appName": "DukaanKhata",
+    "addNewShop": "Add New Shop",
+    "addNewShopDescription": "Create a new workspace for another business. You will be the owner of this new shop.",
+    "companyName": "Shop Name",
+    "shopNamePlaceholder": "e.g. Ali Traders 2",
+    "create": "Create",
+    "networkError": "Network error",
+    "failedToCreateShop": "Failed to create shop",
     "appDescription": "Sales & Business Management System",
     "welcome": "Welcome",
     "logout": "Logout",
@@ -74,7 +81,9 @@
     "cacheClearedSuccess": "Cache cleared successfully",
     "syncingData": "Syncing Data...",
     "pleaseWait": "Please wait while we set up your offline database.",
-    "all": "All"
+    "all": "All",
+    "offlineWorkspaceSwitchErrorTitle": "Action Unavailable Offline",
+    "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",

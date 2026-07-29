@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET(req: Request) {
   try {
@@ -12,15 +13,9 @@ export async function GET(req: Request) {
     }
 
     const ownerId = user.id;
-    
-    // Only owners or staff with specific permission should manage roles
-    const userRole = user.role;
-    if (userRole === "staff") {
-      const permissions = user.permissions || [];
-      if (!permissions.includes("*") && !permissions.includes("settings.view")) { // Assuming settings covers roles for now
-        // return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+
+    const authCheck = await requirePermission("staff.view");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const rolesCollection = await getCollection(COLLECTIONS.ROLES);
     const roles = await rolesCollection.find({ owner_id: toObjectId(ownerId) }).toArray();
@@ -65,6 +60,9 @@ export async function POST(req: Request) {
     }
 
     const ownerId = user.id;
+
+    const authCheck = await requirePermission("staff.create");
+    if (!authCheck.allowed) return authCheck.response!;
     const body = await req.json();
     const { name, permissions } = body; // permissions is an array of "module.action" strings
 

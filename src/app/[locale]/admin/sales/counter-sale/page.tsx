@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   exportTransactionsToExcel,
   exportTransactionsTemplate,
@@ -127,6 +128,7 @@ function formatDateDMY(dateInput?: Date | string) {
 export default function CounterSale() {
   const t = useTranslations("counterSale");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const rawProducts = useOfflineProducts();
   const products = useMemo(() => {
@@ -1540,14 +1542,16 @@ export default function CounterSale() {
                             />
                           </TableCell>
                           <TableCell className="w-20 px-2 sm:px-4">
-                            <Button
-                              onClick={handleAddTransaction}
-                              disabled={isImporting}
-                              size="sm"
-                              className="text-xs sm:text-sm h-8 sm:h-10"
-                            >
-                              {t("add")}
-                            </Button>
+                            {can("sales", "create_counter_sale") && (
+                              <Button
+                                onClick={handleAddTransaction}
+                                disabled={isImporting}
+                                size="sm"
+                                className="text-xs sm:text-sm h-8 sm:h-10"
+                              >
+                                {t("add")}
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       </TableHeader>
@@ -1791,19 +1795,21 @@ export default function CounterSale() {
                                   </TableCell>
                                   <TableCell className="w-20 px-2 sm:px-4 overflow-hidden">
                                     <div className="flex gap-1">
-                                      <Button
-                                        aria-haspopup="true"
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8"
-                                        onClick={() =>
-                                          handleOpenEdit(transaction)
-                                        }
-                                        title="Edit"
-                                      >
-                                        <Edit2Icon className="h-4 w-4" />
-                                        <span className="sr-only">Edit</span>
-                                      </Button>
+                                      {can("sales", "edit_counter_sale") && (
+                                        <Button
+                                          aria-haspopup="true"
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-8 w-8"
+                                          onClick={() =>
+                                            handleOpenEdit(transaction)
+                                          }
+                                          title="Edit"
+                                        >
+                                          <Edit2Icon className="h-4 w-4" />
+                                          <span className="sr-only">Edit</span>
+                                        </Button>
+                                      )}
                                       <Button
                                         aria-haspopup="true"
                                         size="icon"
@@ -1817,20 +1823,22 @@ export default function CounterSale() {
                                         <DownloadIcon className="h-4 w-4" />
                                         <span className="sr-only">Download</span>
                                       </Button>
-                                      <Button
-                                        aria-haspopup="true"
-                                        size="icon"
-                                        variant="danger"
-                                        className="h-8 w-8"
-                                        onClick={() => {
-                                          setTransactionToDelete(transaction);
-                                          setIsDeleteConfirmationOpen(true);
-                                        }}
-                                        title="Delete"
-                                      >
-                                        <Trash2Icon className="h-4 w-4" />
-                                        <span className="sr-only">Delete</span>
-                                      </Button>
+                                      {can("sales", "delete_counter_sale") && (
+                                        <Button
+                                          aria-haspopup="true"
+                                          size="icon"
+                                          variant="danger"
+                                          className="h-8 w-8"
+                                          onClick={() => {
+                                            setTransactionToDelete(transaction);
+                                            setIsDeleteConfirmationOpen(true);
+                                          }}
+                                          title="Delete"
+                                        >
+                                          <Trash2Icon className="h-4 w-4" />
+                                          <span className="sr-only">Delete</span>
+                                        </Button>
+                                      )}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -2069,34 +2077,33 @@ export default function CounterSale() {
                           </h3>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                                <span className="sr-only">Actions</span>
+                              <Button variant="ghost" className="h-7 w-7 p-0">
+                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-36">
-                              <DropdownMenuItem onClick={() => handleOpenEdit(transaction)}>
-                                <Edit2Icon className="mr-2 h-4 w-4 text-sky-500" />
-                                <span>{tCommon("edit")}</span>
-                              </DropdownMenuItem>
+                              {can("sales", "edit_counter_sale") && (
+                                <DropdownMenuItem onClick={() => handleOpenEdit(transaction)}>
+                                  <Edit2Icon className="mr-2 h-4 w-4 text-sky-500" />
+                                  <span>{tCommon("edit")}</span>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleDownloadPDF(transaction)}>
                                 <DownloadIcon className="mr-2 h-4 w-4 text-indigo-500" />
                                 <span>Download</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setTransactionToDelete(transaction);
-                                  setIsDeleteConfirmationOpen(true);
-                                }}
-                                className="text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40"
-                              >
-                                <Trash2Icon className="mr-2 h-4 w-4 text-red-500" />
-                                <span>{tCommon("delete")}</span>
-                              </DropdownMenuItem>
+                              {can("sales", "delete_counter_sale") && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setTransactionToDelete(transaction);
+                                    setIsDeleteConfirmationOpen(true);
+                                  }}
+                                  className="text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40"
+                                >
+                                  <Trash2Icon className="mr-2 h-4 w-4 text-red-500" />
+                                  <span>{tCommon("delete")}</span>
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

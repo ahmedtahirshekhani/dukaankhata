@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
+import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,6 +17,12 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requireAnyPermission([
+      "sales.view_payment_in", 
+      "purchase.view_payment_out"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const url = new URL(req.url);
     const type = url.searchParams.get('type') ?? 'payment-in';
@@ -99,6 +106,12 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requireAnyPermission([
+      "sales.create_payment_in", 
+      "purchase.create_payment_out"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await req.json();
     const customerId = body?.customerId ?? body?.customer_id ?? '';

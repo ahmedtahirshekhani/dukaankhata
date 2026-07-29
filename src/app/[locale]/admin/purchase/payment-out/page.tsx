@@ -57,6 +57,7 @@ import { useOfflineCustomers, useOfflineCustomerTransactions, useOfflinePaymentM
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type Party = {
   id: string;
@@ -86,6 +87,7 @@ export default function PaymentOutPage() {
   const locale = useLocale();
   const t = useTranslations("paymentOut");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
 
   const [transactions, setTransactions] = useState<PartyTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -503,26 +505,30 @@ export default function PaymentOutPage() {
                       <TableCell>{item.date || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => openEditDialog(item)}
-                          >
-                            <FilePenIcon className="w-4 h-4" />
-                            <span className="sr-only">{tCommon("edit")}</span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setTransactionToDelete(item);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span className="sr-only">{tCommon("delete")}</span>
-                          </Button>
+                          {can("purchase", "edit_payment_out") && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <FilePenIcon className="w-4 h-4" />
+                              <span className="sr-only">{tCommon("edit")}</span>
+                            </Button>
+                          )}
+                          {can("purchase", "delete_payment_out") && (
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setTransactionToDelete(item);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">{tCommon("delete")}</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -547,11 +553,11 @@ export default function PaymentOutPage() {
                 <PaymentOutCard
                   key={item.id}
                   transaction={item}
-                  onEdit={() => openEditDialog(item)}
-                  onDelete={() => {
+                  onEdit={can("purchase", "edit_payment_out") ? () => openEditDialog(item) : undefined}
+                  onDelete={can("purchase", "delete_payment_out") ? () => {
                     setTransactionToDelete(item);
                     setShowDeleteDialog(true);
-                  }}
+                  } : undefined}
                   t={t}
                   tCommon={tCommon}
                 />
@@ -844,8 +850,8 @@ function PaymentOutCard({
   tCommon,
 }: {
   transaction: PartyTransaction;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   t: (key: string) => string;
   tCommon: (key: string) => string;
 }) {
@@ -856,24 +862,28 @@ function PaymentOutCard({
           {transaction.customerName || "-"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onEdit}
-            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-          >
-            <FilePenIcon className="w-4 h-4 text-sky-500" />
-            <span className="sr-only">{tCommon("edit")}</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onDelete}
-            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-          >
-            <Trash2 className="w-4 h-4 text-red-500" />
-            <span className="sr-only">{tCommon("delete")}</span>
-          </Button>
+          {onEdit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+            >
+              <FilePenIcon className="w-4 h-4 text-sky-500" />
+              <span className="sr-only">{tCommon("edit")}</span>
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span className="sr-only">{tCommon("delete")}</span>
+            </Button>
+          )}
         </div>
       </div>
       <div className="space-y-2 text-xs sm:text-sm">

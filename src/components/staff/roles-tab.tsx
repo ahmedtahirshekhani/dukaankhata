@@ -19,10 +19,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useOfflineRoles, useOfflineModules } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export function RolesTab() {
   const t = useTranslations("staffManagement");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
+  const canCreate = can("staff", "create");
+  const canEdit = can("staff", "edit");
+  const canDelete = can("staff", "delete");
   const [isLoading, setIsLoading] = useState(false);
 
   // Search & Pagination State
@@ -222,12 +227,14 @@ export function RolesTab() {
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">Manage custom roles and their permissions</p>
-        <Button onClick={() => handleOpenModal()} className="gap-2">
-          <PlusCircle className="w-4 h-4" /> {t("createRole")}
-        </Button>
+        {canCreate && (
+          <Button onClick={() => handleOpenModal()} className="gap-2">
+            <PlusCircle className="w-4 h-4" /> {t("createRole")}
+          </Button>
+        )}
       </div>
 
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-6 shadow-sm border-0 sm:border">
         <CardHeader className="p-0">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
@@ -254,7 +261,8 @@ export function RolesTab() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="border rounded-md overflow-x-auto">
+          {/* Desktop View */}
+          <div className="hidden md:block border rounded-md overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -288,12 +296,16 @@ export function RolesTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenModal(role)}>
-                            <Edit className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(role.id || role._id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {canEdit && (
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenModal(role)}>
+                              <Edit className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(role.id || role._id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -301,6 +313,44 @@ export function RolesTab() {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile View - Cards */}
+          <div className="md:hidden flex flex-col gap-3 mt-4 md:mt-0">
+             {paginatedRoles.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border rounded-md border-dashed">
+                  {t("noRecords")}
+                </div>
+             ) : (
+                paginatedRoles.map((role) => (
+                   <Card key={role.id || role._id} className="p-4 shadow-sm border space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                             <Lock className="w-5 h-5" />
+                           </div>
+                           <div className="flex-1 overflow-hidden">
+                             <p className="font-semibold text-sm truncate">{role.name}</p>
+                             <p className="text-xs text-muted-foreground">{role.permissions?.length || 0} permissions assigned</p>
+                           </div>
+                        </div>
+                        
+                        <div className="flex gap-1 flex-shrink-0">
+                           {canEdit && (
+                             <Button variant="ghost" size="icon" onClick={() => handleOpenModal(role)} className="h-8 w-8">
+                               <Edit className="w-4 h-4 text-muted-foreground" />
+                             </Button>
+                           )}
+                           {canDelete && (
+                             <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(role.id || role._id)}>
+                               <Trash2 className="w-4 h-4" />
+                             </Button>
+                           )}
+                        </div>
+                      </div>
+                   </Card>
+                ))
+             )}
           </div>
         </CardContent>
 

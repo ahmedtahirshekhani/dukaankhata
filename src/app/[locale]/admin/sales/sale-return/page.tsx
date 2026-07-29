@@ -55,6 +55,7 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type Customer = {
   id: string;
@@ -144,6 +145,7 @@ export default function SaleReturnPage() {
   const locale = useLocale();
   const t = useTranslations("saleReturn");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
 
   // Customers will be derived from useOfflineCustomers
   const rawProducts = useOfflineProducts() || [];
@@ -853,10 +855,12 @@ export default function SaleReturnPage() {
           <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
         </div>
-        <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 shrink-0">
-          <PlusCircle className="w-3.5 h-3.5 mr-1" />
-          <span>{t("addSaleReturn")}</span>
-        </Button>
+        {can("sales", "create_sale_return") && (
+          <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 shrink-0">
+            <PlusCircle className="w-3.5 h-3.5 mr-1" />
+            <span>{t("addSaleReturn")}</span>
+          </Button>
+        )}
       </div>
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md overflow-hidden">
         <CardHeader className="p-0">
@@ -996,25 +1000,29 @@ export default function SaleReturnPage() {
                       <TableCell>Rs. {item.balanceDue?.toFixed(2)}</TableCell>
                       <TableCell className="text-right pr-4">
                         <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={() => openEditDialog(item)}
-                          >
-                            <FilePenIcon className="h-4 w-4" />
-                          </Button>
+                          {can("sales", "edit_sale_return") && (
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <FilePenIcon className="h-4 w-4" />
+                            </Button>
+                          )}
 
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setTransactionToDelete(item);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {can("sales", "delete_sale_return") && (
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setTransactionToDelete(item);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1041,11 +1049,11 @@ export default function SaleReturnPage() {
                 <SaleReturnCard
                   key={item.id}
                   transaction={item}
-                  onEdit={() => openEditDialog(item)}
-                  onDelete={() => {
+                  onEdit={can("sales", "edit_sale_return") ? () => openEditDialog(item) : undefined}
+                  onDelete={can("sales", "delete_sale_return") ? () => {
                     setTransactionToDelete(item);
                     setShowDeleteDialog(true);
-                  }}
+                  } : undefined}
                   t={t}
                   tCommon={tCommon}
                 />
@@ -1183,8 +1191,8 @@ function SaleReturnCard({
   tCommon,
 }: {
   transaction: SaleReturnTransaction;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   t: (key: string) => string;
   tCommon: (key: string) => string;
 }) {
@@ -1197,24 +1205,28 @@ function SaleReturnCard({
           {transaction.customerName || "-"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onEdit}
-            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-          >
-            <FilePenIcon className="w-4 h-4 text-sky-500" />
-            <span className="sr-only">{tCommon("edit")}</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onDelete}
-            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-          >
-            <Trash2 className="w-4 h-4 text-red-500" />
-            <span className="sr-only">{tCommon("delete")}</span>
-          </Button>
+          {onEdit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+            >
+              <FilePenIcon className="w-4 h-4 text-sky-500" />
+              <span className="sr-only">{tCommon("edit")}</span>
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span className="sr-only">{tCommon("delete")}</span>
+            </Button>
+          )}
         </div>
       </div>
       <div className="space-y-2 text-xs sm:text-sm">

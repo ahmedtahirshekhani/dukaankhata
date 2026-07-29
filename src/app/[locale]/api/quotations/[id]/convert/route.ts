@@ -21,7 +21,7 @@ export async function POST(
   }
 
   const authCheck = await requirePermission("sales.create_invoice");
-  if (!authCheck.allowed) return authCheck.response;
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { id } = params;
   if (!isValidObjectId(id)) {

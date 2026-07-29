@@ -26,9 +26,16 @@ export async function GET(req: Request) {
     
     let shopName = "the workspace";
     if (invite.owner_id) {
-      const owner = await usersColl.findOne({ _id: invite.owner_id });
-      if (owner?.company_name) {
-        shopName = owner.company_name;
+      const shopsColl = await getCollection(COLLECTIONS.SHOPS);
+      // Fallback logic: check shops collection first, if not found (legacy invite), check users collection
+      let shop = await shopsColl.findOne({ _id: invite.owner_id });
+      if (shop?.name) {
+        shopName = shop.name;
+      } else {
+        const owner = await usersColl.findOne({ _id: invite.owner_id });
+        if (owner?.company_name) {
+          shopName = owner.company_name;
+        }
       }
     }
 

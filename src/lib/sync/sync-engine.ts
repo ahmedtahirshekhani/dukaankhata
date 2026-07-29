@@ -4,7 +4,17 @@ export class SyncEngine {
   
   static async pullInitialData() {
     try {
-      let lastSyncTimestamp = localStorage.getItem('last_sync_timestamp');
+      let workspaceId = "";
+      try {
+        const infoStr = localStorage.getItem('tenant_info');
+        if (infoStr) {
+          const info = JSON.parse(infoStr);
+          workspaceId = info.userId || "";
+        }
+      } catch(e) {}
+
+      const timestampKey = workspaceId ? `last_sync_timestamp_${workspaceId}` : 'last_sync_timestamp';
+      let lastSyncTimestamp = localStorage.getItem(timestampKey);
       
       if (lastSyncTimestamp) {
         // If essential RBAC tables are empty, the cache is outdated (prior to RBAC feature).
@@ -86,7 +96,7 @@ export class SyncEngine {
         }
       );
       
-      localStorage.setItem('last_sync_timestamp', server_timestamp);
+      localStorage.setItem(timestampKey, server_timestamp);
       return true;
     } catch (error) {
       console.error('Initial sync failed:', error);
@@ -98,14 +108,23 @@ export class SyncEngine {
     }
   }
   static async clearCacheAndResync() {
-    try {
-      await Promise.all(db.tables.map(table => table.clear()));
+    await db.delete();
+    if (typeof window !== 'undefined') {
+      try {
+        const infoStr = localStorage.getItem('tenant_info');
+        if (infoStr) {
+          const info = JSON.parse(infoStr);
+          if (info.userId) {
+            localStorage.removeItem(`last_sync_timestamp_${info.userId}`);
+          }
+        }
+      } catch(e) {}
       localStorage.removeItem('last_sync_timestamp');
-      return await this.pullInitialData();
-    } catch (error) {
-      console.error('Failed to clear cache and resync:', error);
-      return false;
+      
+      window.location.reload();
+      return true;
     }
+    return false;
   }
 
   private static isSyncing = false;
@@ -116,12 +135,13 @@ export class SyncEngine {
     
     this.isSyncing = true;
     try {
-      const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
-      if (pendingOps.length === 0) return true;
-
-    let successCount = 0;
-    
-    for (const originalOp of pendingOps) {
+      let successCount = 0;
+      
+      while (true) {
+        const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
+        if (pendingOps.length === 0) break;
+        
+        for (const originalOp of pendingOps) {
       try {
         // Re-fetch to ensure we have latest data (e.g. ID replacements from earlier ops in this sync loop)
         const op = await db.syncQueue.get(originalOp.id!);
@@ -236,7 +256,10 @@ export class SyncEngine {
       }
     }
     
-    return successCount === pendingOps.length;
+    // Check again to see if more items were added during the sync
+    }
+    
+    return true;
     } finally {
       this.isSyncing = false;
     }

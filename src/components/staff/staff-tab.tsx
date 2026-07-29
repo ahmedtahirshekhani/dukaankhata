@@ -26,11 +26,16 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
 
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export function StaffTab() {
   const { data: session } = useSession();
   const t = useTranslations("staffManagement");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
+  const canCreate = can("staff", "create");
+  const canEdit = can("staff", "edit");
+  const canDelete = can("staff", "delete");
   const [isLoading, setIsLoading] = useState(false);
 
   // Search & Filter State
@@ -193,12 +198,14 @@ export function StaffTab() {
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{t("description")}</p>
-        <Button onClick={() => handleOpenModal()} className="gap-2">
-          <PlusCircle className="w-4 h-4" /> {t("createStaff")}
-        </Button>
+        {canCreate && (
+          <Button onClick={() => handleOpenModal()} className="gap-2">
+            <PlusCircle className="w-4 h-4" /> {t("createStaff")}
+          </Button>
+        )}
       </div>
 
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-6 shadow-sm border-0 sm:border">
         <CardHeader className="p-0">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
@@ -257,7 +264,8 @@ export function StaffTab() {
         </CardHeader>
         
         <CardContent className="p-0">
-          <div className="border rounded-md overflow-x-auto">
+          {/* Desktop View */}
+          <div className="hidden md:block border rounded-md overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -301,12 +309,16 @@ export function StaffTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)}>
-                            <Edit className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(member.id || member._id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {canEdit && (
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)}>
+                              <Edit className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(member.id || member._id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -314,6 +326,55 @@ export function StaffTab() {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile View - Cards */}
+          <div className="md:hidden flex flex-col gap-3 mt-4 md:mt-0">
+             {paginatedStaff.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border rounded-md border-dashed">
+                  {t("noRecords")}
+                </div>
+             ) : (
+                paginatedStaff.map((member) => (
+                   <Card key={member.id || member._id} className="p-4 shadow-sm border space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                             {member.name.charAt(0).toUpperCase()}
+                           </div>
+                           <div className="flex-1 overflow-hidden">
+                             <p className="font-semibold text-sm truncate">{member.name}</p>
+                             <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                           </div>
+                        </div>
+                        
+                        <div className="flex gap-1 flex-shrink-0">
+                           {canEdit && (
+                             <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)} className="h-8 w-8">
+                               <Edit className="w-4 h-4 text-muted-foreground" />
+                             </Button>
+                           )}
+                           {canDelete && (
+                             <Button variant="danger" size="icon" className="h-8 w-8" onClick={() => setDeletingId(member.id || member._id)}>
+                               <Trash2 className="w-4 h-4" />
+                             </Button>
+                           )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                          {member.roles && member.roles.length > 0 ? (
+                            member.roles.map((r: string, idx: number) => (
+                              <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                {r}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-xs italic">No roles assigned</span>
+                          )}
+                      </div>
+                   </Card>
+                ))
+             )}
           </div>
         </CardContent>
 

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Image from "next/image";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,10 +82,11 @@ interface ReportMeta {
   customerName: string;
 }
 
-export default function AccountStatementLatestPage() {
+export default function AccountStatementPage() {
   const t = useTranslations("accountStatement");
   const tCommon = useTranslations("common");
   const locale = useLocale();
+  const { can } = usePermissions();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
@@ -534,20 +536,22 @@ export default function AccountStatementLatestPage() {
       ) : transactions.length > 0 ? (
         <div className="space-y-4">
           {/* Action Bar: Download PDF Button with top spacing */}
-          <div className="flex justify-end pt-4 mt-3 mb-3 border-t border-gray-100 dark:border-gray-800">
-            <Button
-              onClick={handleExportPdf}
-              disabled={exportingPdf}
-              className="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white font-medium h-9 text-xs px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0"
-            >
-              {exportingPdf ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Printer className="h-4 w-4" />
-              )}
-              <span>{t("downloadPdf") || "Download PDF"}</span>
-            </Button>
-          </div>
+          {can('reports', 'export_account_statement') && (
+            <div className="flex justify-end pt-4 mt-3 mb-3 border-t border-gray-100 dark:border-gray-800">
+              <Button
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+                className="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white font-medium h-9 text-xs px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
+                )}
+                <span>{t("downloadPdf") || "Download PDF"}</span>
+              </Button>
+            </div>
+          )}
 
           {/* Mobile View: Cards */}
           <div className="block md:hidden space-y-3">

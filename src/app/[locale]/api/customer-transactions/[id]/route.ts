@@ -12,6 +12,7 @@ import {
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
+import { requireAnyPermission } from "@/lib/auth/rbac";
 
 interface CustomerTransactionDoc {
   _id: ObjectId;
@@ -34,6 +35,12 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const authCheck = await requireAnyPermission([
+      "sales.view_payment_in", 
+      "purchase.view_payment_out", 
+      "expenses.view"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {
@@ -75,6 +82,12 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const authCheck = await requireAnyPermission([
+      "sales.edit_payment_in", 
+      "purchase.edit_payment_out", 
+      "expenses.edit"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {
@@ -207,6 +220,12 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const authCheck = await requireAnyPermission([
+      "sales.delete_payment_in", 
+      "purchase.delete_payment_out", 
+      "expenses.delete"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {

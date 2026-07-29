@@ -6,6 +6,7 @@ import CreatableSelect from "react-select/creatable";
 import { useOfflineExpenses } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   PlusCircle,
   Trash2,
@@ -130,6 +131,7 @@ export default function ExpensesPage() {
   const locale = useLocale();
   const t = useTranslations("expenses");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
 
   const [expenseNumber, setExpenseNumber] = useState(generateExpenseNumber());
   const [expenseDate, setExpenseDate] = useState(
@@ -675,24 +677,28 @@ export default function ExpensesPage() {
                       <TableCell>{formatNumber(expense.amount)}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => openEditDialog(expense)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => requestDeleteExpense(expense)}
-                            disabled={isDeleting}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">{tCommon("delete")}</span>
-                          </Button>
+                          {can("expenses", "edit") && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => openEditDialog(expense)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {can("expenses", "delete") && (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => requestDeleteExpense(expense)}
+                              disabled={isDeleting}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">{tCommon("delete")}</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -718,8 +724,8 @@ export default function ExpensesPage() {
                 <ExpenseCard
                   key={expense.id}
                   expense={expense}
-                  onEdit={() => openEditDialog(expense)}
-                  onDelete={() => requestDeleteExpense(expense)}
+                  onEdit={can("expenses", "edit") ? () => openEditDialog(expense) : undefined}
+                  onDelete={can("expenses", "delete") ? () => requestDeleteExpense(expense) : undefined}
                   t={t}
                   tCommon={tCommon}
                 />
@@ -1075,8 +1081,8 @@ function ExpenseCard({
   tCommon,
 }: {
   expense: ExpenseRow;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   t: (key: string) => string;
   tCommon: (key: string) => string;
 }) {
@@ -1093,24 +1099,28 @@ function ExpenseCard({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onEdit}
-            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-          >
-            <Edit className="w-4 h-4 text-sky-500" />
-            <span className="sr-only">{tCommon("edit")}</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onDelete}
-            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-          >
-            <Trash2 className="w-4 h-4 text-red-500" />
-            <span className="sr-only">{tCommon("delete")}</span>
-          </Button>
+          {onEdit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+            >
+              <Edit className="w-4 h-4 text-sky-500" />
+              <span className="sr-only">{tCommon("edit")}</span>
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span className="sr-only">{tCommon("delete")}</span>
+            </Button>
+          )}
         </div>
       </div>
 

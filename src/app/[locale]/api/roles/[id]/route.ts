@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -12,6 +13,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const ownerId = user.id;
+
+    const authCheck = await requirePermission("staff.edit");
+    if (!authCheck.allowed) return authCheck.response!;
     const body = await req.json();
     const { name, permissions } = body;
 
@@ -71,6 +75,9 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     const ownerId = user.id;
+
+    const authCheck = await requirePermission("staff.delete");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const rolesCollection = await getCollection(COLLECTIONS.ROLES);
     const result = await rolesCollection.deleteOne({ _id: toObjectId(params.id), owner_id: toObjectId(ownerId) });
