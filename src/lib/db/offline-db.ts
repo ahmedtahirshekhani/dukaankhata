@@ -52,6 +52,26 @@ export class DukanKhataDB extends Dexie {
       quotations: 'id, party_id, created_at, status',
       categories: 'id, name',
       payment_methods: 'id, name',
+      syncQueue: '++id, status, timestamp, collection'
+    });
+    // v2: added payment_method, vendor_transactions, sale_return_transactions, transactions, branches, subscriptions
+    // v3: added configurations
+    // These were previously added in-place to the version(1) schema, which meant Dexie
+    // never created the object stores for users whose local DB already existed at version 1.
+    this.version(2).stores({
+      products: 'id, name, sku, category',
+      parties: 'id, name, phone, company_name, type, is_delete',
+      orders: 'id, party_id, created_at, status',
+      order_items: 'id, order_id, product_id',
+      party_transactions: 'id, party_id, date, type',
+      party_ledger_entries: 'id, party_id, created_at, effective_at',
+      party_balance_state: 'id, party_id',
+      purchase_bills: 'id, party_id, created_at',
+      expenses: 'id, date, category',
+      quotations: 'id, party_id, created_at, status',
+      categories: 'id, name',
+      payment_methods: 'id, name',
+      payment_method: 'id',
       vendor_transactions: 'id, party_id, date, type',
       sale_return_transactions: 'id, party_id, date',
       transactions: 'id, order_id, type',
