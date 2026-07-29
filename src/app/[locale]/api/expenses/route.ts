@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import { setDateToCurrentTime } from "@/lib/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 type ExpenseItemInput = {
   id?: string;
@@ -27,6 +28,9 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("expenses.view");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -103,6 +107,9 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("expenses.create");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await req.json();
     const expenseNumber = String(body?.expenseNumber ?? "").trim();

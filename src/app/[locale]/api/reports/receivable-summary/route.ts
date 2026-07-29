@@ -3,6 +3,7 @@
 import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,11 +13,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const authCheck = await requirePermission("reports.view_receivable_summary");
+    if (!authCheck.allowed) return authCheck.response!;
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limitParam = searchParams.get("limit");
     const limit = limitParam === "-1" ? 0 : parseInt(limitParam || "10");
     const search = searchParams.get("search") || "";
+    const statusParam = searchParams.get("status") || "all";
+    const minBalanceParam = searchParams.get("minBalance");
+    const maxBalanceParam = searchParams.get("maxBalance");
     
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     
@@ -27,7 +34,7 @@ export async function GET(request: NextRequest) {
       balance: { $gt: 0 }
     };
 
-    // Filtered query for list display (supports search)
+    // Filtered query for list display (supports search & filters)
     const listQuery: any = { ...baseQuery };
     if (search) {
       listQuery.$or = [
@@ -35,6 +42,21 @@ export async function GET(request: NextRequest) {
         { phone: { $regex: search, $options: "i" } },
         { company_name: { $regex: search, $options: "i" } },
       ];
+    }
+
+    if (statusParam && statusParam !== "all") {
+      listQuery.status = statusParam;
+    }
+
+    if (minBalanceParam || maxBalanceParam) {
+      const balanceCond: any = { $gt: 0 };
+      if (minBalanceParam && !isNaN(parseFloat(minBalanceParam))) {
+        balanceCond.$gte = parseFloat(minBalanceParam);
+      }
+      if (maxBalanceParam && !isNaN(parseFloat(maxBalanceParam))) {
+        balanceCond.$lte = parseFloat(maxBalanceParam);
+      }
+      listQuery.balance = balanceCond;
     }
 
     // 1. Calculate summary statistics for the same filtered result set used by the list/pagination

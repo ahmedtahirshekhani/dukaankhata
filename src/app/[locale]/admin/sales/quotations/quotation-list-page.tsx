@@ -51,6 +51,7 @@ export default function QuotationListPage() {
   const router = useRouter();
 
   const { can } = usePermissions();
+  const canView = can("sales", "view_quotations");
   const canCreate = can("sales", "create_quotations");
   const canEdit = can("sales", "edit_quotations");
   const canDelete = can("sales", "delete_quotations");
@@ -408,12 +409,14 @@ export default function QuotationListPage() {
                                   {tNav("convertToSale")}
                                 </Button>
                               )}
-                              <Button size="icon" variant="ghost" asChild>
-                                <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
-                                  <EyeIcon className="h-4 w-4" />
-                                  <span className="sr-only">{tCommon("view") || "View"}</span>
-                                </Link>
-                              </Button>
+                              {canView && (
+                                <Button size="icon" variant="ghost" asChild>
+                                  <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
+                                    <EyeIcon className="h-4 w-4" />
+                                    <span className="sr-only">{tCommon("view") || "View"}</span>
+                                  </Link>
+                                </Button>
+                              )}
                               {canEdit && (
                                 <Button size="icon" variant="ghost" asChild>
                                   <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>
@@ -454,6 +457,7 @@ export default function QuotationListPage() {
                       onDelete={() => handleDeleteClick(q)}
                       onConvert={() => handleConvertClick(quotId)}
                       isConverting={isConverting === quotId}
+                      canView={canView}
                       canEdit={canEdit}
                       canDelete={canDelete}
                       canConvert={canConvert}
@@ -550,6 +554,7 @@ function QuotationCard({
   onDelete,
   onConvert,
   isConverting,
+  canView,
   canEdit,
   canDelete,
   canConvert,
@@ -562,6 +567,7 @@ function QuotationCard({
   onDelete: () => void;
   onConvert: () => void;
   isConverting: boolean;
+  canView: boolean;
   canEdit: boolean;
   canDelete: boolean;
   canConvert: boolean;
@@ -623,12 +629,14 @@ function QuotationCard({
 
         {/* Right: Icon actions */}
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" asChild title="View" className="h-8 w-8">
-            <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
-              <EyeIcon className="h-4 w-4" />
-              <span className="sr-only">{t("common.view") || "View"}</span>
-            </Link>
-          </Button>
+          {canView && (
+            <Button size="icon" variant="ghost" asChild title="View" className="h-8 w-8">
+              <Link href={`/${locale}/admin/sales/quotations/${quotId}/view`}>
+                <EyeIcon className="h-4 w-4" />
+                <span className="sr-only">{t("common.view") || "View"}</span>
+              </Link>
+            </Button>
+          )}
           {canEdit && (
             <Button size="icon" variant="ghost" asChild title="Edit" className="h-8 w-8">
               <Link href={`/${locale}/admin/sales/quotations/${quotId}/edit`}>

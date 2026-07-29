@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '@/lib/db/mongodb';
+import { requirePermission } from '@/lib/auth/rbac';
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -17,6 +18,9 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission('payment_methods.view');
+    if (!authCheck.allowed) return authCheck.response!;
 
     const collection = await getCollection<{
       _id: unknown;
@@ -62,6 +66,9 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission('payment_methods.create');
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await req.json();
     const bankName = typeof body?.bankName === 'string' ? body.bankName.trim() : '';

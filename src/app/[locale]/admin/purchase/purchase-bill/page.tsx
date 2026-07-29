@@ -44,6 +44,7 @@ import { db } from "@/lib/db/offline-db";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import React, { useMemo } from "react";
 import { getYearsFromDates } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface PurchaseBillItem {
   id: string;
@@ -80,6 +81,7 @@ export default function PurchaseBillPage() {
 
   const locale = useLocale();
   const router = useRouter();
+  const { can } = usePermissions();
 
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -346,24 +348,28 @@ export default function PurchaseBillPage() {
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right pr-4">
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new?id=${bill.id}`)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="danger"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setDeleteConfirmDialog({ open: true, billId: bill.id });
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            {can("purchase", "edit_purchase_bill") && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill/new?id=${bill.id}`)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {can("purchase", "delete_purchase_bill") && (
+                              <Button
+                                size="icon"
+                                variant="danger"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setDeleteConfirmDialog({ open: true, billId: bill.id });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -378,8 +384,8 @@ export default function PurchaseBillPage() {
                   <PurchaseBillCard
                     key={bill.id}
                     bill={bill}
-                    onEdit={() => router.push(`/${locale}/admin/purchase/purchase-bill/new?id=${bill.id}`)}
-                    onDelete={() => setDeleteConfirmDialog({ open: true, billId: bill.id })}
+                    onEdit={can("purchase", "edit_purchase_bill") ? () => router.push(`/${locale}/admin/purchase/purchase-bill/new?id=${bill.id}`) : undefined}
+                    onDelete={can("purchase", "delete_purchase_bill") ? () => setDeleteConfirmDialog({ open: true, billId: bill.id }) : undefined}
                     t={t}
                     tCommon={tCommon}
                     locale={locale}
@@ -480,8 +486,8 @@ function PurchaseBillCard({
   locale,
 }: {
   bill: PurchaseBill;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   t: (key: string) => string;
   tCommon: (key: string) => string;
   locale: string;
@@ -495,24 +501,28 @@ function PurchaseBillCard({
           {bill.party_name || "-"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onEdit}
-            className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-          >
-            <Edit className="w-4 h-4 text-sky-500" />
-            <span className="sr-only">{tCommon("edit")}</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onDelete}
-            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-          >
-            <Trash2 className="w-4 h-4 text-red-500" />
-            <span className="sr-only">{tCommon("delete")}</span>
-          </Button>
+          {onEdit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+            >
+              <Edit className="w-4 h-4 text-sky-500" />
+              <span className="sr-only">{tCommon("edit")}</span>
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span className="sr-only">{tCommon("delete")}</span>
+            </Button>
+          )}
         </div>
       </div>
 

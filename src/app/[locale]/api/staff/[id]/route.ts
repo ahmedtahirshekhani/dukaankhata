@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import bcrypt from "bcryptjs";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -13,6 +14,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const ownerId = user.id;
+
+    const authCheck = await requirePermission("staff.edit");
+    if (!authCheck.allowed) return authCheck.response!;
+
     const body = await req.json();
     const { name, email, password, role_id } = body;
 
@@ -67,6 +72,9 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     const ownerId = user.id;
+
+    const authCheck = await requirePermission("staff.delete");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);

@@ -2,8 +2,9 @@
 
 import { useTranslations, useLocale } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Store, ChevronRight, CheckCircle, Building2 } from "lucide-react";
+import { Store, ChevronRight, CheckCircle, Building2, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,16 +14,92 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 
 interface WorkspaceSwitcherProps {
   sidebarMinimized?: boolean;
+  activeCompanyName?: string;
 }
 
-export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: WorkspaceSwitcherProps) {
   const t = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const { user, updateSession } = useUserProfile();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newShopName, setNewShopName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+  const [showOfflineAlert, setShowOfflineAlert] = useState(false);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    
+    // Also listen to the custom appNetworkStatus event from admin-layout
+    const handleAppNetwork = (e: any) => {
+      if (e.detail !== undefined) setIsOnline(e.detail.isOnline);
+    };
+    window.addEventListener("appNetworkStatus", handleAppNetwork);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("appNetworkStatus", handleAppNetwork);
+    };
+  }, []);
+
+  const handleCreateShop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newShopName.trim()) {
+      setError(t("requiredField"));
+      return;
+    }
+    
+    setError("");
+    setIsSubmitting(true);
+    
+    try {
+      const res = await fetch("/api/shops/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newShopName })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || t("failedToCreateShop"));
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Update session with new active workspace and force reload
+      await updateSession({ active_workspace_id: data.shopId });
+      setIsModalOpen(false);
+      setNewShopName("");
+      window.location.href = `/${locale}/admin`; // Force full reload to rebuild workspaces in auth.ts
+    } catch (err) {
+      setError(t("networkError"));
+      setIsSubmitting(false);
+    }
+  };
 
   if (!user?.workspaces || user.workspaces.length === 0) {
     return null;
@@ -31,6 +108,8 @@ export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) 
   const activeWorkspace = user.workspaces.find(
     (w) => w.id === user.active_workspace_id
   );
+
+  const displayShopName = activeCompanyName || activeWorkspace?.name || "My Shop";
 
   return (
     <div className="mb-4 w-full">
@@ -50,7 +129,7 @@ export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) 
               </div>
               <div className={`flex flex-col items-start min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                 <span className="truncate text-sm font-bold tracking-tight">
-                  {activeWorkspace?.name || t("workspaces")}
+                  {displayShopName}
                 </span>
                 <span className="text-[10px] text-primary/80 font-semibold tracking-wider uppercase mt-0.5">
                   {activeWorkspace?.type || "Workspace"}
@@ -71,16 +150,23 @@ export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) 
               return (
                 <DropdownMenuItem
                   key={ws.id}
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    if (!isOnline && !isActive) {
+                      e.preventDefault();
+                      setShowOfflineAlert(true);
+                      return;
+                    }
                     if (!isActive) {
                       await updateSession({ active_workspace_id: ws.id });
                       router.push(`/${locale}/admin`);
                     }
                   }}
                   className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all ${
-                    isActive
-                      ? "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary"
-                      : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    !isOnline && !isActive 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : isActive
+                        ? "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary"
+                        : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                   }`}
                 >
                   <div
@@ -110,9 +196,84 @@ export function WorkspaceSwitcher({ sidebarMinimized }: WorkspaceSwitcherProps) 
                 </DropdownMenuItem>
               );
             })}
+            <DropdownMenuSeparator className="my-1.5" />
+            <DropdownMenuItem
+              onClick={(e) => {
+                if (!isOnline) {
+                  e.preventDefault();
+                  setShowOfflineAlert(true);
+                  return;
+                }
+                setIsModalOpen(true);
+              }}
+              className={`flex items-center gap-3 p-2 rounded-lg transition-all ${
+                !isOnline
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer text-primary hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
+              }`}
+            >
+              <div className="flex items-center justify-center rounded-md w-8 h-8 shrink-0 border border-primary/20 bg-primary/5">
+                <PlusCircle className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="truncate text-sm font-bold">
+                  {t("addNewShop")}
+                </span>
+              </div>
+            </DropdownMenuItem>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={isModalOpen} onOpenChange={(open) => !isSubmitting && setIsModalOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleCreateShop}>
+            <DialogHeader>
+              <DialogTitle>{t("addNewShop")}</DialogTitle>
+              <DialogDescription>
+                {t("addNewShopDescription")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col space-y-4 py-4">
+              {error && (
+                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="shopName">{t("companyName")}</Label>
+                <Input
+                  id="shopName"
+                  value={newShopName}
+                  onChange={(e) => setNewShopName(e.target.value)}
+                  placeholder={t("shopNamePlaceholder")}
+                  disabled={isSubmitting}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("create")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      <ConfirmDialog
+        open={showOfflineAlert}
+        onOpenChange={setShowOfflineAlert}
+        title={t("offlineWorkspaceSwitchErrorTitle")}
+        description={t("offlineWorkspaceSwitchErrorDesc")}
+        confirmLabel={t("understood")}
+        onConfirm={() => setShowOfflineAlert(false)}
+        variant="warning"
+      />
     </div>
   );
 }

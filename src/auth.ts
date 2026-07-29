@@ -109,13 +109,38 @@ export const authOptions = {
             
             // 1. Discover all workspaces
             const workspaces = [];
+            const shopsCollection = await getCollection(COLLECTIONS.SHOPS);
             
-            // Add their own shop (if they are not a legacy pure-staff without their own shop access)
-            if (dbUser.role !== "staff" || dbUser.company_name) {
+            // Add their owned shops
+            const ownedShops = await shopsCollection.find({ owner_user_id: toObjectId(token.real_user_id as string) }).toArray();
+            
+            // On-the-fly migration for existing users
+            if (ownedShops.length === 0 && (dbUser.role !== "staff" || dbUser.company_name)) {
+              const shopName = dbUser.company_name || `${dbUser.name}'s Shop`;
+              try {
+                await shopsCollection.insertOne({
+                  _id: dbUser._id,
+                  name: shopName,
+                  owner_user_id: dbUser._id,
+                  created_at: dbUser.created_at || new Date(),
+                  updated_at: new Date()
+                });
+                ownedShops.push({
+                  _id: dbUser._id,
+                  name: shopName,
+                  owner_user_id: dbUser._id
+                } as any);
+              } catch (err) {
+                console.error("Migration failed in auth", err);
+              }
+            }
+
+            for (const shop of ownedShops) {
               workspaces.push({
-                id: dbUser._id.toString(),
+                id: shop._id.toString(),
                 type: "owner",
-                name: dbUser.company_name || `${dbUser.name}'s Shop`
+                name: shop.name,
+                owner_user_id: shop.owner_user_id ? shop.owner_user_id.toString() : dbUser._id.toString()
               });
             }
 
@@ -128,19 +153,20 @@ export const authOptions = {
               const roleIds = userRoles.map(ur => ur.role_id);
               const roles = await rolesColl.find({ _id: { $in: roleIds } }).toArray();
               
-              // Get unique owner IDs from those roles
-              const ownerIds = Array.from(new Set(roles.map(r => r.owner_id.toString())));
+              // Get unique shop IDs (owner_id) from those roles
+              const shopIds = Array.from(new Set(roles.map(r => r.owner_id.toString())));
               
-              for (const oId of ownerIds) {
-                // Avoid duplicating their own shop if they somehow have a role in it
-                if (oId === dbUser._id.toString()) continue;
+              for (const sId of shopIds) {
+                // Avoid duplicating if they are somehow staff in their own shop
+                if (ownedShops.find(s => s._id.toString() === sId)) continue;
                 
-                const ownerUser = await usersCollection.findOne({ _id: toObjectId(oId) });
-                if (ownerUser) {
+                const shopDoc = await shopsCollection.findOne({ _id: toObjectId(sId) });
+                if (shopDoc) {
                   workspaces.push({
-                    id: oId,
+                    id: sId,
                     type: "staff",
-                    name: ownerUser.company_name || `${ownerUser.name}'s Shop`
+                    name: shopDoc.name,
+                    owner_user_id: shopDoc.owner_user_id ? shopDoc.owner_user_id.toString() : shopDoc._id.toString()
                   });
                 }
               }
@@ -150,12 +176,13 @@ export const authOptions = {
 
             // Make sure active_workspace_id is valid
             if (!workspaces.find(w => w.id === token.active_workspace_id)) {
-               token.active_workspace_id = workspaces[0].id;
+               token.active_workspace_id = workspaces[0]?.id || token.real_user_id;
             }
 
             const activeWorkspace = workspaces.find(w => w.id === token.active_workspace_id);
             token.role = activeWorkspace?.type || "owner";
             token.company = activeWorkspace?.name || "";
+            token.workspace_owner_id = activeWorkspace?.owner_user_id || token.real_user_id;
             
             // Mask the token.id to act as the shop owner's ID for all backend API routes!
             token.id = token.active_workspace_id;
@@ -205,6 +232,7 @@ export const authOptions = {
         // Multi-tenancy specific additions:
         (session.user as any).real_user_id = token.real_user_id as string;
         (session.user as any).active_workspace_id = token.active_workspace_id as string;
+        (session.user as any).workspace_owner_id = token.workspace_owner_id as string;
         (session.user as any).workspaces = token.workspaces as any[];
         
         session.user.name = token.name as string;

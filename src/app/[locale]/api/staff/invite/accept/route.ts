@@ -23,10 +23,30 @@ export async function GET(req: Request) {
     }
 
     const existingUser = await usersColl.findOne({ email: invite.email });
+    
+    let shopName = "the workspace";
+    if (invite.owner_id) {
+      const shopsColl = await getCollection(COLLECTIONS.SHOPS);
+      // Fallback logic: check shops collection first, if not found (legacy invite), check users collection
+      let shop = await shopsColl.findOne({ _id: invite.owner_id });
+      if (shop?.name) {
+        shopName = shop.name;
+      } else {
+        const owner = await usersColl.findOne({ _id: invite.owner_id });
+        if (owner?.company_name) {
+          shopName = owner.company_name;
+        }
+      }
+    }
+
+    const sessionUser = await getCurrentUser();
+    const isLoggedInAsInvitedUser = sessionUser?.email === invite.email;
 
     return NextResponse.json({
       email: invite.email,
-      userExists: !!existingUser
+      userExists: !!existingUser,
+      shopName,
+      isLoggedInAsInvitedUser
     });
   } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import bcrypt from "bcryptjs";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET(req: Request) {
   try {
@@ -13,15 +14,9 @@ export async function GET(req: Request) {
     }
 
     const ownerId = user.id;
-    
-    // Only owners or staff with specific permission should manage staff
-    const userRole = user.role;
-    if (userRole === "staff") {
-      const permissions = user.permissions || [];
-      if (!permissions.includes("*") && !permissions.includes("settings.view")) {
-        // return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+
+    const authCheck = await requirePermission("staff.view");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
@@ -81,6 +76,9 @@ export async function POST(req: Request) {
     }
 
     const ownerId = user.id;
+
+    const authCheck = await requirePermission("staff.create");
+    if (!authCheck.allowed) return authCheck.response!;
     const body = await req.json();
     const { name, email, password, role_id } = body;
 

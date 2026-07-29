@@ -31,6 +31,7 @@ import {
   ChevronRight,
   Home,
   Sparkles,
+  Receipt,
   BarChart,
   WifiOff,
   CheckCircle,
@@ -190,13 +191,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     }
   }, [isOnline]);
 
-  // Fetch company name from localStorage or session
+  // Fetch company name from session or offline cache
   useEffect(() => {
-    const savedCompanyName = localStorage.getItem("companyName");
-    if (savedCompanyName) {
-      setCompanyName(savedCompanyName);
-    } else if (user?.company) {
-      setCompanyName(user.company);
+    if (user?.id) {
+      const cachedCompanyName = typeof window !== "undefined" ? localStorage.getItem(`companyName_${user.id}`) : null;
+      if (cachedCompanyName) {
+        setCompanyName(cachedCompanyName);
+      } else if (user?.company) {
+        setCompanyName(user.company);
+      }
     }
   }, [user]);
 
@@ -548,7 +551,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               }`}
           >
             {/* Workspace Switcher at the very top */}
-            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} />
+            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} />
 
             {/* Home */}
             <div>
@@ -897,7 +900,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("expenses") : ""}
               >
-                <Sparkles className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <Receipt className="h-5 w-5 flex-shrink-0 opacity-90" />
                 <div
                   className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
                 >

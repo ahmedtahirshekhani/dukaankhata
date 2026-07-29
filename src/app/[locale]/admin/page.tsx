@@ -356,7 +356,7 @@ export default function DashboardPage() {
       try {
         if (activeDashboardTab === "sales") {
             const offset = (currentPage - 1) * pageSize;
-            const orders = await db.orders.offset(offset).limit(pageSize).toArray();
+            const orders = await db.orders.orderBy('created_at').reverse().offset(offset).limit(pageSize).toArray();
             const totalCount = await db.orders.count();
             
             // Populate customers
@@ -395,8 +395,14 @@ export default function DashboardPage() {
         
         if (activeDashboardTab === "items") {
             const offset = (currentPage - 1) * pageSize;
-            const products = await db.products.offset(offset).limit(pageSize).toArray();
-            const totalCount = await db.products.count();
+            const allProducts = await db.products.toArray();
+            allProducts.sort((a, b) => {
+              const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+              const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+              return dateB - dateA;
+            });
+            const products = allProducts.slice(offset, offset + pageSize);
+            const totalCount = allProducts.length;
             
             const pRows = products.map((item: any, index: number) => ({
                 id: item?.id || String(index),

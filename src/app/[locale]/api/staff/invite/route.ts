@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 import { toObjectId } from "@/lib/db/mongodb";
 import crypto from "crypto";
@@ -59,6 +60,10 @@ export async function POST(req: Request) {
     if (!user || !user.active_workspace_id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    
+    const authCheck = await requirePermission("staff.create");
+    if (!authCheck.allowed) return authCheck.response!;
+
     const owner_id = user.active_workspace_id;
 
     const body = await req.json();
