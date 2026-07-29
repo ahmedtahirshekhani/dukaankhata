@@ -314,7 +314,8 @@ export default function DashboardPage() {
     return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
-  // Fetch summary on mount
+  // Fetch summary on mount, and refresh once pending offline writes (e.g. a newly
+  // created invoice's balance update) have actually synced to the server.
   useEffect(() => {
     const fetchSummary = async () => {
       try {
@@ -336,6 +337,16 @@ export default function DashboardPage() {
       }
     };
     fetchSummary();
+
+    window.addEventListener("focus", fetchSummary);
+    window.addEventListener("initialSyncComplete", fetchSummary);
+    window.addEventListener("syncComplete", fetchSummary);
+
+    return () => {
+      window.removeEventListener("focus", fetchSummary);
+      window.removeEventListener("initialSyncComplete", fetchSummary);
+      window.removeEventListener("syncComplete", fetchSummary);
+    };
   }, [locale, router]);
 
   // Fetch tab data when tab, page or pageSize changes
@@ -345,7 +356,7 @@ export default function DashboardPage() {
       try {
         if (activeDashboardTab === "sales") {
             const offset = (currentPage - 1) * pageSize;
-            const orders = await db.orders.offset(offset).limit(pageSize).toArray();
+            const orders = await db.orders.orderBy('created_at').reverse().offset(offset).limit(pageSize).toArray();
             const totalCount = await db.orders.count();
             
             // Populate customers
@@ -384,8 +395,14 @@ export default function DashboardPage() {
         
         if (activeDashboardTab === "items") {
             const offset = (currentPage - 1) * pageSize;
-            const products = await db.products.offset(offset).limit(pageSize).toArray();
-            const totalCount = await db.products.count();
+            const allProducts = await db.products.toArray();
+            allProducts.sort((a, b) => {
+              const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+              const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+              return dateB - dateA;
+            });
+            const products = allProducts.slice(offset, offset + pageSize);
+            const totalCount = allProducts.length;
             
             const pRows = products.map((item: any, index: number) => ({
                 id: item?.id || String(index),
@@ -463,9 +480,13 @@ export default function DashboardPage() {
         if (!res.ok) return;
         const data = await res.json();
         const txs = data.data || [];
+        // Exclude transactions generated from invoice/order payments (they carry an order_id) —
+        // Counter Sale is a standalone feature and should not include invoicing payments.
         const incomeTotal = txs.reduce(
           (sum: number, t: any) =>
-            t.type === "income" ? sum + Number(t.amount || 0) : sum,
+            t.type === "income" && !t.order_id
+              ? sum + Number(t.amount || 0)
+              : sum,
           0,
         );
         setCounterSales(Math.round(incomeTotal * 100) / 100);

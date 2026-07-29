@@ -2,6 +2,7 @@
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
+import { requirePermission } from '@/lib/auth/rbac';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
 
@@ -67,6 +68,9 @@ export async function PUT(
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("sales.edit_invoice");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const orderId = params.orderId;
   if (!isValidObjectId(orderId)) {
@@ -266,6 +270,9 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("sales.delete_invoice");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const orderId = params.orderId;
   if (!isValidObjectId(orderId)) {

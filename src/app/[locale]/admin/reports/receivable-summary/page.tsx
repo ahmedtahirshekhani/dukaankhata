@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Card,
   CardContent,
@@ -64,6 +65,7 @@ import { exportReceivableSummaryToExcel } from "@/lib/excel";
 export default function ReceivableSummaryPage() {
   const locale = useLocale();
   const tNav = useTranslations("navigation");
+  const { can } = usePermissions();
   const tCommon = useTranslations("common");
   const tRec = useTranslations("receivableSummaryPage");
 
@@ -385,36 +387,40 @@ export default function ReceivableSummaryPage() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          {/* Export Excel (Top, White Default) */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportExcel}
-            disabled={isExporting || debtors.length === 0}
-            className="h-7 text-[11px] px-2 gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-none w-full justify-center"
-          >
-            {isExporting ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <FileDown className="h-3 w-3" />
-            )}
-            <span>{tCommon("exportExcel") || "Export Excel"}</span>
-          </Button>
+          {can('reports', 'export_receivable_summary') && (
+            <>
+              {/* Export Excel (Top, White Default) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                disabled={isExporting || debtors.length === 0}
+                className="h-7 text-[11px] px-2 gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-none w-full justify-center"
+              >
+                {isExporting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <FileDown className="h-3 w-3" />
+                )}
+                <span>{tCommon("exportExcel") || "Export Excel"}</span>
+              </Button>
 
-          {/* Download Report (PDF) (Below, Theme Sky Blue) */}
-          <Button
-            size="sm"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf || debtors.length === 0}
-            className="h-7 text-[11px] px-2 gap-1 bg-sky-500 hover:bg-sky-600 text-white shadow-none w-full justify-center"
-          >
-            {isExportingPdf ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Printer className="h-3 w-3" />
-            )}
-            <span>{tCommon("downloadPdf") || "Download PDF"}</span>
-          </Button>
+              {/* Download Report (PDF) (Below, Theme Sky Blue) */}
+              <Button
+                size="sm"
+                onClick={handleExportPdf}
+                disabled={isExportingPdf || debtors.length === 0}
+                className="h-7 text-[11px] px-2 gap-1 bg-sky-500 hover:bg-sky-600 text-white shadow-none w-full justify-center"
+              >
+                {isExportingPdf ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Printer className="h-3 w-3" />
+                )}
+                <span>{tCommon("downloadPdf") || "Download PDF"}</span>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

@@ -15,7 +15,7 @@ export async function POST(
     }
 
     const authCheck = await requirePermission("sales.view_quotations");
-    if (!authCheck.allowed) return authCheck.response;
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { id } = await params;
     const { design_id = 1 } = await request.json();

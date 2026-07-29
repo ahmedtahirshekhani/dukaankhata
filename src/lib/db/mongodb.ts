@@ -57,6 +57,7 @@ export const COLLECTIONS = {
   CUSTOMERS: "parties", // Alias for backward compatibility
   ORDERS: "orders",
   PAYMENT_METHODS: "payment_methods",
+  SHOPS: "shops",
   MODULES: "modules",
   PERMISSIONS: "permissions",
   ROLES: "roles",

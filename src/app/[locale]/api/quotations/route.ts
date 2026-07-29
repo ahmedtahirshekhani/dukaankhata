@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authCheck = await requirePermission("sales.view_quotations");
-    if (!authCheck.allowed) return authCheck.response;
+    if (!authCheck.allowed) return authCheck.response!;
 
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     const authCheck = await requirePermission("sales.create_quotations");
-    if (!authCheck.allowed) return authCheck.response;
+    if (!authCheck.allowed) return authCheck.response!;
     
     const data = await request.json();
 

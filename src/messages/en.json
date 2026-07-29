@@ -1,6 +1,13 @@
 {
   "common": {
     "appName": "DukaanKhata",
+    "addNewShop": "Add New Shop",
+    "addNewShopDescription": "Create a new workspace for another business. You will be the owner of this new shop.",
+    "companyName": "Shop Name",
+    "shopNamePlaceholder": "e.g. Ali Traders 2",
+    "create": "Create",
+    "networkError": "Network error",
+    "failedToCreateShop": "Failed to create shop",
     "appDescription": "Sales & Business Management System",
     "welcome": "Welcome",
     "logout": "Logout",
@@ -74,7 +81,9 @@
     "cacheClearedSuccess": "Cache cleared successfully",
     "syncingData": "Syncing Data...",
     "pleaseWait": "Please wait while we set up your offline database.",
-    "all": "All"
+    "all": "All",
+    "offlineWorkspaceSwitchErrorTitle": "Action Unavailable Offline",
+    "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -232,6 +241,7 @@
     "forgotPasswordDescription": "Enter your email address and we'll send you a link to reset your password.",
     "forgotPasswordSuccessMessage": "If an account exists for this email, you will receive a password reset link shortly.",
     "redirectingToLogin": "Redirecting to login page...",
+    "redirectingToDashboard": "Redirecting to your dashboard...",
     "sendResetLink": "Send Reset Link",
     "resetPasswordTitle": "Reset Password",
     "validatingLink": "Validating your link...",
@@ -264,6 +274,8 @@
     "accountDeleted": "This account is inactive. Contact an admin at {phone} to restore your account.",
     "acceptInvitation": "Accept Invitation",
     "joinWorkspace": "Join the workspace on Dukan Khata",
+    "joinWorkspaceCompany": "Join <bold>{shopName}</bold> on Dukan Khata",
+    "goToLogin": "Go to Login",
     "noTokenProvided": "No token provided",
     "acceptInvitationFailed": "Failed to accept invitation",
     "loginRequiredToAccept": "You must be logged in as {email} to accept this invite. Please go to Login.",
@@ -271,7 +283,8 @@
     "accountExistsConfirmLink": "You already have an account with this email. Please confirm to link this shop to your existing account.",
     "createAccountAndAccept": "Create Account & Accept",
     "loginToAccept": "Login to Accept",
-    "loginToDifferentAccount": "Login to a different account?"
+    "loginToDifferentAccount": "Login to a different account?",
+    "loggedInAsInvitedUser": "You are logged in as {email}. Click below to accept the invite."
   },
   "products": {
     "title": "Items",

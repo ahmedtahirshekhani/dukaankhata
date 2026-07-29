@@ -60,15 +60,16 @@ export default function SettingsPage({
   // Initialize form data when user or cached company name is available
   useEffect(() => {
     if (!user) return;
+    const wsId = user.id || "";
     const cachedCompanyName =
       typeof window !== "undefined"
-        ? localStorage.getItem("companyName")
+        ? localStorage.getItem(`companyName_${wsId}`)
         : null;
 
     const defaultCompanyName = user.company || cachedCompanyName || "";
 
     if (typeof window !== "undefined" && user.company) {
-      localStorage.setItem("companyName", user.company);
+      localStorage.setItem(`companyName_${wsId}`, user.company);
     }
 
     setFormData({
@@ -182,10 +183,11 @@ export default function SettingsPage({
       }
 
       // Update localStorage and dispatch event for UI sync
+      const wsId = user?.id || "";
       if (formData.company) {
-        localStorage.setItem("companyName", formData.company);
+        localStorage.setItem(`companyName_${wsId}`, formData.company);
       } else {
-        localStorage.removeItem("companyName");
+        localStorage.removeItem(`companyName_${wsId}`);
       }
       window.dispatchEvent(
         new CustomEvent("companyDetailsUpdated", {

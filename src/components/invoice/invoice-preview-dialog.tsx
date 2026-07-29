@@ -187,26 +187,29 @@ export function InvoicePreviewDialog({
       brandingInFlight = null;
     }
     try {
+      const tenantInfo = typeof window !== "undefined" ? localStorage.getItem("tenant_info") : null;
+      const wsId = tenantInfo ? JSON.parse(tenantInfo).userId : "";
+
       // Check localStorage first
       const cachedLogo =
-        typeof window !== "undefined" ? localStorage.getItem("companyLogo") : null;
+        typeof window !== "undefined" ? localStorage.getItem(`companyLogo_${wsId}`) : null;
       const cachedSignature =
         typeof window !== "undefined"
-          ? localStorage.getItem("invoiceSignature")
+          ? localStorage.getItem(`invoiceSignature_${wsId}`)
           : null;
       const cachedName =
-        typeof window !== "undefined" ? localStorage.getItem("companyName") : null;
+        typeof window !== "undefined" ? localStorage.getItem(`companyName_${wsId}`) : null;
       const cachedAddress =
         typeof window !== "undefined"
-          ? localStorage.getItem("companyAddress")
+          ? localStorage.getItem(`companyAddress_${wsId}`)
           : null;
       const cachedPhone =
         typeof window !== "undefined"
-          ? localStorage.getItem("companyPhone")
+          ? localStorage.getItem(`companyPhone_${wsId}`)
           : null;
       const cachedEmail =
         typeof window !== "undefined"
-          ? localStorage.getItem("companyEmail")
+          ? localStorage.getItem(`companyEmail_${wsId}`)
           : null;
 
       // Set cached values if available

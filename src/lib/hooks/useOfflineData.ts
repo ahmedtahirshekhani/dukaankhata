@@ -470,8 +470,11 @@ export function useOfflineCounterSales(
   year?: number,
 ) {
   return useSafeLiveQuery(async () => {
-    // Get all transactions
-    let transactions = await db.transactions.toArray();
+    // Get all transactions, excluding invoice/order payments (Counter Sale is a
+    // separate feature — order payments are tagged with order_id and belong on the invoice)
+    let transactions = (await db.transactions.toArray()).filter(
+      (t) => !t.order_id,
+    );
 
     // Filter by type
     if (filterType && filterType !== "all") {

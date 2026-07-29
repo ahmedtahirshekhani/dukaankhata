@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 interface SaleReturnDoc {
   _id: ObjectId;
@@ -93,6 +94,8 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const authCheck = await requirePermission("sales.view_sale_return");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {
@@ -153,6 +156,8 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const authCheck = await requirePermission("sales.edit_sale_return");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {
@@ -357,6 +362,8 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const authCheck = await requirePermission("sales.delete_sale_return");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const id = params.id;
     if (!isValidObjectId(id)) {

@@ -12,7 +12,8 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  await requirePermission("customers.view");
+  const authCheck = await requirePermission("customers.view");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
@@ -90,7 +91,8 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    await requirePermission("customers.create");
+    const authCheck = await requirePermission("customers.create");
+    if (!authCheck.allowed) return authCheck.response!;
 
     let newCustomer = await request.json();
 

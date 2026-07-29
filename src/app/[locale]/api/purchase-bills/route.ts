@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import { ObjectId } from "mongodb";
 
 function escapeRegex(value: string): string {
@@ -95,6 +96,9 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("purchase.view_purchase_bill");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const url = new URL(request.url);
   const billId = url.searchParams.get("id");
@@ -197,6 +201,9 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("purchase.create_purchase_bill");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const {
     party_id: partyId,
@@ -409,6 +416,9 @@ export async function PUT(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("purchase.edit_purchase_bill");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const {
     id,
@@ -678,6 +688,9 @@ export async function DELETE(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("purchase.delete_purchase_bill");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
