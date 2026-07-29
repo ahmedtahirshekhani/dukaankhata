@@ -206,7 +206,7 @@ export async function POST(req: Request, { params }: { params: { locale: string 
       //   google/gemini-2.0-flash-001   (fast + cheap, recommended)
       //   openai/gpt-4o-mini
       //   anthropic/claude-3-5-haiku
-      model: openrouter(process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001'),
+      model: openrouter(process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini'),
       messages: modelMessages,
       system: getSystemPrompt(params.locale),
       tools: appTools(user.id),

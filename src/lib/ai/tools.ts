@@ -47,6 +47,31 @@ const parseSafeNumber = (val: any, fallback = 0) => {
   return fallback;
 };
 
+// Helper to resolve an ID if the LLM mistakenly passes a name instead of an ObjectId
+const resolveIdFromName = async (
+  idOrName: string,
+  apiEndpoint: string,
+  apiMethod: Function,
+  itemsKey: string
+) => {
+  if (!idOrName) return null;
+  if (/^[0-9a-fA-F]{24}$/.test(idOrName)) return idOrName;
+  try {
+    const searchReq = apiRequest(`${apiEndpoint}?search=${encodeURIComponent(idOrName)}&limit=10`);
+    const searchRes = await apiMethod(searchReq as any);
+    const searchData = await searchRes.json();
+    if (searchData && searchData[itemsKey]) {
+      const match = searchData[itemsKey].find(
+        (item: any) => item.name?.toLowerCase() === idOrName.toLowerCase()
+      );
+      if (match && match.id) return match.id;
+    }
+  } catch (e) {
+    console.error("resolveIdFromName error:", e);
+  }
+  return null;
+};
+
 export const appTools = (userId: string) => ({
     getCustomers: tool({
       description: `Get a list of customers/parties for the user. Returns at most ${MAX_TOOL_FETCH_LIMIT} records per call (most recent first); use 'search' to narrow results. The response's totalCount field reflects the true total regardless of this limit, so use it for count questions.`,
@@ -96,7 +121,7 @@ export const appTools = (userId: string) => ({
         phone: z.string().optional().describe("The phone number of the customer. Leave empty if user says 'no phone' or 'phone nahi'."),
         company_name: z.string().optional().describe("The company/business name of the customer. This is DIFFERENT from company_address. Extract from: 'company ka naam', 'dukaan ka naam', 'company name'."),
         company_address: z.string().optional().describe("The physical address of the company/customer. This is DIFFERENT from company_name. Extract from: 'address', 'ghar ka pata', 'location'."),
-        opening_balance: z.any().optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them. Pass only the number."),
+        opening_balance: z.union([z.string(), z.number()]).optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them. Pass only the number."),
       }),
       execute: async (body: any) => {
         try {
@@ -125,23 +150,26 @@ export const appTools = (userId: string) => ({
     updateCustomer: tool({
       description: "Update an existing customer/party's details.",
       parameters: z.object({
-        customerId: z.string().describe("The ID of the customer to update"),
+        customerId: z.string().describe("The ID or exact name of the customer to update"),
         name: z.string().optional().describe("The updated full name of the customer"),
         phone: z.string().optional().describe("The updated phone number"),
         company_name: z.string().optional().describe("The company/business NAME of the customer. IMPORTANT: This is the company's name (e.g. 'ATF', 'ABC Traders'). It is DIFFERENT from company_address which is a physical location. Use this when user says 'company ka naam change karo' or 'company ATF karo'."),
         company_address: z.string().optional().describe("The physical address or location of the company. DIFFERENT from company_name. Use this when user says 'address change karo' or 'location update karo'."),
-        balance: z.any().optional().describe("The updated balance amount (number only)"),
+        balance: z.union([z.string(), z.number()]).optional().describe("The updated balance amount (number only)"),
       }),
       execute: async ({ customerId, balance, opening_balance, ...body }: any) => {
         try {
+          const finalId = await resolveIdFromName(customerId, "/api/customers", getCustomersApi, "customers");
+          if (!finalId) return { error: `Could not find a valid customer ID for "${customerId}".` };
+
           if (balance !== undefined || opening_balance !== undefined) {
              body.balance = parseSafeNumber(balance ?? opening_balance);
           }
-          const req = apiRequest(`/api/customers/${customerId}`, {
+          const req = apiRequest(`/api/customers/${finalId}`, {
             method: 'PUT',
             body: JSON.stringify(body),
           });
-          const res = await updateCustomerApi(req, { params: { customerId } });
+          const res = await updateCustomerApi(req, { params: { customerId: finalId } });
           const data = await res.json();
           if (!res.ok) return { error: data.error || "Failed to update customer" };
           return { success: true, message: `Customer updated successfully.`, data };
@@ -221,18 +249,29 @@ export const appTools = (userId: string) => ({
     createCustomerTransaction: tool({
       description: "Create a new customer transaction (payment received or given).",
       parameters: z.object({
-        customerId: z.string().describe("The ID of the customer"),
-        paymentAmount: z.any().describe("The amount of the payment (number only)"),
+        customerId: z.string().describe("The ID or exact name of the customer"),
+        paymentAmount: z.union([z.string(), z.number()]).optional().describe("The amount of the payment (number only)"),
+        amount: z.union([z.string(), z.number()]).optional().describe("The amount of the payment (number only)"),
         paymentMethodId: z.string().describe("The ID of the payment method (or 'cash', 'cheque')"),
-        type: z.enum(['payment-in', 'payment-out']).describe("Type of transaction"),
+        type: z.string().describe("Type of transaction ('payment-in' or 'payment-out')"),
         date: z.string().optional().describe("Date in YYYY-MM-DD format"),
-      }),
-      execute: async ({ paymentAmount, ...rest }: any) => {
+      }).passthrough(),
+      execute: async ({ customerId, paymentAmount, type, ...rest }: any) => {
         try {
+          const finalAmount = paymentAmount ?? rest.amount;
+          const finalType = (type || 'payment-in').toLowerCase().replace('_', '-');
+          const finalId = await resolveIdFromName(customerId, "/api/customers", getCustomersApi, "customers");
+          if (!finalId) return { error: `Could not find a valid customer ID for "${customerId}".` };
+
           const body = {
             ...rest,
-            paymentAmount: parseSafeNumber(paymentAmount),
+            customerId: finalId,
+            type: finalType,
+            paymentAmount: parseSafeNumber(finalAmount),
           };
+          if (body.paymentMethodId && typeof body.paymentMethodId === 'string') {
+            body.paymentMethodId = body.paymentMethodId.toLowerCase();
+          }
           const req = apiRequest(`/api/customer-transactions`, {
             method: 'POST',
             body: JSON.stringify(body),
@@ -314,16 +353,16 @@ export const appTools = (userId: string) => ({
     createProduct: tool({
       description: "Create a new product or service. IMPORTANT RULE: Before calling this tool, you MUST ask the user for all relevant details if they haven't provided them. This includes: name, type (goods/services), selling price, cost price, quantity in stock, category, unit of measurement, and branch. Do not make up values for these. If the user explicitly says they don't know or want to skip, you can proceed with defaults.",
       parameters: z.object({
-        name: z.any().optional().describe("The name of the product"),
-        type: z.any().optional().describe("The type of product (goods or services)"),
-        sell_price: z.any().optional().describe("The selling price of the product (number only)"),
-        cost_price: z.any().optional().describe("The cost price of the product (number only)"),
-        sku: z.any().optional().describe("The SKU or barcode of the product"),
-        quantity: z.any().optional().describe("Current stock quantity (number only)"),
-        category: z.any().optional().describe("Product category"),
-        unit_of_measurement: z.any().optional().describe("Unit of measurement (e.g. piece, kg, liter, gram, meter, box, pack, dozen)"),
-        branch: z.any().optional().describe("Branch name (e.g. Main)"),
-        description: z.any().optional().describe("Product description"),
+        name: z.union([z.string(), z.number()]).optional().describe("The name of the product"),
+        type: z.union([z.string(), z.number()]).optional().describe("The type of product (goods or services)"),
+        sell_price: z.union([z.string(), z.number()]).optional().describe("The selling price of the product (number only)"),
+        cost_price: z.union([z.string(), z.number()]).optional().describe("The cost price of the product (number only)"),
+        sku: z.union([z.string(), z.number()]).optional().describe("The SKU or barcode of the product"),
+        quantity: z.union([z.string(), z.number()]).optional().describe("Current stock quantity (number only)"),
+        category: z.union([z.string(), z.number()]).optional().describe("Product category"),
+        unit_of_measurement: z.union([z.string(), z.number()]).optional().describe("Unit of measurement (e.g. piece, kg, liter, gram, meter, box, pack, dozen)"),
+        branch: z.union([z.string(), z.number()]).optional().describe("Branch name (e.g. Main)"),
+        description: z.union([z.string(), z.number()]).optional().describe("Product description"),
       }).passthrough(),
       execute: async (body: any) => {
         try {
@@ -363,26 +402,46 @@ export const appTools = (userId: string) => ({
     updateProduct: tool({
       description: "Update an existing product.",
       parameters: z.object({
-        productId: z.string().describe("The ID of the product to update"),
+        productId: z.string().describe("The ID or exact name of the product to update"),
         name: z.string().optional(),
-        sell_price: z.any().optional(),
-        cost_price: z.any().optional(),
-        quantity: z.any().optional(),
+        sell_price: z.union([z.string(), z.number()]).optional(),
+        cost_price: z.union([z.string(), z.number()]).optional(),
+        quantity: z.union([z.string(), z.number()]).optional(),
         category: z.string().optional(),
         unit_of_measurement: z.string().optional(),
         branch: z.string().optional(),
       }),
       execute: async ({ productId, sell_price, cost_price, quantity, ...body }: any) => {
         try {
-          if (sell_price !== undefined) body.sell_price = parseSafeNumber(sell_price);
-          if (cost_price !== undefined) body.cost_price = parseSafeNumber(cost_price);
-          if (quantity !== undefined) body.quantity = parseSafeNumber(quantity);
+          const finalId = await resolveIdFromName(productId, "/api/products", getProductsApi, "products");
+          if (!finalId) return { error: `Could not find a valid product ID for "${productId}".` };
 
-          const req = apiRequest(`/api/products/${productId}`, {
+          const newQuantity = quantity ?? body.stock ?? body.quantity_in_stock;
+          if (newQuantity !== undefined) {
+             body.quantity = parseSafeNumber(newQuantity);
+             delete body.stock;
+             delete body.quantity_in_stock;
+          }
+          
+          const newSellPrice = sell_price ?? body.price ?? body.selling_price ?? body.selling_price_pkr;
+          if (newSellPrice !== undefined) {
+             body.sell_price = parseSafeNumber(newSellPrice);
+             delete body.price;
+             delete body.selling_price;
+             delete body.selling_price_pkr;
+          }
+          
+          const newCostPrice = cost_price ?? body.cost_price_pkr;
+          if (newCostPrice !== undefined) {
+             body.cost_price = parseSafeNumber(newCostPrice);
+             delete body.cost_price_pkr;
+          }
+
+          const req = apiRequest(`/api/products/${finalId}`, {
             method: 'PUT',
             body: JSON.stringify(body),
           });
-          const res = await updateProductApi(req, { params: { productId } });
+          const res = await updateProductApi(req, { params: { productId: finalId } });
           const data = await res.json();
           if (!res.ok) return { error: data.error || "Failed to update product" };
           return { success: true, message: `Product updated successfully.`, data };
