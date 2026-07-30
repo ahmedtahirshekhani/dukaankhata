@@ -1417,10 +1417,10 @@ export default function CounterSale() {
                                       : String(product.id)) as any,
                                     productName: product.name,
                                     productDescription: product.description,
-                                    unitPrice: product.sell_price || 0,
+                                    unitPrice: parseFloat(product.sell_price_str || "") || product.sell_price || product.price || 0,
                                     uom: product.unit_of_measurement || "unit",
                                     quantity: 1,
-                                    amount: (product.sell_price || 0) * 1,
+                                    amount: (parseFloat(product.sell_price_str || "") || product.sell_price || product.price || 0) * 1,
                                   }));
                                 }
                               }}
@@ -1577,11 +1577,11 @@ export default function CounterSale() {
                                             : String(product.id)) as any,
                                           productName: product.name,
                                           productDescription: product.description,
-                                          unitPrice: product.sell_price || 0,
+                                          unitPrice: parseFloat(product.sell_price_str || "") || product.sell_price || product.price || 0,
                                           uom:
                                             product.unit_of_measurement || "unit",
                                           quantity: 1,
-                                          amount: (product.sell_price || 0) * 1,
+                                          amount: (parseFloat(product.sell_price_str || "") || product.sell_price || product.price || 0) * 1,
                                         }));
                                       }
                                     }}
@@ -1910,10 +1910,10 @@ export default function CounterSale() {
                                     : String(product.id)) as any,
                                   productName: product.name,
                                   productDescription: product.description,
-                                  unitPrice: product.sell_price || 0,
+                                  unitPrice: parseFloat(product.sell_price_str || "") || product.sell_price || product.price || 0,
                                   uom: product.unit_of_measurement || "unit",
                                   quantity: 1,
-                                  amount: (product.sell_price || 0) * 1,
+                                  amount: (parseFloat(product.sell_price_str || "") || product.sell_price || product.price || 0) * 1,
                                 }));
                               }
                             }}
