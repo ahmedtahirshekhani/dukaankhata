@@ -80,8 +80,26 @@ export function LandingPricing() {
             const billingLabel = isLifetime
               ? t("billingLifetime")
               : isYearly
-              ? t("billingYearly")
+              ? "12 Month"
               : t("billingMonthly");
+
+            const isCampaignLive = process.env.NEXT_PUBLIC_IS_YEARLY_CAMPAIGN_LIVE === "true";
+            const campaignName = process.env.NEXT_PUBLIC_YEARLY_CAMPAIGN_NAME || "";
+            const campaignPrice = process.env.NEXT_PUBLIC_YEARLY_CAMPAIGN_NEW_PRICES || "";
+
+            let displayPrice = plan.price;
+            let displayOriginalPrice = plan.originalPrice;
+            let displayBadgeText = plan.hasDiscountBadge ? plan.discountBadgeText : null;
+            let isCampaignApplied = false;
+
+            if (isYearly && isCampaignLive && campaignPrice) {
+              displayOriginalPrice = plan.price; // Show original price as crossed out
+              displayPrice = campaignPrice;
+              if (campaignName) {
+                displayBadgeText = campaignName;
+              }
+              isCampaignApplied = true;
+            }
 
             return (
               <div 
@@ -107,23 +125,33 @@ export function LandingPricing() {
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
                       {plan.name} ({billingLabel})
                     </p>
-                    {plan.isPopular && (
+                    {plan.isPopular && !isCampaignApplied && (
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm">
                         {t("popularBadge")}
                       </span>
                     )}
-                    {plan.hasDiscountBadge && plan.discountBadgeText && (
-                      <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white shadow-sm whitespace-nowrap">
-                        {plan.discountBadgeText}
+                    {displayBadgeText && (
+                      <span className={cn(
+                        "rounded-full px-3 py-1 text-xs font-medium text-white shadow-sm whitespace-nowrap",
+                        isCampaignApplied ? "bg-red-500 animate-pulse" : "bg-emerald-600"
+                      )}>
+                        {displayBadgeText}
                       </span>
                     )}
                   </div>
                   
-                  <div className="mt-6 flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-foreground tracking-tight">
-                      {plan.currency}{plan.price}
-                    </span>
-                    <span className="text-muted-foreground text-sm font-medium">/{billingLabel.toLowerCase()}</span>
+                  <div className="mt-6 flex flex-col gap-1">
+                    {displayOriginalPrice && (
+                      <span className="text-xl line-through text-muted-foreground font-semibold">
+                        {plan.currency}{displayOriginalPrice}
+                      </span>
+                    )}
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-bold text-foreground tracking-tight">
+                        {plan.currency}{displayPrice}
+                      </span>
+                      <span className="text-muted-foreground text-sm font-medium">/{billingLabel.toLowerCase()}</span>
+                    </div>
                   </div>
                   
                   <p className="mt-3 text-muted-foreground text-sm">
@@ -157,7 +185,7 @@ export function LandingPricing() {
                       size="lg"
                       onClick={() => {
                         setSelectedPlan(plan.id as "monthly" | "yearly" | "lifetime");
-                        setSelectedPlanPrice(plan.price);
+                        setSelectedPlanPrice(displayPrice);
                         setSelectedPlanName(plan.name);
                         setProDialogOpen(true);
                       }}
@@ -200,7 +228,7 @@ export function LandingPricing() {
                 {selectedPlan === "monthly" 
                   ? `${selectedPlanName} - Monthly` 
                   : selectedPlan === "yearly" 
-                  ? `${selectedPlanName} - Yearly` 
+                  ? `${selectedPlanName} - 12 Month` 
                   : `${selectedPlanName} - Lifetime`}
               </p>
               <p className="text-sm font-medium text-muted-foreground">

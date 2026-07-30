@@ -125,6 +125,7 @@ export async function PUT(
       name: p.name,
       description: p.description,
       quantity: p.quantity,
+      quantity_str: p.quantity_str || String(p.quantity),
       quantityType: p.quantityType || 'prime',
       price: p.price,
       discount: p.discount || 0,

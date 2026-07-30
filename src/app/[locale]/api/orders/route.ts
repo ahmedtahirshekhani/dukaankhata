@@ -184,6 +184,7 @@ export async function POST(request: Request) {
           name?: string;
           description?: string;
           quantity: number;
+          quantity_str?: string;
           quantityType?: "prime" | "damaged";
           price: number;
           discount?: number;
@@ -222,6 +223,7 @@ export async function POST(request: Request) {
             name: productName,
             description: productDescription,
             quantity: product.quantity,
+            quantity_str: product.quantity_str || String(product.quantity),
             quantityType: product.quantityType || "prime",
             price: product.price,
             discount: product.discount || 0,

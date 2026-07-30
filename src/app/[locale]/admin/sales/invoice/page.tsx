@@ -126,7 +126,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
   const normalizeQuantity = (value: number, fallback = 1) => {
     if (Number.isNaN(value)) return fallback;
-    return Math.max(1, Math.trunc(value));
+    return Math.max(0, value);
   };
 
   useEffect(() => {
@@ -140,7 +140,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
         name: item.name,
         description: item.description,
         quantity: normalizeQuantity(item.quantity ?? 1),
-        quantityInput: String(normalizeQuantity(item.quantity ?? 1)),
+        quantityInput: item.quantity_str || String(normalizeQuantity(item.quantity ?? 1)),
         quantityType: item.quantityType || "prime",
         sell_price: item.price,
         discount: item.discount || 0,
@@ -207,7 +207,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
       quantity:
         rawQuantity.trim() === ""
           ? current.quantity
-          : normalizeQuantity(Number.parseInt(rawQuantity, 10), current.quantity),
+          : normalizeQuantity(Number.parseFloat(rawQuantity), current.quantity),
     };
     setProducts(updated);
   };
@@ -219,8 +219,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
     updated[idx] = {
       ...current,
-      quantityInput: current.quantityInput?.trim()
-        ? String(normalizeQuantity(Number.parseInt(current.quantityInput, 10), current.quantity))
+      quantityInput: current.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(current.quantityInput))
+        ? current.quantityInput
         : String(current.quantity),
     };
     setProducts(updated);
@@ -283,6 +283,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
             name: p.name,
             description: p.description,
             quantity: p.quantity,
+            quantity_str: p.quantityInput || String(p.quantity),
             quantityType: p.quantityType,
             price: p.sell_price,
             discount: p.discount,
@@ -366,6 +367,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
           name: p.name,
           description: p.description,
           quantity: p.quantity,
+          quantity_str: p.quantityInput || String(p.quantity),
           quantityType: p.quantityType || "prime",
           price: p.sell_price,
           discount: p.discount || 0,
@@ -445,10 +447,10 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min="0" step="0.01" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
+                        <Input type="text" inputMode="decimal" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min="1" step="1" inputMode="numeric" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
+                        <Input type="text" inputMode="decimal" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
                         <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
@@ -517,9 +519,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                       <div>
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("price")}</Label>
                         <Input 
-                          type="number" 
-                          min="0"
-                          step="0.01"
+                          type="text" 
+                          inputMode="decimal"
                           value={p.sell_price} 
                           onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} 
                           className="h-8 text-xs" 
@@ -528,10 +529,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                       <div>
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("quantity")}</Label>
                         <Input 
-                          type="number" 
-                          min="1"
-                          step="1"
-                          inputMode="numeric"
+                          type="text" 
+                          inputMode="decimal"
                           value={p.quantityInput ?? String(p.quantity)} 
                           onChange={(e) => handleQuantityChange(idx, e.target.value)} 
                           onBlur={() => handleQuantityBlur(idx)}
@@ -1245,6 +1244,7 @@ export default function OrdersPage() {
             name: item.name,
             description: item.description,
             quantity: item.quantity,
+            quantity_str: (item as any).quantity_str,
             sell_price: item.price,
             unit_of_measurement: item.unit_of_measurement,
             discount: item.discount,
