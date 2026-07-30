@@ -121,7 +121,7 @@ export const appTools = (userId: string) => ({
         phone: z.string().optional().describe("The phone number of the customer. Leave empty if user says 'no phone' or 'phone nahi'."),
         company_name: z.string().optional().describe("The company/business name of the customer. This is DIFFERENT from company_address. Extract from: 'company ka naam', 'dukaan ka naam', 'company name'."),
         company_address: z.string().optional().describe("The physical address of the company/customer. This is DIFFERENT from company_name. Extract from: 'address', 'ghar ka pata', 'location'."),
-        opening_balance: z.union([z.string(), z.number()]).optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them. Pass only the number."),
+        opening_balance: z.string().optional().describe("The opening balance of the customer. Positive means they owe you money, negative means you owe them. Pass only the number."),
       }),
       execute: async (body: any) => {
         try {
@@ -155,7 +155,7 @@ export const appTools = (userId: string) => ({
         phone: z.string().optional().describe("The updated phone number"),
         company_name: z.string().optional().describe("The company/business NAME of the customer. IMPORTANT: This is the company's name (e.g. 'ATF', 'ABC Traders'). It is DIFFERENT from company_address which is a physical location. Use this when user says 'company ka naam change karo' or 'company ATF karo'."),
         company_address: z.string().optional().describe("The physical address or location of the company. DIFFERENT from company_name. Use this when user says 'address change karo' or 'location update karo'."),
-        balance: z.union([z.string(), z.number()]).optional().describe("The updated balance amount (number only)"),
+        balance: z.string().optional().describe("The updated balance amount (number only)"),
       }),
       execute: async ({ customerId, balance, opening_balance, ...body }: any) => {
         try {
@@ -250,12 +250,12 @@ export const appTools = (userId: string) => ({
       description: "Create a new customer transaction (payment received or given).",
       parameters: z.object({
         customerId: z.string().describe("The ID or exact name of the customer"),
-        paymentAmount: z.union([z.string(), z.number()]).optional().describe("The amount of the payment (number only)"),
-        amount: z.union([z.string(), z.number()]).optional().describe("The amount of the payment (number only)"),
+        paymentAmount: z.string().optional().describe("The amount of the payment (number only)"),
+        amount: z.string().optional().describe("The amount of the payment (number only)"),
         paymentMethodId: z.string().describe("The ID of the payment method (or 'cash', 'cheque')"),
         type: z.string().describe("Type of transaction ('payment-in' or 'payment-out')"),
         date: z.string().optional().describe("Date in YYYY-MM-DD format"),
-      }).passthrough(),
+      }),
       execute: async ({ customerId, paymentAmount, type, ...rest }: any) => {
         try {
           const finalAmount = paymentAmount ?? rest.amount;
@@ -353,17 +353,17 @@ export const appTools = (userId: string) => ({
     createProduct: tool({
       description: "Create a new product or service. IMPORTANT RULE: Before calling this tool, you MUST ask the user for all relevant details if they haven't provided them. This includes: name, type (goods/services), selling price, cost price, quantity in stock, category, unit of measurement, and branch. Do not make up values for these. If the user explicitly says they don't know or want to skip, you can proceed with defaults.",
       parameters: z.object({
-        name: z.union([z.string(), z.number()]).optional().describe("The name of the product"),
-        type: z.union([z.string(), z.number()]).optional().describe("The type of product (goods or services)"),
-        sell_price: z.union([z.string(), z.number()]).optional().describe("The selling price of the product (number only)"),
-        cost_price: z.union([z.string(), z.number()]).optional().describe("The cost price of the product (number only)"),
-        sku: z.union([z.string(), z.number()]).optional().describe("The SKU or barcode of the product"),
-        quantity: z.union([z.string(), z.number()]).optional().describe("Current stock quantity (number only)"),
-        category: z.union([z.string(), z.number()]).optional().describe("Product category"),
-        unit_of_measurement: z.union([z.string(), z.number()]).optional().describe("Unit of measurement (e.g. piece, kg, liter, gram, meter, box, pack, dozen)"),
-        branch: z.union([z.string(), z.number()]).optional().describe("Branch name (e.g. Main)"),
-        description: z.union([z.string(), z.number()]).optional().describe("Product description"),
-      }).passthrough(),
+        name: z.string().optional().describe("The name of the product"),
+        type: z.string().optional().describe("The type of product (goods or services)"),
+        sell_price: z.string().optional().describe("The selling price of the product (number only)"),
+        cost_price: z.string().optional().describe("The cost price of the product (number only)"),
+        sku: z.string().optional().describe("The SKU or barcode of the product"),
+        quantity: z.string().optional().describe("Current stock quantity (number only)"),
+        category: z.string().optional().describe("Product category"),
+        unit_of_measurement: z.string().optional().describe("Unit of measurement (e.g. piece, kg, liter, gram, meter, box, pack, dozen)"),
+        branch: z.string().optional().describe("Branch name (e.g. Main)"),
+        description: z.string().optional().describe("Product description"),
+      }),
       execute: async (body: any) => {
         try {
           // Strictly map the payload to ensure consistent DB schema
@@ -404,9 +404,9 @@ export const appTools = (userId: string) => ({
       parameters: z.object({
         productId: z.string().describe("The ID or exact name of the product to update"),
         name: z.string().optional(),
-        sell_price: z.union([z.string(), z.number()]).optional(),
-        cost_price: z.union([z.string(), z.number()]).optional(),
-        quantity: z.union([z.string(), z.number()]).optional(),
+        sell_price: z.string().optional(),
+        cost_price: z.string().optional(),
+        quantity: z.string().optional(),
         category: z.string().optional(),
         unit_of_measurement: z.string().optional(),
         branch: z.string().optional(),
