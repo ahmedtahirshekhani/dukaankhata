@@ -4,6 +4,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Message } from "ai";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,7 @@ function renderHtml(text: string) {
 export function AiChatInterface() {
   const locale = useLocale();
   const t = useTranslations('aiChat');
+  const router = useRouter();
 
   const QUICK_ACTIONS = [
     {
@@ -194,6 +196,14 @@ export function AiChatInterface() {
 
   const chatHelpers = useChat({
     api: `/${locale}/api/chat`,
+    onFinish: () => {
+      import("@/lib/sync/sync-engine").then(({ SyncEngine }) => {
+        SyncEngine.pullInitialData().catch(console.error);
+        
+        // Refresh the Next.js page so data changes (like product updates) show up instantly
+        router.refresh();
+      });
+    },
   }) as any;
 
   const { messages, status, stop, error, sendMessage } = chatHelpers;
