@@ -175,7 +175,7 @@ export default function NewInvoicePage() {
   };
   const normalizeQuantity = (value: number, fallback = 1) => {
     if (Number.isNaN(value)) return fallback;
-    return Math.max(1, Math.trunc(value));
+    return Math.max(0, value);
   };
 
   useEffect(() => {
@@ -249,7 +249,7 @@ export default function NewInvoicePage() {
               quantity:
                 rawQuantity.trim() === ""
                   ? p.quantity
-                  : normalizeQuantity(Number.parseInt(rawQuantity, 10), p.quantity),
+                  : normalizeQuantity(Number.parseFloat(rawQuantity), p.quantity),
             }
           : p,
       ),
@@ -262,8 +262,8 @@ export default function NewInvoicePage() {
         p.id === productId
           ? {
               ...p,
-              quantityInput: p.quantityInput?.trim()
-                ? String(normalizeQuantity(Number.parseInt(p.quantityInput, 10), p.quantity))
+              quantityInput: p.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(p.quantityInput))
+                ? p.quantityInput
                 : String(p.quantity),
             }
           : p,
@@ -594,6 +594,7 @@ export default function NewInvoicePage() {
         name: p.name,
         description: p.description,
         quantity: p.quantity,
+        quantity_str: p.quantityInput || String(p.quantity),
         quantityType: p.quantityType,
         sell_price: p.sell_price,
         unit_of_measurement: p.unit_of_measurement,
@@ -624,6 +625,7 @@ export default function NewInvoicePage() {
           name: p.name,
           description: p.description,
           quantity: p.quantity,
+          quantity_str: p.quantityInput || String(p.quantity),
           quantityType: p.quantityType || "prime",
           price: p.sell_price,
           discount: p.discount || 0,
@@ -677,6 +679,7 @@ export default function NewInvoicePage() {
           name: p.name,
           description: p.description,
           quantity: p.quantity,
+          quantity_str: p.quantityInput || String(p.quantity),
           quantityType: p.quantityType || "prime",
           price: p.sell_price,
           discount: p.discount || 0,
@@ -858,9 +861,8 @@ export default function NewInvoicePage() {
                           {t("currencySymbol")}
                         </span>
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           value={product.sellPriceInput ?? String(product.sell_price)}
                           onChange={(e) =>
                             handleSellPriceChange(product.id, e.target.value)
@@ -877,10 +879,8 @@ export default function NewInvoicePage() {
                     </TableCell>
                     <TableCell>
                       <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        inputMode="numeric"
+                        type="text"
+                        inputMode="decimal"
                         value={product.quantityInput ?? String(product.quantity ?? 1)}
                         onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                         onBlur={() => handleQuantityBlur(product.id)}
@@ -998,9 +998,8 @@ export default function NewInvoicePage() {
                           {t("currencySymbol")}
                         </span>
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           value={product.sellPriceInput ?? String(product.sell_price)}
                           onChange={(e) =>
                             handleSellPriceChange(product.id, e.target.value)
@@ -1021,10 +1020,8 @@ export default function NewInvoicePage() {
                       </p>
                       <div className="flex gap-1">
                         <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          inputMode="numeric"
+                          type="text"
+                          inputMode="decimal"
                           value={product.quantityInput ?? String(product.quantity ?? 1)}
                           onChange={(e) => {
                             handleQuantityChange(product.id, e.target.value);
@@ -1617,6 +1614,7 @@ export default function NewInvoicePage() {
           name: p.name,
           description: p.description,
           quantity: p.quantity,
+          quantity_str: p.quantityInput || String(p.quantity),
           quantityType: p.quantityType,
           sell_price: p.sell_price,
           unit_of_measurement: p.unit_of_measurement,

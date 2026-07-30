@@ -80,7 +80,7 @@ export function LandingPricing() {
             const billingLabel = isLifetime
               ? t("billingLifetime")
               : isYearly
-              ? t("billingYearly")
+              ? "12 Month"
               : t("billingMonthly");
 
             const isCampaignLive = process.env.NEXT_PUBLIC_IS_YEARLY_CAMPAIGN_LIVE === "true";
@@ -228,7 +228,7 @@ export function LandingPricing() {
                 {selectedPlan === "monthly" 
                   ? `${selectedPlanName} - Monthly` 
                   : selectedPlan === "yearly" 
-                  ? `${selectedPlanName} - Yearly` 
+                  ? `${selectedPlanName} - 12 Month` 
                   : `${selectedPlanName} - Lifetime`}
               </p>
               <p className="text-sm font-medium text-muted-foreground">

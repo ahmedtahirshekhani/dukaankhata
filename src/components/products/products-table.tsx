@@ -122,10 +122,10 @@ export function ProductsTable({
                 </TableCell>
 
                 <TableCell className="text-xs">
-                  {product.quantity_str ?? formatQuantity(product.quantity ?? product.in_stock)}
+                  {formatQuantity(product.quantity ?? product.in_stock)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.damaged_quantity_str ?? formatQuantity(product.damaged_quantity)}
+                  {formatQuantity(product.damaged_quantity)}
                 </TableCell>
                 <TableCell className="text-xs">
                   {capitalizeFirstLetter(product.unit_of_measurement)}
@@ -217,13 +217,13 @@ export function ProductsTable({
                   <span className="text-muted-foreground">
                     {quantityLabel}:
                   </span>{" "}
-                  {product.quantity_str ?? formatQuantity(product.quantity ?? product.in_stock)}
+                  {formatQuantity(product.quantity ?? product.in_stock)}
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">
                     {damagedQuantityLabel}:
                   </span>{" "}
-                  {product.damaged_quantity_str ?? formatQuantity(product.damaged_quantity)}
+                  {formatQuantity(product.damaged_quantity)}
                 </p>
               </div>
 

@@ -14,6 +14,7 @@ export interface InvoiceProduct {
   name: string;
   description?: string;
   quantity: number;
+  quantity_str?: string;
   quantityType?: "prime" | "damaged";
   sell_price: number;
   unit_of_measurement?: string;
@@ -585,7 +586,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         {product.quantityType === "damaged" && (
                           <span style={{ fontSize: "10px", color: "#94a3b8" }}>(dmg) </span>
                         )}
-                        {product.quantity}
+                        {product.quantity_str || (product as any).quantityInput || product.quantity}
                       </td>
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>

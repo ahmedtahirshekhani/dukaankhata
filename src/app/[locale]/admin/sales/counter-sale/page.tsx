@@ -128,6 +128,15 @@ function formatDateDMY(dateInput?: Date | string) {
 export default function CounterSale() {
   const t = useTranslations("counterSale");
   const tCommon = useTranslations("common");
+
+  const formatQuantity = (val: number | string | undefined | null) => {
+    if (val === undefined || val === null || val === "") return "-";
+    const num = Number(val);
+    if (isNaN(num)) return "-";
+    if (Number.isInteger(num)) return num.toString();
+    if (typeof val === 'string' && val.includes('.')) return val;
+    return num.toFixed(3);
+  };
   const { can } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const rawProducts = useOfflineProducts();
@@ -238,12 +247,11 @@ export default function CounterSale() {
     if (name === "created_at") {
       setNewTransaction((prev) => ({ ...prev, [name]: dateInputToIso(value) }));
     } else if (name === "unitPrice" || name === "quantity") {
-      const numValue = parseFloat(value) || 0;
       setNewTransaction((prev) => {
-        const updated = { ...prev, [name]: numValue };
+        const updated = { ...prev, [name]: value };
         // Auto-calculate amount
-        const price = name === "unitPrice" ? numValue : prev.unitPrice || 0;
-        const qty = name === "quantity" ? numValue : prev.quantity || 0;
+        const price = name === "unitPrice" ? (parseFloat(value) || 0) : (parseFloat(String(prev.unitPrice)) || 0);
+        const qty = name === "quantity" ? (parseFloat(value) || 0) : (parseFloat(String(prev.quantity)) || 0);
         updated.amount = price * qty;
         return updated;
       });
@@ -265,12 +273,11 @@ export default function CounterSale() {
     if (name === "created_at") {
       setEditFormData((prev) => ({ ...prev, [name]: dateInputToIso(value) }));
     } else if (name === "unitPrice" || name === "quantity") {
-      const numValue = parseFloat(value) || 0;
       setEditFormData((prev) => {
-        const updated = { ...prev, [name]: numValue };
+        const updated = { ...prev, [name]: value };
         // Auto-calculate amount
-        const price = name === "unitPrice" ? numValue : prev.unitPrice || 0;
-        const qty = name === "quantity" ? numValue : prev.quantity || 0;
+        const price = name === "unitPrice" ? (parseFloat(value) || 0) : (parseFloat(String(prev.unitPrice)) || 0);
+        const qty = name === "quantity" ? (parseFloat(value) || 0) : (parseFloat(String(prev.quantity)) || 0);
         updated.amount = price * qty;
         return updated;
       });
@@ -395,7 +402,30 @@ export default function CounterSale() {
 
     try {
       const transactionToUpdate = { ...editFormData };
+      const oldTransaction = await db.transactions.get(String(id));
       await db.transactions.update(String(id), transactionToUpdate);
+      
+      // Stock adjustment
+      if (oldTransaction && transactionToUpdate.productId) {
+        const prodIdStr = String(transactionToUpdate.productId);
+        if (prodIdStr !== "0") {
+          const product = await db.products.get(prodIdStr);
+          if (product) {
+            let currentStock = product.quantity || 0;
+            
+            // Revert old transaction effect
+            if (oldTransaction.type === "income") currentStock += (Number(oldTransaction.quantity) || 0);
+            else currentStock -= (Number(oldTransaction.quantity) || 0);
+            
+            // Apply new transaction effect
+            if (transactionToUpdate.type === "income") currentStock -= (Number(transactionToUpdate.quantity) || 0);
+            else currentStock += (Number(transactionToUpdate.quantity) || 0);
+            
+            await db.products.update(prodIdStr, { quantity: currentStock });
+          }
+        }
+      }
+
       await SyncEngine.queueOperation(
         "transactions",
         "PUT",
@@ -472,6 +502,23 @@ export default function CounterSale() {
       };
 
       await db.transactions.add(transactionToAdd);
+
+      // Stock adjustment
+      if (transactionToAdd.productId && transactionToAdd.quantity) {
+        const prodIdStr = String(transactionToAdd.productId);
+        if (prodIdStr !== "0") {
+          const product = await db.products.get(prodIdStr);
+          if (product) {
+            const qtyNum = Number(transactionToAdd.quantity) || 0;
+            const newStock = transactionToAdd.type === "income" 
+              ? (product.quantity || 0) - qtyNum
+              : (product.quantity || 0) + qtyNum;
+            
+            await db.products.update(prodIdStr, { quantity: newStock });
+          }
+        }
+      }
+
       await SyncEngine.queueOperation(
         "transactions",
         "POST",
@@ -774,6 +821,23 @@ export default function CounterSale() {
 
     try {
       await db.transactions.delete(String(idToDelete));
+
+      // Revert stock
+      if (transactionToDelete.productId && transactionToDelete.quantity) {
+        const prodIdStr = String(transactionToDelete.productId);
+        if (prodIdStr !== "0") {
+          const product = await db.products.get(prodIdStr);
+          if (product) {
+            const qtyNum = Number(transactionToDelete.quantity) || 0;
+            const newStock = transactionToDelete.type === "income" 
+              ? (product.quantity || 0) + qtyNum
+              : (product.quantity || 0) - qtyNum;
+            
+            await db.products.update(prodIdStr, { quantity: newStock });
+          }
+        }
+      }
+
       await SyncEngine.queueOperation(
         "transactions",
         "DELETE",
@@ -1461,7 +1525,8 @@ export default function CounterSale() {
                           <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
                             <Input
                               name="quantity"
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={newTransaction.quantity || ""}
                               onChange={handleInputChange}
                               placeholder={t("qty")}
@@ -1625,7 +1690,8 @@ export default function CounterSale() {
                                 <TableCell className="w-16 px-2 sm:px-4 overflow-hidden">
                                   <Input
                                     name="quantity"
-                                    type="number"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={editFormData.quantity || ""}
                                     onChange={handleEditInputChange}
                                     placeholder={t("qty")}
@@ -1761,7 +1827,7 @@ export default function CounterSale() {
                                     {transaction.uom}
                                   </TableCell>
                                   <TableCell className="w-16 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
-                                    {transaction.quantity}
+                                    {formatQuantity(transaction.quantity)}
                                   </TableCell>
                                   <TableCell className="w-28 text-xs sm:text-sm px-2 sm:px-4 whitespace-nowrap">
                                     Rs. {Math.floor(transaction.amount)}
@@ -2005,7 +2071,8 @@ export default function CounterSale() {
                             <Label className="text-xs font-medium">{t("qty")}</Label>
                             <Input
                               name="quantity"
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={editFormData.quantity || ""}
                               onChange={handleEditInputChange}
                               placeholder={t("qty")}
@@ -2133,7 +2200,7 @@ export default function CounterSale() {
                             </span>
                             <span>
                               <span className="text-muted-foreground">{t("qty")}: </span>
-                              <span className="font-medium text-foreground">{transaction.quantity ?? 0}</span>
+                              <span className="font-medium text-foreground">{formatQuantity(transaction.quantity)}</span>
                             </span>
                           </div>
 
@@ -2326,7 +2393,8 @@ export default function CounterSale() {
                 </label>
                 <Input
                   name="quantity"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={newTransaction.quantity || ""}
                   onChange={handleInputChange}
                   placeholder={t("qty")}
