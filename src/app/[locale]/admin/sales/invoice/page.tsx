@@ -126,7 +126,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
   const normalizeQuantity = (value: number, fallback = 1) => {
     if (Number.isNaN(value)) return fallback;
-    return Math.max(1, Math.trunc(value));
+    return Math.max(0, value);
   };
 
   useEffect(() => {
