@@ -3,6 +3,7 @@
 import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser() as { id: string } | null
@@ -10,6 +11,8 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const authCheck = await requirePermission("products.view");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
@@ -67,6 +70,8 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const authCheck = await requirePermission("products.create");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const newProduct = await request.json();
   const now = new Date();

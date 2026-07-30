@@ -55,6 +55,7 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type Customer = {
   id: string;
@@ -144,6 +145,7 @@ export default function SaleReturnPage() {
   const locale = useLocale();
   const t = useTranslations("saleReturn");
   const tCommon = useTranslations("common");
+  const { can } = usePermissions();
 
   // Customers will be derived from useOfflineCustomers
   const rawProducts = useOfflineProducts() || [];
@@ -848,102 +850,102 @@ export default function SaleReturnPage() {
   }
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("pageDescription")}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t("pageDescription")}</p>
+        </div>
+        {can("sales", "create_sale_return") && (
+          <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 shrink-0">
+            <PlusCircle className="w-3.5 h-3.5 mr-1" />
+            <span>{t("addSaleReturn")}</span>
+          </Button>
+        )}
       </div>
-      <Card className="flex flex-col gap-6 p-6 shadow-sm overflow-hidden">
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md overflow-hidden">
         <CardHeader className="p-0">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-              <div className="relative w-full sm:w-64">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder") || "Search transactions..."}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-9 h-9 text-sm w-full"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-              <DropdownMenu onOpenChange={(open) => {
-                if (open) setFilterCustomerPage(1);
-              }}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 shrink-0">
-                    <FilterIcon className="h-4 w-4" />
-                    <span>{tCommon("filter")}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-56 max-h-80 overflow-y-auto"
-                  onScroll={(e) => {
-                    const target = e.currentTarget;
-                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
-                      if (hasMoreFilterCustomers) {
-                        setFilterCustomerPage(prev => prev + 1);
-                      }
-                    }
-                  }}
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder") || "Search transactions..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.paymentMethod === "all"}
-                    onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: "all" }))}
-                  >
-                    {t("allPaymentMethods")}
-                  </DropdownMenuCheckboxItem>
-                  {paymentMethods.map((pm) => (
-                    <DropdownMenuCheckboxItem
-                      key={pm.id}
-                      checked={filters.paymentMethod === pm.id}
-                      onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: pm.id }))}
-                    >
-                      {pm.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.customer === "all"}
-                    onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: "all" }))}
-                  >
-                    {t("allCustomers")}
-                  </DropdownMenuCheckboxItem>
-                  {displayCustomers.map((c) => (
-                    <DropdownMenuCheckboxItem
-                      key={c.id}
-                      checked={filters.customer === c.id}
-                      onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: c.id }))}
-                    >
-                      {c.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  {hasMoreFilterCustomers && (
-                    <div className="flex justify-center p-2">
-                      <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            </div>
-            <Button size="sm" onClick={openAddDialog} className="h-9 text-xs px-3 flex-shrink-0 w-full md:w-auto">
-              <PlusCircle className="w-3 h-3 mr-1" />
-              <span>{t("addSaleReturn")}</span>
-            </Button>
+            <DropdownMenu onOpenChange={(open) => {
+              if (open) setFilterCustomerPage(1);
+            }}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3 text-xs shrink-0">
+                  <FilterIcon className="h-3.5 w-3.5" />
+                  <span>{tCommon("filter")}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 max-h-80 overflow-y-auto"
+                onScroll={(e) => {
+                  const target = e.currentTarget;
+                  if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                    if (hasMoreFilterCustomers) {
+                      setFilterCustomerPage(prev => prev + 1);
+                    }
+                  }
+                }}
+              >
+                <DropdownMenuLabel>{t("filterByPaymentMethod")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={filters.paymentMethod === "all"}
+                  onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: "all" }))}
+                >
+                  {t("allPaymentMethods")}
+                </DropdownMenuCheckboxItem>
+                {paymentMethods.map((pm) => (
+                  <DropdownMenuCheckboxItem
+                    key={pm.id}
+                    checked={filters.paymentMethod === pm.id}
+                    onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, paymentMethod: pm.id }))}
+                  >
+                    {pm.name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t("filterByCustomer")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={filters.customer === "all"}
+                  onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: "all" }))}
+                >
+                  {t("allCustomers")}
+                </DropdownMenuCheckboxItem>
+                {displayCustomers.map((c) => (
+                  <DropdownMenuCheckboxItem
+                    key={c.id}
+                    checked={filters.customer === c.id}
+                    onCheckedChange={(checked) => checked && setFilters(f => ({ ...f, customer: c.id }))}
+                  >
+                    {c.name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                {hasMoreFilterCustomers && (
+                  <div className="flex justify-center p-2">
+                    <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
@@ -998,25 +1000,29 @@ export default function SaleReturnPage() {
                       <TableCell>Rs. {item.balanceDue?.toFixed(2)}</TableCell>
                       <TableCell className="text-right pr-4">
                         <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={() => openEditDialog(item)}
-                          >
-                            <FilePenIcon className="h-4 w-4" />
-                          </Button>
+                          {can("sales", "edit_sale_return") && (
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <FilePenIcon className="h-4 w-4" />
+                            </Button>
+                          )}
 
-                          <Button
-                            size="icon"
-                            variant="danger"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setTransactionToDelete(item);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {can("sales", "delete_sale_return") && (
+                            <Button
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setTransactionToDelete(item);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1027,7 +1033,7 @@ export default function SaleReturnPage() {
           </div>
 
           {/* Mobile Cards View */}
-          <div className="block md:hidden space-y-3 p-4">
+          <div className="block md:hidden space-y-3">
             {transactions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
                 <SearchIcon className="h-10 w-10 opacity-20" />
@@ -1043,11 +1049,11 @@ export default function SaleReturnPage() {
                 <SaleReturnCard
                   key={item.id}
                   transaction={item}
-                  onEdit={() => openEditDialog(item)}
-                  onDelete={() => {
+                  onEdit={can("sales", "edit_sale_return") ? () => openEditDialog(item) : undefined}
+                  onDelete={can("sales", "delete_sale_return") ? () => {
                     setTransactionToDelete(item);
                     setShowDeleteDialog(true);
-                  }}
+                  } : undefined}
                   t={t}
                   tCommon={tCommon}
                 />
@@ -1185,57 +1191,78 @@ function SaleReturnCard({
   tCommon,
 }: {
   transaction: SaleReturnTransaction;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   t: (key: string) => string;
   tCommon: (key: string) => string;
 }) {
+  const tOrders = useTranslations("orders");
+
   return (
-    <div className="bg-card border rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-base truncate max-w-[60%]">
-          {transaction.returnNumber || "-"}
+    <div className="bg-card border rounded-lg p-3.5 shadow-sm">
+      <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+        <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[65%]">
+          {transaction.customerName || "-"}
         </h3>
-        <div className="flex gap-1">
-          <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8">
-            <FilePenIcon className="w-4 h-4" />
-            <span className="sr-only">{tCommon("edit")}</span>
-          </Button>
-           <Button size="icon" variant="danger" onClick={onDelete} className="h-8 w-8">
-            <Trash2 className="w-4 h-4" />
-            <span className="sr-only">{tCommon("delete")}</span>
-          </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          {onEdit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+            >
+              <FilePenIcon className="w-4 h-4 text-sky-500" />
+              <span className="sr-only">{tCommon("edit")}</span>
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span className="sr-only">{tCommon("delete")}</span>
+            </Button>
+          )}
         </div>
       </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("customer")}:</span>
-          <span>{transaction.customerName || "-"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("date")}:</span>
+      <div className="space-y-2 text-xs sm:text-sm">
+        {/* Row 1: ID number & Date without 'ID:' and 'Date:' text in theme grey */}
+        <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
+          <span>{transaction.returnNumber || transaction.id || "-"}</span>
           <span>{transaction.date || "-"}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("totalAmount")}:</span>
-          <span>Rs. {transaction.totalAmount?.toFixed(2)}</span>
+
+        {/* Row 2: Total & Paid without 'Amount' text */}
+        <div className="flex justify-between items-center text-xs">
+          <span>
+            <span className="text-muted-foreground">{tOrders("total") || "Total"}: </span>
+            <span className="font-semibold text-foreground">Rs. {Math.round(transaction.totalAmount || 0)}</span>
+          </span>
+          <span>
+            <span className="text-muted-foreground">{tOrders("paid") || "Paid"}: </span>
+            <span className="font-semibold text-foreground">Rs. {Math.round(transaction.paidAmount || 0)}</span>
+          </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("paidAmount")}:</span>
-          <span>Rs. {transaction.paidAmount?.toFixed(2)}</span>
+
+        {/* Row 3: Balance & Method without 'Due' text */}
+        <div className="flex justify-between items-center text-xs">
+          <span>
+            <span className="text-muted-foreground">{tOrders("balance") || "Balance"}: </span>
+            <span className="font-semibold text-foreground">Rs. {Math.round(transaction.balanceDue || 0)}</span>
+          </span>
+          <span>
+            <span className="text-muted-foreground">Method: </span>
+            <span className="font-medium text-foreground">{transaction.paymentMethodName || "-"}</span>
+          </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("balanceDue")}:</span>
-          <span>Rs. {transaction.balanceDue?.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("paymentMethod")}:</span>
-          <span>{transaction.paymentMethodName || "-"}</span>
-        </div>
+
         {transaction.invoiceNo && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("invoiceNo")}:</span>
-            <span>{transaction.invoiceNo}</span>
+          <div className="flex justify-between items-center text-xs text-muted-foreground pt-0.5">
+            <span>{t("invoiceNo")}: {transaction.invoiceNo}</span>
           </div>
         )}
       </div>

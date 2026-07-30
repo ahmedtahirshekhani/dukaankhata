@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export type QuotationStatus = "open" | "converted" | "expired" | "cancelled";
 
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.view_quotations");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -126,6 +130,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.create_quotations");
+    if (!authCheck.allowed) return authCheck.response!;
     
     const data = await request.json();
 

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,9 @@ export async function POST(
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.view_quotations");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { id } = await params;
     const { design_id = 1 } = await request.json();

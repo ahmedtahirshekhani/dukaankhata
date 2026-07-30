@@ -1,6 +1,7 @@
 import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
   try {
@@ -8,6 +9,9 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("settings.view");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const categoriesCollection = await getCollection(COLLECTIONS.CATEGORIES);
     const categories = await categoriesCollection
@@ -33,6 +37,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("settings.edit");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await request.json();
     const { name } = body;

@@ -2,6 +2,7 @@
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated, updateUserLastActivity } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
+import { requirePermission } from '@/lib/auth/rbac';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { setDateToCurrentTime } from '@/lib/utils';
 
@@ -68,6 +69,9 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const authCheck = await requirePermission("sales.edit_invoice");
+  if (!authCheck.allowed) return authCheck.response!;
+
   const orderId = params.orderId;
   if (!isValidObjectId(orderId)) {
     return NextResponse.json({ error: 'Invalid order ID' }, { status: 400 });
@@ -121,6 +125,7 @@ export async function PUT(
       name: p.name,
       description: p.description,
       quantity: p.quantity,
+      quantity_str: p.quantity_str || String(p.quantity),
       quantityType: p.quantityType || 'prime',
       price: p.price,
       discount: p.discount || 0,
@@ -266,6 +271,9 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const authCheck = await requirePermission("sales.delete_invoice");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const orderId = params.orderId;
   if (!isValidObjectId(orderId)) {

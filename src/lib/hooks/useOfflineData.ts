@@ -593,3 +593,123 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
       });
   }, [searchQuery]);
 }
+
+export function useOfflineRoles(searchQuery: string = "") {
+  return useSafeLiveQuery(async () => {
+    const roles = await db.roles
+      .filter((role) => {
+        if (searchQuery) {
+          const lowerSearch = searchQuery.toLowerCase();
+          return Boolean(role.name?.toLowerCase().includes(lowerSearch));
+        }
+        return true;
+      })
+      .toArray();
+      
+    const rolePermissions = await db.role_permissions.toArray();
+    const permissions = await db.permissions.toArray();
+
+    return roles.map(role => {
+      const roleId = role.id || role._id;
+      let perms: string[] = [];
+
+      // If permissions were saved directly to the role object offline
+      if (role.permissions && Array.isArray(role.permissions)) {
+        perms = role.permissions;
+      } else {
+        const myPerms = rolePermissions.filter(rp => 
+          String(rp.role_id) === String(roleId) || String(rp.role_id) === String(role._id)
+        );
+        perms = myPerms.map(rp => {
+          const p = permissions.find(ap => 
+            String(ap.id) === String(rp.permission_id) || String(ap._id) === String(rp.permission_id)
+          );
+          return p ? `${p.module_code}.${p.action}` : null;
+        }).filter(Boolean) as string[];
+      }
+
+      return {
+        ...role,
+        permissions: perms
+      };
+    });
+  }, [searchQuery]);
+}
+
+export function useOfflineModules() {
+  return useSafeLiveQuery(async () => {
+    const modules = await db.modules.toArray();
+    const permissions = await db.permissions.toArray();
+
+    return modules.filter(mod => mod.isActive !== false).map(mod => {
+      const actions = permissions
+        .filter(p => p.module_code === mod.code && p.isActive !== false)
+        .map(p => p.action);
+        
+      return {
+        ...mod,
+        actions
+      };
+    });
+  });
+}
+
+export function useOfflinePermissions() {
+  return useSafeLiveQuery(() => db.permissions.toArray());
+}
+
+export function useOfflineStaff(searchQuery: string = "") {
+  return useSafeLiveQuery(async () => {
+    const users = await db.users.toArray();
+    const userRoles = await db.user_roles.toArray();
+    const roles = await db.roles.toArray();
+
+    // Map role names to users based on user_roles
+    return users
+      .filter(user => {
+        // Must be staff (has a role mapping, or legacy role="staff")
+        const myRoles = userRoles.filter(ur => (String(ur.user_id) === String(user.id) || String(ur.user_id) === String(user._id)));
+        const isStaff = myRoles.length > 0 || user.role === "staff";
+        if (!isStaff) return false;
+
+        if (searchQuery) {
+          const lowerSearch = searchQuery.toLowerCase();
+          return Boolean(
+            user.name?.toLowerCase().includes(lowerSearch) ||
+            user.email?.toLowerCase().includes(lowerSearch) ||
+            user.phone?.includes(searchQuery)
+          );
+        }
+        return true;
+      })
+      .map(user => {
+        // Find user role mappings
+        const myRoles = userRoles.filter(ur => (String(ur.user_id) === String(user.id) || String(ur.user_id) === String(user._id)));
+        const firstRoleMapping = myRoles[0];
+        
+        let roleName = "Unknown";
+        let roleId = firstRoleMapping?.role_id || null;
+
+        if (firstRoleMapping) {
+          const roleObj = roles.find(r => (String(r.id) === String(firstRoleMapping.role_id) || String(r._id) === String(firstRoleMapping.role_id)));
+          if (roleObj) {
+            roleName = roleObj.name;
+          }
+        }
+        
+        return {
+          ...user,
+          role_id: roleId,
+          role_name: roleName,
+          roles: myRoles.map(ur => {
+            const r = roles.find(r => (String(r.id) === String(ur.role_id) || String(r._id) === String(ur.role_id)));
+            return r ? r.name : "Unknown";
+          }),
+          roleData: myRoles.map(ur => {
+             const r = roles.find(rl => (String(rl.id) === String(ur.role_id) || String(rl._id) === String(ur.role_id)));
+             return r || null;
+          }).filter(Boolean)
+        };
+      });
+  }, [searchQuery]);
+}

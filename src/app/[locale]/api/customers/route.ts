@@ -3,6 +3,7 @@
 import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import { seedCustomerOpeningBalance } from "@/lib/ledger/customer-ledger";
 
 export async function GET(request: Request) {
@@ -11,6 +12,8 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const authCheck = await requirePermission("customers.view");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
@@ -88,6 +91,8 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const authCheck = await requirePermission("customers.create");
+    if (!authCheck.allowed) return authCheck.response!;
 
     let newCustomer = await request.json();
 

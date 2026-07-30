@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
 
@@ -22,6 +23,9 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  
+  const authCheck = await requirePermission("sales.view_invoice");
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
@@ -108,6 +112,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const authCheck = await requirePermission("sales.create_invoice");
+  if (!authCheck.allowed) return authCheck.response!;
+
   const {
     customerId,
     paymentMethodId,
@@ -177,6 +184,7 @@ export async function POST(request: Request) {
           name?: string;
           description?: string;
           quantity: number;
+          quantity_str?: string;
           quantityType?: "prime" | "damaged";
           price: number;
           discount?: number;
@@ -215,6 +223,7 @@ export async function POST(request: Request) {
             name: productName,
             description: productDescription,
             quantity: product.quantity,
+            quantity_str: product.quantity_str || String(product.quantity),
             quantityType: product.quantityType || "prime",
             price: product.price,
             discount: product.discount || 0,

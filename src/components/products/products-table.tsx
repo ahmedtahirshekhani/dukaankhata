@@ -22,6 +22,8 @@ interface ProductsTableProps {
   onDelete: (product: Product) => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
   isLoading?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function ProductsTable({
@@ -30,6 +32,8 @@ export function ProductsTable({
   onDelete,
   capitalizeFirstLetter,
   isLoading = false,
+  canEdit = true,
+  canDelete = true,
 }: ProductsTableProps) {
   const t = useTranslations("products");
   const nameLabel = t("name");
@@ -53,6 +57,27 @@ export function ProductsTable({
   const truncateDescription = (desc?: string, limit = 100) => {
     if (!desc) return "";
     return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
+  };
+
+  const formatQuantity = (val: number | string | undefined | null) => {
+    if (val === undefined || val === null || val === "") return "-";
+    const num = Number(val);
+    if (isNaN(num)) return "-";
+    if (Number.isInteger(num)) return num.toString();
+    // Return up to 3 decimal places without unnecessary zeros if it exceeds it, but wait!
+    // If they typed 45.50, it is 45.5 in DB. We format to 3 decimals.
+    // 45.5 -> 45.500
+    // But what if it's a price? For price, 2 decimals is standard.
+    // The user specifically complained about quantity: "teen decimal places jao"
+    return num.toFixed(3);
+  };
+
+  const formatPrice = (val: number | string | undefined | null) => {
+    if (val === undefined || val === null || val === "") return "-";
+    const num = Number(val);
+    if (isNaN(num)) return "-";
+    if (Number.isInteger(num)) return `Rs. ${num}`;
+    return `Rs. ${num.toFixed(2)}`;
   };
 
   return (
@@ -90,26 +115,17 @@ export function ProductsTable({
                   </div>
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.sell_price !== undefined &&
-                  product.sell_price !== null
-                    ? `Rs. ${Math.floor(product.sell_price)}`
-                    : "-"}
+                  {product.sell_price_str ? `Rs. ${product.sell_price_str}` : formatPrice(product.sell_price)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.cost_price !== undefined &&
-                  product.cost_price !== null
-                    ? `Rs. ${Math.floor(product.cost_price)}`
-                    : "-"}
+                  {product.cost_price_str ? `Rs. ${product.cost_price_str}` : formatPrice(product.cost_price)}
                 </TableCell>
 
                 <TableCell className="text-xs">
-                  {product.quantity || product.in_stock || "-"}
+                  {formatQuantity(product.quantity ?? product.in_stock)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.damaged_quantity !== undefined &&
-                  product.damaged_quantity !== null
-                    ? product.damaged_quantity
-                    : "-"}
+                  {formatQuantity(product.damaged_quantity)}
                 </TableCell>
                 <TableCell className="text-xs">
                   {capitalizeFirstLetter(product.unit_of_measurement)}
@@ -125,23 +141,27 @@ export function ProductsTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => onEdit(product)}
-                    >
-                      <FilePenIcon className="w-4 h-4" />
-                      <span className="sr-only">{editLabel}</span>
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="danger"
-                      className="h-8 w-8"
-                      onClick={() => onDelete(product)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span className="sr-only">{deleteLabel}</span>
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => onEdit(product)}
+                      >
+                        <FilePenIcon className="w-4 h-4" />
+                        <span className="sr-only">{editLabel}</span>
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        size="icon"
+                        variant="danger"
+                        className="h-8 w-8"
+                        onClick={() => onDelete(product)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sr-only">{deleteLabel}</span>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -157,26 +177,57 @@ export function ProductsTable({
             <div className="flex justify-between items-center mb-3 gap-2">
               <h3 className="font-semibold text-sm truncate">{product.name}</h3>
               <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onEdit(product)}
-                  className="h-8 w-8"
-                >
-                  <FilePenIcon className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onDelete(product)}
-                  className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {canEdit && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onEdit(product)}
+                    className="h-8 w-8"
+                  >
+                    <FilePenIcon className="w-4 h-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onDelete(product)}
+                    className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <p className="text-sm">
+                  <span className="text-muted-foreground">
+                    {sellPriceLabel}:
+                  </span>{" "}
+                  {product.sell_price_str ? `Rs. ${product.sell_price_str}` : formatPrice(product.sell_price)}
+                </p>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">
+                    {costPriceLabel}:
+                  </span>{" "}
+                  {product.cost_price_str ? `Rs. ${product.cost_price_str}` : formatPrice(product.cost_price)}
+                </p>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">
+                    {quantityLabel}:
+                  </span>{" "}
+                  {formatQuantity(product.quantity ?? product.in_stock)}
+                </p>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">
+                    {damagedQuantityLabel}:
+                  </span>{" "}
+                  {formatQuantity(product.damaged_quantity)}
+                </p>
+              </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs mt-3">
               <div>
                 <span className="text-muted-foreground">{typeLabel}:</span>
                 <span className="ml-1 font-medium">
@@ -189,55 +240,6 @@ export function ProductsTable({
                   {capitalizeFirstLetter(product.category)}
                 </span>
               </div>
-
-              {product.sell_price !== undefined &&
-                product.sell_price !== null && (
-                  <div>
-                    <span className="text-muted-foreground">
-                      {sellPriceLabel}:
-                    </span>
-                    <span className="ml-1 font-medium">
-                      Rs. {Math.floor(product.sell_price)}
-                    </span>
-                  </div>
-                )}
-
-              {product.cost_price !== undefined &&
-                product.cost_price !== null && (
-                  <div>
-                    <span className="text-muted-foreground">
-                      {costPriceLabel}:
-                    </span>
-                    <span className="ml-1 font-medium">
-                      Rs. {Math.floor(product.cost_price)}
-                    </span>
-                  </div>
-                )}
-
-              {(product.quantity || product.in_stock) && (
-                <div>
-                  <span className="text-muted-foreground">
-                    {quantityLabel}:
-                  </span>
-                  <span className="ml-1 font-medium">
-                    {product.quantity || product.in_stock}{" "}
-                    {capitalizeFirstLetter(product.unit_of_measurement)}
-                  </span>
-                </div>
-              )}
-
-              {product.damaged_quantity !== undefined &&
-                product.damaged_quantity !== null && (
-                  <div>
-                    <span className="text-muted-foreground">
-                      {damagedQuantityLabel}:
-                    </span>
-                    <span className="ml-1 font-medium">
-                      {product.damaged_quantity}
-                    </span>
-                  </div>
-                )}
-
               {product.branch && (
                 <div>
                   <span className="text-muted-foreground">{branchLabel}:</span>

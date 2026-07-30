@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
@@ -15,6 +16,13 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const authCheck = await requireAnyPermission([
+    "sales.view_payment_in", 
+    "purchase.view_payment_out", 
+    "expenses.view"
+  ]);
+  if (!authCheck.allowed) return authCheck.response!;
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
@@ -101,6 +109,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const authCheck = await requireAnyPermission([
+    "sales.create_payment_in", 
+    "purchase.create_payment_out", 
+    "expenses.create"
+  ]);
+  if (!authCheck.allowed) return authCheck.response!;
+
   const newTransaction = await request.json();
   const now = new Date();
 
@@ -125,6 +140,33 @@ export async function POST(request: Request) {
       { error: "Failed to create transaction" },
       { status: 500 },
     );
+  }
+
+  // Handle stock deduction for counter sale
+  if (newTransaction.productId && newTransaction.productId !== "0" && newTransaction.quantity) {
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const prodIdStr = String(newTransaction.productId);
+    if (prodIdStr.match(/^[0-9a-fA-F]{24}$/)) {
+      const qtyNum = Number(newTransaction.quantity) || 0;
+      const incVal = newTransaction.type === "income" ? -qtyNum : qtyNum;
+      if (incVal !== 0) {
+        const product = await productsCollection.findOne({ _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) });
+        if (product) {
+          const currentQty = Number(product.quantity) || 0;
+          const newQty = currentQty + incVal;
+          await productsCollection.updateOne(
+            { _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) },
+            { 
+              $set: { 
+                quantity: newQty,
+                quantity_str: newQty.toString(),
+                updated_at: new Date()
+              }
+            }
+          );
+        }
+      }
+    }
   }
 
   // ✅ Update user's last activity

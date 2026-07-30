@@ -9,6 +9,8 @@ export interface UserProfile {
   name?: string;
   company?: string;
   image?: string | null;
+  workspaces?: any[];
+  active_workspace_id?: string;
 }
 
 export function useUserProfile() {
@@ -26,6 +28,8 @@ export function useUserProfile() {
           name: session.user.name || undefined,
           company: (session.user as any).company || undefined,
           image: session.user.image || null,
+          workspaces: (session.user as any).workspaces || [],
+          active_workspace_id: (session.user as any).active_workspace_id || session.user.id,
         }
       : null;
 
@@ -86,5 +90,7 @@ export function useUserProfile() {
     isAuthenticated,
     refreshSession,
     status,
+    updateSession: update,
+    session,
   };
 }

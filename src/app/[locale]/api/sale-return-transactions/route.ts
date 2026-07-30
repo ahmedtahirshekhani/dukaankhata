@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
 import { setDateToCurrentTime } from "@/lib/utils";
+import { requirePermission } from "@/lib/auth/rbac";
 
 type SaleReturnItem = {
   id: string;
@@ -58,6 +59,9 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.view_sale_return");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -178,6 +182,9 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const authCheck = await requirePermission("sales.create_sale_return");
+    if (!authCheck.allowed) return authCheck.response!;
 
     const body = await req.json();
     const customerId = body?.customerId ?? body?.customer_id ?? "";

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
+import { hasModuleAccess, requireAnyPermission } from "@/lib/auth/rbac";
 
 interface DashboardData {
   totalBalance: number;
@@ -48,6 +49,15 @@ export async function GET(): Promise<NextResponse> {
     if (!user?.id || typeof user.id !== "string" || user.id.length !== 24) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
+
+    const authCheck = await requireAnyPermission([
+      "sales.view_invoice", 
+      "purchase.view_purchase_bill", 
+      "expenses.view", 
+      "customers.view", 
+      "reports.view"
+    ]);
+    if (!authCheck.allowed) return authCheck.response!;
 
     const userId = toObjectId(user.id);
     const [ordersCollection, saleReturnCollection, purchaseBillsCollection, expensesCollection, partiesCollection] = await Promise.all([
@@ -122,12 +132,17 @@ export async function GET(): Promise<NextResponse> {
       0,
     );
 
+    const canViewSales = await hasModuleAccess("sales");
+    const canViewPurchases = await hasModuleAccess("purchase");
+    const canViewExpenses = await hasModuleAccess("expenses");
+    const canViewCustomers = await hasModuleAccess("customers");
+
     const dashboardData: DashboardData = {
-      totalBalance: Math.round(totalBalance * 100) / 100,
-      totalPayable: Math.round(totalPayable * 100) / 100,
-      totalRevenue: Math.round(currentMonthSales * 100) / 100,
-      totalPurchases: Math.round(totalPurchases * 100) / 100,
-      totalExpenses: Math.round(currentMonthExpensesTotal * 100) / 100,
+      totalBalance: canViewCustomers ? Math.round(totalBalance * 100) / 100 : 0,
+      totalPayable: canViewCustomers ? Math.round(totalPayable * 100) / 100 : 0,
+      totalRevenue: canViewSales ? Math.round(currentMonthSales * 100) / 100 : 0,
+      totalPurchases: canViewPurchases ? Math.round(totalPurchases * 100) / 100 : 0,
+      totalExpenses: canViewExpenses ? Math.round(currentMonthExpensesTotal * 100) / 100 : 0,
       totalProfit: 0,
       profitMargin: 0,
       avgDailyRevenue: 0,

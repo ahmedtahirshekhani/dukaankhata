@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { usePermissions } from "@/hooks/use-permissions";
 
 export interface PaymentMethodItem {
   id: string;
@@ -44,6 +45,9 @@ interface PaymentMethodSectionProps {
 export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
   const t = useTranslations('configurationPage');
   const tCommon = useTranslations('common');
+  const { can } = usePermissions();
+  const canEdit = can("payment_methods", "edit");
+  const canCreate = can("payment_methods", "create");
 
   const offlineMethods = useOfflinePaymentMethods();
   const isLoadingMethods = offlineMethods === undefined;
@@ -143,11 +147,12 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
 
   return (
     <>
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>{t('paymentMethodTitle')}</CardTitle>
-          <CardDescription>{t('paymentMethodDescription')}</CardDescription>
-        </CardHeader>
+      {(canCreate || (canEdit && editingId)) && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>{t('paymentMethodTitle')}</CardTitle>
+            <CardDescription>{t('paymentMethodDescription')}</CardDescription>
+          </CardHeader>
         <CardContent className="space-y-4">
           {message && (
             <div
@@ -193,6 +198,7 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <div className="mt-6">
         <h3 className="text-lg font-semibold mb-4">{t('paymentMethodListTitle')}</h3>
@@ -220,16 +226,18 @@ export function PaymentMethodSection({ locale }: PaymentMethodSectionProps) {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(item)}
-                        title={tCommon('edit')}
-                        type="button"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(item)}
+                          title={tCommon('edit')}
+                          type="button"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>

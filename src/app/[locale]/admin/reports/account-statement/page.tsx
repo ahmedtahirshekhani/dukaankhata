@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Image from "next/image";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,10 +82,11 @@ interface ReportMeta {
   customerName: string;
 }
 
-export default function AccountStatementLatestPage() {
+export default function AccountStatementPage() {
   const t = useTranslations("accountStatement");
   const tCommon = useTranslations("common");
   const locale = useLocale();
+  const { can } = usePermissions();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
@@ -189,12 +191,18 @@ export default function AccountStatementLatestPage() {
   const handleExportPdf = useCallback(async () => {
     if (!reportRef.current) return;
     setExportingPdf(true);
+
+    // Give React time to re-render and display reportRef container in DOM
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
     const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
     try {
       if (pdfHeader) pdfHeader.style.display = "block";
 
       // Force columns to show for PDF capture
-      reportRef.current.classList.add("is-exporting");
+      if (reportRef.current) {
+        reportRef.current.classList.add("is-exporting");
+      }
 
       // Reset scroll for all horizontal scroll containers inside reportRef
       const scrollContainers = reportRef.current.querySelectorAll(".overflow-x-auto");
@@ -214,6 +222,7 @@ export default function AccountStatementLatestPage() {
             scale: 2,
             useCORS: true,
             letterRendering: true,
+            windowWidth: 1200,
           },
           jsPDF: {
             unit: "mm",
@@ -341,24 +350,19 @@ export default function AccountStatementLatestPage() {
     <div className="min-h-screen md:py-6">
 
       {/* Page Header */}
-      <div className="mb-6 mt-4">
-        <div className="flex items-start gap-3">
-          <FileText className="h-7 w-7 text-gray-700 mt-1" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-              {t("title") || "Account Statement"}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {t("modalDescription") || "Select a party and date range to generate an account statement."}
-            </p>
-          </div>
-        </div>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          {t("title") || "Account Statement"}
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+          {t("modalDescription") || "Generate party statement for date range"}
+        </p>
       </div>
 
       {/* Filter Section */}
       <Card className="border border-gray-100 shadow-sm bg-white overflow-hidden mb-6">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row items-end gap-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col md:flex-row items-end gap-3 sm:gap-4">
             {/* Party Selection */}
             <div className="flex-1 w-full space-y-1.5">
               <Label className="text-[13px] font-medium text-gray-700">
@@ -371,55 +375,58 @@ export default function AccountStatementLatestPage() {
                   setSelectedCustomerName(party?.name || "");
                 }}
                 placeholder={t("selectCustomerPlaceholder") || "Select Party"}
-                className="w-full bg-white border-gray-200 h-10 rounded-md text-sm focus:ring-1 focus:ring-sky-200"
+                className="w-full bg-white border-gray-200 h-9 sm:h-10 rounded-md text-xs sm:text-sm focus:ring-1 focus:ring-sky-200"
                 filterActiveOnly={true}
                 enableSearch={true}
               />
             </div>
 
-            {/* From Date */}
-            <div className="w-full md:w-48 space-y-1.5">
-              <Label className="text-[13px] font-medium text-gray-700 flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                {t("fromDate") || "From Date"}
-              </Label>
-              <Input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                max={toDate}
-                className="bg-white border-gray-200 h-10 rounded-md text-sm focus:ring-1 focus:ring-sky-200"
-              />
-            </div>
+            {/* Date Range: From: & To: side-by-side in same line */}
+            <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+              {/* From Date */}
+              <div className="flex-1 md:w-36 space-y-1">
+                <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <span>From:</span>
+                </Label>
+                <Input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  max={toDate}
+                  className="bg-white border-gray-200 h-9 sm:h-10 rounded-md text-xs sm:text-sm px-2 w-full focus:ring-1 focus:ring-sky-200"
+                />
+              </div>
 
-            {/* To Date */}
-            <div className="w-full md:w-48 space-y-1.5">
-              <Label className="text-[13px] font-medium text-gray-700 flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                {t("toDate") || "To Date"}
-              </Label>
-              <Input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                min={fromDate}
-                className="bg-white border-gray-200 h-10 rounded-md text-sm focus:ring-1 focus:ring-sky-200"
-              />
+              {/* To Date */}
+              <div className="flex-1 md:w-36 space-y-1">
+                <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <span>To:</span>
+                </Label>
+                <Input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  min={fromDate}
+                  className="bg-white border-gray-200 h-9 sm:h-10 rounded-md text-xs sm:text-sm px-2 w-full focus:ring-1 focus:ring-sky-200"
+                />
+              </div>
             </div>
 
             {/* Generate Button */}
-            <div className="w-full md:w-auto">
+            <div className="w-full md:w-auto shrink-0">
               <Button
                 onClick={handleGenerateStatement}
                 disabled={!isFormValid || loading}
-                className="w-full md:w-auto bg-[#7CD2F1] hover:bg-[#6bc2e1] text-white font-medium h-10 px-6 rounded-md transition-colors flex items-center justify-center gap-2 border-none shadow-sm"
+                className="w-full md:w-auto bg-sky-500 hover:bg-sky-600 text-white font-medium h-9 sm:h-10 px-5 sm:px-6 rounded-md transition-colors flex items-center justify-center gap-2 border-none shadow-sm text-xs sm:text-sm"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Search className="h-4 w-4" />
                 )}
-                {t("generateStatement") || "Generate"}
+                <span>{t("generateStatement") || "Generate"}</span>
               </Button>
             </div>
           </div>
@@ -528,107 +535,147 @@ export default function AccountStatementLatestPage() {
         </Card>
       ) : transactions.length > 0 ? (
         <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={handleExportPdf}
-              disabled={exportingPdf}
-            >
-              {exportingPdf ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Printer className="h-4 w-4 mr-2" />
-              )}
-              {t("downloadPdf")}
-            </Button>
+          {/* Action Bar: Download PDF Button with top spacing */}
+          {can('reports', 'export_account_statement') && (
+            <div className="flex justify-end pt-4 mt-3 mb-3 border-t border-gray-100 dark:border-gray-800">
+              <Button
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+                className="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white font-medium h-9 text-xs px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
+                )}
+                <span>{t("downloadPdf") || "Download PDF"}</span>
+              </Button>
+            </div>
+          )}
+
+          {/* Mobile View: Cards */}
+          <div className="block md:hidden space-y-3">
+            {transactions.map((txn) => {
+              const isOpening = txn.id === "opening_balance";
+              const hasItems = txn.items && txn.items.length > 0;
+              return (
+                <div
+                  key={txn.id}
+                  className={`bg-white border rounded-lg p-3.5 shadow-sm space-y-2 ${
+                    isOpening ? "bg-blue-50/40 border-blue-200" : "border-gray-100"
+                  }`}
+                >
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-medium">
+                      {formatStatementDate(txn.dateTime)}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
+                      {getTransactionType(txn.type)} {txn.orderId ? `(${txn.orderId})` : ""}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-gray-800">
+                    <div className="font-medium">{txn.description}</div>
+                    {hasItems && (
+                      <div className="text-[11px] text-gray-500 mt-1 space-y-0.5 pl-2 border-l-2 border-gray-200">
+                        {txn.items?.map((item, itemIdx) => (
+                          <div key={itemIdx}>
+                            • {item.name} <span className="text-gray-400">(x{item.quantity})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-100 text-xs">
+                    <div>
+                      {txn.debit ? (
+                        <span className="text-red-600 font-semibold">
+                          {t("debit") || "Debit"}: {formatCurrencyString(txn.debit)}
+                        </span>
+                      ) : txn.credit ? (
+                        <span className="text-green-600 font-semibold">
+                          {t("credit") || "Credit"}: {formatCurrencyString(txn.credit)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-medium mr-1">{t("balance")}:</span>
+                      <span className={`font-semibold ${getBalanceColor(txn.balance)}`}>
+                        {formatCurrencyString(txn.balance)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Mobile Footer Summary */}
+            <div className="bg-white border border-gray-100 rounded-lg p-3.5 shadow-sm space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-medium">{t("totalDebit")}:</span>
+                <span className="font-bold text-red-600">{formatCurrencyString(totalDebit)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-medium">{t("totalCredit")}:</span>
+                <span className="font-bold text-green-600">{formatCurrencyString(totalCredit)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-100 font-bold">
+                <span className="text-gray-700">{t("closingBalance")}:</span>
+                <span className={getBalanceColor(summary?.currentBalance || 0)}>
+                  {formatCurrencyString(summary?.currentBalance || 0)}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Report Container for PDF */}
-          <div ref={reportRef}>
-            {/* PDF Header */}
+          {/* Desktop Report Container for PDF & Desktop Table */}
+          <div ref={reportRef} className={exportingPdf ? "block bg-white p-6 max-w-[1000px] mx-auto text-slate-900 font-sans" : "hidden md:block"}>
+            {/* PDF Header - Minimal & Professional A4 Layout */}
             <div className="pdf-header" style={{ display: "none", backgroundColor: "white" }}>
-              <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ paddingBottom: "16px", marginBottom: "16px", borderBottom: "2px solid #0f172a" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <tbody>
                     <tr>
-                      <td style={{ width: "25%", verticalAlign: "top" }}>
-                        {branding.logo && (
+                      <td style={{ width: "40%", verticalAlign: "top" }}>
+                        {branding.logo ? (
                           <Image
                             src={branding.logo}
                             alt="Company Logo"
-                            width={150}
-                            height={64}
+                            width={140}
+                            height={50}
                             unoptimized
                             style={{
-                              height: "64px",
+                              height: "50px",
                               width: "auto",
                               objectFit: "contain",
                               display: "block",
                             }}
                           />
+                        ) : (
+                          <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase" }}>
+                            {branding.name}
+                          </div>
                         )}
-                      </td>
-                      <td style={{ width: "50%", textAlign: "center", verticalAlign: "top" }}>
-                        <div style={{
-                          fontWeight: 900,
-                          fontSize: "22px",
-                          color: "#0f172a",
-                          textTransform: "uppercase",
-                          letterSpacing: "-0.5px",
-                          lineHeight: 1.2,
-                        }}>
-                          {branding.name}
-                        </div>
-                        <div style={{
-                          fontSize: "11px",
-                          color: "#64748b",
-                          marginTop: "4px",
-                          lineHeight: 1.5,
-                          whiteSpace: "pre-line",
-                        }}>
+                        <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px", lineHeight: 1.4 }}>
                           {branding.address}
                         </div>
                         {(branding.phone || branding.email) && (
-                          <table style={{ margin: "6px auto 0", borderCollapse: "collapse" }}>
-                            <tbody>
-                              <tr>
-                                {branding.phone && (
-                                  <td style={{
-                                    paddingRight: branding.email ? "20px" : "0",
-                                    fontSize: "11px",
-                                    color: "#64748b",
-                                    verticalAlign: "middle",
-                                    whiteSpace: "nowrap",
-                                  }}>
-                                    <span style={{ fontSize: "12px", marginRight: "4px" }}>☎</span>
-                                    <span>{branding.phone}</span>
-                                  </td>
-                                )}
-                                {branding.email && (
-                                  <td style={{
-                                    fontSize: "11px",
-                                    color: "#64748b",
-                                    verticalAlign: "middle",
-                                    whiteSpace: "nowrap",
-                                  }}>
-                                    <span style={{ fontSize: "12px", marginRight: "4px" }}>✉</span>
-                                    <span style={{ textTransform: "lowercase" }}>{branding.email}</span>
-                                  </td>
-                                )}
-                              </tr>
-                            </tbody>
-                          </table>
+                          <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+                            {branding.phone ? `Phone: ${branding.phone}` : ""}
+                            {branding.phone && branding.email ? " | " : ""}
+                            {branding.email ? `Email: ${branding.email}` : ""}
+                          </div>
                         )}
                       </td>
-                      <td style={{ width: "25%", textAlign: "right", verticalAlign: "top" }}>
-                        <div style={{
-                          fontWeight: 900,
-                          fontSize: "22px",
-                          color: "#0f172a",
-                          textTransform: "uppercase",
-                          letterSpacing: "-0.5px",
-                        }}>
-                          {t("title")}
+                      <td style={{ width: "60%", textAlign: "right", verticalAlign: "top" }}>
+                        <div style={{ fontWeight: 900, fontSize: "22px", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          {t("title") || "ACCOUNT STATEMENT"}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
+                          Company: <span style={{ fontWeight: 700, color: "#0f172a" }}>{branding.name}</span>
                         </div>
                       </td>
                     </tr>
@@ -636,25 +683,26 @@ export default function AccountStatementLatestPage() {
                 </table>
               </div>
 
-              <div className="p-6">
-                <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[11px]">
-                  <div className="flex justify-between border-b border-gray-100 pb-1">
-                    <span className="text-gray-500 font-medium">{t("customer")}:</span>
-                    <span className="font-bold">{reportMeta?.customerName}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-100 pb-1">
-                    <span className="text-gray-500 font-medium">Customer ID:</span>
-                    <span className="font-medium text-gray-700">{reportMeta?.customerId}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-100 pb-1">
-                    <span className="text-gray-500 font-medium">{t("period")}:</span>
-                    <span className="font-medium text-gray-700">{reportMeta?.fromDate} to {reportMeta?.toDate}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-100 pb-1">
-                    <span className="text-gray-500 font-medium">Generated On:</span>
-                    <span className="font-medium text-gray-700">{reportMeta?.reportDate} at {reportMeta?.reportTime}</span>
-                  </div>
-                </div>
+              {/* Minimal Metadata Summary Bar */}
+              <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px 16px", marginBottom: "20px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ width: "25%", color: "#64748b", fontWeight: 500 }}>
+                        {t("customer") || "Party"}: <span style={{ color: "#0f172a", fontWeight: 700 }}>{reportMeta?.customerName}</span>
+                      </td>
+                      <td style={{ width: "25%", color: "#64748b", fontWeight: 500 }}>
+                        Customer ID: <span style={{ color: "#0f172a", fontWeight: 600 }}>{reportMeta?.customerId || "-"}</span>
+                      </td>
+                      <td style={{ width: "25%", color: "#64748b", fontWeight: 500 }}>
+                        Period: <span style={{ color: "#0f172a", fontWeight: 600 }}>{reportMeta?.fromDate} to {reportMeta?.toDate}</span>
+                      </td>
+                      <td style={{ width: "25%", textAlign: "right", color: "#64748b", fontWeight: 500 }}>
+                        Generated: <span style={{ color: "#0f172a", fontWeight: 600 }}>{reportMeta?.reportDate}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 

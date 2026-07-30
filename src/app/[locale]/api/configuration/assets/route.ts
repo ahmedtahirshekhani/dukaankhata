@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCollection, COLLECTIONS, toObjectId, setLastUpdated } from "@/lib/db/mongodb";
+import { requirePermission } from "@/lib/auth/rbac";
 
 export async function GET() {
   try {
@@ -9,21 +10,24 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const users = await getCollection(COLLECTIONS.USERS);
-    const userId = (session.user as any).id as string;
-    const user = await users.findOne(
-      { _id: toObjectId(userId) },
-      { projection: { company_logo: 1, signature_image: 1, company_name: 1, company_address: 1, company_phone: 1, company_email: 1 } },
+    const authCheck = await requirePermission("configuration.view");
+    if (!authCheck.allowed) return authCheck.response!;
+
+    const shops = await getCollection(COLLECTIONS.SHOPS);
+    const shopId = (session.user as any).id as string;
+    const shop = await shops.findOne(
+      { _id: toObjectId(shopId) },
+      { projection: { name: 1, company_logo: 1, signature_image: 1, company_address: 1, company_phone: 1, company_email: 1 } },
     );
     
     return NextResponse.json({
       ok: true,
-      companyName: user?.company_name || null,
-      companyAddress: user?.company_address || null,
-      companyPhone: user?.company_phone || null,
-      companyEmail: user?.company_email || null,
-      companyLogo: user?.company_logo || null,
-      signatureImage: user?.signature_image || null,
+      companyName: shop?.name || null,
+      companyAddress: shop?.company_address || null,
+      companyPhone: shop?.company_phone || null,
+      companyEmail: shop?.company_email || null,
+      companyLogo: shop?.company_logo || null,
+      signatureImage: shop?.signature_image || null,
     });
   } catch (err: any) {
     console.error("config assets GET error", err?.message || err);
@@ -38,27 +42,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const authCheck = await requirePermission("configuration.edit");
+    if (!authCheck.allowed) return authCheck.response!;
+
     const body = await req.json();
     const { companyName, companyAddress, companyPhone, companyEmail, companyLogo, signatureImage } = body || {};
 
     const additionalUpdate: Record<string, any> = {};
-    if (typeof companyName === "string") additionalUpdate.company_name = companyName.trim();
+    if (typeof companyName === "string") additionalUpdate.name = companyName.trim();
     if (typeof companyAddress === "string") additionalUpdate.company_address = companyAddress.trim();
     if (typeof companyPhone === "string") additionalUpdate.company_phone = companyPhone.trim();
     if (typeof companyEmail === "string") additionalUpdate.company_email = companyEmail.trim();
     if (typeof companyLogo === "string") additionalUpdate.company_logo = companyLogo;
     if (typeof signatureImage === "string") additionalUpdate.signature_image = signatureImage;
 
-    const users = await getCollection(COLLECTIONS.USERS);
-    const userId = (session.user as any).id as string;
+    const shops = await getCollection(COLLECTIONS.SHOPS);
+    const shopId = (session.user as any).id as string;
 
     const result = await setLastUpdated(
-      users,
-      { _id: toObjectId(userId) },
+      shops,
+      { _id: toObjectId(shopId) },
       additionalUpdate
     );
     if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "Shop not found" }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true });
