@@ -353,18 +353,6 @@ export default function SettingsPage({
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="company">{t("company")}</Label>
-                  <Input
-                    id="company"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleChange}
-                    disabled={isSaving}
-                    placeholder={t("companyNamePlaceholder")}
-                  />
-                </div>
-
                 <div className="flex gap-4">
                   <Button type="submit" disabled={isSaving}>
                     {isSaving ? t("saving") : t("saveChanges")}
@@ -377,7 +365,7 @@ export default function SettingsPage({
             </CardContent>
           </Card>
 
-          <Card className="mt-8">
+          {/* <Card className="mt-8">
             <CardHeader>
               <CardTitle>Feature Modules</CardTitle>
               <CardDescription>Enable or disable specific features across the application</CardDescription>
@@ -405,7 +393,7 @@ export default function SettingsPage({
                 <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="mt-8">
             <CardHeader>
