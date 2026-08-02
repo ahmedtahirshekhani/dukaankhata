@@ -191,3 +191,14 @@ export const trackSubscriptionRenewalContactClicked = (
     plan,
   });
 };
+
+export const trackPlanWhatsAppOpened = (
+  plan: string,
+  price: string,
+) => {
+  trackMetaCustomEvent("PlanWhatsAppOpened", {
+    channel: "whatsapp",
+    plan,
+    price,
+  });
+};

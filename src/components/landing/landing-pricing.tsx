@@ -17,7 +17,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
 import { cn } from "@/lib/utils";
 import plansData from "@/data/DK_Plan.json";
-import { trackTrialSignupIntent } from "@/lib/analytics/events";
+import {
+  trackPlanWhatsAppOpened,
+  trackTrialSignupIntent,
+} from "@/lib/analytics/events";
 
 const BASIC_FEATURES_COUNT = 4;
 
@@ -272,7 +275,14 @@ export function LandingPricing() {
               {t("dialogClose")}
             </Button>
             <Button asChild>
-              <a href={whatsappLink} target="_blank" rel="noreferrer">
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() =>
+                  trackPlanWhatsAppOpened(selectedPlan, selectedPlanPrice)
+                }
+              >
                 {t("dialogOpenWhatsapp")}
               </a>
             </Button>
