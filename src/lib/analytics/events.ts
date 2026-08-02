@@ -201,4 +201,14 @@ export const trackPlanWhatsAppOpened = (
     plan,
     price,
   });
+
+  const numericPrice = Number(price);
+
+  trackMetaStandardEvent("Purchase", {
+    value: Number.isFinite(numericPrice) ? numericPrice : undefined,
+    currency: "PKR",
+    content_type: "subscription",
+    content_name: plan,
+    content_category: "plan_purchase",
+  });
 };
