@@ -52,7 +52,9 @@ export const authOptions = {
           );
 
           if (subscription && subscription.status === "login_blocked") {
-            throw new Error("LOGIN_BLOCKED");
+            // throw new Error("LOGIN_BLOCKED");
+            // We no longer throw an error here. We allow login.
+            // The frontend will intercept this and show the subscription payment info full-screen.
           }
 
           // We just return the pure user data.
@@ -102,18 +104,18 @@ export const authOptions = {
         try {
           const usersCollection = await getCollection(COLLECTIONS.USERS);
           const dbUser = await usersCollection.findOne({ _id: toObjectId(token.real_user_id as string) });
-          
+
           if (dbUser) {
             token.name = dbUser.name;
             token.email = dbUser.email;
-            
+
             // 1. Discover all workspaces
             const workspaces = [];
             const shopsCollection = await getCollection(COLLECTIONS.SHOPS);
-            
+
             // Add their owned shops
             const ownedShops = await shopsCollection.find({ owner_user_id: toObjectId(token.real_user_id as string) }).toArray();
-            
+
             // On-the-fly migration for existing users
             if (ownedShops.length === 0 && (dbUser.role !== "staff" || dbUser.company_name)) {
               const shopName = dbUser.company_name || `${dbUser.name}'s Shop`;
@@ -147,19 +149,19 @@ export const authOptions = {
             // Find all shops where they are staff
             const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
             const rolesColl = await getCollection(COLLECTIONS.ROLES);
-            
+
             const userRoles = await userRolesColl.find({ user_id: toObjectId(token.real_user_id as string) }).toArray();
             if (userRoles.length > 0) {
               const roleIds = userRoles.map(ur => ur.role_id);
               const roles = await rolesColl.find({ _id: { $in: roleIds } }).toArray();
-              
+
               // Get unique shop IDs (owner_id) from those roles
               const shopIds = Array.from(new Set(roles.map(r => r.owner_id.toString())));
-              
+
               for (const sId of shopIds) {
                 // Avoid duplicating if they are somehow staff in their own shop
                 if (ownedShops.find(s => s._id.toString() === sId)) continue;
-                
+
                 const shopDoc = await shopsCollection.findOne({ _id: toObjectId(sId) });
                 if (shopDoc) {
                   workspaces.push({
@@ -171,19 +173,19 @@ export const authOptions = {
                 }
               }
             }
-            
+
             token.workspaces = workspaces;
 
             // Make sure active_workspace_id is valid
             if (!workspaces.find(w => w.id === token.active_workspace_id)) {
-               token.active_workspace_id = workspaces[0]?.id || token.real_user_id;
+              token.active_workspace_id = workspaces[0]?.id || token.real_user_id;
             }
 
             const activeWorkspace = workspaces.find(w => w.id === token.active_workspace_id);
             token.role = activeWorkspace?.type || "owner";
             token.company = activeWorkspace?.name || "";
             token.workspace_owner_id = activeWorkspace?.owner_user_id || token.real_user_id;
-            
+
             // Mask the token.id to act as the shop owner's ID for all backend API routes!
             token.id = token.active_workspace_id;
             token.staff_id = token.role === "staff" ? token.real_user_id : null;
@@ -193,18 +195,18 @@ export const authOptions = {
               // Find the role(s) the user has in THIS specific workspace
               const workspaceRoles = await rolesColl.find({ owner_id: toObjectId(token.active_workspace_id as string) }).toArray();
               const workspaceRoleIds = workspaceRoles.map(r => r._id.toString());
-              
+
               // Filter userRoles to only those in this workspace
               const myRolesInWorkspace = userRoles.filter(ur => workspaceRoleIds.includes(ur.role_id.toString()));
-              
+
               if (myRolesInWorkspace.length > 0) {
                 const rolePermsColl = await getCollection(COLLECTIONS.ROLE_PERMISSIONS);
                 const permsColl = await getCollection(COLLECTIONS.PERMISSIONS);
-                
+
                 const rIds = myRolesInWorkspace.map(ur => ur.role_id);
                 const rolePerms = await rolePermsColl.find({ role_id: { $in: rIds } }).toArray();
                 const permissionIds = rolePerms.map(rp => rp.permission_id);
-                
+
                 const perms = await permsColl.find({ _id: { $in: permissionIds } }).toArray();
                 token.permissions = perms.map(p => `${p.module_code}.${p.action}`);
               } else {
@@ -228,13 +230,13 @@ export const authOptions = {
         (session.user as any).role = token.role as string;
         (session.user as any).permissions = token.permissions as string[];
         (session.user as any).company = token.company as string;
-        
+
         // Multi-tenancy specific additions:
         (session.user as any).real_user_id = token.real_user_id as string;
         (session.user as any).active_workspace_id = token.active_workspace_id as string;
         (session.user as any).workspace_owner_id = token.workspace_owner_id as string;
         (session.user as any).workspaces = token.workspaces as any[];
-        
+
         session.user.name = token.name as string;
         session.user.email = token.email as string;
       }
