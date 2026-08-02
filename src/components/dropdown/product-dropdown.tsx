@@ -29,6 +29,7 @@ interface ProductDropdownProps {
   searchPlaceholder?: string;
   noResultsText?: string;
   addButtonPosition?: "top" | "bottom";
+  resetOnChange?: boolean;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -45,6 +46,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       searchPlaceholder = "Search product...",
       noResultsText = "No products found",
       addButtonPosition = "bottom",
+      resetOnChange = false,
     },
     ref
   ) => {
@@ -56,7 +58,15 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [selectedProductForDialog, setSelectedProductForDialog] = useState<Product | null>(null);
     const [selectResetKey, setSelectResetKey] = useState(0);
+    const [optimisticProduct, setOptimisticProduct] = useState<Product | null>(null);
     
+    // Reset internal select if parent explicitly clears the value
+    useEffect(() => {
+      if (!value) {
+        setSelectResetKey((k) => k + 1);
+      }
+    }, [value]);
+
     const [page, setPage] = useState(1);
     
     // Replace API fetching with offline hook
@@ -66,11 +76,21 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const products = useMemo(() => {
       let paginated = offlineProducts.slice(0, page * ITEMS_PER_PAGE);
 
+      if (optimisticProduct) {
+        const optimisticId = getProductId(optimisticProduct);
+        if (!paginated.some(p => getProductId(p) === optimisticId)) {
+          paginated = [optimisticProduct, ...paginated];
+        }
+      }
+
       if (value) {
         const stringValue = String(value);
         const isSelectedInPaginated = paginated.some(p => getProductId(p) === stringValue);
         if (!isSelectedInPaginated) {
-          const selectedProduct = offlineProducts.find(p => getProductId(p) === stringValue);
+          let selectedProduct = offlineProducts.find(p => getProductId(p) === stringValue);
+          if (!selectedProduct && optimisticProduct && getProductId(optimisticProduct) === stringValue) {
+             selectedProduct = optimisticProduct;
+          }
           if (selectedProduct) {
             paginated = [selectedProduct, ...paginated];
           }
@@ -78,7 +98,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       }
 
       return paginated;
-    }, [offlineProducts, page, value]);
+    }, [offlineProducts, page, value, optimisticProduct]);
     
     const hasMore = products.length < offlineProducts.length;
 
@@ -96,7 +116,9 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       onValueChange(newValue, selected);
       setIsOpen(false);
       setSearchTerm("");
-      setSelectResetKey((current) => current + 1);
+      if (resetOnChange) {
+        setSelectResetKey((current) => current + 1);
+      }
     };
 
     const handleOpenChange = (open: boolean) => {
@@ -106,6 +128,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
 
     const handleProductDialogSuccess = async (product: Product, isEdit: boolean) => {
       setPage(1);
+      setOptimisticProduct(product);
       const productId = getProductId(product);
       onValueChange(productId, product);
       setIsProductDialogOpen(false);

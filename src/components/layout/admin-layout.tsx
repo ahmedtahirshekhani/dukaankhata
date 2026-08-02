@@ -53,6 +53,7 @@ import { db, clearUserDatabase } from "@/lib/db/offline-db";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
+import { proAccessPaymentInfo } from "@/lib/contact-info";
 
 // useSearchParams() opts the whole route out of static prerendering unless
 // isolated behind its own Suspense boundary — without this, every page that
@@ -105,6 +106,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const [blockedSubscriptionData, setBlockedSubscriptionData] = useState<any>(null);
+  const [showBlockedCard, setShowBlockedCard] = useState(false);
 
   // Feature Toggles
   const [enableCounterSale, setEnableCounterSale] = useState(false);
@@ -267,6 +270,17 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
+  useEffect(() => {
+    const handleBlocked = (event: any) => {
+      setBlockedSubscriptionData(event.detail);
+      if (localStorage.getItem("hasSeenBlockedCard_" + event.detail?.userId) === "true" || localStorage.getItem("hasSeenBlockedCard") === "true") {
+        setShowBlockedCard(true);
+      }
+    };
+    window.addEventListener("subscriptionLoginBlocked", handleBlocked);
+    return () => window.removeEventListener("subscriptionLoginBlocked", handleBlocked);
+  }, []);
+
   // Remove locale and /admin from pathname to get current page
   const pathWithoutLocale = pathname.replace(`/${locale}`, "");
   const salesSubRoutes = [
@@ -359,7 +373,21 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const navItemCompact = sidebarMinimized ? "sm:justify-center sm:px-0" : "";
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div 
+      className="flex min-h-screen w-full flex-col bg-muted/40"
+      onClickCapture={(e) => {
+        if (blockedSubscriptionData && !showBlockedCard) {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowBlockedCard(true);
+          localStorage.setItem("hasSeenBlockedCard_" + blockedSubscriptionData.userId, "true");
+          localStorage.setItem("hasSeenBlockedCard", "true");
+        }
+      }}
+    >
+      {blockedSubscriptionData && !showBlockedCard && (
+        <div className="fixed inset-0 z-[9999] cursor-pointer" title="Click anywhere to continue" />
+      )}
       <Suspense fallback={null}>
         <SignupHighlightWatcher onSignup={handleSignupHighlight} />
       </Suspense>
@@ -1107,17 +1135,84 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           </nav>
         </aside>
         <main
-          className={`flex-1 p-3 sm:p-4 md:px-6 md:py-0 transition-all ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
+          className={`flex-1 p-3 sm:p-4 md:px-6 md:py-0 transition-all relative ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
             }`}
         >
-          {isClearingCache || isInitialSyncing ? (
+          {blockedSubscriptionData && showBlockedCard ? (
+            <div className="flex flex-col items-center justify-center min-h-[80vh]">
+              <div className="max-w-[520px] w-full bg-card border border-border shadow-md rounded-xl overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-border bg-muted/30">
+                  <h2 className="text-xl font-bold text-foreground">
+                    Subscription Blocked
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Your access has been blocked. Please renew your subscription to continue using the application.
+                  </p>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+                    <p className="font-semibold text-foreground border-b border-border/50 pb-2">
+                      Subscription Details
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-medium capitalize">{blockedSubscriptionData.plan || 'N/A'}</span>
+                      
+                      <span className="text-muted-foreground">Status</span>
+                      <span className="font-medium capitalize text-red-500 font-bold">{blockedSubscriptionData.status?.replace('_', ' ') || 'N/A'}</span>
+                      
+                      {blockedSubscriptionData.expiryDate && (
+                        <>
+                          <span className="text-muted-foreground">Expiry Date</span>
+                          <span className="font-medium">{new Date(blockedSubscriptionData.expiryDate).toLocaleDateString()}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2 text-sm">
+                    <p className="font-semibold text-foreground border-b border-border/50 pb-2">
+                      {proAccessPaymentInfo.provider}
+                    </p>
+                    <p className="text-muted-foreground">{proAccessPaymentInfo.provider}</p>
+                    <p className="font-medium text-foreground">{proAccessPaymentInfo.accountNumber}</p>
+                    <p className="text-muted-foreground">{proAccessPaymentInfo.accountHolder}</p>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2 text-sm">
+                    <p className="font-semibold text-foreground">WhatsApp Payment Proof</p>
+                    <p className="text-muted-foreground">
+                      Please send the payment receipt screenshot to our WhatsApp number: {proAccessPaymentInfo.proofWhatsappDisplay}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 border-t border-border bg-muted/30 flex gap-3 justify-end items-center">
+                  <Button variant="outline" onClick={() => {
+                    import("@/lib/db/offline-db").then(m => m.clearUserDatabase()).then(() => signOut({ callbackUrl: `/${locale}/login` }));
+                  }}>
+                    Logout
+                  </Button>
+                  <Button asChild>
+                    <a href={proAccessPaymentInfo.proofWhatsappHref} target="_blank" rel="noreferrer">
+                      Open WhatsApp
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : isClearingCache || isInitialSyncing ? (
             <div className="flex flex-col items-center justify-center h-[80vh]">
               <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
               <h2 className="text-xl font-semibold">{tCommon("syncingData") || "Syncing Data..."}</h2>
               <p className="text-muted-foreground mt-2 text-sm">{tCommon("pleaseWait") || "Please wait while we set up your offline database."}</p>
             </div>
           ) : (
-            children
+            <>
+              
+              {children}
+            </>
           )}
         </main>
       </div>

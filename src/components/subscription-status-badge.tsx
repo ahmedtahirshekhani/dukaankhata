@@ -61,11 +61,14 @@ export function SubscriptionStatusBadge() {
         if (response.ok) {
           const data = await response.json();
           setSubscriptionStatus(data);
-          
+
           if (data.status === "login_blocked") {
-            clearUserDatabase().then(() =>
-              signOut({ callbackUrl: `/${locale}/login?error=login_blocked` })
-            );
+            // clearUserDatabase().then(() =>
+            //   signOut({ callbackUrl: `/${locale}/login?error=login_blocked` })
+            // );
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("subscriptionLoginBlocked", { detail: data }));
+            }
           }
         }
       } catch (error) {
@@ -84,7 +87,7 @@ export function SubscriptionStatusBadge() {
 
   const getStatusColor = () => {
     if (subscriptionStatus.isPending) {
-      return subscriptionStatus.isRenewal 
+      return subscriptionStatus.isRenewal
         ? "bg-orange-100 text-orange-800 border-orange-300"
         : "bg-yellow-100 text-yellow-800 border-yellow-300";
     }
@@ -150,7 +153,7 @@ export function SubscriptionStatusBadge() {
 
   const tooltipText = `Expires: ${formatDate(subscriptionStatus.expiryDate)}`;
   const whatsappLink = `${proAccessPaymentInfo.proofWhatsappHref}?text=${encodeURIComponent(
-    t("dialogWhatsappMessage"),
+    t("dialogWhatsappMessage")
   )}`;
 
   return (
@@ -196,24 +199,24 @@ export function SubscriptionStatusBadge() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <span className="text-muted-foreground">{t("planLabel")}</span>
                 <span className="font-medium capitalize">{subscriptionStatus.plan || 'N/A'}</span>
-                
+
                 <span className="text-muted-foreground">{t("statusLabel")}</span>
                 <span className="font-medium capitalize">{subscriptionStatus.status?.replace('_', ' ') || 'N/A'}</span>
-                
+
                 {subscriptionStatus.startDate && (
                   <>
                     <span className="text-muted-foreground">{t("startDateLabel")}</span>
                     <span className="font-medium">{formatDate(subscriptionStatus.startDate)}</span>
                   </>
                 )}
-                
+
                 {subscriptionStatus.expiryDate && (
                   <>
                     <span className="text-muted-foreground">{t("expiryDateLabel")}</span>
                     <span className="font-medium">{formatDate(subscriptionStatus.expiryDate)}</span>
                   </>
                 )}
-                
+
                 {subscriptionStatus.isExpired && subscriptionStatus.status !== "login_blocked" && (
                   <>
                     <span className="text-muted-foreground">{t("gracePeriodLabel")}</span>

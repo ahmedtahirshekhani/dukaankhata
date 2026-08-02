@@ -487,7 +487,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                   ))}
                   <TableRow>
                     <TableCell colSpan={7}>
-                      <ProductDropdown value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+                      <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -578,7 +578,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                 </Card>
               ))}
               <div className="pt-2">
-                <ProductDropdown value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+                <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
               </div>
             </div>
           </div>
