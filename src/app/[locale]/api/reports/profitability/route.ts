@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
 
+
+    const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+
     // Build base query
     const baseQuery: any = {
       user_id: userId,
@@ -85,27 +88,34 @@ export async function GET(request: NextRequest) {
           total_cost: {
             $sum: {
               $multiply: [
-                { $ifNull: ["$items.quantity", 0] },
+                { $convert: { input: { $ifNull: ["$items.quantity", 0] }, to: "double", onError: 0, onNull: 0 } },
                 {
-                  $ifNull: [
-                    "$items.cost_price",
-                    {
+                  $convert: {
+                    input: {
                       $ifNull: [
-                        "$items.purchase_price",
+                        "$items.cost_price",
                         {
                           $ifNull: [
-                            "$items.costPrice",
+                            "$items.purchase_price",
                             {
                               $ifNull: [
-                                "$items.purchasePrice",
-                                { $ifNull: ["$product_cost", 0] }
+                                "$items.costPrice",
+                                {
+                                  $ifNull: [
+                                    "$items.purchasePrice",
+                                    { $ifNull: ["$product_cost", 0] }
+                                  ]
+                                }
                               ]
                             }
                           ]
                         }
                       ]
-                    }
-                  ]
+                    },
+                    to: "double",
+                    onError: 0,
+                    onNull: 0
+                  }
                 }
               ]
             }
@@ -115,12 +125,53 @@ export async function GET(request: NextRequest) {
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: "$total_amount" },
-          totalCOGS: { $sum: "$total_cost" },
+          totalRevenue: { $sum: { $convert: { input: "$total_amount", to: "double", onError: 0, onNull: 0 } } },
+          totalCOGS: { $sum: { $convert: { input: "$total_cost", to: "double", onError: 0, onNull: 0 } } },
           totalOrders: { $sum: 1 },
-          avgOrderValue: { $avg: "$total_amount" },
+          avgOrderValue: { $avg: { $convert: { input: "$total_amount", to: "double", onError: 0, onNull: 0 } } },
         },
       },
+    ];
+
+    // Counter Sales Query for Income Transactions linked to products
+    const counterSalesQuery: any = {
+      ...baseQuery,
+      type: "income",
+      productId: { $exists: true, $ne: "0", $ne: null },
+      created_at: { $gte: from, $lte: to },
+    };
+
+    const counterSalesPipeline = [
+      { $match: counterSalesQuery },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "product_info"
+        }
+      },
+      {
+        $addFields: {
+          product_cost: { $arrayElemAt: ["$product_info.cost_price", 0] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: { $convert: { input: "$amount", to: "double", onError: 0, onNull: 0 } } },
+          totalCOGS: {
+            $sum: {
+              $multiply: [
+                { $convert: { input: { $ifNull: ["$quantity", 0] }, to: "double", onError: 0, onNull: 0 } },
+                { $convert: { input: { $ifNull: ["$product_cost", 0] }, to: "double", onError: 0, onNull: 0 } }
+              ]
+            }
+          },
+          totalOrders: { $sum: 1 },
+          avgOrderValue: { $avg: { $convert: { input: "$amount", to: "double", onError: 0, onNull: 0 } } },
+        }
+      }
     ];
 
     // Calculate Expenses
@@ -153,18 +204,73 @@ export async function GET(request: NextRequest) {
       { $sort: { totalAmount: -1 } }
     ];
 
+    // Get detailed breakdown by category for orders
+    const categoryBreakdownPipeline = [
+      { $match: revenueQuery },
+      {
+        $group: {
+          _id: "$category",
+          categoryRevenue: { $sum: { $convert: { input: "$total_amount", to: "double", onError: 0, onNull: 0 } } },
+          categoryOrders: { $sum: 1 },
+        },
+      },
+      { $sort: { categoryRevenue: -1 } },
+    ];
+
+    // Counter Sales Category Pipeline
+    const counterSalesCategoryPipeline = [
+      { $match: counterSalesQuery },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "product_info"
+        }
+      },
+      {
+        $addFields: {
+          category: { $arrayElemAt: ["$product_info.category", 0] }
+        }
+      },
+      {
+        $group: {
+          _id: { $ifNull: ["$category", "Uncategorized"] },
+          categoryRevenue: { $sum: { $convert: { input: "$amount", to: "double", onError: 0, onNull: 0 } } },
+          categoryOrders: { $sum: 1 },
+        }
+      }
+    ];
+
     // Fetch in parallel
-    const [revenueResult, expensesResult, expensesByCategoryResult] = await Promise.all([
+    const [
+      revenueResult, 
+      counterSalesResult,
+      expensesResult, 
+      expensesByCategoryResult,
+      orderCategoryBreakdown,
+      counterSalesCategoryBreakdown
+    ] = await Promise.all([
       ordersCollection.aggregate(revenuePipeline).toArray(),
+      transactionsCollection.aggregate(counterSalesPipeline).toArray(),
       expensesCollection.aggregate(expensePipeline).toArray(),
       expensesCollection.aggregate(expensesByCategoryPipeline).toArray(),
+      ordersCollection.aggregate(categoryBreakdownPipeline).toArray(),
+      transactionsCollection.aggregate(counterSalesCategoryPipeline).toArray(),
     ]);
 
     const revenueData = revenueResult[0] || {
       totalRevenue: 0,
       totalCOGS: 0,
       totalOrders: 0,
-      avgOrderValue: 0,
+      avgOrderValue: 0
+    };
+    
+    const csData = counterSalesResult[0] || {
+      totalRevenue: 0,
+      totalCOGS: 0,
+      totalOrders: 0,
+      avgOrderValue: 0
     };
 
     const expensesData = expensesResult[0] || {
@@ -174,8 +280,11 @@ export async function GET(request: NextRequest) {
     };
 
     // Calculate Profit & Margins
-    const totalRevenue = Number(revenueData.totalRevenue) || 0;
-    const totalCOGS = Number(revenueData.totalCOGS) || 0;
+    const totalRevenue = (Number(revenueData.totalRevenue) || 0) + (Number(csData.totalRevenue) || 0);
+    const totalCOGS = (Number(revenueData.totalCOGS) || 0) + (Number(csData.totalCOGS) || 0);
+    const totalOrders = (Number(revenueData.totalOrders) || 0) + (Number(csData.totalOrders) || 0);
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
     const grossProfit = totalRevenue - totalCOGS;
     
     const totalExpenses = Number(expensesData.totalExpenses) || 0;
@@ -190,29 +299,28 @@ export async function GET(request: NextRequest) {
       amount: item.totalAmount || 0
     }));
 
-    // Get detailed breakdown by category
-    const categoryBreakdownPipeline = [
-      { $match: revenueQuery },
-      {
-        $group: {
-          _id: "$category",
-          categoryRevenue: { $sum: "$total_amount" },
-          categoryOrders: { $sum: 1 },
-        },
-      },
-      { $sort: { categoryRevenue: -1 } },
-    ];
+    // Merge Category Breakdown
+    const combinedCategories: Record<string, any> = {};
+    
+    orderCategoryBreakdown.forEach((item: any) => {
+      const cat = item._id || "Uncategorized";
+      combinedCategories[cat] = {
+        category: cat,
+        revenue: item.categoryRevenue || 0,
+        orders: item.categoryOrders || 0,
+      };
+    });
 
-    const categoryBreakdown = await ordersCollection
-      .aggregate(categoryBreakdownPipeline)
-      .toArray();
+    counterSalesCategoryBreakdown.forEach((item: any) => {
+      const cat = item._id || "Uncategorized";
+      if (!combinedCategories[cat]) {
+        combinedCategories[cat] = { category: cat, revenue: 0, orders: 0 };
+      }
+      combinedCategories[cat].revenue += item.categoryRevenue || 0;
+      combinedCategories[cat].orders += item.categoryOrders || 0;
+    });
 
-    // Format category breakdown
-    const breakdown = categoryBreakdown.map((item: any) => ({
-      category: item._id || "Uncategorized",
-      revenue: item.categoryRevenue || 0,
-      orders: item.categoryOrders || 0,
-    }));
+    const breakdown = Object.values(combinedCategories).sort((a: any, b: any) => b.revenue - a.revenue);
 
     // Get top expenses
     const topExpensesQuery = {
@@ -247,14 +355,16 @@ export async function GET(request: NextRequest) {
 
     const summary = {
       totalRevenue,
+      ordersRevenue: Number(revenueData.totalRevenue) || 0,
+      counterSalesRevenue: Number(csData.totalRevenue) || 0,
       totalCOGS,
       grossProfit,
       totalExpenses,
       operatingProfit,
       profitMargin,
-      totalOrders: revenueData.totalOrders || 0,
+      totalOrders: totalOrders || 0,
       totalExpenseItems: expensesData.totalExpenseItems || 0,
-      avgOrderValue: Math.round(revenueData.avgOrderValue || 0),
+      avgOrderValue: Math.round(avgOrderValue || 0),
       avgExpenseValue: Math.round(expensesData.avgExpenseValue || 0),
     };
 

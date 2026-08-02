@@ -674,8 +674,12 @@ export default function ProfitabilityReportPage() {
                     <td style={{ padding: "8px 10px", textAlign: "right" }}></td>
                   </tr>
                   <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "6px 16px", color: "#475569" }}>Sales / Revenue</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "600", color: "#0f172a" }}>Rs. {formatCurrency(summary.totalRevenue)}</td>
+                    <td style={{ padding: "6px 16px", color: "#475569" }}>Invoices / Orders</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "500", color: "#475569" }}>Rs. {formatCurrency(summary.ordersRevenue || 0)}</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <td style={{ padding: "6px 16px", color: "#475569" }}>Counter Sales</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "500", color: "#475569" }}>Rs. {formatCurrency(summary.counterSalesRevenue || 0)}</td>
                   </tr>
                   <tr style={{ backgroundColor: "#f8fafc", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
                     <td style={{ padding: "6px 10px", color: "#0f172a" }}>Total Operating Income</td>
@@ -824,8 +828,12 @@ export default function ProfitabilityReportPage() {
                       <td colSpan={2} className="font-bold py-3 px-4 sm:px-6 text-sm sm:text-base text-foreground">{tProfit("operatingIncome")}</td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2.5 px-6 sm:px-10 text-muted-foreground">{tProfit("sales") || "Revenue"}</td>
-                      <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(summary.totalRevenue)}</td>
+                      <td className="py-2.5 px-6 sm:px-10 text-muted-foreground">Invoices / Orders</td>
+                      <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(summary.ordersRevenue || 0)}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2.5 px-6 sm:px-10 text-muted-foreground">Counter Sales</td>
+                      <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(summary.counterSalesRevenue || 0)}</td>
                     </tr>
                     <tr className="bg-[hsl(var(--soft-gray-bg))] border-b">
                       <td className="font-bold py-3 px-4 sm:px-6 text-foreground">{tProfit("totalFor", { name: tProfit("operatingIncome") })}</td>
