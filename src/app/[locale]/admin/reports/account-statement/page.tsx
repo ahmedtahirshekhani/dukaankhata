@@ -780,7 +780,7 @@ export default function AccountStatementPage() {
                   <tbody>
                     <tr>
                       <td style={{ width: "40%", verticalAlign: "top" }}>
-                        {branding.logo ? (
+                        {branding.logo && (
                           <Image
                             src={branding.logo}
                             alt="Company Logo"
@@ -794,11 +794,10 @@ export default function AccountStatementPage() {
                               display: "block",
                             }}
                           />
-                        ) : (
-                          <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase" }}>
-                            {branding.name}
-                          </div>
                         )}
+                        <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase", marginTop: branding.logo ? "4px" : "0" }}>
+                          {branding.name}
+                        </div>
                         <div style={{ fontSize: "11px", color: "#1e293b", fontWeight: 500, marginTop: "4px", lineHeight: 1.4 }}>
                           {branding.address}
                         </div>
@@ -811,11 +810,8 @@ export default function AccountStatementPage() {
                         )}
                       </td>
                       <td style={{ width: "60%", textAlign: "right", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 900, fontSize: "22px", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        <div style={{ fontWeight: 900, fontSize: "22px", color: "#0f172a", textTransform: "uppercase" }}>
                           {t("title") || "ACCOUNT STATEMENT"}
-                        </div>
-                        <div style={{ fontSize: "11px", color: "#1e293b", fontWeight: 500, marginTop: "4px" }}>
-                          Company: <span style={{ fontWeight: 800, color: "#0f172a" }}>{branding.name}</span>
                         </div>
                       </td>
                     </tr>
@@ -824,21 +820,33 @@ export default function AccountStatementPage() {
               </div>
 
               {/* Minimal Metadata Summary Bar */}
-              <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px 16px", marginBottom: "20px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", tableLayout: "fixed" }}>
                   <tbody>
                     <tr>
-                      <td style={{ width: "25%", color: "#334155", fontWeight: 700 }}>
-                        {t("customer") || "Party"}: <span style={{ color: "#0f172a", fontWeight: 800 }}>{reportMeta?.customerName}</span>
+                      <td style={{ padding: "8px 10px", textAlign: "left", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{t("customer") || "Party"}</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.customerName}
+                        </div>
                       </td>
-                      <td style={{ width: "25%", color: "#334155", fontWeight: 700 }}>
-                        Customer ID: <span style={{ color: "#0f172a", fontWeight: 800 }}>{reportMeta?.customerId || "-"}</span>
+                      <td style={{ padding: "8px 10px", textAlign: "left", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Customer ID</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.customerId || "-"}
+                        </div>
                       </td>
-                      <td style={{ width: "25%", color: "#334155", fontWeight: 700 }}>
-                        Period: <span style={{ color: "#0f172a", fontWeight: 800 }}>{reportMeta?.fromDate} to {reportMeta?.toDate}</span>
+                      <td style={{ padding: "8px 10px", textAlign: "left", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Period</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.fromDate} to {reportMeta?.toDate}
+                        </div>
                       </td>
-                      <td style={{ width: "25%", textAlign: "right", color: "#334155", fontWeight: 700 }}>
-                        Generated: <span style={{ color: "#0f172a", fontWeight: 800 }}>{reportMeta?.reportDate}</span>
+                      <td style={{ padding: "8px 10px", textAlign: "right", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Generated</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.reportDate}
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -851,18 +859,18 @@ export default function AccountStatementPage() {
               <div className="overflow-x-auto md:overflow-visible [.is-exporting_&]:overflow-visible">
                 <Table className="min-w-[800px] md:min-w-full">
                   <TableHeader>
-                    <TableRow className="bg-gray-50 border-b border-gray-100">
-                      <TableHead className="w-[100px] text-center text-xs text-gray-900 font-extrabold uppercase">{t("date")}</TableHead>
-                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase">{t("voucher")}</TableHead>
-                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase">{t("type")}</TableHead>
-                      <TableHead className="min-w-[200px] text-xs text-gray-900 font-extrabold uppercase">{t("descriptionItems")}</TableHead>
+                    <TableRow className="bg-gray-50 border-b border-gray-100 [.is-exporting_&]:bg-[#0f172a] [.is-exporting_&]:border-[#0f172a]">
+                      <TableHead className="w-[100px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("date")}</TableHead>
+                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("voucher")}</TableHead>
+                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("type")}</TableHead>
+                      <TableHead className="min-w-[200px] text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("descriptionItems")}</TableHead>
                       {/* These columns are hidden in UI but show in PDF */}
-                      <TableHead className="w-[60px] text-center text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("qty")}</TableHead>
-                      <TableHead className="w-[80px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("rate")}</TableHead>
-                      <TableHead className="w-[90px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("amount")}</TableHead>
-                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase">{t("debit")}</TableHead>
-                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase">{t("credit")}</TableHead>
-                      <TableHead className="w-[110px] text-right text-xs text-gray-900 font-extrabold uppercase">{t("balance")}</TableHead>
+                      <TableHead className="w-[60px] text-center text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("qty")}</TableHead>
+                      <TableHead className="w-[80px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("rate")}</TableHead>
+                      <TableHead className="w-[90px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("amount")}</TableHead>
+                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("debit")}</TableHead>
+                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("credit")}</TableHead>
+                      <TableHead className="w-[110px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("balance")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
