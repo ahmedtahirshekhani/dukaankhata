@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
 import { cn } from "@/lib/utils";
 import plansData from "@/data/DK_Plan.json";
+import { trackTrialSignupIntent } from "@/lib/analytics/events";
 
 const BASIC_FEATURES_COUNT = 4;
 
@@ -175,6 +176,7 @@ export function LandingPricing() {
                       <Link 
                         href={`/${locale}/signup`} 
                         className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hover:underline"
+                        onClick={() => trackTrialSignupIntent(`pricing_${plan.id}_link`)}
                       >
                         {t("startForFree")}
                       </Link>
@@ -200,7 +202,7 @@ export function LandingPricing() {
         </div>
 
         <div className="mt-12 flex justify-center">
-          <Link href={`/${locale}/signup`}>
+          <Link href={`/${locale}/signup`} onClick={() => trackTrialSignupIntent("pricing_footer_button")}>
             <Button 
               className="bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black dark:hover:bg-white/90 text-lg px-8 py-6 rounded-xl shadow-lg transition-transform hover:scale-105" 
               size="lg"

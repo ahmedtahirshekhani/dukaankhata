@@ -23,6 +23,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
+import {
+  trackSubscriptionRenewalContactClicked,
+  trackSubscriptionRenewalViewed,
+} from "@/lib/analytics/events";
 
 interface SubscriptionStatus {
   isActive: boolean;
@@ -159,7 +163,15 @@ export function SubscriptionStatusBadge() {
         <Tooltip>
           <TooltipTrigger asChild>
             <div
-              onClick={() => setProDialogOpen(true)}
+              onClick={() => {
+                if (!subscriptionStatus.isActive) {
+                  trackSubscriptionRenewalViewed(
+                    subscriptionStatus.status,
+                    subscriptionStatus.plan,
+                  );
+                }
+                setProDialogOpen(true);
+              }}
               className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer hover:opacity-80 ${getStatusColor()}`}
             >
               {getStatusIcon()}
@@ -261,7 +273,18 @@ export function SubscriptionStatusBadge() {
             </Button>
             {!subscriptionStatus.isActive && (
               <Button asChild>
-                <a href={whatsappLink} target="_blank" rel="noreferrer">
+                <a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() =>
+                    trackSubscriptionRenewalContactClicked(
+                      "whatsapp",
+                      subscriptionStatus.status,
+                      subscriptionStatus.plan,
+                    )
+                  }
+                >
                   {t("dialogOpenWhatsapp")}
                 </a>
               </Button>
