@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
     const counterSalesQuery: any = {
       ...baseQuery,
       type: "income",
-      productId: { $exists: true, $ne: "0", $ne: null },
+      productId: { $exists: true, $nin: ["0", null] },
       created_at: { $gte: from, $lte: to },
     };
 
