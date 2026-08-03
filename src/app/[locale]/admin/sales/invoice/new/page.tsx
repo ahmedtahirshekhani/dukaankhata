@@ -1119,6 +1119,7 @@ export default function NewInvoicePage() {
                 <TableRow>
                   <TableCell>
                     <ProductDropdown
+                      resetOnChange
                       value={""}
                       onValueChange={(value, product) => {
                         if (!product) return;
@@ -1139,6 +1140,7 @@ export default function NewInvoicePage() {
           <div className="md:hidden mt-3">
             <Label className="text-xs font-medium">{t("addItem")}</Label>
             <ProductDropdown
+              resetOnChange
               value={""}
               onValueChange={(value, product) => {
                 if (!product) return;
