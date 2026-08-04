@@ -943,6 +943,30 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             </div>
             )}
 
+            {/* Bank Accounts */}
+            <div>
+              <Link
+                href={`/${locale}/admin/bank-accounts`}
+                prefetch={false}
+                onClick={() => setSidebarOpen(false)}
+                className={`${navItemBase} ${pathWithoutLocale === "/admin/bank-accounts" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("bankAccounts") : ""}
+              >
+                <Store className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium leading-none">
+                    {tNav("bankAccounts")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                    {tNav("bankAccountsDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+
             {/* Reports Section */}
             {hasModuleAccess("reports") && (
             <div>
@@ -987,6 +1011,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </Button>
                 )}
               </div>
+
+              
 
               {!sidebarMinimized && reportsExpanded && (
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
@@ -1102,30 +1128,6 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </Link>
               </div>
             )}
-
-                        {/* Bank Accounts */}
-            <div>
-              <Link
-                href={`/${locale}/admin/bank-accounts`}
-                prefetch={false}
-                onClick={() => setSidebarOpen(false)}
-                className={`${navItemBase} ${pathWithoutLocale === "/admin/bank-accounts" ? navItemActive : navItemInactive
-                  } ${navItemCompact}`}
-                title={sidebarMinimized ? tNav("bankAccounts") : ""}
-              >
-                <Store className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">
-                    {tNav("bankAccounts")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("bankAccountsDescription")}
-                  </span>
-                </div>
-              </Link>
-            </div>
 
             {/* Settings / Configuration - protected by module access */}
             {hasModuleAccess("settings") && (

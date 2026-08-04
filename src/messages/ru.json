@@ -150,8 +150,8 @@
     "staffManagementDescription": "Roles aur users manage karein",
     "whatsapp": "WhatsApp",
     "whatsappDescription": "WhatsApp connect karein",
-    "bankAccounts": "Bank Accounts",
-    "bankAccountsDescription": "Apne bank accounts aur payment methods manage karein."
+    "bankAccounts": "Cash & Bank",
+    "bankAccountsDescription": "Apne cash aur bank accounts manage karein."
   },
   "configurationPage": {
         "searchPlaceholder": "Search Payment Methods",

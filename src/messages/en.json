@@ -149,8 +149,8 @@
     "staffManagementDescription": "Manage roles and users",
     "whatsapp": "WhatsApp",
     "whatsappDescription": "Connect WhatsApp",
-    "bankAccounts": "Bank Accounts",
-    "bankAccountsDescription": "Manage your bank accounts and payment methods."
+    "bankAccounts": "Cash & Bank",
+    "bankAccountsDescription": "Manage your cash and bank accounts and payment methods."
   },
   "configurationPage": {
     "searchPlaceholder": "Search Payment Methods",
