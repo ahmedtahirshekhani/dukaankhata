@@ -688,28 +688,36 @@ export function useOfflineStaff(searchQuery: string = "") {
         const firstRoleMapping = myRoles[0];
         
         let roleName = "Unknown";
-        let roleId = firstRoleMapping?.role_id || null;
-
         if (firstRoleMapping) {
-          const roleObj = roles.find(r => (String(r.id) === String(firstRoleMapping.role_id) || String(r._id) === String(firstRoleMapping.role_id)));
-          if (roleObj) {
-            roleName = roleObj.name;
-          }
+          const matchedRole = roles.find(r => (String(r.id) === String(firstRoleMapping.role_id) || String(r._id) === String(firstRoleMapping.role_id)));
+          if (matchedRole) roleName = matchedRole.name;
         }
-        
+
         return {
           ...user,
-          role_id: roleId,
-          role_name: roleName,
+          role_id: firstRoleMapping?.role_id || null,
           roles: myRoles.map(ur => {
-            const r = roles.find(r => (String(r.id) === String(ur.role_id) || String(r._id) === String(ur.role_id)));
+            const r = roles.find(rl => (String(rl.id) === String(ur.role_id) || String(rl._id) === String(ur.role_id)));
             return r ? r.name : "Unknown";
           }),
-          roleData: myRoles.map(ur => {
-             const r = roles.find(rl => (String(rl.id) === String(ur.role_id) || String(rl._id) === String(ur.role_id)));
-             return r || null;
-          }).filter(Boolean)
+          roleData: myRoles.map(ur => roles.find(r => (String(r.id) === String(ur.role_id) || String(r._id) === String(ur.role_id)))).filter(Boolean),
+          role_name: roleName
         };
-      });
+      })
+      .reduce((acc, current) => {
+        // Deduplicate by email to remove pending invites if a real user exists
+        if (current.email) {
+          const existingIndex = acc.findIndex((u: any) => u.email === current.email);
+          if (existingIndex >= 0) {
+            const existing = acc[existingIndex];
+            if (!current.is_pending && existing.is_pending) {
+              acc[existingIndex] = current;
+            }
+            return acc;
+          }
+        }
+        acc.push(current);
+        return acc;
+      }, [] as any[]);
   }, [searchQuery]);
 }

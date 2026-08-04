@@ -94,16 +94,49 @@ export function StaffTab() {
     if (!email.trim() || !selectedRole) {
       return toast.error("Email and role are required");
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return toast.error("Invalid email format");
+    }
     
     try {
       setIsSaving(true);
       
       if (!editingStaff) {
+        // Offline validation: check if email is already in staff list
+        const existingUsers = await db.users.filter(u => u.email?.toLowerCase() === email.toLowerCase()).toArray();
+        if (existingUsers.length > 0) {
+          const userRoles = await db.user_roles.filter(ur => String(ur.user_id) === String(existingUsers[0].id) || String(ur.user_id) === String(existingUsers[0]._id)).toArray();
+          if (userRoles.length > 0 || existingUsers[0].role === "staff") {
+            toast.error("User is already staff in this shop");
+            setIsSaving(false);
+            return;
+          }
+        }
+
         // Queue new invite offline
         const payload = { email, role_id: selectedRole };
         const tempId = `temp-inv-${Date.now()}`;
         
-        await SyncEngine.queueOperation("invitations", "POST", "/api/staff/invite", payload, tempId);
+        // Insert optimistic pending user into local DB so they appear immediately
+        await db.users.put({
+          id: tempId,
+          name: "Pending Invite",
+          email: email,
+          role: "staff",
+          is_pending: true
+        });
+        
+        // Also map their role locally
+        await db.user_roles.put({
+          id: `ur-${tempId}`,
+          user_id: tempId,
+          role_id: selectedRole
+        });
+        
+        // Queue under 'users' collection to prevent sync engine crash, as 'invitations' doesn't exist locally
+        await SyncEngine.queueOperation("users", "POST", "/api/staff/invite", payload, tempId);
         
         toast.success("Invitation queued! It will be sent automatically.");
         setIsModalOpen(false);
