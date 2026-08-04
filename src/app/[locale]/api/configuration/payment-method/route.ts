@@ -27,6 +27,7 @@ export async function GET() {
       user_id: unknown;
       bank_name: string;
       bank_details: string;
+      opening_balance?: number;
       created_at?: Date;
       updated_at?: Date;
     }>(COLLECTIONS.PAYMENT_METHOD);
@@ -34,7 +35,7 @@ export async function GET() {
     const items = await collection
       .find(
         { user_id: toObjectId(userId) },
-        { projection: { _id: 1, bank_name: 1, bank_details: 1, created_at: 1, updated_at: 1 } }
+        { projection: { _id: 1, bank_name: 1, bank_details: 1, opening_balance: 1, created_at: 1, updated_at: 1 } }
       )
       .sort({ updated_at: -1 })
       .toArray();
@@ -43,6 +44,7 @@ export async function GET() {
       id: (item._id as { toString: () => string }).toString(),
       bankName: item.bank_name ?? '',
       bankDetails: item.bank_details ?? '',
+      openingBalance: item.opening_balance ?? 0,
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     }));
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const bankName = typeof body?.bankName === 'string' ? body.bankName.trim() : '';
     const bankDetails = typeof body?.bankDetails === 'string' ? body.bankDetails.trim() : '';
+    const openingBalance = typeof body?.openingBalance === 'number' ? body.openingBalance : 0;
 
     if (!bankName) {
       return NextResponse.json({ error: 'Bank name is required' }, { status: 400 });
@@ -89,6 +92,7 @@ export async function POST(req: NextRequest) {
         id: (existing._id as { toString: () => string }).toString(),
         bankName: existing.bank_name,
         bankDetails: existing.bank_details,
+        openingBalance: existing.opening_balance ?? 0,
         createdAt: existing.created_at,
         updatedAt: existing.updated_at,
         message: 'Payment method already exists, returning existing'
@@ -100,6 +104,7 @@ export async function POST(req: NextRequest) {
       user_id: toObjectId(userId),
       bank_name: bankName,
       bank_details: bankDetails,
+      opening_balance: openingBalance,
       created_at: now,
       updated_at: now,
     });
