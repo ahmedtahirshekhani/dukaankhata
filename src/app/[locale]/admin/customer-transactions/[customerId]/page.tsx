@@ -68,7 +68,7 @@ export default function CustomerTransactionsDetailPage() {
     const fetchData = async () => {
       try {
         const fromDate = "1970-01-01";
-        const toDate = new Date().toISOString().split("T")[0];
+        const toDate = "2099-12-31"; // Ensure all future-dated transactions are included
         const params = new URLSearchParams({ customerId, fromDate, toDate });
         const res = await fetch(`/${locale}/api/account-statement?${params.toString()}`);
         if (!res.ok) {
