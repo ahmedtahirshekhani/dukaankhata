@@ -84,7 +84,8 @@
     "all": "All",
     "offlineWorkspaceSwitchErrorTitle": "Action Unavailable Offline",
     "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection.",
-    "balance": "Balance"
+    "balance": "Balance",
+    "amountInDukaanKhata": "Amount in Dukaan khata"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -154,6 +155,8 @@
   },
   "configurationPage": {
     "searchPlaceholder": "Search Payment Methods",
+    "cashInHandBalance": "Cash in Hand Balance",
+    "totalBankBalance": "Total Bank Balance",
     "onlyImageFilesAllowed": "Only image files are allowed.",
     "failedToSave": "Failed to save",
     "detailsSaved": "Company details saved successfully",

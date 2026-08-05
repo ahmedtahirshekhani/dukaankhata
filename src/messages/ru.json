@@ -85,7 +85,8 @@
     "offlineWorkspaceSwitchErrorTitle": "Action Offline Available Nahi",
     "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein.",
     "balance": "Balance",
-    "openingBalance": "Opening Balance"
+    "openingBalance": "Opening Balance",
+    "amountInDukaanKhata": "Dukaan Khata mein raqam"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -154,7 +155,9 @@
     "bankAccountsDescription": "Apne cash aur bank accounts manage karein."
   },
   "configurationPage": {
-        "searchPlaceholder": "Search Payment Methods",
+    "searchPlaceholder": "Payment Methods Search Karain",
+    "cashInHandBalance": "Cash in Hand Balance",
+    "totalBankBalance": "Total Bank Balance",
     "onlyImageFilesAllowed": "Sirf image files allowed hain.",
     "failedToSave": "Mehfooz karne mein nakam",
     "detailsSaved": "Company ki tafseel kamyabi se mehfooz ho gayi",

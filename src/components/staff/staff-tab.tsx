@@ -200,7 +200,7 @@ export function StaffTab() {
   };
 
   const filteredStaff = useMemo(() => {
-    return staff.filter((member) => {
+    return staff.filter((member: any) => {
       // Exclude the currently logged-in user
       if (session?.user?.email && member.email === session.user.email) {
         return false;

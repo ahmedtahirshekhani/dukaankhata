@@ -219,7 +219,7 @@ declare module 'lucide-react' {
   export const Bot: Icon;
   export const PlayCircle: Icon;
   export const Building2: Icon;
-
+  export const Landmark: Icon;
 
   // Catch-all for any other icons that might be used
   const lucideReact: {

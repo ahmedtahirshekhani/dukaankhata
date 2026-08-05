@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Eye, Edit, FileText, PlusCircle, SearchIcon, XIcon, FilePenIcon } from "lucide-react";
+import { Eye, Edit, FileText, PlusCircle, SearchIcon, XIcon, FilePenIcon, DollarSign, Landmark } from "lucide-react";
 import { useOfflinePaymentMethodsWithBalance } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
@@ -81,6 +81,11 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
     updatedAt: item.updatedAt || item.updated_at
   }));
 
+  const cashInHandBalance = useMemo(() => {
+    const cashMethod = allList.find(m => m.bankName.toLowerCase() === "cash in hand");
+    return cashMethod ? (cashMethod.currentBalance ?? cashMethod.openingBalance ?? 0) : 0;
+  }, [allList]);
+
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageError, setMessageError] = useState(false);
@@ -115,6 +120,10 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
 
   const totalCount = filteredList.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
+
+  const totalBankBalance = useMemo(() => {
+    return allList.reduce((sum, item) => sum + (item.currentBalance ?? item.openingBalance ?? 0), 0);
+  }, [allList]);
 
   const paginatedList = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -269,6 +278,40 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
         )}
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">{t("cashInHandBalance") || "Cash in Hand Balance"}</p>
+                <p className="text-lg font-semibold mt-1 text-gray-800">
+                  {formatCurrencyString(cashInHandBalance)}
+                </p>
+              </div>
+              <div className="p-2 bg-green-50 rounded-lg">
+                <DollarSign className="h-4 w-4 text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">{t("totalBankBalance") || "Total Bank Balance"}</p>
+                <p className="text-lg font-semibold mt-1 text-gray-800">
+                  {formatCurrencyString(totalBankBalance)}
+                </p>
+              </div>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Landmark className="h-4 w-4 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
           <div className="flex items-center justify-between gap-2 w-full">
@@ -300,7 +343,7 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                 <TableRow>
                   <TableHead>{t("paymentMethodBankName")}</TableHead>
                   <TableHead>{tBank("openingBalance")}</TableHead>
-                  <TableHead>{tCommon("balance") === "common.balance" ? "Balance" : tCommon("balance")}</TableHead>
+                  <TableHead>{tCommon("amountInDukaanKhata") === "common.amountInDukaanKhata" ? "Amount in Dukaan khata" : tCommon("amountInDukaanKhata")}</TableHead>
                   <TableHead>{t("paymentMethodBankDetails")}</TableHead>
                   <TableHead className="text-right">{tCommon("actions")}</TableHead>
                 </TableRow>
@@ -565,7 +608,7 @@ function BankAccountCard({
           <span className="font-medium text-foreground">{formatCurrencyString(item.openingBalance)}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">{tCommon("balance") === "common.balance" ? "Balance" : tCommon("balance")}:</span>
+          <span className="text-muted-foreground">{tCommon("amountInDukaanKhata") === "common.amountInDukaanKhata" ? "Amount in Dukaan khata" : tCommon("amountInDukaanKhata")}:</span>
           <span className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</span>
         </div>
         <div className="mt-2 text-muted-foreground line-clamp-2 pt-2 border-t border-border/50">

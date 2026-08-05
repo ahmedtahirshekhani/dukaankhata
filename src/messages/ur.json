@@ -85,7 +85,8 @@
     "offlineWorkspaceSwitchErrorTitle": "آف لائن کارروائی ممکن نہیں",
     "offlineWorkspaceSwitchErrorDesc": "یہ کام کرنے کے لیے آپ کا آن لائن ہونا ضروری ہے۔ براہ کرم اپنا انٹرنیٹ کنکشن چیک کریں۔",
     "balance": "بیلنس",
-    "openingBalance": "اوپننگ بیلنس"
+    "openingBalance": "اوپننگ بیلنس",
+    "amountInDukaanKhata": "دکان کھاتہ میں رقم"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -155,6 +156,8 @@
   },
   "configurationPage": {
     "searchPlaceholder": "ادائیگی کے طریقے تلاش کریں",
+    "cashInHandBalance": "کیش اِن ہینڈ بیلنس",
+    "totalBankBalance": "کل بینک بیلنس",
     "onlyImageFilesAllowed": "صرف تصاویر کی اجازت ہے",
     "failedToSave": "محفوظ کرنے میں ناکام",
     "detailsSaved": "کمپنی کی تفصیلات کامیابی سے محفوظ ہو گئیں",
