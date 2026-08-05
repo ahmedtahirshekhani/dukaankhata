@@ -944,6 +944,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             )}
 
             {/* Bank Accounts */}
+            {hasModuleAccess("payment_methods") && (
             <div>
               <Link
                 href={`/${locale}/admin/bank-accounts`}
@@ -966,6 +967,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </div>
               </Link>
             </div>
+            )}
 
             {/* Reports Section */}
             {hasModuleAccess("reports") && (
