@@ -40,6 +40,7 @@ import {
   Star,
   Users,
   Store,
+  Search,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -54,6 +55,7 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
+import { QuickActions } from "@/components/layout/quick-actions";
 
 // useSearchParams() opts the whole route out of static prerendering unless
 // isolated behind its own Suspense boundary — without this, every page that
@@ -943,6 +945,32 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             </div>
             )}
 
+            {/* Bank Accounts */}
+            {hasModuleAccess("payment_methods") && (
+            <div>
+              <Link
+                href={`/${locale}/admin/bank-accounts`}
+                prefetch={false}
+                onClick={() => setSidebarOpen(false)}
+                className={`${navItemBase} ${pathWithoutLocale === "/admin/bank-accounts" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("bankAccounts") : ""}
+              >
+                <Store className="h-5 w-5 flex-shrink-0 opacity-90" />
+                <div
+                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
+                >
+                  <span className="font-medium leading-none">
+                    {tNav("bankAccounts")}
+                  </span>
+                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
+                    {tNav("bankAccountsDescription")}
+                  </span>
+                </div>
+              </Link>
+            </div>
+            )}
+
             {/* Reports Section */}
             {hasModuleAccess("reports") && (
             <div>
@@ -987,6 +1015,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </Button>
                 )}
               </div>
+
+              
 
               {!sidebarMinimized && reportsExpanded && (
                 <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
@@ -1135,9 +1165,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           </nav>
         </aside>
         <main
-          className={`flex-1 p-3 sm:p-4 md:px-6 md:py-0 transition-all relative ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
+          className={`flex-1 p-3 sm:p-4 md:px-6 md:pt-12 md:pb-6 transition-all relative ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
             }`}
         >
+          {/* Quick Actions Sub-Header */}
+          {!blockedSubscriptionData && (
+            <div className={`hidden md:flex items-center justify-end bg-background/95 backdrop-blur-sm border-b px-6 py-1.5 fixed top-14 right-0 z-20 transition-all ${sidebarMinimized ? "left-16" : "left-64"}`}>
+              <QuickActions />
+            </div>
+          )}
           {blockedSubscriptionData && showBlockedCard ? (
             <div className="flex flex-col items-center justify-center min-h-[80vh]">
               <div className="max-w-[520px] w-full bg-card border border-border shadow-md rounded-xl overflow-hidden flex flex-col">

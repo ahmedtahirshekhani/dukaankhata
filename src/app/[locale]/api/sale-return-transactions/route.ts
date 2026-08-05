@@ -323,7 +323,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       customerId,
       eventKey: `sale_return_credit:${insertedId.toString()}`,
-      eventType: "manual_adjustment",
+      eventType: "sale_return_credit",
       eventSource: "party_transaction",
       eventSourceId: insertedId.toString(),
       amountDelta: -paymentAmount,
@@ -340,7 +340,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           customerId,
           eventKey: `sale_return_payment_debit:${insertedId.toString()}`,
-          eventType: "manual_adjustment",
+          eventType: "sale_return_debit",
           eventSource: "party_transaction",
           eventSourceId: insertedId.toString(),
           amountDelta: paidAmount, // Money given back to customer, increases their owed balance to us logically... wait, if positive balance is they owe us, giving them cash means they owe us MORE? No, if they return goods (amountDelta: -paymentAmount), they owe us LESS. If we give them cash back, their balance goes UP (back towards 0). Yes, +paidAmount.

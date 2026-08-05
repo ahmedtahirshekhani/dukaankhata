@@ -83,7 +83,10 @@
     "pleaseWait": "Barae meharbani intezar karein, offline database tayar kiya ja raha hai.",
     "all": "Sab",
     "offlineWorkspaceSwitchErrorTitle": "Action Offline Available Nahi",
-    "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein."
+    "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein.",
+    "balance": "Balance",
+    "openingBalance": "Opening Balance",
+    "amountInDukaanKhata": "Dukaan Khata mein raqam"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -147,9 +150,18 @@
     "staffManagement": "Staff Management",
     "staffManagementDescription": "Roles aur users manage karein",
     "whatsapp": "WhatsApp",
-    "whatsappDescription": "WhatsApp connect karein"
+    "whatsappDescription": "WhatsApp connect karein",
+    "bankAccounts": "Cash & Bank",
+    "bankAccountsDescription": "Apne cash aur bank accounts manage karein.",
+    "addSale": "Добавить продажу",
+    "addPurchase": "Добавить покупку",
+    "addCustomer": "Добавить контрагента",
+    "addPaymentIn": "Входящий платеж"
   },
   "configurationPage": {
+    "searchPlaceholder": "Payment Methods Search Karain",
+    "cashInHandBalance": "Cash in Hand Balance",
+    "totalBankBalance": "Total Bank Balance",
     "onlyImageFilesAllowed": "Sirf image files allowed hain.",
     "failedToSave": "Mehfooz karne mein nakam",
     "detailsSaved": "Company ki tafseel kamyabi se mehfooz ho gayi",
@@ -1074,6 +1086,7 @@
     "totalPaymentsOut": "Adaigiyan Out",
     "currentBalance": "Maujuda Balance",
     "date": "Date",
+    "particulars": "Tafseelat",
     "orderValue": "Order Ki Qeemat",
     "paidAmount": "Ada Shuda Raqam",
     "paidDate": "Payment Date",
@@ -1682,5 +1695,18 @@
     "roleDeletedSuccess": "Role successfully delete ho gaya",
     "roleDeleteError": "Role delete karne mein nakami",
     "roleInUseError": "Yeh role is waqt aik ya zyada staff members ko assign kiya gaya hai. Delete karne se pehle unse hatana zaroori hai."
+  },
+  "bankAccounts": {
+    "description": "Apne bank accounts aur payment methods manage karein.",
+    "addBankAccount": "Naya Bank Account Shamil Karein",
+    "editBankAccount": "Bank Account Edit Karein",
+    "enterDetails": "Apne bank account ki details darj karein.",
+    "openingBalance": "Opening Balance",
+    "viewStatement": "Ledger Statement Dekhein",
+    "statementModalTitle": "Bank Statement",
+    "totalCreditIn": "Total Credit (In)",
+    "totalDebitOut": "Total Debit (Out)",
+    "creditIn": "Credit (In)",
+    "debitOut": "Debit (Out)"
   }
 }

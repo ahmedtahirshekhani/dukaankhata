@@ -83,7 +83,10 @@
     "pleaseWait": "براہ کرم انتظار کریں، آف لائن ڈیٹا بیس تیار کیا جا رہا ہے۔",
     "all": "تمام",
     "offlineWorkspaceSwitchErrorTitle": "آف لائن کارروائی ممکن نہیں",
-    "offlineWorkspaceSwitchErrorDesc": "یہ کام کرنے کے لیے آپ کا آن لائن ہونا ضروری ہے۔ براہ کرم اپنا انٹرنیٹ کنکشن چیک کریں۔"
+    "offlineWorkspaceSwitchErrorDesc": "یہ کام کرنے کے لیے آپ کا آن لائن ہونا ضروری ہے۔ براہ کرم اپنا انٹرنیٹ کنکشن چیک کریں۔",
+    "balance": "بیلنس",
+    "openingBalance": "اوپننگ بیلنس",
+    "amountInDukaanKhata": "دکان کھاتہ میں رقم"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -147,9 +150,18 @@
     "staffManagement": "اسٹاف مینجمنٹ",
     "staffManagementDescription": "رولز اور صارفین کا انتظام کریں",
     "whatsapp": "واٹس ایپ",
-    "whatsappDescription": "واٹس ایپ کنیکٹ کریں"
+    "whatsappDescription": "واٹس ایپ کنیکٹ کریں",
+    "bankAccounts": "کیش اور بینکس",
+    "bankAccountsDescription": "اپنے کیش اور بینکس منظم کریں۔",
+    "addSale": "سیل شامل کریں",
+    "addPurchase": "خریداری شامل کریں",
+    "addCustomer": "پارٹی شامل کریں",
+    "addPaymentIn": "پیمنٹ ان"
   },
   "configurationPage": {
+    "searchPlaceholder": "ادائیگی کے طریقے تلاش کریں",
+    "cashInHandBalance": "کیش اِن ہینڈ بیلنس",
+    "totalBankBalance": "کل بینک بیلنس",
     "onlyImageFilesAllowed": "صرف تصاویر کی اجازت ہے",
     "failedToSave": "محفوظ کرنے میں ناکام",
     "detailsSaved": "کمپنی کی تفصیلات کامیابی سے محفوظ ہو گئیں",
@@ -1074,6 +1086,7 @@
     "totalPaymentsOut": "ادائیگی باہر",
     "currentBalance": "موجودہ بیلنس",
     "date": "تاریخ",
+    "particulars": "تفصیلات",
     "orderValue": "آرڈر کی قیمت",
     "paidAmount": "ادا شدہ رقم",
     "paidDate": "ادائیگی کی تاریخ",
@@ -1682,5 +1695,18 @@
     "roleDeletedSuccess": "رول کامیابی سے حذف ہو گیا",
     "roleDeleteError": "رول حذف کرنے میں ناکامی",
     "roleInUseError": "یہ رول اس وقت ایک یا زیادہ اسٹاف ممبرز کو تفویض کیا گیا ہے۔ اسے حذف کرنے سے پہلے آپ کو ان سے ہٹانا ہوگا۔"
+  },
+  "bankAccounts": {
+    "description": "اپنے بینک اکاؤنٹس اور ادائیگی کے طریقے منظم کریں۔",
+    "addBankAccount": "نیا بینک اکاؤنٹ شامل کریں",
+    "editBankAccount": "بینک اکاؤنٹ میں ترمیم کریں",
+    "enterDetails": "اپنے بینک اکاؤنٹ کی تفصیلات درج کریں۔",
+    "openingBalance": "ابتدائی بیلنس",
+    "viewStatement": "لیجر اسٹیٹمنٹ دیکھیں",
+    "statementModalTitle": "بینک اسٹیٹمنٹ",
+    "totalCreditIn": "کل کریڈٹ (In)",
+    "totalDebitOut": "کل ڈیبٹ (Out)",
+    "creditIn": "کریڈٹ (In)",
+    "debitOut": "ڈیبٹ (Out)"
   }
 }
