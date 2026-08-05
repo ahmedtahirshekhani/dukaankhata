@@ -329,6 +329,79 @@ export function useOfflinePaymentMethods() {
   return useSafeLiveQuery(() => db.payment_methods.toArray());
 }
 
+export function useOfflinePaymentMethodsWithBalance() {
+  return useSafeLiveQuery(async () => {
+    const methods = await db.payment_methods.toArray();
+    
+    const [partyTransactions, orders, purchaseBills, saleReturns, expenses, vendorTransactions] = await Promise.all([
+      db.party_transactions.toArray(),
+      db.orders.toArray(),
+      db.purchase_bills.toArray(),
+      db.sale_return_transactions.toArray(),
+      db.expenses.toArray(),
+      db.vendor_transactions.toArray(),
+    ]);
+
+    return methods.map(method => {
+      const methodIdStr = (method.id || method._id)?.toString();
+      let currentBalance = parseFloat(method.opening_balance || method.openingBalance) || 0;
+
+      partyTransactions.forEach(t => {
+        if ((t.paymentMethodId || t.payment_method_id)?.toString() === methodIdStr) {
+          const amount = parseFloat(t.paymentAmount || t.payment_amount || t.amount) || 0;
+          if (t.type === 'payment-in') currentBalance += amount;
+          if (t.type === 'payment-out') currentBalance -= amount;
+        }
+      });
+      
+      vendorTransactions.forEach(t => {
+        if ((t.paymentMethodId || t.payment_method_id)?.toString() === methodIdStr) {
+          const amount = parseFloat(t.paymentAmount || t.payment_amount || t.amount) || 0;
+          if (t.type === 'payment-in') currentBalance += amount;
+          if (t.type === 'payment-out') currentBalance -= amount;
+        }
+      });
+
+      orders.forEach(o => {
+        const orderMethod = (o.payment?.method || o.payment_method_id || o.paymentMethodId)?.toString();
+        if (orderMethod === methodIdStr) {
+          const amount = parseFloat(o.payment?.paid_amount || o.paid_amount || o.paidAmount) || 0;
+          currentBalance += amount; // IN
+        }
+      });
+
+      purchaseBills.forEach(p => {
+        const pMethod = (p.payment?.method || p.payment_method_id || p.paymentMethodId)?.toString();
+        if (pMethod === methodIdStr) {
+          const amount = parseFloat(p.payment?.paid_amount || p.paid_amount || p.paidAmount) || 0;
+          currentBalance -= amount; // OUT
+        }
+      });
+
+      saleReturns.forEach(s => {
+        const sMethod = (s.paymentMethodId || s.payment_method_id)?.toString();
+        if (sMethod === methodIdStr) {
+          const amount = parseFloat(s.paidAmount || s.paid_amount) || 0;
+          currentBalance -= amount; // OUT
+        }
+      });
+
+      expenses.forEach(e => {
+        const eMethod = (e.paymentMethodId || e.payment_method_id)?.toString();
+        if (eMethod === methodIdStr) {
+          const amount = parseFloat(e.amount) || 0;
+          currentBalance -= amount; // OUT
+        }
+      });
+
+      return {
+        ...method,
+        currentBalance
+      };
+    });
+  });
+}
+
 export function useOfflineQuotations(searchQuery: string = "") {
   return useSafeLiveQuery(() => {
     return db.quotations

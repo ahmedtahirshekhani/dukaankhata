@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import { PaymentMethodSection } from "@/components/configuration/payment-method-section";
 import { Switch } from "@/components/ui/switch";
 
 export default function ConfigurationPage({
@@ -275,7 +274,6 @@ export default function ConfigurationPage({
             <p className="text-gray-600 mt-2">
               {tNav("configurationDescription")}
             </p>
-            {canViewPaymentMethods && <PaymentMethodSection locale={params.locale} />}
           </div>
 
           {canViewConfig && (

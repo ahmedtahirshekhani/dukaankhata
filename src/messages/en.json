@@ -83,7 +83,9 @@
     "pleaseWait": "Please wait while we set up your offline database.",
     "all": "All",
     "offlineWorkspaceSwitchErrorTitle": "Action Unavailable Offline",
-    "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection."
+    "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection.",
+    "balance": "Balance",
+    "amountInDukaanKhata": "Amount in Dukaan khata"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -147,9 +149,14 @@
     "staffManagement": "Staff Management",
     "staffManagementDescription": "Manage roles and users",
     "whatsapp": "WhatsApp",
-    "whatsappDescription": "Connect WhatsApp"
+    "whatsappDescription": "Connect WhatsApp",
+    "bankAccounts": "Cash & Bank",
+    "bankAccountsDescription": "Manage your cash and bank accounts and payment methods."
   },
   "configurationPage": {
+    "searchPlaceholder": "Search Payment Methods",
+    "cashInHandBalance": "Cash in Hand Balance",
+    "totalBankBalance": "Total Bank Balance",
     "onlyImageFilesAllowed": "Only image files are allowed.",
     "failedToSave": "Failed to save",
     "detailsSaved": "Company details saved successfully",
@@ -1074,6 +1081,7 @@
     "totalPaymentsOut": "Payment Out",
     "currentBalance": "Current Balance",
     "date": "Date",
+    "particulars": "Particulars",
     "orderValue": "Order Value",
     "paidAmount": "Paid Amount",
     "paidDate": "Paid Date",
@@ -1683,5 +1691,18 @@
     "roleDeletedSuccess": "Role deleted successfully",
     "roleDeleteError": "Failed to delete role",
     "roleInUseError": "This role is currently assigned to one or more staff members. You must unassign it from them before you can delete it."
+  },
+  "bankAccounts": {
+    "description": "Manage your bank accounts and payment methods.",
+    "addBankAccount": "Add Bank Account",
+    "editBankAccount": "Edit Bank Account",
+    "enterDetails": "Enter details of your bank account.",
+    "openingBalance": "Opening Balance",
+    "viewStatement": "View Ledger Statement",
+    "statementModalTitle": "Bank Statement",
+    "totalCreditIn": "Total Credit (In)",
+    "totalDebitOut": "Total Debit (Out)",
+    "creditIn": "Credit (In)",
+    "debitOut": "Debit (Out)"
   }
 }

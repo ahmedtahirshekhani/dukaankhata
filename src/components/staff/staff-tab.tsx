@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, AwaitedReactNode, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, Loader2, SearchIcon, FilterIcon, XIcon, PlusCircle, Edit } from "lucide-react";
 import { toast } from "sonner";
@@ -200,7 +200,7 @@ export function StaffTab() {
   };
 
   const filteredStaff = useMemo(() => {
-    return staff.filter((member) => {
+    return staff.filter((member: any) => {
       // Exclude the currently logged-in user
       if (session?.user?.email && member.email === session.user.email) {
         return false;
@@ -316,7 +316,7 @@ export function StaffTab() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedStaff.map((member) => (
+                  paginatedStaff.map((member: any) => (
                     <TableRow key={member.id || member._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
@@ -368,7 +368,7 @@ export function StaffTab() {
                   {t("noRecords")}
                 </div>
              ) : (
-                paginatedStaff.map((member) => (
+                paginatedStaff.map((member: any) => (
                    <Card key={member.id || member._id} className="p-4 shadow-sm border space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
