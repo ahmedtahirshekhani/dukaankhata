@@ -38,6 +38,7 @@ import {
 import { usePermissions } from "@/hooks/use-permissions";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
+import BMBKImportButton from "@/components/BMBKImportButton";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { SummaryCarousel } from "@/components/summary-carousel";
 import { Pagination } from "@/components/ui/pagination";
@@ -755,8 +756,9 @@ export default function DashboardPage() {
                 <DialogHeader>
                   <DialogTitle>Import Your Data</DialogTitle>
                 </DialogHeader>
-                <div className="mt-4">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <VyaparImportButton />
+                  <BMBKImportButton />
                 </div>
               </DialogContent>
             </Dialog>
