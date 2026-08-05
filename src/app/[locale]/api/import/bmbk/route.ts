@@ -8,6 +8,7 @@ import { ObjectId } from 'mongodb';
 
 import { getCurrentUser } from '@/lib/auth/utils';
 import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '@/lib/db/mongodb';
+import { getBranchName, getPriceFields, getProductDescription } from './import-mapping';
 
 const str = (value: any) => (value == null ? '' : String(value).trim());
 const num = (value: any) => {
@@ -93,6 +94,8 @@ export async function POST(req: NextRequest) {
     const paymentDetailTable = findTable(tableNames, /^PaymentDetail$/i);
     const receiptTable = findTable(tableNames, /^Receipt$/i);
     const receiptDetailTable = findTable(tableNames, /^ReceiptDetail$/i);
+    const expenseTable = findTable(tableNames, /^Expense$/i);
+    const expenseDetailTable = findTable(tableNames, /^ExpenseDetail$/i);
 
     if (!accountTable || !itemTable || !salesTable || !salesDetailTable || !purchaseTable || !purchaseDetailTable) {
       throw new Error('Required BMBK tables are missing');
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest) {
     const purchaseCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
     const txnCol = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
     const paymentMethodCol = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const expensesCol = await getCollection(COLLECTIONS.EXPENSES);
     const ledgerEntriesCol = await getCollection(COLLECTIONS.PARTY_LEDGER_ENTRIES);
     const balanceStateCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
 
@@ -238,10 +242,10 @@ export async function POST(req: NextRequest) {
       const category = str(first(row, ['Category'])) || 'General';
       const brand = str(first(row, ['Brand']));
       const openingQty = num(first(row, ['OpeningQty']));
-      const cost = num(first(row, ['Cost'])) || num(first(row, ['OpeningCost']));
-      const retail = num(first(row, ['Retail'])) || cost;
+      const { costPrice, sellPrice } = getPriceFields(row);
       const unit = str(first(row, ['Unit'])) || 'PCS';
       const minStock = num(first(row, ['MinimumStock']));
+      const description = getProductDescription(name, str(first(row, ['Description2'])) || str(first(row, ['Remarks'])) || str(first(row, ['Narration'])) || '');
 
       productUpserts.push({
         updateOne: {
@@ -249,12 +253,12 @@ export async function POST(req: NextRequest) {
           update: {
             $set: {
               name,
-              description: name,
+              description,
               category,
-              branch: brand || 'Main',
+              branch: getBranchName(brand),
               type: 'goods',
-              cost_price: Math.round(cost),
-              sell_price: Math.round(retail),
+              cost_price: Math.round(costPrice || 0),
+              sell_price: Math.round(sellPrice || costPrice || 0),
               quantity: openingQty,
               unit_of_measurement: unit,
               min_stock_quantity: minStock,
@@ -312,16 +316,26 @@ export async function POST(req: NextRequest) {
     const receiptRows = receiptTable ? await db.all(`SELECT * FROM [${receiptTable}]`) : [];
     const receiptDetails = receiptDetailTable ? await db.all(`SELECT * FROM [${receiptDetailTable}]`) : [];
     const receiptDetailsByReceiptId = new Map<string, any[]>();
+    const expenseRows = expenseTable ? await db.all(`SELECT * FROM [${expenseTable}]`) : [];
+    const expenseDetails = expenseDetailTable ? await db.all(`SELECT * FROM [${expenseDetailTable}]`) : [];
     for (const detail of receiptDetails) {
       const receiptId = str(first(detail, ['ReceiptId']));
       if (!receiptDetailsByReceiptId.has(receiptId)) receiptDetailsByReceiptId.set(receiptId, []);
       receiptDetailsByReceiptId.get(receiptId)!.push(detail);
     }
 
+    const expenseDetailsByExpenseId = new Map<string, any[]>();
+    for (const detail of expenseDetails) {
+      const expenseId = str(first(detail, ['ExpenseId']));
+      if (!expenseDetailsByExpenseId.has(expenseId)) expenseDetailsByExpenseId.set(expenseId, []);
+      expenseDetailsByExpenseId.get(expenseId)!.push(detail);
+    }
+
     const orderDocs: any[] = [];
     const purchaseDocs: any[] = [];
     const txnDocs: any[] = [];
     const ledgerDocs: any[] = [];
+    const expenseDocs: any[] = [];
 
     const addLedgerEntry = (partyId: ObjectId, amountDelta: number, eventType: string, eventSource: string, eventSourceId: string, effectiveAt: Date, metadata: any = {}) => {
       const key = partyId.toString();
@@ -349,13 +363,14 @@ export async function POST(req: NextRequest) {
       const detailName = str(first(detail, ['Item']));
       const product = productMap.get(normalize(detailName)) || productMap.get(normalize(str(first(detail, ['Description']))));
       const quantity = num(first(detail, ['Qty'])) || 1;
-      const rate = num(first(detail, ['Rate'])) || 0;
+      const rate = num(first(detail, ['Rate'])) || num(first(detail, ['Price'])) || 0;
       const amount = num(first(detail, ['NetAmount'])) || num(first(detail, ['Amount'])) || quantity * rate;
+      const productDescription = getProductDescription(product?.name || detailName, product?.description || str(first(detail, ['Description'])) || '');
 
       return {
         product_id: product?._id || new ObjectId(),
         name: product?.name || detailName || 'Unknown',
-        description: product?.description || detailName || '',
+        description: productDescription,
         quantity,
         price: rate,
         quantityType: 'pcs',
@@ -386,6 +401,8 @@ export async function POST(req: NextRequest) {
       orderDocs.push({
         _id: orderId,
         user_id: userId,
+        customer_id: party?._id || null,
+        customer_name: party?.name || partyName || null,
         party_id: party?._id || null,
         party_name: party?.name || partyName || null,
         charges: num(first(row, ['Cartage'])) > 0 ? [{ item: 'Cartage', value: Math.round(num(first(row, ['Cartage']))) }] : [],
@@ -585,11 +602,48 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    for (const row of expenseRows) {
+      const expenseId = str(first(row, ['Serial', 'Id', 'No']));
+      const expenseDate = parseDate(first(row, ['Date']));
+      const partyName = str(first(row, ['Party', 'Supplier', 'Account', 'Name']));
+      const amount = num(first(row, ['Amount'])) || num(first(row, ['NetAmount'])) || 0;
+      const category = str(first(row, ['Category', 'Type'])) || 'General';
+      const itemName = str(first(row, ['Item', 'ItemName', 'Description'])) || category || 'Expense';
+      const description = str(first(row, ['Narration', 'Remarks'])) || '';
+      const party = partyMap.get(normalize(partyName));
+      if (amount <= 0) continue;
+
+      const expenseDoc = {
+        user_id: userId,
+        expense_number: expenseId || `EXP-${new Date().getTime()}-${expenseDocs.length + 1}`,
+        date: expenseDate,
+        created_at: expenseDate,
+        updated_at: expenseDate,
+        category,
+        item_name: itemName,
+        description,
+        qty: num(first(row, ['Qty'])) || 1,
+        rate: Math.max(amount, 0),
+        amount,
+        payment_method: str(first(row, ['PaidFrom', 'PaymentMethod'])) || null,
+        party_id: party?._id || null,
+        party_name: party?.name || partyName || null,
+        source: 'bmbk',
+        source_txn_id: expenseId || null,
+      };
+      expenseDocs.push(expenseDoc);
+      if (party) {
+        addLedgerEntry(party._id, -amount, 'expense_debit', 'expense', expenseDoc.expense_number, expenseDate, { source_expense_id: expenseId });
+      }
+      summary.expenses++;
+    }
+
     const writes: Promise<any>[] = [];
     if (orderDocs.length) writes.push(ordersCol.insertMany(orderDocs, { ordered: false }));
     if (purchaseDocs.length) writes.push(purchaseCol.insertMany(purchaseDocs, { ordered: false }));
     if (txnDocs.length) writes.push(txnCol.insertMany(txnDocs, { ordered: false }));
     if (ledgerDocs.length) writes.push(ledgerEntriesCol.insertMany(ledgerDocs, { ordered: false }));
+    if (expenseDocs.length) writes.push(expensesCol.insertMany(expenseDocs, { ordered: false }));
     await Promise.all(writes);
 
     const balanceOps = Array.from(balanceCache.entries()).map(([partyId, balance]) => ({
