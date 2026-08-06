@@ -55,8 +55,8 @@ export async function GET(request: Request) {
 
     const result: Record<string, any[]> = {};
     
-    // Fetch all collections concurrently for maximum performance
-    await Promise.all(collectionsToFetch.map(async (col) => {
+    // Fetch sequentially to prevent overwhelming the connection pool
+    for (const col of collectionsToFetch) {
       const dbCol = await getCollection(col.key);
       
       let currentQuery: any = { ...query };
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
 
       const docs = await dbCol.find(currentQuery).toArray();
       result[col.name] = mapData(docs);
-    }));
+    }
 
     console.log('SYNC RESULT:', {
       payment_methods: result.payment_methods?.length,
