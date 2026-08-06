@@ -253,6 +253,20 @@ export async function PUT(
     const oldPaidAmount = existing.paid_amount ?? 0;
     const newCustomerId = customerId;
 
+    const { adjustStock } = await import('@/lib/db/stock-manager');
+    // Revert old stock
+    if (existing.items && Array.isArray(existing.items)) {
+      for (const item of existing.items) {
+        if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
+      }
+    }
+    // Apply new stock
+    if (lineItems && Array.isArray(lineItems)) {
+      for (const item of lineItems) {
+        if (item.productId) await adjustStock(item.productId, user.id, (item.quantity || 0));
+      }
+    }
+
     if (oldCustomerId && isValidObjectId(oldCustomerId)) {
       if (oldAmount > 0) {
         await appendCustomerLedgerEntry({
@@ -442,6 +456,14 @@ export async function DELETE(
     const customerId = existing.customer_id?.toString();
     const paymentAmount = existing.payment_amount ?? 0;
     const paidAmount = existing.paid_amount ?? 0;
+
+    const { adjustStock } = await import('@/lib/db/stock-manager');
+    // Revert stock
+    if (existing.items && Array.isArray(existing.items)) {
+      for (const item of existing.items) {
+        if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
+      }
+    }
 
     if (customerId && isValidObjectId(customerId)) {
       if (paymentAmount > 0) {

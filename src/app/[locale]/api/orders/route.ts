@@ -364,24 +364,17 @@ export async function POST(request: Request) {
         (item as { quantityType?: string }).quantityType || "prime";
       const isDamaged = quantityType === "damaged";
 
-      let stockField: string;
       if (isDamaged) {
-        stockField = "damaged_quantity";
+        const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+        const newQty = Math.round((currentQty - parseFloat(orderQty.toString())) * 100000) / 100000;
+        await productsCollection.updateOne(
+          { _id: item.product_id },
+          { $set: { damaged_quantity: newQty } },
+        );
       } else {
-        const productQuantity = (productDoc as { quantity?: number }).quantity;
-        const productInStock = (productDoc as { in_stock?: number }).in_stock;
-        stockField =
-          productQuantity !== undefined && productQuantity !== null
-            ? "quantity"
-            : productInStock !== undefined && productInStock !== null
-              ? "in_stock"
-              : "quantity";
+        const { adjustStock } = await import('@/lib/db/stock-manager');
+        await adjustStock(item.product_id.toString(), user.id, -orderQty);
       }
-
-      await productsCollection.updateOne(
-        { _id: item.product_id },
-        { $inc: { [stockField]: -orderQty } },
-      );
     }
 
     // Ledger event: order increases balance (customer owes more)
