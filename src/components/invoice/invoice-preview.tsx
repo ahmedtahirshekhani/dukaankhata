@@ -166,7 +166,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
         className="invoice-preview-container"
         style={{
           background: "#ffffff",
-          border: "1px solid #e2e8f0",
+          border: "1px solid #94a3b8",
           borderRadius: "6px",
           fontFamily: "'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
@@ -179,64 +179,6 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           @media screen {
             .invoice-preview-inner {
               min-height: auto !important;
-            }
-          }
-          @media (max-width: 640px) {
-            .invoice-a4-header {
-              display: flex !important;
-              flex-direction: column !important;
-              align-items: center !important;
-              text-align: center !important;
-              gap: 4px !important;
-            }
-            .invoice-a4-header td {
-              display: block !important;
-              width: 100% !important;
-              text-align: center !important;
-              padding: 0 !important;
-            }
-            .invoice-a4-header img {
-              margin: 0 auto !important;
-            }
-            .invoice-title-cell {
-              margin-top: 8px !important;
-            }
-            /* Stack Party and Invoice details on mobile as requested */
-            .invoice-customer-meta {
-              display: flex !important;
-              flex-direction: column !important;
-              gap: 16px !important;
-            }
-            .invoice-customer-meta td {
-              display: block !important;
-              width: 100% !important;
-              padding-bottom: 0 !important;
-              text-align: left !important;
-            }
-            .invoice-customer-meta td:last-child {
-              text-align: left !important;
-            }
-            .invoice-customer-meta table {
-              margin-left: 0 !important;
-            }
-            .invoice-items-table {
-              font-size: 10px !important;
-            }
-            .invoice-items-table th, .invoice-items-table td {
-              padding: 4px 2px !important;
-            }
-            .invoice-totals-container {
-              font-size: 11px !important;
-            }
-            .invoice-sig-box {
-              width: 140px !important;
-              height: 48px !important;
-            }
-            .invoice-sig-box span {
-              font-size: 8px !important;
-            }
-            .invoice-sig-line {
-              width: 120px !important;
             }
           }
         `}} />
@@ -261,7 +203,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               HEADER  (Logo | Company Info | Document Title)
               Uses an HTML <table> so every renderer aligns cells identically.
           ══════════════════════════════════════════════════════════════════ */}
-          <div style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: S.sectionGap, marginBottom: S.sectionGap }}>
+          <div style={{ borderBottom: "1px solid #94a3b8", paddingBottom: S.sectionGap, marginBottom: S.sectionGap }}>
             {isThermal ? (
               /* ── THERMAL HEADER: stacked centre ── */
               <div style={{ textAlign: "center" }}>
@@ -278,12 +220,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                   </div>
                 )}
                 {companyAddress && (
-                  <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", lineHeight: 1.4, whiteSpace: "pre-line" }}>
+                  <div style={{ fontSize: "10px", color: "#334155", marginTop: "4px", lineHeight: 1.4, whiteSpace: "pre-line" }}>
                     {companyAddress}
                   </div>
                 )}
                 {(companyPhone || companyEmail) && (
-                  <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "12px", marginTop: "4px", fontSize: "10px", color: "#64748b" }}>
+                  <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "12px", marginTop: "4px", fontSize: "10px", color: "#334155" }}>
                     {companyPhone && (
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}>
                         <span>&#9742;</span>
@@ -335,7 +277,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       {companyAddress && (
                         <div style={{
                           fontSize: "11px",
-                          color: "#64748b",
+                          color: "#334155",
                           marginTop: "4px",
                           lineHeight: 1.5,
                           whiteSpace: "pre-line",
@@ -352,7 +294,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                                 <td style={{
                                   paddingRight: companyEmail ? "20px" : "0",
                                   fontSize: "11px",
-                                  color: "#64748b",
+                                  color: "#334155",
                                   verticalAlign: "middle",
                                   whiteSpace: "nowrap",
                                 }}>
@@ -363,7 +305,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                               {companyEmail && (
                                 <td style={{
                                   fontSize: "11px",
-                                  color: "#64748b",
+                                  color: "#334155",
                                   verticalAlign: "middle",
                                   whiteSpace: "nowrap",
                                 }}>
@@ -402,24 +344,24 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
             {isThermal ? (
               /* ── THERMAL: stacked ── */
               <div style={{ fontSize: S.textFontSize }}>
-                <div style={{ fontSize: S.labelFontSize, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#94a3b8", marginBottom: "4px" }}>
+                <div style={{ fontSize: S.labelFontSize, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569", marginBottom: "4px" }}>
                   {t("customerDetails")}
                 </div>
                 <div style={{ fontWeight: 700, color: "#0f172a" }}>{customer.name}</div>
                 {customer.company_name && <div style={{ color: "#334155" }}>{customer.company_name}</div>}
                 {(customer.company_address || customer.address) && (
-                  <div style={{ fontSize: "10px", color: "#64748b", fontStyle: "italic" }}>{customer.company_address || customer.address}</div>
+                  <div style={{ fontSize: "10px", color: "#334155", fontStyle: "italic" }}>{customer.company_address || customer.address}</div>
                 )}
-                {customer.phone && <div style={{ color: "#64748b" }}>{customer.phone}</div>}
-                {customer.email && <div style={{ color: "#64748b" }}>{customer.email}</div>}
+                {customer.phone && <div style={{ color: "#334155" }}>{customer.phone}</div>}
+                {customer.email && <div style={{ color: "#334155" }}>{customer.email}</div>}
 
-                <div style={{ marginTop: "8px", borderTop: "1px solid #e2e8f0", paddingTop: "6px" }}>
+                <div style={{ marginTop: "8px", borderTop: "1px solid #94a3b8", paddingTop: "6px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "#64748b" }}>{t("invoiceNoLabel")}:</span>
+                    <span style={{ color: "#334155" }}>{t("invoiceNoLabel")}:</span>
                     <span style={{ fontWeight: 700 }}>{invoiceNo}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-                    <span style={{ color: "#64748b" }}>{t("invoiceDate")}:</span>
+                    <span style={{ color: "#334155" }}>{t("invoiceDate")}:</span>
                     <span style={{ fontWeight: 700 }}>{formatDateShort(saleDate)}</span>
                   </div>
                   {dueDate && (
@@ -442,7 +384,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         fontWeight: 700,
                         textTransform: "uppercase",
                         letterSpacing: "0.08em",
-                        color: "#94a3b8",
+                        color: "#475569",
                         marginBottom: "6px",
                       }}>
                         {t("customerDetails") || "Party Details"}
@@ -456,17 +398,17 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         </div>
                       )}
                       {(customer.company_address || customer.address) && (
-                        <div style={{ fontSize: "11px", color: "#64748b", fontStyle: "italic", marginTop: "2px", lineHeight: 1.4 }}>
+                        <div style={{ fontSize: "11px", color: "#334155", fontStyle: "italic", marginTop: "2px", lineHeight: 1.4 }}>
                           {customer.company_address || customer.address}
                         </div>
                       )}
                       {customer.phone && (
-                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                        <div style={{ fontSize: "12px", color: "#334155", marginTop: "2px" }}>
                           {customer.phone}
                         </div>
                       )}
                       {customer.email && (
-                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                        <div style={{ fontSize: "12px", color: "#334155", marginTop: "2px" }}>
                           {customer.email}
                         </div>
                       )}
@@ -479,7 +421,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         fontWeight: 700,
                         textTransform: "uppercase",
                         letterSpacing: "0.08em",
-                        color: "#94a3b8",
+                        color: "#475569",
                         marginBottom: "6px",
                       }}>
                         {t("invoiceDetails") || "Invoice Details"}
@@ -487,7 +429,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       <table style={{ marginLeft: "auto", borderCollapse: "collapse", fontSize: "13px" }}>
                         <tbody>
                           <tr>
-                            <td style={{ color: "#64748b", paddingRight: "16px", paddingBottom: "4px", whiteSpace: "nowrap" }}>
+                            <td style={{ color: "#334155", paddingRight: "16px", paddingBottom: "4px", whiteSpace: "nowrap" }}>
                               {t("invoiceNoLabel") || "Invoice No:"}
                             </td>
                             <td style={{ fontWeight: 700, color: "#0f172a", paddingBottom: "4px", whiteSpace: "nowrap" }}>
@@ -495,7 +437,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                             </td>
                           </tr>
                           <tr>
-                            <td style={{ color: "#64748b", paddingRight: "16px", paddingBottom: "4px", whiteSpace: "nowrap" }}>
+                            <td style={{ color: "#334155", paddingRight: "16px", paddingBottom: "4px", whiteSpace: "nowrap" }}>
                               {t("invoiceDate") || "Date"}:
                             </td>
                             <td style={{ fontWeight: 700, color: "#0f172a", paddingBottom: "4px", whiteSpace: "nowrap" }}>
@@ -527,7 +469,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           <div style={{ marginBottom: S.sectionGap }}>
             <table className="invoice-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: S.textFontSize }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                <tr style={{ borderBottom: "2px solid #94a3b8" }}>
                   <th style={{ textAlign: "left", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
                     {t("item")}
                   </th>
@@ -565,15 +507,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         {product.description && (
                           <div style={{
                             fontSize: "11px",
-                            color: "#94a3b8",
+                            color: "#475569",
                             marginTop: "2px",
                             lineHeight: 1.4,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: isThermal ? "120px" : "350px"
+                            whiteSpace: "pre-line",
+                            wordBreak: "break-word"
                           }}>
-                            {truncateDescription(product.description)}
+                            {product.description}
                           </div>
                         )}
                       </td>
@@ -584,7 +524,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       )}
                       <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", color: "#334155" }}>
                         {product.quantityType === "damaged" && (
-                          <span style={{ fontSize: "10px", color: "#94a3b8" }}>(dmg) </span>
+                          <span style={{ fontSize: "10px", color: "#475569" }}>(dmg) </span>
                         )}
                         {product.quantity_str || (product as any).quantityInput || product.quantity}
                       </td>
@@ -611,17 +551,17 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           {/* ══════════════════════════════════════════════════════════════════
               TOTALS
           ══════════════════════════════════════════════════════════════════ */}
-          <div className="invoice-totals-container" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginBottom: S.sectionGap }}>
+          <div className="invoice-totals-container" style={{ borderTop: "1px solid #94a3b8", paddingTop: "12px", marginBottom: S.sectionGap }}>
             {/* Sub Total */}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: S.textFontSize, marginBottom: "6px" }}>
-              <span style={{ color: "#64748b" }}>Sub Total:</span>
+              <span style={{ color: "#334155" }}>Sub Total:</span>
               <span style={{ color: "#334155" }}>{formatCurrencyString(subtotal)}</span>
             </div>
 
             {/* Overall Discount */}
             {overallDiscount > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: S.textFontSize, marginBottom: "6px" }}>
-                <span style={{ color: "#64748b" }}>Overall Discount:</span>
+                <span style={{ color: "#334155" }}>Overall Discount:</span>
                 <span style={{ color: "#ef4444" }}>- {formatCurrencyString(Math.min(overallDiscount, subtotal))}</span>
               </div>
             )}
@@ -629,7 +569,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
             {/* Shipping */}
             {shippingCharges > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: S.textFontSize, marginBottom: "6px" }}>
-                <span style={{ color: "#64748b" }}>{t("shippingCharges")}</span>
+                <span style={{ color: "#334155" }}>{t("shippingCharges")}</span>
                 <span style={{ color: "#334155" }}>{formatCurrencyString(shippingCharges)}</span>
               </div>
             )}
@@ -637,13 +577,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
             {/* Extra Charges */}
             {charges.map((charge, idx) => (
               <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: S.textFontSize, marginBottom: "6px" }}>
-                <span style={{ color: "#64748b" }}>{charge.item}:</span>
+                <span style={{ color: "#334155" }}>{charge.item}:</span>
                 <span style={{ color: "#334155" }}>{formatCurrencyString(charge.value)}</span>
               </div>
             ))}
 
             {/* Grand Total */}
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: S.boldFontSize, borderTop: "1px solid #e2e8f0", paddingTop: "8px", marginTop: "4px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: S.boldFontSize, borderTop: "1px solid #94a3b8", paddingTop: "8px", marginTop: "4px" }}>
               <span style={{ color: "#0f172a" }}>{t("total")} :</span>
               <span style={{ color: "#0f172a" }}>{formatCurrencyString(total)}</span>
             </div>
@@ -670,7 +610,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           {customerNotes && (
             <div style={{
               marginBottom: S.sectionGap,
-              borderLeft: "3px solid #e2e8f0",
+              borderLeft: "3px solid #94a3b8",
               paddingLeft: "12px",
               paddingTop: "6px",
               paddingBottom: "6px",
@@ -681,7 +621,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569", marginBottom: "4px" }}>
                 {t("customerNotes") || "Notes & Terms"}:
               </div>
-              <div style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic", lineHeight: 1.5, whiteSpace: "pre-line" }}>
+              <div style={{ fontSize: "12px", color: "#334155", fontStyle: "italic", lineHeight: 1.5, whiteSpace: "pre-line" }}>
                 {customerNotes}
               </div>
             </div>
@@ -701,22 +641,22 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                   {signatureImage && includeSignature && (
                     <div>
                       <img src={signatureImage} alt="Company Signature" style={{ height: S.sigH, width: "auto", display: "block", marginBottom: "6px" }} />
-                      <div style={{ width: "120px", borderTop: "1px solid #cbd5e1", marginBottom: "4px" }} />
-                      <div style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{companyName}</div>
+                      <div style={{ width: "120px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
+                      <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{companyName}</div>
                     </div>
                   )}
                   {requestCustomerSignature && (
                     <div style={{ textAlign: "right" }}>
                       <div style={{
-                        width: "100%", height: S.sigH, border: "2px dashed #e2e8f0", borderRadius: "6px",
+                        width: "100%", height: S.sigH, border: "2px dashed #94a3b8", borderRadius: "6px",
                         display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px",
                       }}>
-                        <span style={{ fontSize: "9px", color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+                        <span style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
                           {t("customerSignature")}
                         </span>
                       </div>
-                      <div style={{ width: "120px", borderTop: "1px solid #cbd5e1", marginBottom: "4px", marginLeft: "auto" }} />
-                      <div style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{customer.name}</div>
+                      <div style={{ width: "120px", borderTop: "1px solid #94a3b8", marginBottom: "4px", marginLeft: "auto" }} />
+                      <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{customer.name}</div>
                     </div>
                   )}
                 </div>
@@ -728,8 +668,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       {signatureImage && includeSignature ? (
                         <td style={{ verticalAlign: "bottom", width: "50%" }}>
                           <img src={signatureImage} alt="Company Signature" style={{ height: S.sigH, width: "auto", display: "block", marginBottom: "6px" }} />
-                          <div style={{ width: "160px", borderTop: "1px solid #cbd5e1", marginBottom: "4px" }} />
-                          <div style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{companyName}</div>
+                          <div style={{ width: "160px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
+                          <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{companyName}</div>
                         </td>
                       ) : (
                         <td style={{ width: "50%" }} />
@@ -739,15 +679,15 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                           <div style={{ display: "inline-block" }}>
                             <div className="invoice-sig-box" style={{
                               width: S.sigW, height: S.sigH,
-                              border: "2px dashed #e2e8f0", borderRadius: "8px",
+                              border: "2px dashed #94a3b8", borderRadius: "8px",
                               display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px",
                             }}>
-                              <span style={{ fontSize: "9px", color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>
+                              <span style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>
                                 {t("customerSignature")}
                               </span>
                             </div>
-                            <div className="invoice-sig-line" style={{ width: "160px", borderTop: "1px solid #cbd5e1", marginBottom: "4px", marginLeft: "auto" }} />
-                            <div style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, textAlign: "right" }}>
+                            <div className="invoice-sig-line" style={{ width: "160px", borderTop: "1px solid #94a3b8", marginBottom: "4px", marginLeft: "auto" }} />
+                            <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, textAlign: "right" }}>
                               {customer.name}
                             </div>
                           </div>
@@ -773,7 +713,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               • Multi-page → appears naturally after last content block
           ══════════════════════════════════════════════════════════════════ */}
           <div style={{ borderTop: "1px solid #f1f5f9", marginTop: isThermal ? "16px" : "32px", paddingTop: "10px", textAlign: "center" }}>
-            <p style={{ fontSize: "10px", color: "#94a3b8", fontStyle: "italic", margin: 0 }}>
+            <p style={{ fontSize: "10px", color: "#475569", fontStyle: "italic", margin: 0 }}>
               {t("computerGeneratedDisclaimer") || "This is a computer generated document from DukaanKhata.app"}
             </p>
           </div>

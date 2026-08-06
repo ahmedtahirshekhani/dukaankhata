@@ -86,7 +86,7 @@
     "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein.",
     "balance": "Balance",
     "openingBalance": "Opening Balance",
-    "amountInDukaanKhata": "Dukaan Khata mein raqam"
+    "amountInDukaanKhata": "DukaanKhata mein raqam"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -969,6 +969,8 @@
     "editPayment": "Edit Payment",
     "makePayment": "Make Payment",
     "noPaymentAtAll": "Bilkul Adaigi Nahi",
+    "receivePayment": "Payment Wasool Karni Hai?",
+    "paymentGreaterError": "Payment total raqam se ziyada nahi ho sakti",
     "includeSignatureInInvoice": "Invoice mein dastakhat shamil karain",
     "requestCustomerSignature": "Party ka dastakhat talab karain",
     "createOrder": "Order Banayen",

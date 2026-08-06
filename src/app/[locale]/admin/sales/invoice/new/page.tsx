@@ -45,7 +45,8 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
-import { XIcon } from "lucide-react";
+import { XIcon, Loader2Icon } from "lucide-react";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
@@ -147,6 +148,11 @@ export default function NewInvoicePage() {
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
+  const [receivePayment, setReceivePayment] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [orderSaved, setOrderSaved] = useState(false);
+  
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const sanitizeOverallDiscount = (
     value: number,
@@ -431,6 +437,19 @@ export default function NewInvoicePage() {
       return;
     }
 
+    if (receivePayment) {
+      if (paymentAmount > Math.floor(finalTotal)) {
+        setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+        setShowSaveErrorDialog(true);
+        return;
+      }
+      if (!paymentMethod) {
+        setSaveError(t("paymentMethodRequired") || "Payment Method is required");
+        setShowSaveErrorDialog(true);
+        return;
+      }
+    }
+
     setSaveError("");
     if (!invoiceNo) {
       return;
@@ -464,13 +483,22 @@ export default function NewInvoicePage() {
       return;
     }
 
-    setShowInvoicePreview(true);
+    executeCreateOrder();
+  };
+
+  const executeCreateOrder = async () => {
+    await handleCreateOrder({
+      paidAmount: receivePayment ? paymentAmount : 0,
+      paymentMethod: receivePayment ? paymentMethod : "",
+      paidDate: new Date().toISOString(),
+      noPaymentAtAll: !receivePayment,
+    });
   };
 
   const handleOverstockConfirm = () => {
     setShowOverstockDialog(false);
     setOverstockItems([]);
-    setShowInvoicePreview(true);
+    executeCreateOrder();
   };
 
   const handleOverstockCancel = () => {
@@ -713,20 +741,10 @@ export default function NewInvoicePage() {
 
       setCreatedOrderShareData(shareData);
 
-      // Reset the form
-      setSelectedProducts([]);
-      setSelectedCustomer(null);
-      setInvoiceNo("");
-      setSelectedDate(todayIso || getTodayDateString());
-      setAddDueDate(false);
-      setDueDate(todayIso || getTodayDateString());
-      setCharges([]);
-      setShowAddCharge(false);
-      setShowInvoicePreview(false);
-      setShowOrderCreatedDialog(true);
+      // Show preview dialog directly, no intermediate success dialog
+      setShowInvoicePreview(true);
       
-      // Navigate to invoice list page
-      // router.push(`/${locale}/admin/invoice`);
+      // We will reset the form and navigate when they close the preview
     } catch (error) {
       console.error("Error creating order:", error);
     } finally {
@@ -1153,353 +1171,434 @@ export default function NewInvoicePage() {
           </div>
 
           {/* Summary Section */}
-          <div className="mt-4 md:mt-6 space-y-4">
-            {/* Summary Grid - Desktop */}
-            <div className="hidden md:flex justify-end mb-4">
-              <div className="space-y-3 max-w-md w-full">
-                <div className="grid grid-cols-[auto_190px] gap-x-3 gap-y-2 items-center">
-                  <span className="text-sm text-right">{t("subTotal")}</span>
-                  <span className="text-left font-semibold">
-                    {t("currencySymbol")} {Math.round(total)}
-                  </span>
-
-                  <span className="text-sm text-right">
-                    {t("overallDiscount")}
-                  </span>
-                  <div className="flex gap-1 items-center">
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      min="0"
-                      max={
-                        overallDiscountType === "percentage" ? 100 : undefined
+          <div className="mt-4 md:mt-6 flex flex-col md:flex-row gap-6 justify-between">
+            {/* Left Column: Payment Section & Customer Notes */}
+            <div className="w-full md:w-1/2 lg:w-5/12 flex flex-col gap-6">
+              {/* Payment Section */}
+              <div>
+                <Card className="border-2 border-primary/20 shadow-sm overflow-hidden">
+                  <div
+                    className={`p-4 cursor-pointer transition-colors flex items-center justify-between ${receivePayment ? 'bg-primary/5' : 'hover:bg-muted/50'}`}
+                    onClick={() => {
+                      const newState = !receivePayment;
+                      setReceivePayment(newState);
+                      if (newState && paymentAmount === 0) {
+                        setPaymentAmount(Math.floor(finalTotal));
                       }
-                      className="w-28 h-8 text-sm"
-                      value={overallDiscount || ""}
-                      onChange={(e) =>
-                        handleOverallDiscountInputChange(e.target.value)
-                      }
-                    />
-                    <Select
-                      value={overallDiscountType}
-                      onValueChange={(val) =>
-                        handleOverallDiscountTypeChange(
-                          val as "value" | "percentage",
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-20 h-8 text-xs">
-                        <SelectValue placeholder={t("pkr")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="value">{t("pkr")}</SelectItem>
-                        <SelectItem value="percentage">
-                          {t("percentage")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <span className="text-sm text-right">
-                    {t("shippingCharges")}
-                  </span>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    min="0"
-                    className="w-full h-8 text-sm"
-                    value={shippingCharges || ""}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
                     }}
-                  />
-                </div>
-
-                {/* Add Charge Form */}
-                <div className="space-y-2">
-                  <div className="flex gap-2 items-center justify-end">
-                    <Input
-                      id="new-charge-item"
-                      placeholder={t("adjustment")}
-                      className="w-32 h-8 text-sm"
-                      value={newChargeItem}
-                      onChange={(e) => setNewChargeItem(e.target.value)}
-                    />
-                    <span className="text-sm">:</span>
-                    <Input
-                      id="new-charge-value"
-                      type="number"
-                      placeholder={t("value")}
-                      className="w-24 h-8 text-sm"
-                      value={newChargeValue}
-                      onChange={(e) => setNewChargeValue(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Add More Button */}
-                  <div className="flex justify-end mt-2">
-                    <Button
-                      onClick={handleAddNewCharge}
-                      variant="default"
-                      size="sm"
-                      className="h-8 text-xs"
-                      disabled={!newChargeItem.trim() || !newChargeValue}
-                    >
-                      {t("addMore")}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {/* Display Added Charges */}
-                    {charges.map((charge) => (
-                      <div
-                        key={charge.id}
-                        className="flex gap-2 items-center justify-end"
-                      >
-                        <Input
-                          placeholder={t("adjustment")}
-                          value={charge.item}
-                          onChange={(e) =>
-                            handleChargeChange(
-                              charge.id,
-                              "item",
-                              e.target.value,
-                            )
-                          }
-                          className="w-32 h-8 text-sm"
-                        />
-                        <span className="text-sm">:</span>
-                        <Input
-                          type="number"
-                          placeholder={t("value")}
-                          value={charge.value || ""}
-                          onChange={(e) =>
-                            handleChargeChange(
-                              charge.id,
-                              "value",
-                              e.target.value,
-                            )
-                          }
-                          className="w-24 h-8 text-sm"
-                        />
-                        <Button
-                          onClick={() => handleRemoveCharge(charge.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                        >
-                          ×
-                        </Button>
+                  >
+                    <div>
+                      <h3 className="font-semibold text-base text-foreground">{t("receivePayment") || "Receive Payment?"}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Record payment at the time of invoice creation</p>
+                    </div>
+                    <div className="flex items-center">
+                      <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${receivePayment ? "bg-primary" : "bg-gray-300"}`}>
+                        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${receivePayment ? "translate-x-5" : "translate-x-1"}`} />
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Final Total */}
-                <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
-                  <span className="text-lg text-right font-bold">Total:</span>
-                  <span className="text-left text-lg font-bold">
-                    Rs. {Math.floor(finalTotal)}
+                  {receivePayment && (
+                    <div className="p-4 pt-4 border-t border-primary/10 bg-primary/5 grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label className="font-semibold">{t("amountLabel") || "Amount Received"}</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{t("currencySymbol")}</span>
+                          <Input
+                            type="number"
+                            value={paymentAmount === 0 ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="pl-9 h-11 text-lg font-semibold bg-background"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-semibold">{t("paymentMethod") || "Payment Method"} <span className="text-red-500">*</span></Label>
+                        <div className="bg-background rounded-md">
+                          <PaymentMethodDropdown
+                            value={paymentMethod}
+                            onValueChange={setPaymentMethod}
+                            placeholder={t("selectPaymentMethod") || "Select Method"}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              {/* Customer Notes */}
+              <div>
+                <div className="flex flex-col gap-1 w-full">
+                  <Label className="text-sm font-medium">
+                    {t("customerNotes")}
+                  </Label>
+                  <textarea
+                    className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    value={customerNotes}
+                    onChange={(e) => setCustomerNotes(e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {t("willBeDisplayedOnInvoice")}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Summary Section - Mobile */}
-            <div className="md:hidden space-y-3">
-              <Card className="p-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {t("subTotal")}
-                    </span>
-                    <span className="font-semibold text-sm">
-                      {t("currencySymbol")} {Math.round(total)}
-                    </span>
-                  </div>
+            {/* Right Column: Totals & Save Button */}
+            <div className="w-full md:w-1/2 lg:w-6/12 flex flex-col justify-between">
+              <div className="space-y-4">
+                {/* Summary Grid - Desktop */}
+                <div className="hidden md:flex justify-end">
+                  <div className="space-y-3 w-full max-w-sm">
+                    <div className="grid grid-cols-[auto_190px] gap-x-3 gap-y-2 items-center">
+                      <span className="text-sm text-right">{t("subTotal")}</span>
+                      <span className="text-left font-semibold">
+                        {t("currencySymbol")} {Math.round(total)}
+                      </span>
 
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {t("overallDiscount")}
-                    </p>
-                    <div className="flex gap-2 items-center">
+                      <span className="text-sm text-right">
+                        {t("overallDiscount")}
+                      </span>
+                      <div className="flex gap-1 items-center">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          max={
+                            overallDiscountType === "percentage" ? 100 : undefined
+                          }
+                          className="w-28 h-8 text-sm"
+                          value={overallDiscount || ""}
+                          onChange={(e) =>
+                            handleOverallDiscountInputChange(e.target.value)
+                          }
+                        />
+                        <Select
+                          value={overallDiscountType}
+                          onValueChange={(val) =>
+                            handleOverallDiscountTypeChange(
+                              val as "value" | "percentage",
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-20 h-8 text-xs">
+                            <SelectValue placeholder={t("pkr")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="value">{t("pkr")}</SelectItem>
+                            <SelectItem value="percentage">
+                              {t("percentage")}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <span className="text-sm text-right">
+                        {t("shippingCharges")}
+                      </span>
                       <Input
                         type="number"
                         placeholder="0"
                         min="0"
-                        max={
-                          overallDiscountType === "percentage" ? 100 : undefined
-                        }
-                        className="w-24 h-7 text-xs"
-                        value={overallDiscount || ""}
-                        onChange={(e) =>
-                          handleOverallDiscountInputChange(e.target.value)
-                        }
+                        className="w-full h-8 text-sm"
+                        value={shippingCharges || ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
+                        }}
                       />
-                      <Select
-                        value={overallDiscountType}
-                        onValueChange={(val) =>
-                          handleOverallDiscountTypeChange(
-                            val as "value" | "percentage",
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-16 h-7 text-xs">
-                          <SelectValue placeholder={t("pkr")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="value">{t("pkr")}</SelectItem>
-                          <SelectItem value="percentage">
-                            {t("percentage")}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                    </div>
+
+                    {/* Add Charge Form */}
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center justify-end">
+                        <Input
+                          id="new-charge-item"
+                          placeholder={t("adjustment")}
+                          className="w-32 h-8 text-sm"
+                          value={newChargeItem}
+                          onChange={(e) => setNewChargeItem(e.target.value)}
+                        />
+                        <span className="text-sm">:</span>
+                        <Input
+                          id="new-charge-value"
+                          type="number"
+                          placeholder={t("value")}
+                          className="w-24 h-8 text-sm"
+                          value={newChargeValue}
+                          onChange={(e) => setNewChargeValue(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Add More Button */}
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          onClick={handleAddNewCharge}
+                          variant="default"
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={!newChargeItem.trim() || !newChargeValue}
+                        >
+                          {t("addMore")}
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* Display Added Charges */}
+                        {charges.map((charge) => (
+                          <div
+                            key={charge.id}
+                            className="flex gap-2 items-center justify-end"
+                          >
+                            <Input
+                              placeholder={t("adjustment")}
+                              value={charge.item}
+                              onChange={(e) =>
+                                handleChargeChange(
+                                  charge.id,
+                                  "item",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-32 h-8 text-sm"
+                            />
+                            <span className="text-sm">:</span>
+                            <Input
+                              type="number"
+                              placeholder={t("value")}
+                              value={charge.value || ""}
+                              onChange={(e) =>
+                                handleChargeChange(
+                                  charge.id,
+                                  "value",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-24 h-8 text-sm"
+                            />
+                            <Button
+                              onClick={() => handleRemoveCharge(charge.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Final Total */}
+                    <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
+                      <span className="text-lg text-right font-bold">Total:</span>
+                      <span className="text-left text-lg font-bold">
+                        Rs. {Math.floor(finalTotal)}
+                      </span>
                     </div>
                   </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {t("shippingCharges")}
-                    </p>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      min="0"
-                      className="w-full h-7 text-xs"
-                      value={shippingCharges || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
-                      }}
-                    />
-                  </div>
                 </div>
-              </Card>
 
-              {/* Add Charge Form - Mobile */}
-              <Card className="p-3">
-                <div className="space-y-2">
-                  <p className="text-xs font-medium">
-                    {t("additionalCharges")}
-                  </p>
-                  <div className="flex gap-2">
-                    <Input
-                      id="new-charge-item"
-                      placeholder={t("adjustment")}
-                      className="flex-1 h-7 text-xs"
-                      value={newChargeItem}
-                      onChange={(e) => setNewChargeItem(e.target.value)}
-                    />
-                    <Input
-                      id="new-charge-value"
-                      type="number"
-                      placeholder={t("value")}
-                      className="w-20 h-7 text-xs"
-                      value={newChargeValue}
-                      onChange={(e) => setNewChargeValue(e.target.value)}
-                    />
-                    <Button
-                      onClick={handleAddNewCharge}
-                      variant="default"
-                      size="sm"
-                      className="h-7 text-xs px-2"
-                      disabled={!newChargeItem.trim() || !newChargeValue}
-                    >
-                      {t("add")}
-                    </Button>
-                  </div>
+                {/* Summary Section - Mobile */}
+                <div className="md:hidden space-y-3">
+                  <Card className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {t("subTotal")}
+                        </span>
+                        <span className="font-semibold text-sm">
+                          {t("currencySymbol")} {Math.round(total)}
+                        </span>
+                      </div>
 
-                  {/* Display Added Charges */}
-                  {charges.length > 0 && (
-                    <div className="space-y-2 border-t pt-2">
-                      {charges.map((charge) => (
-                        <div
-                          key={charge.id}
-                          className="flex gap-2 items-center"
-                        >
-                          <Input
-                            placeholder={t("adjustment")}
-                            value={charge.item}
-                            onChange={(e) =>
-                              handleChargeChange(
-                                charge.id,
-                                "item",
-                                e.target.value,
-                              )
-                            }
-                            className="flex-1 h-7 text-xs"
-                          />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {t("overallDiscount")}
+                        </p>
+                        <div className="flex gap-2 items-center">
                           <Input
                             type="number"
-                            placeholder={t("value")}
-                            value={charge.value || ""}
+                            placeholder="0"
+                            min="0"
+                            max={
+                              overallDiscountType === "percentage" ? 100 : undefined
+                            }
+                            className="w-24 h-7 text-xs"
+                            value={overallDiscount || ""}
                             onChange={(e) =>
-                              handleChargeChange(
-                                charge.id,
-                                "value",
-                                e.target.value,
+                              handleOverallDiscountInputChange(e.target.value)
+                            }
+                          />
+                          <Select
+                            value={overallDiscountType}
+                            onValueChange={(val) =>
+                              handleOverallDiscountTypeChange(
+                                val as "value" | "percentage",
                               )
                             }
-                            className="w-20 h-7 text-xs"
-                          />
-                          <Button
-                            onClick={() => handleRemoveCharge(charge.id)}
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
                           >
-                            ×
-                          </Button>
+                            <SelectTrigger className="w-16 h-7 text-xs">
+                              <SelectValue placeholder={t("pkr")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="value">{t("pkr")}</SelectItem>
+                              <SelectItem value="percentage">
+                                {t("percentage")}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      ))}
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {t("shippingCharges")}
+                        </p>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          className="w-full h-7 text-xs"
+                          value={shippingCharges || ""}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
+                          }}
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
-              </Card>
+                  </Card>
 
-              {/* Final Total - Mobile */}
-              <Card className="p-4 border-2 border-primary bg-primary/5">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-base">{t("total")}:</span>
-                  <span className="font-bold text-lg">
-                    {t("currencySymbol")} {Math.floor(finalTotal)}
-                  </span>
-                </div>
-              </Card>
-            </div>
+                  {/* Add Charge Form - Mobile */}
+                  <Card className="p-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium">
+                        {t("additionalCharges")}
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          id="new-charge-item-mobile"
+                          placeholder={t("adjustment")}
+                          className="flex-1 h-7 text-xs"
+                          value={newChargeItem}
+                          onChange={(e) => setNewChargeItem(e.target.value)}
+                        />
+                        <Input
+                          id="new-charge-value-mobile"
+                          type="number"
+                          placeholder={t("value")}
+                          className="w-20 h-7 text-xs"
+                          value={newChargeValue}
+                          onChange={(e) => setNewChargeValue(e.target.value)}
+                        />
+                        <Button
+                          onClick={handleAddNewCharge}
+                          variant="default"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          disabled={!newChargeItem.trim() || !newChargeValue}
+                        >
+                          {t("add")}
+                        </Button>
+                      </div>
 
-            {/* Customer Notes */}
-            <div className="mt-4 md:mt-6">
-              <div className="flex flex-col gap-1 w-full md:max-w-md">
-                <Label className="text-sm font-medium">
-                  {t("customerNotes")}
-                </Label>
-                <textarea
-                  className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  value={customerNotes}
-                  onChange={(e) => setCustomerNotes(e.target.value)}
-                />
-                <span className="text-xs text-muted-foreground">
-                  {t("willBeDisplayedOnInvoice")}
-                </span>
+                      {/* Display Added Charges */}
+                      {charges.length > 0 && (
+                        <div className="space-y-2 border-t pt-2">
+                          {charges.map((charge) => (
+                            <div
+                              key={charge.id}
+                              className="flex gap-2 items-center"
+                            >
+                              <Input
+                                placeholder={t("adjustment")}
+                                value={charge.item}
+                                onChange={(e) =>
+                                  handleChargeChange(
+                                    charge.id,
+                                    "item",
+                                    e.target.value,
+                                  )
+                                }
+                                className="flex-1 h-7 text-xs"
+                              />
+                              <Input
+                                type="number"
+                                placeholder={t("value")}
+                                value={charge.value || ""}
+                                onChange={(e) =>
+                                  handleChargeChange(
+                                    charge.id,
+                                    "value",
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-20 h-7 text-xs"
+                              />
+                              <Button
+                                onClick={() => handleRemoveCharge(charge.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Final Total - Mobile */}
+                  <Card className="p-4 border-2 border-primary bg-primary/5">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-base">{t("total")}:</span>
+                      <span className="font-bold text-lg">
+                        {t("currencySymbol")} {Math.floor(finalTotal)}
+                      </span>
+                    </div>
+                  </Card>
+                </div>
               </div>
-            </div>
 
-            {/* Show error in modal dialog instead of inline */}
-            <ErrorDialog
-              open={showSaveErrorDialog}
-              onOpenChange={setShowSaveErrorDialog}
-              title={t("error")}
-              message={saveError}
-            />
-            <div className="flex justify-end mt-4 md:mt-6">
-              <Button
-                onClick={handleSaveOrder}
-                className="w-full md:w-auto"
-              >
-                {t("save")}
-              </Button>
+              {/* Show error in modal dialog instead of inline */}
+              <ErrorDialog
+                open={showSaveErrorDialog}
+                onOpenChange={setShowSaveErrorDialog}
+                title={t("error")}
+                message={saveError}
+              />
+              
+              <div className="flex justify-end mt-6 h-full items-end">
+                <Button
+                  onClick={handleSaveOrder}
+                  className="w-full md:w-auto h-12 px-8 text-base font-semibold"
+                  disabled={isCreatingOrder}
+                >
+                  {isCreatingOrder ? (
+                    <>
+                      <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
+                      {t("creatingOrder") || t("saving") || "Saving..."}
+                    </>
+                  ) : (
+                    t("save")
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -1529,48 +1628,6 @@ export default function NewInvoicePage() {
         onCancel={handleOverstockCancel}
         variant="warning"
       />
-
-      <Dialog
-        open={showOrderCreatedDialog}
-        onOpenChange={setShowOrderCreatedDialog}
-      >
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>{t("orderCreatedTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("orderCreatedDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          {createdOrderShareData?.phone ? (
-            <p className="text-sm text-muted-foreground">
-              {t("whatsappContactNumber", {
-                phone: normalizeWhatsAppNumber(createdOrderShareData.phone),
-              })}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t("whatsappNumberUnavailable")}
-            </p>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleSendInvoicePdfOnWhatsApp}
-              disabled={!getWhatsAppLink() || isSendingWhatsApp}
-            >
-              {isSendingWhatsApp
-                ? t("sendingOnWhatsApp")
-                : t("sendInvoicePdfOnWhatsApp")}
-            </Button>
-            <Button onClick={() => {
-              setShowOrderCreatedDialog(false);
-              router.push(`/${locale}/admin/sales/invoice`);
-            }}>
-              {t("ok")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {createdOrderShareData && (
         <div className="hidden" aria-hidden>
@@ -1602,7 +1659,22 @@ export default function NewInvoicePage() {
       {/* Invoice Preview Dialog */}
       <InvoicePreviewDialog
         open={showInvoicePreview}
-        onOpenChange={setShowInvoicePreview}
+        onOpenChange={(isOpen) => {
+          setShowInvoicePreview(isOpen);
+          if (!isOpen && createdOrderShareData) {
+            // Form reset and navigation on close
+            setSelectedProducts([]);
+            setSelectedCustomer(null);
+            setInvoiceNo("");
+            setSelectedDate(getTodayDateString());
+            setAddDueDate(false);
+            setDueDate(getTodayDateString());
+            setCharges([]);
+            setShowAddCharge(false);
+            setCreatedOrderShareData(null);
+            router.push(`/${locale}/admin/sales/invoice`);
+          }
+        }}
         invoiceNo={invoiceNo}
         customer={{
           name: selectedCustomer?.name || "",
@@ -1633,8 +1705,9 @@ export default function NewInvoicePage() {
         total={finalTotal}
         companyName={session?.user?.company || session?.user?.name || ""}
         customerNotes={customerNotes}
-        onCreateOrder={handleCreateOrder}
-        isCreatingOrder={isCreatingOrder}
+        onWhatsApp={handleSendInvoicePdfOnWhatsApp}
+        disableWhatsApp={!getWhatsAppLink()}
+        isSendingWhatsApp={isSendingWhatsApp}
       />
     </div>
   );

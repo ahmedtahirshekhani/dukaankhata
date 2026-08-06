@@ -70,6 +70,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
   ) => {
     const t = useTranslations("configurationPage");
     const tCommon = useTranslations("common");
+    const tBank = useTranslations("bankAccounts");
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isOpen, setIsOpen] = useState(false);
@@ -77,6 +78,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     const [isSaving, setIsSaving] = useState(false);
     const [bankName, setBankName] = useState("");
     const [bankDetails, setBankDetails] = useState("");
+    const [openingBalance, setOpeningBalance] = useState("");
     const [editingId, setEditingId] = useState<string | null>(null);
     const [errorDialog, setErrorDialog] = useState<{
       open: boolean;
@@ -117,6 +119,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     const resetForm = () => {
       setBankName("");
       setBankDetails("");
+      setOpeningBalance("");
       setEditingId(null);
     };
 
@@ -136,6 +139,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
         const payload = {
           bankName: name,
           bankDetails: bankDetails.trim(),
+          openingBalance: parseFloat(openingBalance) || 0,
         };
 
         const methodId = editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}`);
@@ -337,6 +341,17 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
                   onChange={(e) => setBankDetails(e.target.value)}
                   placeholder={t("paymentMethodBankDetailsPlaceholder")}
                   rows={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="opening-balance">{tBank("openingBalance")}</Label>
+                <Input
+                  id="opening-balance"
+                  type="number"
+                  value={openingBalance}
+                  onChange={(e) => setOpeningBalance(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
                 />
               </div>
             </div>
