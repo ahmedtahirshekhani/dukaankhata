@@ -55,35 +55,18 @@ export async function PUT(
 
   // Handle stock adjustment for counter sale
   if (oldTransaction && updatedTransaction.productId && updatedTransaction.productId !== "0" && updatedTransaction.quantity !== undefined) {
-    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
-    const prodIdStr = String(updatedTransaction.productId);
-    if (prodIdStr.match(/^[0-9a-fA-F]{24}$/)) {
-      let incVal = 0;
-      // Revert old transaction effect
-      if (oldTransaction.type === "income") incVal += (Number(oldTransaction.quantity) || 0);
-      else incVal -= (Number(oldTransaction.quantity) || 0);
-      
-      // Apply new transaction effect
-      if (updatedTransaction.type === "income") incVal -= (Number(updatedTransaction.quantity) || 0);
-      else incVal += (Number(updatedTransaction.quantity) || 0);
-      
-      if (incVal !== 0) {
-        const product = await productsCollection.findOne({ _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) });
-        if (product) {
-          const currentQty = Number(product.quantity) || 0;
-          const newQty = currentQty + incVal;
-          await productsCollection.updateOne(
-            { _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) },
-            { 
-              $set: { 
-                quantity: newQty,
-                quantity_str: newQty.toString(),
-                updated_at: new Date()
-              }
-            }
-          );
-        }
-      }
+    let incVal = 0;
+    // Revert old transaction effect
+    if (oldTransaction.type === "income") incVal += (Number(oldTransaction.quantity) || 0);
+    else incVal -= (Number(oldTransaction.quantity) || 0);
+    
+    // Apply new transaction effect
+    if (updatedTransaction.type === "income") incVal -= (Number(updatedTransaction.quantity) || 0);
+    else incVal += (Number(updatedTransaction.quantity) || 0);
+    
+    if (incVal !== 0) {
+      const { adjustStock } = await import('@/lib/db/stock-manager');
+      await adjustStock(updatedTransaction.productId, user.id, incVal);
     }
   }
 
@@ -145,28 +128,11 @@ export async function DELETE(
 
   // Handle stock reversion for counter sale
   if (transactionToDelete && transactionToDelete.productId && transactionToDelete.productId !== "0" && transactionToDelete.quantity) {
-    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
-    const prodIdStr = String(transactionToDelete.productId);
-    if (prodIdStr.match(/^[0-9a-fA-F]{24}$/)) {
-      const qtyNum = Number(transactionToDelete.quantity) || 0;
-      const incVal = transactionToDelete.type === "income" ? qtyNum : -qtyNum;
-      if (incVal !== 0) {
-        const product = await productsCollection.findOne({ _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) });
-        if (product) {
-          const currentQty = Number(product.quantity) || 0;
-          const newQty = currentQty + incVal;
-          await productsCollection.updateOne(
-            { _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) },
-            { 
-              $set: { 
-                quantity: newQty,
-                quantity_str: newQty.toString(),
-                updated_at: new Date()
-              }
-            }
-          );
-        }
-      }
+    const qtyNum = Number(transactionToDelete.quantity) || 0;
+    const incVal = transactionToDelete.type === "income" ? qtyNum : -qtyNum;
+    if (incVal !== 0) {
+      const { adjustStock } = await import('@/lib/db/stock-manager');
+      await adjustStock(transactionToDelete.productId, user.id, incVal);
     }
   }
 
