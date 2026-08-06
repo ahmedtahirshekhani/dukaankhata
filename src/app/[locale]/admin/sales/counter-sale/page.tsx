@@ -134,8 +134,7 @@ export default function CounterSale() {
     const num = Number(val);
     if (isNaN(num)) return "-";
     if (Number.isInteger(num)) return num.toString();
-    if (typeof val === 'string' && val.includes('.')) return val;
-    return num.toFixed(3);
+    return Number(num.toFixed(5)).toString();
   };
   const { can } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");

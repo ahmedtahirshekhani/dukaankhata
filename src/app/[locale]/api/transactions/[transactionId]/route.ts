@@ -47,7 +47,7 @@ export async function PUT(
   const oldTransaction = await transactionsCollection.findOne(filter);
 
   // ✅ Use setLastUpdated helper
-  const updateResult = await setLastUpdated(transactionsCollection, filter, updateData);
+  const updateResult = await setLastUpdated(transactionsCollection, filter, updateData, user.id);
 
   if (updateResult.matchedCount === 0) {
     return NextResponse.json({ error: 'Transaction not found or not authorized' }, { status: 404 })
@@ -78,9 +78,7 @@ export async function PUT(
 
   // ✅ Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
-  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
-
-  await updateUserLastActivity();
+  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) }, undefined, user.id);
   return NextResponse.json({
     ...updatedDoc,
     id: updatedDoc._id.toString(),
@@ -138,8 +136,6 @@ export async function DELETE(
 
   // ✅ Update user's last activity after deletion
   const usersCollection = await getCollection(COLLECTIONS.USERS);
-  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
-
-  await updateUserLastActivity();
+  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) }, undefined, user.id);
   return NextResponse.json({ message: 'Transaction deleted successfully' });
 }

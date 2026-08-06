@@ -12,8 +12,8 @@ export class SyncEngine {
         const lastLocalSync = localStorage.getItem('last_local_sync_time');
         if (lastLocalSync) {
           const timeSinceLastSync = Date.now() - parseInt(lastLocalSync);
-          // If synced within the last 60 seconds, skip (throttle)
-          if (timeSinceLastSync < 60000) {
+          // If synced within the last 120 seconds, skip (throttle)
+          if (timeSinceLastSync < 120000) {
             console.log(`Skipping sync, last sync was only ${Math.round(timeSinceLastSync/1000)}s ago.`);
             return true;
           }
@@ -21,6 +21,11 @@ export class SyncEngine {
       }
 
       this.isPullingData = true;
+      if (typeof window !== 'undefined') {
+        // Optimistically set the last sync time to avoid duplicate syncs on quick refreshes
+        // even if the first sync hasn't completed yet
+        localStorage.setItem('last_local_sync_time', Date.now().toString());
+      }
       let workspaceId = "";
       try {
         const infoStr = localStorage.getItem('tenant_info');
@@ -110,6 +115,10 @@ export class SyncEngine {
       return true;
     } catch (error) {
       console.error('Initial sync failed:', error);
+      // If it fails, remove the optimistic throttle so they can try again if they want
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('last_local_sync_time');
+      }
       return false;
     } finally {
       this.isPullingData = false;
