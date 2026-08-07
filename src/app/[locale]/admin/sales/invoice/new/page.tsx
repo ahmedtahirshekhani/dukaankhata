@@ -719,13 +719,18 @@ export default function NewInvoicePage() {
       await db.orders.add(orderData);
 
       // 3. Update stock locally (optimistic)
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const p of selectedProducts) {
         if (!p.type || p.type === "goods" || p.type === "good") {
-          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
           const productDoc = await db.products.get(p.id.toString());
           if (productDoc) {
-             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+             if (p.quantityType === "damaged") {
+               const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+               const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+               await db.products.update(p.id.toString(), { damaged_quantity: newQty });
+             } else {
+               await adjustOfflineStock(p.id.toString(), -(Number(p.quantity) || 0));
+             }
           }
         }
       }

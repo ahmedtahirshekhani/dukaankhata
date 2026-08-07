@@ -193,7 +193,7 @@ const formatInitialQuantity = (val: number | string | undefined | null) => {
   const num = Number(val);
   if (isNaN(num)) return "";
   if (Number.isInteger(num)) return num.toString();
-  return num.toFixed(3);
+  return Number(num.toFixed(5)).toString();
 };
 
 const formatInitialPrice = (val: number | string | undefined | null) => {

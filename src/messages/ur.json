@@ -152,7 +152,11 @@
     "whatsapp": "واٹس ایپ",
     "whatsappDescription": "واٹس ایپ کنیکٹ کریں",
     "bankAccounts": "کیش اور بینکس",
-    "bankAccountsDescription": "اپنے کیش اور بینکس منظم کریں۔"
+    "bankAccountsDescription": "اپنے کیش اور بینکس منظم کریں۔",
+    "addSale": "سیل شامل کریں",
+    "addPurchase": "خریداری شامل کریں",
+    "addCustomer": "پارٹی شامل کریں",
+    "addPaymentIn": "پیمنٹ ان"
   },
   "configurationPage": {
     "searchPlaceholder": "ادائیگی کے طریقے تلاش کریں",

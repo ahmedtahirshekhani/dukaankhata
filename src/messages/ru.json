@@ -152,7 +152,11 @@
     "whatsapp": "WhatsApp",
     "whatsappDescription": "WhatsApp connect karein",
     "bankAccounts": "Cash & Bank",
-    "bankAccountsDescription": "Apne cash aur bank accounts manage karein."
+    "bankAccountsDescription": "Apne cash aur bank accounts manage karein.",
+    "addSale": "Добавить продажу",
+    "addPurchase": "Добавить покупку",
+    "addCustomer": "Добавить контрагента",
+    "addPaymentIn": "Входящий платеж"
   },
   "configurationPage": {
     "searchPlaceholder": "Payment Methods Search Karain",

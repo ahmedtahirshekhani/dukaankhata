@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     user_id: transaction.user_id.toString(),
   }));
 
-  await updateUserLastActivity();
+  await updateUserLastActivity(user.id);
   return NextResponse.json({
     data: transactions,
     total: count,
@@ -144,40 +144,23 @@ export async function POST(request: Request) {
 
   // Handle stock deduction for counter sale
   if (newTransaction.productId && newTransaction.productId !== "0" && newTransaction.quantity) {
-    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
-    const prodIdStr = String(newTransaction.productId);
-    if (prodIdStr.match(/^[0-9a-fA-F]{24}$/)) {
-      const qtyNum = Number(newTransaction.quantity) || 0;
-      const incVal = newTransaction.type === "income" ? -qtyNum : qtyNum;
-      if (incVal !== 0) {
-        const product = await productsCollection.findOne({ _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) });
-        if (product) {
-          const currentQty = Number(product.quantity) || 0;
-          const newQty = currentQty + incVal;
-          await productsCollection.updateOne(
-            { _id: toObjectId(prodIdStr), user_id: toObjectId(user.id) },
-            { 
-              $set: { 
-                quantity: newQty,
-                quantity_str: newQty.toString(),
-                updated_at: new Date()
-              }
-            }
-          );
-        }
-      }
+    const qtyNum = Number(newTransaction.quantity) || 0;
+    const incVal = newTransaction.type === "income" ? -qtyNum : qtyNum;
+    if (incVal !== 0) {
+      const { adjustStock } = await import('@/lib/db/stock-manager');
+      await adjustStock(newTransaction.productId, user.id, incVal);
     }
   }
 
   // ✅ Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
-  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
+  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) }, undefined, user.id);
 
   const transaction = await transactionsCollection.findOne({
     _id: result.insertedId,
   });
 
-  await updateUserLastActivity();
+  await updateUserLastActivity(user.id);
   return NextResponse.json({
     ...transaction,
     id: transaction?._id.toString(),

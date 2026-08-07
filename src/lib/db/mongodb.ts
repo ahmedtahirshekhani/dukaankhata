@@ -122,7 +122,8 @@ export function isValidObjectId(id: string): boolean {
 export async function setLastUpdated<T extends Document>(
   collection: Collection<T>,
   filter: Filter<T>,
-  additionalUpdate?: Record<string, any>
+  additionalUpdate?: Record<string, any>,
+  userId?: string
 ) {
   // 1. Update target document's updated_at field
   const update: UpdateFilter<T> = {
@@ -134,7 +135,7 @@ export async function setLastUpdated<T extends Document>(
   const result = await collection.updateOne(filter, update);
 
   // 2. Call the user activity update function (instead of duplicating logic)
-  await updateUserLastActivity();
+  await updateUserLastActivity(userId);
 
   return result;
 }
@@ -144,14 +145,18 @@ export async function setLastUpdated<T extends Document>(
  * Use this for INSERT and DELETE operations where you want to track user activity
  * Also used internally by setLastUpdated
  */
-export async function updateUserLastActivity() {
+export async function updateUserLastActivity(userId?: string) {
   try {
-    const user = await getCurrentUser();
-    // console.log("Current user in updateUserLastActivity:", user);
-    if (user?.id) {
+    let finalUserId = userId;
+    if (!finalUserId) {
+      const user = await getCurrentUser();
+      if (user?.id) finalUserId = user.id;
+    }
+    
+    if (finalUserId) {
       const usersCollection = await getCollection(COLLECTIONS.USERS);
       await usersCollection.updateOne(
-        { _id: toObjectId(user.id) },
+        { _id: toObjectId(finalUserId) },
         { $set: { user_last_updated_at: new Date() } }
       );
       return true;

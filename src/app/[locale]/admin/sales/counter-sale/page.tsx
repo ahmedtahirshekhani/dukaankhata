@@ -134,8 +134,7 @@ export default function CounterSale() {
     const num = Number(val);
     if (isNaN(num)) return "-";
     if (Number.isInteger(num)) return num.toString();
-    if (typeof val === 'string' && val.includes('.')) return val;
-    return num.toFixed(3);
+    return Number(num.toFixed(5)).toString();
   };
   const { can } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
@@ -407,22 +406,18 @@ export default function CounterSale() {
       
       // Stock adjustment
       if (oldTransaction && transactionToUpdate.productId) {
-        const prodIdStr = String(transactionToUpdate.productId);
-        if (prodIdStr !== "0") {
-          const product = await db.products.get(prodIdStr);
-          if (product) {
-            let currentStock = product.quantity || 0;
-            
-            // Revert old transaction effect
-            if (oldTransaction.type === "income") currentStock += (Number(oldTransaction.quantity) || 0);
-            else currentStock -= (Number(oldTransaction.quantity) || 0);
-            
-            // Apply new transaction effect
-            if (transactionToUpdate.type === "income") currentStock -= (Number(transactionToUpdate.quantity) || 0);
-            else currentStock += (Number(transactionToUpdate.quantity) || 0);
-            
-            await db.products.update(prodIdStr, { quantity: currentStock });
-          }
+        let incVal = 0;
+        // Revert old transaction effect
+        if (oldTransaction.type === "income") incVal += (Number(oldTransaction.quantity) || 0);
+        else incVal -= (Number(oldTransaction.quantity) || 0);
+        
+        // Apply new transaction effect
+        if (transactionToUpdate.type === "income") incVal -= (Number(transactionToUpdate.quantity) || 0);
+        else incVal += (Number(transactionToUpdate.quantity) || 0);
+        
+        if (incVal !== 0) {
+          const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+          await adjustOfflineStock(transactionToUpdate.productId, incVal);
         }
       }
 
@@ -505,17 +500,11 @@ export default function CounterSale() {
 
       // Stock adjustment
       if (transactionToAdd.productId && transactionToAdd.quantity) {
-        const prodIdStr = String(transactionToAdd.productId);
-        if (prodIdStr !== "0") {
-          const product = await db.products.get(prodIdStr);
-          if (product) {
-            const qtyNum = Number(transactionToAdd.quantity) || 0;
-            const newStock = transactionToAdd.type === "income" 
-              ? (product.quantity || 0) - qtyNum
-              : (product.quantity || 0) + qtyNum;
-            
-            await db.products.update(prodIdStr, { quantity: newStock });
-          }
+        const qtyNum = Number(transactionToAdd.quantity) || 0;
+        const incVal = transactionToAdd.type === "income" ? -qtyNum : qtyNum;
+        if (incVal !== 0) {
+          const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+          await adjustOfflineStock(transactionToAdd.productId, incVal);
         }
       }
 
@@ -824,17 +813,11 @@ export default function CounterSale() {
 
       // Revert stock
       if (transactionToDelete.productId && transactionToDelete.quantity) {
-        const prodIdStr = String(transactionToDelete.productId);
-        if (prodIdStr !== "0") {
-          const product = await db.products.get(prodIdStr);
-          if (product) {
-            const qtyNum = Number(transactionToDelete.quantity) || 0;
-            const newStock = transactionToDelete.type === "income" 
-              ? (product.quantity || 0) + qtyNum
-              : (product.quantity || 0) - qtyNum;
-            
-            await db.products.update(prodIdStr, { quantity: newStock });
-          }
+        const qtyNum = Number(transactionToDelete.quantity) || 0;
+        const incVal = transactionToDelete.type === "income" ? qtyNum : -qtyNum;
+        if (incVal !== 0) {
+          const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+          await adjustOfflineStock(transactionToDelete.productId, incVal);
         }
       }
 

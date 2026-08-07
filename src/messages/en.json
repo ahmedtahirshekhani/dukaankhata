@@ -151,7 +151,11 @@
     "whatsapp": "WhatsApp",
     "whatsappDescription": "Connect WhatsApp",
     "bankAccounts": "Cash & Bank",
-    "bankAccountsDescription": "Manage your cash and bank accounts and payment methods."
+    "bankAccountsDescription": "Manage your cash and bank accounts and payment methods.",
+    "addSale": "Add Sale",
+    "addPurchase": "Add Purchase",
+    "addCustomer": "Add Party",
+    "addPaymentIn": "Payment In"
   },
   "configurationPage": {
     "searchPlaceholder": "Search Payment Methods",
