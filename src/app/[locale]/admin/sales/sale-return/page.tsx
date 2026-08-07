@@ -403,6 +403,10 @@ export default function SaleReturnPage() {
         created_at: new Date().toISOString()
       });
 
+      const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
+      const netAmount = paidAmount - totalAmount;
+      await updateOfflinePartyBalance(formCustomerId, netAmount);
+
       const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const item of payload.items) {
         if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
@@ -479,6 +483,11 @@ export default function SaleReturnPage() {
           balanceDue,
           updated_at: new Date().toISOString()
         });
+        
+        const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
+        const oldNetAmount = (existing.paidAmount || 0) - (existing.totalAmount || 0);
+        const newNetAmount = paidAmount - totalAmount;
+        await updateOfflinePartyBalance(formCustomerId, newNetAmount - oldNetAmount);
         // Apply new stock
         for (const item of payload.items) {
           if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
@@ -548,6 +557,10 @@ export default function SaleReturnPage() {
           is_delete: 1,
           updated_at: new Date().toISOString()
         });
+
+        const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
+        const oldNetAmount = (existing.paidAmount || 0) - (existing.totalAmount || 0);
+        await updateOfflinePartyBalance(existing.customerId, -oldNetAmount);
 
         await SyncEngine.queueOperation(
           "sale_return_transactions", 
