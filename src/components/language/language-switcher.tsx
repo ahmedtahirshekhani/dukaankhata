@@ -38,7 +38,7 @@ export function LanguageSwitcher() {
       <SelectTrigger
         className={
           isAdminRoute
-            ? "w-[60px] sm:w-[140px] md:w-[180px]"
+            ? "h-7 sm:h-7 text-xs w-[55px] sm:w-[120px] md:w-[150px] px-2 sm:px-2.5"
             : "w-[100px] sm:w-[140px] md:w-[180px]"
         }
       >
