@@ -308,6 +308,8 @@ export function InvoicePreviewDialog({
   const handleDownloadPdf = async () => {
     if (!invoiceRef.current) return;
     setIsDownloading(true);
+    // Wait a tick for the DOM to update so zoom is removed
+    await new Promise((resolve) => setTimeout(resolve, 50));
     try {
       const mod = await import("html2pdf.js");
       const html2pdf = mod.default || mod;
@@ -360,6 +362,8 @@ export function InvoicePreviewDialog({
     if (!invoiceRef.current || typeof window === "undefined") return;
 
     setIsPrinting(true);
+    // Wait a tick for the DOM to update so zoom is removed
+    await new Promise((resolve) => setTimeout(resolve, 50));
     try {
       const html2canvas = (await import("html2canvas")).default;
 
@@ -507,26 +511,15 @@ export function InvoicePreviewDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div
-            className={
-              hidePaymentActions
-                ? "flex flex-col gap-4"
-                : "flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6"
-            }
-          >
-            <div
-              className={
-                hidePaymentActions 
-                  ? "w-full overflow-x-auto" 
-                  : "lg:col-span-2 overflow-auto pb-4 custom-scrollbar max-w-full"
-              }
-            >
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
+            <div className="lg:col-span-2 overflow-auto pb-4 custom-scrollbar max-w-full">
               <div 
-                className="md:min-w-0 inline-block transition-all duration-300 mx-auto block"
+                className="md:min-w-0 inline-block transition-all duration-300 mx-auto block origin-top"
                 style={{
                   width: printFormat === 'thermal' ? '100%' : (printFormat === 'letter' ? '816px' : '794px'),
                   maxWidth: printFormat === 'thermal' ? '320px' : 'none',
-                  minWidth: printFormat === 'thermal' ? '0' : (printFormat === 'letter' ? '816px' : '794px')
+                  minWidth: printFormat === 'thermal' ? '0' : (printFormat === 'letter' ? '816px' : '794px'),
+                  zoom: (isPrinting || isDownloading) ? 1 : (printFormat === 'thermal' ? 1 : 0.65),
                 }}
               >
                 <InvoicePreview
@@ -554,12 +547,14 @@ export function InvoicePreviewDialog({
                   companyEmail={companyEmail}
                   customerNotes={customerNotes}
                   printFormat={printFormat}
+                  isScreen={!(isPrinting || isDownloading)}
                 />
               </div>
             </div>
 
-            {hidePaymentActions ? (
-              <div className="flex flex-col gap-3 sm:gap-4 pt-2 sm:pt-4">
+            <div className="space-y-4 lg:space-y-6">
+              {hidePaymentActions ? (
+                <div className="flex flex-col gap-3 sm:gap-4">
                 <div className="space-y-2 sm:space-y-3">
                   <Label className="text-xs sm:text-sm font-medium">
                     {t("printFormat")}
@@ -601,7 +596,7 @@ export function InvoicePreviewDialog({
                         className="w-3 h-3 sm:w-4 sm:h-4"
                       />
                       <span className="text-xs sm:text-sm">
-                        {t("letterSizeUS")}
+                        {t("letterSizeUS") || "Letter Size (US)"}
                       </span>
                     </label>
                   </div>
@@ -790,6 +785,7 @@ export function InvoicePreviewDialog({
               </div>
             )}
           </div>
+        </div>
         </DialogContent>
       </Dialog>
 

@@ -148,8 +148,7 @@ export default function NewInvoicePage() {
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
-  const [receivePayment, setReceivePayment] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [orderSaved, setOrderSaved] = useState(false);
   
@@ -437,7 +436,7 @@ export default function NewInvoicePage() {
       return;
     }
 
-    if (receivePayment) {
+    if (paymentAmount > 0) {
       if (paymentAmount > Math.floor(finalTotal)) {
         setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
         setShowSaveErrorDialog(true);
@@ -488,10 +487,10 @@ export default function NewInvoicePage() {
 
   const executeCreateOrder = async () => {
     await handleCreateOrder({
-      paidAmount: receivePayment ? paymentAmount : 0,
-      paymentMethod: receivePayment ? paymentMethod : "",
+      paidAmount: paymentAmount > 0 ? paymentAmount : 0,
+      paymentMethod: paymentAmount > 0 ? paymentMethod : "",
       paidDate: new Date().toISOString(),
-      noPaymentAtAll: !receivePayment,
+      noPaymentAtAll: paymentAmount === 0,
     });
   };
 
@@ -1181,65 +1180,47 @@ export default function NewInvoicePage() {
             <div className="w-full md:w-1/2 lg:w-5/12 flex flex-col gap-6">
               {/* Payment Section */}
               <div>
-                <Card className="border-2 border-primary/20 shadow-sm overflow-hidden">
-                  <div
-                    className={`p-4 cursor-pointer transition-colors flex items-center justify-between ${receivePayment ? 'bg-primary/5' : 'hover:bg-muted/50'}`}
-                    onClick={() => {
-                      const newState = !receivePayment;
-                      setReceivePayment(newState);
-                      if (newState && paymentAmount === 0) {
-                        setPaymentAmount(Math.floor(finalTotal));
-                      }
-                    }}
-                  >
-                    <div>
-                      <h3 className="font-semibold text-base text-foreground">{t("receivePayment") || "Receive Payment?"}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">Record payment at the time of invoice creation</p>
-                    </div>
-                    <div className="flex items-center">
-                      <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${receivePayment ? "bg-primary" : "bg-gray-300"}`}>
-                        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${receivePayment ? "translate-x-5" : "translate-x-1"}`} />
-                      </div>
-                    </div>
-                  </div>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">{t("receivePayment") || "Receive Payment"}</CardTitle>
+                    <p className="text-xs text-muted-foreground font-normal mt-0.5">Optional: Record payment at the time of invoice creation</p>
+                  </CardHeader>
 
-                  {receivePayment && (
-                    <div className="p-4 pt-4 border-t border-primary/10 bg-primary/5 grid grid-cols-1 gap-4">
-                      <div className="space-y-2">
-                        <Label className="font-semibold">{t("amountLabel") || "Amount Received"}</Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{t("currencySymbol")}</span>
-                          <Input
-                            type="number"
-                            value={paymentAmount === 0 ? "" : paymentAmount}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (val > Math.floor(finalTotal)) {
-                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
-                                setShowSaveErrorDialog(true);
-                                setPaymentAmount(Math.floor(finalTotal));
-                              } else {
-                                setPaymentAmount(val);
-                              }
-                            }}
-                            placeholder="0"
-                            min={0}
-                            className="pl-9 h-11 text-lg font-semibold bg-background"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-semibold">{t("paymentMethod") || "Payment Method"} <span className="text-red-500">*</span></Label>
-                        <div className="bg-background rounded-md">
-                          <PaymentMethodDropdown
-                            value={paymentMethod}
-                            onValueChange={setPaymentMethod}
-                            placeholder={t("selectPaymentMethod") || "Select Method"}
-                          />
-                        </div>
+                  <CardContent className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <Label className="font-semibold">{t("amountLabel") || "Amount Received"}</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{t("currencySymbol")}</span>
+                        <Input
+                          type="number"
+                          value={paymentAmount === 0 ? "" : paymentAmount}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            if (val > Math.floor(finalTotal)) {
+                              setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                              setShowSaveErrorDialog(true);
+                              setPaymentAmount(Math.floor(finalTotal));
+                            } else {
+                              setPaymentAmount(val);
+                            }
+                          }}
+                          placeholder="0"
+                          min={0}
+                          className="pl-9 h-11 text-lg font-semibold bg-background"
+                        />
                       </div>
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <Label className="font-semibold">{t("paymentMethod") || "Payment Method"} {paymentAmount > 0 && <span className="text-red-500">*</span>}</Label>
+                      <div className="bg-background rounded-md">
+                        <PaymentMethodDropdown
+                          value={paymentMethod}
+                          onValueChange={setPaymentMethod}
+                          placeholder={t("selectPaymentMethod") || "Select Method"}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
 

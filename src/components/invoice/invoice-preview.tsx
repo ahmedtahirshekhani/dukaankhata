@@ -58,6 +58,7 @@ export interface InvoicePreviewProps {
   companyEmail?: string;
   customerNotes?: string;
   printFormat?: "a4" | "thermal" | "letter";
+  isScreen?: boolean;
 }
 
 const formatDateLong = (dateStr: string) => {
@@ -117,6 +118,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
       companyEmail,
       customerNotes = "",
       printFormat = "a4",
+      isScreen = false,
     },
     ref,
   ) => {
@@ -144,7 +146,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
       : {
           outerPad: "24px",
           outerPadNum: 24,
-          minHeight: "277mm",      // A4 / Letter — ensures footer sticks to bottom
+          minHeight: isScreen ? "auto" : "277mm",      // A4 / Letter — ensures footer sticks to bottom when printing
           headerFontSize: "22px",
           textFontSize: "13px",
           boldFontSize: "16px",
@@ -166,7 +168,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
         className="invoice-preview-container"
         style={{
           background: "#ffffff",
-          border: "1px solid #94a3b8",
+          border: "1px solid #e9ecefff",
           borderRadius: "6px",
           fontFamily: "'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
@@ -175,13 +177,6 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           margin: "0 auto",
         }}
       >
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media screen {
-            .invoice-preview-inner {
-              min-height: auto !important;
-            }
-          }
-        `}} />
         {/*
           INNER FLEX COLUMN
           • minHeight keeps A4/Letter content area tall enough that the spacer
@@ -704,7 +699,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               SPACER — pushes footer to bottom on short-content pages.
               On multi-page docs this collapses and footer sits after content.
           ══════════════════════════════════════════════════════════════════ */}
-          <div style={{ flex: 1 }} />
+          {!isScreen && <div style={{ flex: 1 }} />}
 
           {/* ══════════════════════════════════════════════════════════════════
               FOOTER / DISCLAIMER
