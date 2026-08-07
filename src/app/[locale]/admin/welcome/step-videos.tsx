@@ -5,7 +5,8 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
-import { PlayCircle } from "lucide-react";
+import { PlayCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Helper function to extract YouTube video ID from various URL formats
 function extractYoutubeId(url: string) {
@@ -118,10 +119,24 @@ export function StepVideos() {
       </div>
 
       <Dialog open={!!selectedVideoId} onOpenChange={(open) => !open && setSelectedVideoId(null)}>
-        <DialogContent className="max-w-4xl w-[90vw] p-0 overflow-hidden bg-black border-none shadow-2xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{selectedVideo?.title}</DialogTitle>
-          </DialogHeader>
+        <DialogContent 
+          className="max-w-4xl w-[92vw] p-0 overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl rounded-2xl sm:rounded-2xl [&>button]:hidden"
+          onInteractOutside={() => setSelectedVideoId(null)}
+        >
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 text-white">
+            <DialogTitle className="text-sm sm:text-base font-semibold truncate pr-4 text-slate-100">
+              {selectedVideo?.title}
+            </DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+              onClick={() => setSelectedVideoId(null)}
+            >
+              <X className="h-5 w-5" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </div>
           <div className="aspect-video w-full bg-black relative">
             {selectedYoutubeId ? (
               <iframe
