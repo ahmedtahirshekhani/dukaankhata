@@ -673,6 +673,7 @@ export default function NewInvoicePage() {
           paidDate: paymentDetails.paidDate,
           noPaymentAtAll: paymentDetails.noPaymentAtAll,
         },
+        customerNotes,
       };
 
       // 1. Generate local ID
@@ -697,6 +698,7 @@ export default function NewInvoicePage() {
            paid_date: paymentDetails.paidDate || null,
            no_payment_at_all: paymentDetails.noPaymentAtAll
         },
+        customer_notes: customerNotes || null,
         user_id: (session?.user as any)?.id || "",
         status: "completed",
         created_at: now,
