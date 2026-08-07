@@ -1270,8 +1270,8 @@ export default function OrdersPage() {
           overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
           shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
           total={selectedInvoiceOrder.total_amount}
+
           onMakePayment={() => {}}
-          onCreateOrder={() => {}}
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
           customerNotes={selectedInvoiceOrder.customer_notes}

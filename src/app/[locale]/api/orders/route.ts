@@ -132,6 +132,7 @@ export async function POST(request: Request) {
     paymentDate,
     payment,
     quotationId,
+    customerNotes,
   } = await request.json();
 
   try {
@@ -247,6 +248,7 @@ export async function POST(request: Request) {
       charges: Array.isArray(charges) ? charges : [],
       overallDiscount: typeof overallDiscount === "number" ? overallDiscount : 0,
       shippingCharges: typeof shippingCharges === "number" ? shippingCharges : 0,
+      customer_notes: customerNotes || null,
       items: orderItems,
       payment: payment
         ? {
