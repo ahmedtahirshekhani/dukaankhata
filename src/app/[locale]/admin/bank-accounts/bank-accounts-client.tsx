@@ -354,8 +354,7 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                 <TableRow>
                   <TableHead>{t("paymentMethodBankName")}</TableHead>
                   <TableHead>{t("paymentMethodBankDetails")}</TableHead>
-                  <TableHead>{tBank("openingBalance")}</TableHead>
-                  <TableHead>{tCommon("amountInDukaanKhata") === "common.amountInDukaanKhata" ? "Amount in Dukaan khata" : tCommon("amountInDukaanKhata")}</TableHead>
+                  <TableHead>{tCommon("balance")}</TableHead>
                   <TableHead className="text-right">{tCommon("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -377,7 +376,6 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.bankName}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.bankDetails || "—"}</TableCell>
-                      <TableCell>{formatCurrencyString(item.openingBalance)}</TableCell>
                       <TableCell className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -615,11 +613,7 @@ function BankAccountCard({
       </div>
       <div className="space-y-1.5 text-xs sm:text-sm">
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">{tBank("openingBalance")}:</span>
-          <span className="font-medium text-foreground">{formatCurrencyString(item.openingBalance)}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">{tCommon("amountInDukaanKhata") === "common.amountInDukaanKhata" ? "Amount in Dukaan khata" : tCommon("amountInDukaanKhata")}:</span>
+          <span className="text-muted-foreground">{tCommon("balance")}:</span>
           <span className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</span>
         </div>
         <div className="mt-2 text-muted-foreground line-clamp-2 pt-2 border-t border-border/50">
@@ -629,3 +623,4 @@ function BankAccountCard({
     </div>
   );
 }
+

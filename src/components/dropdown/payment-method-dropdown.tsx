@@ -64,7 +64,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       searchPlaceholder = "Search payment method...",
       noResultsText = "No payment methods found",
       addButtonPosition = "bottom",
-      includeDefaultMethods = true,
+      includeDefaultMethods = false,
     },
     ref
   ) => {
