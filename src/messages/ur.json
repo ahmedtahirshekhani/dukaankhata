@@ -973,6 +973,8 @@
     "editPayment": "ادائیگی میں ایڈٹ",
     "makePayment": "ادائیگی کریں",
     "noPaymentAtAll": "بالکل ادائیگی نہیں",
+    "receivePayment": "رقم وصول کریں؟",
+    "paymentGreaterError": "رقم کل بل سے زیادہ نہیں ہو سکتی",
     "includeSignatureInInvoice": "انوائس میں دستخط شامل کریں",
     "requestCustomerSignature": "گاہک کا دستخط طلب کریں",
     "createOrder": "آرڈر بنائیں",

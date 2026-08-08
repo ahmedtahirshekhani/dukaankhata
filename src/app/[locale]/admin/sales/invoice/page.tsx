@@ -306,13 +306,18 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
       // 1. Revert Old Stock
       if (order.items && Array.isArray(order.items)) {
+         const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
          for (const item of order.items) {
            if (item.product_id) {
              const productDoc = await db.products.get(item.product_id.toString());
              if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
+               if (item.quantityType === "damaged") {
+                 const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                 const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                 await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+               } else {
+                 await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+               }
              }
            }
          }
@@ -326,13 +331,18 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
       }
 
       // 3. Apply New Stock
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const p of products) {
         if (!p.type || p.type === "goods" || p.type === "good") {
-          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
           const productDoc = await db.products.get(p.id.toString());
           if (productDoc) {
-             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+             if (p.quantityType === "damaged") {
+               const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+               const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+               await db.products.update(p.id.toString(), { damaged_quantity: newQty });
+             } else {
+               await adjustOfflineStock(p.id.toString(), -(Number(p.quantity) || 0));
+             }
           }
         }
       }
@@ -830,13 +840,18 @@ export default function OrdersPage() {
     try {
       // 1. Revert stock locally
       if (orderToDelete.items && Array.isArray(orderToDelete.items)) {
+         const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
          for (const item of orderToDelete.items) {
            if (item.product_id) {
              const productDoc = await db.products.get(item.product_id.toString());
              if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
+               if (item.quantityType === "damaged") {
+                 const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                 const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                 await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+               } else {
+                 await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+               }
              }
            }
          }
@@ -1255,8 +1270,8 @@ export default function OrdersPage() {
           overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
           shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
           total={selectedInvoiceOrder.total_amount}
+
           onMakePayment={() => {}}
-          onCreateOrder={() => {}}
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
           customerNotes={selectedInvoiceOrder.customer_notes}

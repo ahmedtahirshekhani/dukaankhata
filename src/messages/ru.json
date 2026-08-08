@@ -973,6 +973,8 @@
     "editPayment": "Edit Payment",
     "makePayment": "Make Payment",
     "noPaymentAtAll": "Bilkul Adaigi Nahi",
+    "receivePayment": "Payment Wasool Karni Hai?",
+    "paymentGreaterError": "Payment total raqam se ziyada nahi ho sakti",
     "includeSignatureInInvoice": "Invoice mein dastakhat shamil karain",
     "requestCustomerSignature": "Party ka dastakhat talab karain",
     "createOrder": "Order Banayen",

@@ -64,12 +64,7 @@ export function ProductsTable({
     const num = Number(val);
     if (isNaN(num)) return "-";
     if (Number.isInteger(num)) return num.toString();
-    // Return up to 3 decimal places without unnecessary zeros if it exceeds it, but wait!
-    // If they typed 45.50, it is 45.5 in DB. We format to 3 decimals.
-    // 45.5 -> 45.500
-    // But what if it's a price? For price, 2 decimals is standard.
-    // The user specifically complained about quantity: "teen decimal places jao"
-    return num.toFixed(3);
+    return Number(num.toFixed(5)).toString();
   };
 
   const formatPrice = (val: number | string | undefined | null) => {

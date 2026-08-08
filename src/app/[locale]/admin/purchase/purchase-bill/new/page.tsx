@@ -390,16 +390,31 @@ function AddPurchaseBillPageInner() {
             };
 
             // Update local DB instantly
+            const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
             if (editingBillId) {
                 const oldBill = await db.purchase_bills.get(editingBillId);
                 if (oldBill && oldBill.balance_due !== undefined) {
                     await updateOfflinePartyBalance(oldBill.party_id, -oldBill.balance_due);
                 }
+                // Revert old stock
+                if (oldBill && oldBill.items) {
+                    for (const item of oldBill.items) {
+                        if (item.product_id) await adjustOfflineStock(item.product_id, -(Number(item.quantity) || 0));
+                    }
+                }
                 await db.purchase_bills.update(editingBillId, finalBillData);
                 await updateOfflinePartyBalance(selectedPartyId, finalBillData.balance_due);
+                // Apply new stock
+                for (const item of billItems) {
+                    if (item.product_id) await adjustOfflineStock(item.product_id, Number(item.quantity) || 0);
+                }
             } else {
                 await db.purchase_bills.add(finalBillData);
                 await updateOfflinePartyBalance(selectedPartyId, finalBillData.balance_due);
+                // Apply new stock
+                for (const item of billItems) {
+                    if (item.product_id) await adjustOfflineStock(item.product_id, Number(item.quantity) || 0);
+                }
             }
 
             // Queue for sync

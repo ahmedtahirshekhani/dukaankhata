@@ -972,6 +972,8 @@
     "editPayment": "Edit Payment",
     "makePayment": "Make Payment",
     "noPaymentAtAll": "No Payment At All",
+    "receivePayment": "Receive Payment?",
+    "paymentGreaterError": "Payment cannot be greater than Total Amount",
     "includeSignatureInInvoice": "Include signature in invoice",
     "requestCustomerSignature": "Request party signature",
     "createOrder": "Create Order",

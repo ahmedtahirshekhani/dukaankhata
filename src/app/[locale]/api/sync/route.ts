@@ -55,52 +55,47 @@ export async function GET(request: Request) {
 
     const result: Record<string, any[]> = {};
     
-    // Fetch in batches of 4 for performance while avoiding DB connection exhaustion
-    for (let i = 0; i < collectionsToFetch.length; i += 4) {
-      const batch = collectionsToFetch.slice(i, i + 4);
-      await Promise.all(batch.map(async (col) => {
-        const dbCol = await getCollection(col.key);
+    // Fetch sequentially to prevent overwhelming the connection pool
+    for (const col of collectionsToFetch) {
+      const dbCol = await getCollection(col.key);
+      
+      let currentQuery: any = { ...query };
+      if (col.scope === 'global') {
+        currentQuery = {};
+      } else if (col.scope === 'global_active') {
+        currentQuery = { isActive: true };
+      } else if (col.scope === 'owner_id') {
+        currentQuery = { owner_id: toObjectId(user.id) };
+      } else if (col.scope === 'none') {
+        currentQuery = { _id: toObjectId(user.id) };
+      } else if (col.scope === 'users_and_staff') {
+        const rolesColl = await getCollection(COLLECTIONS.ROLES);
+        const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
+        const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
+        const shopRoleIds = shopRoles.map((r: any) => r._id);
+        const shopUserRoles = await userRolesColl.find({ role_id: { $in: shopRoleIds } }).toArray();
+        const staffIds = shopUserRoles.map((ur: any) => ur.user_id);
         
-        let currentQuery: any = { ...query };
-        if (col.scope === 'global') {
-          currentQuery = {};
-        } else if (col.scope === 'global_active') {
-          currentQuery = { isActive: true };
-        } else if (col.scope === 'owner_id') {
-          currentQuery = { owner_id: toObjectId(user.id) };
-        } else if (col.scope === 'none') {
-          currentQuery = { _id: toObjectId(user.id) };
-        } else if (col.scope === 'users_and_staff') {
-          // Fetch the current user + all staff members linked to this shop's roles
-          const rolesColl = await getCollection(COLLECTIONS.ROLES);
-          const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
-          const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
-          const shopRoleIds = shopRoles.map((r: any) => r._id);
-          const shopUserRoles = await userRolesColl.find({ role_id: { $in: shopRoleIds } }).toArray();
-          const staffIds = shopUserRoles.map((ur: any) => ur.user_id);
-          
-          currentQuery = {
-            $or: [
-              { _id: toObjectId(user.id) },
-              { _id: { $in: staffIds } },
-              { owner_id: toObjectId(user.id), role: "staff" } // backward compatibility
-            ]
-          };
-        } else if (col.scope === 'shop_roles') {
-          const rolesColl = await getCollection(COLLECTIONS.ROLES);
-          const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
-          const shopRoleIds = shopRoles.map((r: any) => r._id);
-          currentQuery = { role_id: { $in: shopRoleIds } };
-        }
-        
-        // Exclude updated_at filter for user_roles and role_permissions since they don't have it
-        if (query.updated_at && col.scope !== 'global' && col.key !== COLLECTIONS.USER_ROLES && col.key !== COLLECTIONS.ROLE_PERMISSIONS) {
-          currentQuery.updated_at = query.updated_at;
-        }
+        currentQuery = {
+          $or: [
+            { _id: toObjectId(user.id) },
+            { _id: { $in: staffIds } },
+            { owner_id: toObjectId(user.id), role: "staff" }
+          ]
+        };
+      } else if (col.scope === 'shop_roles') {
+        const rolesColl = await getCollection(COLLECTIONS.ROLES);
+        const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
+        const shopRoleIds = shopRoles.map((r: any) => r._id);
+        currentQuery = { role_id: { $in: shopRoleIds } };
+      }
+      
+      if (query.updated_at && col.scope !== 'global' && col.key !== COLLECTIONS.USER_ROLES && col.key !== COLLECTIONS.ROLE_PERMISSIONS) {
+        currentQuery.updated_at = query.updated_at;
+      }
 
-        const docs = await dbCol.find(currentQuery).toArray();
-        result[col.name] = mapData(docs);
-      }));
+      const docs = await dbCol.find(currentQuery).toArray();
+      result[col.name] = mapData(docs);
     }
 
     console.log('SYNC RESULT:', {

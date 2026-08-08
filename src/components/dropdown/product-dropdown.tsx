@@ -204,6 +204,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />

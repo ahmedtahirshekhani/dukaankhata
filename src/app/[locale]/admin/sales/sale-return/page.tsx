@@ -403,6 +403,11 @@ export default function SaleReturnPage() {
         created_at: new Date().toISOString()
       });
 
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+      for (const item of payload.items) {
+        if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
+      }
+
       await SyncEngine.queueOperation(
         "sale_return_transactions", 
         "POST", 
@@ -459,6 +464,13 @@ export default function SaleReturnPage() {
 
       const existing = await db.sale_return_transactions.get(selectedId);
       if (existing) {
+        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        // Revert old stock
+        if (existing.items && Array.isArray(existing.items)) {
+          for (const item of existing.items) {
+            if (item.productId) await adjustOfflineStock(item.productId, -(item.quantity || 0));
+          }
+        }
         await db.sale_return_transactions.update(selectedId, {
           ...existing,
           ...payload,
@@ -467,6 +479,10 @@ export default function SaleReturnPage() {
           balanceDue,
           updated_at: new Date().toISOString()
         });
+        // Apply new stock
+        for (const item of payload.items) {
+          if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
+        }
 
         await SyncEngine.queueOperation(
           "sale_return_transactions", 
@@ -520,6 +536,13 @@ export default function SaleReturnPage() {
     try {
       const existing = await db.sale_return_transactions.get(transactionToDelete.id);
       if (existing) {
+        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        // Revert stock
+        if (existing.items && Array.isArray(existing.items)) {
+          for (const item of existing.items) {
+            if (item.productId) await adjustOfflineStock(item.productId, -(item.quantity || 0));
+          }
+        }
         await db.sale_return_transactions.update(transactionToDelete.id, {
           ...existing,
           is_delete: 1,
