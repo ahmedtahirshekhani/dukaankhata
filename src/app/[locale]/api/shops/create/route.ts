@@ -59,14 +59,17 @@ export async function POST(request: NextRequest) {
     
     // Create default payment method: Cash in Hand
     try {
-      const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+      const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
       await paymentMethodsCollection.insertOne({
         user_id: result.insertedId, // The new shop ID
         bank_name: "Cash in Hand",
         bank_details: "Auto-created cash account",
         opening_balance: 0,
+        current_balance: 0,
         created_at: new Date(),
         updated_at: new Date(),
+        is_default: true,
+        status: "active"
       });
     } catch (err) {
       console.error("Failed to create default payment method for new shop", err);

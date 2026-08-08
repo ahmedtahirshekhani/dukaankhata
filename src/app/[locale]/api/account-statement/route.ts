@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
-    const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
 
     // Parallel queries
     const [customer, userDoc, rangeEntries, balanceState, openingBalanceAgg, paymentMethodsDocs] = await Promise.all([

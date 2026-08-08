@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const methodObjId = toObjectId(bankAccountId);
     const { from, to } = parseDateRange(fromDate, toDate);
 
-    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
     const bankAccount = await paymentMethodCollection.findOne({
       _id: methodObjId,
       user_id: userId,

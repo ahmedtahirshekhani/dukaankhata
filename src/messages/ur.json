@@ -1572,7 +1572,15 @@
     "cancelDeletion": "منسوخ",
     "accountDeletedSuccess": "آپ کی اکاؤنٹ کامیابی سے حذف ہو گئی",
     "accountDeleteFailed": "اکاؤنٹ حذف کرنے میں ناکام",
-    "invalidPassword": "پاس ورڈ غلط ہے"
+    "invalidPassword": "پاس ورڈ غلط ہے",
+    "deleteAllData": "تمام ڈیٹا حذف کریں",
+    "deleteAllDataDescription": "اپنی ورک اسپیس کا تمام کاروباری ڈیٹا ہمیشہ کے لیے حذف کریں",
+    "deleteAllDataButton": "تمام ڈیٹا حذف کریں",
+    "deleteAllDataTitle": "تمام ڈیٹا حذف کریں",
+    "deleteAllDataWarning": "یہ عمل واپس نہیں ہو سکتا۔ آپ کے تمام آرڈرز، پروڈکٹس، پارٹیز، لین دین اور بینک اکاؤنٹس ہمیشہ کے لیے حذف ہو جائیں گے۔",
+    "allDataDeletedSuccess": "تمام ورک اسپیس ڈیٹا کامیابی سے حذف ہو گیا ہے",
+    "allDataDeleteFailed": "ڈیٹا حذف کرنے میں ناکامی",
+    "deleting": "حذف ہو رہا ہے..."
   },
   "aiChat": {
     "title": "دکان چیٹ اے آئی",

@@ -141,7 +141,7 @@ export async function POST(request: Request) {
       COLLECTIONS.TRANSACTIONS,
     );
     const paymentMethodCollection = await getCollection(
-      COLLECTIONS.PAYMENT_METHOD,
+      COLLECTIONS.PAYMENT_METHODS,
     );
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
