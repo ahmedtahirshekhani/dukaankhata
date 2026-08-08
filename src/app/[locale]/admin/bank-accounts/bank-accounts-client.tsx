@@ -64,6 +64,7 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
   const tBank = useTranslations("bankAccounts");
   const tNav = useTranslations("navigation");
   const tCommon = useTranslations("common");
+  const tCustomers = useTranslations("customers");
   const { can } = usePermissions();
   const canEdit = can("payment_methods", "edit");
   const canCreate = can("payment_methods", "create");
@@ -246,7 +247,17 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
             value={openingBalance}
             onChange={(e) => setOpeningBalance(e.target.value)}
             placeholder="0.00"
+            disabled={!!editingId}
           />
+          {!!editingId ? (
+            <p className="text-[0.70rem] sm:text-xs text-amber-600 font-medium leading-tight">
+              {tCustomers("cannotUpdateBalanceWarning")}
+            </p>
+          ) : (
+            <p className="text-[0.70rem] sm:text-xs text-muted-foreground leading-tight">
+              {tCustomers("openingBalanceHelper")}
+            </p>
+          )}
         </div>
       </div>
       <div className="space-y-2">
@@ -342,9 +353,8 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("paymentMethodBankName")}</TableHead>
-                  <TableHead>{tBank("openingBalance")}</TableHead>
-                  <TableHead>{tCommon("amountInDukaanKhata") === "common.amountInDukaanKhata" ? "Amount in Dukaan khata" : tCommon("amountInDukaanKhata")}</TableHead>
                   <TableHead>{t("paymentMethodBankDetails")}</TableHead>
+                  <TableHead>{tCommon("balance")}</TableHead>
                   <TableHead className="text-right">{tCommon("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -365,9 +375,8 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                   paginatedList.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.bankName}</TableCell>
-                      <TableCell>{formatCurrencyString(item.openingBalance)}</TableCell>
-                      <TableCell className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.bankDetails || "—"}</TableCell>
+                      <TableCell className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           {/* <Button
@@ -604,11 +613,7 @@ function BankAccountCard({
       </div>
       <div className="space-y-1.5 text-xs sm:text-sm">
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">{tBank("openingBalance")}:</span>
-          <span className="font-medium text-foreground">{formatCurrencyString(item.openingBalance)}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">{tCommon("amountInDukaanKhata") === "common.amountInDukaanKhata" ? "Amount in Dukaan khata" : tCommon("amountInDukaanKhata")}:</span>
+          <span className="text-muted-foreground">{tCommon("balance")}:</span>
           <span className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</span>
         </div>
         <div className="mt-2 text-muted-foreground line-clamp-2 pt-2 border-t border-border/50">
@@ -618,3 +623,4 @@ function BankAccountCard({
     </div>
   );
 }
+
