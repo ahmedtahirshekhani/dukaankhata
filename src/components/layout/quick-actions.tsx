@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +29,7 @@ export function QuickActions() {
       {canCreateSale && (
         <Link href={`/${locale}/admin/sales/invoice/new`}>
           <Button size="sm" className="bg-primary hover:bg-secondary/80 text-white hover:text-secondary-foreground border border-primary rounded-full px-4 h-8 text-xs font-semibold shadow-sm">
-            <Plus className="w-3.5 h-3.5 mr-1" />
+            <PlusCircle className="w-3.5 h-3.5 mr-1" />
             {tNav("addSale") || "Add Sale"}
           </Button>
         </Link>
@@ -38,7 +38,7 @@ export function QuickActions() {
       {canCreatePurchase && (
         <Link href={`/${locale}/admin/purchase/purchase-bill/new`}>
           <Button size="sm" className="bg-primary hover:bg-secondary/80 text-white hover:text-secondary-foreground border border-primary rounded-full px-4 h-8 text-xs font-semibold shadow-sm">
-            <Plus className="w-3.5 h-3.5 mr-1" />
+            <PlusCircle className="w-3.5 h-3.5 mr-1" />
             {tNav("addPurchase") || "Add Purchase"}
           </Button>
         </Link>
@@ -47,14 +47,14 @@ export function QuickActions() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="icon" variant="outline" className="w-8 h-8 rounded-full bg-background border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors shadow-sm">
-            <Plus className="w-4 h-4" />
+            <PlusCircle className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {canCreateCustomer && (
              <DropdownMenuItem asChild>
                <Link href={`/${locale}/admin/customers`}>
-                 <Plus className="w-4 h-4 mr-2" />
+                 <PlusCircle className="w-4 h-4 mr-2" />
                  {tNav("addCustomer") || "Add Party"}
                </Link>
              </DropdownMenuItem>
@@ -62,7 +62,7 @@ export function QuickActions() {
           {canCreatePaymentIn && (
              <DropdownMenuItem asChild>
                <Link href={`/${locale}/admin/sales/payment-in`}>
-                 <Plus className="w-4 h-4 mr-2" />
+                 <PlusCircle className="w-4 h-4 mr-2" />
                  {tNav("addPaymentIn") || "Payment In"}
                </Link>
              </DropdownMenuItem>
