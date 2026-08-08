@@ -118,25 +118,25 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
           <div
             role="button"
             tabIndex={0}
-            className={`w-full h-auto py-2.5 flex items-center border border-primary/20 bg-primary/5 hover:bg-gradient-to-r hover:from-primary/15 hover:to-primary/5 text-primary transition-all duration-300 shadow-sm rounded-xl cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-              sidebarMinimized ? "justify-center sm:px-0" : "justify-between px-3"
+            className={`w-full h-auto py-1.5 flex items-center border border-primary/20 bg-primary/5 hover:bg-gradient-to-r hover:from-primary/15 hover:to-primary/5 text-primary transition-all duration-300 shadow-sm rounded-lg cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+              sidebarMinimized ? "justify-center sm:px-0" : "justify-between px-2.5"
             }`}
             title={sidebarMinimized ? t("switchWorkspace") : ""}
           >
-            <div className={`flex items-center gap-3 truncate ${sidebarMinimized ? "sm:pr-0" : "pr-3"}`}>
-              <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-lg w-8 h-8 shrink-0 shadow-md">
-                <Store className="h-4 w-4" />
+            <div className={`flex items-center gap-2.5 truncate ${sidebarMinimized ? "sm:pr-0" : "pr-2"}`}>
+              <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-md w-7 h-7 shrink-0 shadow-sm">
+                <Store className="h-3.5 w-3.5" />
               </div>
               <div className={`flex flex-col items-start min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                <span className="truncate text-sm font-bold tracking-tight">
+                <span className="truncate text-xs font-bold tracking-tight">
                   {displayShopName}
                 </span>
-                <span className="text-[10px] text-primary/80 font-semibold tracking-wider uppercase mt-0.5">
+                <span className="text-[9px] text-primary/80 font-semibold tracking-wider uppercase">
                   {activeWorkspace?.type || "Workspace"}
                 </span>
               </div>
             </div>
-            <ChevronRight className={`h-4 w-4 shrink-0 opacity-50 ${sidebarMinimized ? "sm:hidden" : ""}`} />
+            <ChevronRight className={`h-3.5 w-3.5 shrink-0 opacity-50 ${sidebarMinimized ? "sm:hidden" : ""}`} />
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64 p-2 shadow-2xl rounded-xl border-primary/10">
