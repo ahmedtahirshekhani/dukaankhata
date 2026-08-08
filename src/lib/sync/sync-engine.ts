@@ -200,14 +200,15 @@ export class SyncEngine {
             result = await response.json().catch(() => ({})); // Parse JSON safely
           }
           
+          const newId = result.id || result._id;
           // If this was a POST and the server returned a new ID, update the local record
-          if (op.method === 'POST' && result.id && op.localId && result.id !== op.localId) {
+          if (op.method === 'POST' && newId && op.localId && newId !== op.localId) {
             const collectionName = op.collection as keyof typeof db;
             const table = db[collectionName] as any; // Cast to bypass strict typings for dynamic access
             
             const item = await table.get(op.localId);
             if (item) {
-              item.id = result.id;
+              item.id = newId;
               await table.put(item);
               await table.delete(op.localId);
             }
@@ -220,13 +221,13 @@ export class SyncEngine {
               if (otherOp.data) {
                 const dataStr = JSON.stringify(otherOp.data);
                 if (dataStr.includes(op.localId)) {
-                  otherOp.data = JSON.parse(dataStr.replaceAll(op.localId, result.id));
+                  otherOp.data = JSON.parse(dataStr.replaceAll(op.localId, newId));
                   modified = true;
                 }
               }
               
               if (otherOp.url && otherOp.url.includes(op.localId)) {
-                otherOp.url = otherOp.url.replaceAll(op.localId, result.id);
+                otherOp.url = otherOp.url.replaceAll(op.localId, newId);
                 modified = true;
               }
               
@@ -239,8 +240,21 @@ export class SyncEngine {
             if (op.collection === 'users' && op.localId) {
               const userRoles = await db.user_roles.where('user_id').equals(op.localId).toArray();
               for (const ur of userRoles) {
-                ur.user_id = result.id;
+                ur.user_id = newId;
                 await db.user_roles.put(ur);
+              }
+            }
+          }
+
+          // Special handling for offline quotation conversion orders
+          if (op.method === 'POST' && op.url.includes('/convert') && result.orderId && op.localId) {
+            const dummyOrder = await db.orders.where('quotation_id').equals(op.localId).first();
+            if (dummyOrder && dummyOrder.id !== result.orderId) {
+              const oldId = dummyOrder.id;
+              dummyOrder.id = result.orderId;
+              await db.orders.put(dummyOrder);
+              if (oldId !== result.orderId) {
+                await db.orders.delete(oldId);
               }
             }
           }

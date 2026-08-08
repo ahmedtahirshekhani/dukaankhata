@@ -1104,6 +1104,7 @@
     "typePaymentOut": "Payment Out",
     "typeAdjustment": "Adjustment",
     "typePurchase": "Purchase",
+    "typeSaleReturn": "Sale Return",
     "typeOpeningBalance": "Opening Balance",
     "amount": "Raqam",
     "noTransactions": "Chunee hui muddat ke liye koi transaction nahi mila.",

@@ -78,7 +78,7 @@ type Customer = {
   email?: string;
   phone?: string;
 };
-
+ 
 interface POSProduct extends Product {
   quantity: number;
   quantityInput?: string;

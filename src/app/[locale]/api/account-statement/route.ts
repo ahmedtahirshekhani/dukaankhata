@@ -337,7 +337,9 @@ export async function GET(request: NextRequest) {
           };
         });
       } else if (isSaleReturnDebit) {
-        description = "Refund against Sale Return";
+        const methodId = sourceSaleReturn?.payment_method_id?.toString() || "";
+        const methodName = paymentMethodMap.get(methodId) || "Cash";
+        description = `Refund against Sale Return - ${methodName}`;
       } else if (entry.event_type === "manual_adjustment") {
         description = "Manual Adjustment";
       } else if (entry.event_type === "opening_balance") {
@@ -350,9 +352,11 @@ export async function GET(request: NextRequest) {
       let debit = 0;
       let credit = 0;
       if (isOrderDebit || isPaymentOutDebit || isSaleReturnDebit) {
-        debit = amount;
+        if (amountDelta >= 0) debit = amount;
+        else credit = amount;
       } else if (isPaymentCredit || isPurchaseBillDebit || isSaleReturnCredit) {
-        credit = amount;
+        if (amountDelta <= 0) credit = amount;
+        else debit = amount;
       } else {
         debit = amountDelta > 0 ? amount : 0;
         credit = amountDelta < 0 ? amount : 0;
@@ -368,7 +372,9 @@ export async function GET(request: NextRequest) {
               ? "payment_out"
               : isPurchaseBillDebit
                 ? "purchase_bill"
-                : "adjustment",
+                : (isSaleReturnCredit || isSaleReturnDebit)
+                  ? "sale_return"
+                  : "adjustment",
         description,
         items: expandedItems,
         amount,
@@ -404,9 +410,15 @@ export async function GET(request: NextRequest) {
       balance: openingBalance,
     };
 
-    const totalOrders = entries
+    const totalOrdersGross = entries
       .filter((entry) => entry.event_type === "order_debit")
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalSaleReturns = entries
+      .filter((entry) => entry.event_type === "sale_return_credit")
+      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalOrders = totalOrdersGross - totalSaleReturns;
 
     const totalPurchaseBills = entries
       .filter((entry) => entry.event_type === "purchase_bill_debit")
@@ -421,7 +433,7 @@ export async function GET(request: NextRequest) {
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
 
     const totalPaymentsOut = entries
-      .filter((entry) => entry.event_type === "payment_out_debit")
+      .filter((entry) => entry.event_type === "payment_out_debit" || entry.event_type === "sale_return_debit")
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
 
     const currentBalance = Number(

@@ -1103,6 +1103,7 @@
     "typePaymentOut": "Payment Out",
     "typeAdjustment": "Adjustment",
     "typePurchase": "Purchase",
+    "typeSaleReturn": "Sale Return",
     "typeOpeningBalance": "Opening Balance",
     "amount": "Amount",
     "noTransactions": "No transactions found for the selected period.",
