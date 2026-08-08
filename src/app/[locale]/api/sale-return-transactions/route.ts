@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
     // Lookup payment methods
     pipeline.push({
       $lookup: {
-        from: COLLECTIONS.PAYMENT_METHOD,
+        from: COLLECTIONS.PAYMENT_METHODS,
         localField: "payment_method_id",
         foreignField: "_id",
         as: "paymentMethod"

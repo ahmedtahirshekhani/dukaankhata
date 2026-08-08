@@ -1572,7 +1572,15 @@
     "cancelDeletion": "Cancel",
     "accountDeletedSuccess": "Your account has been successfully deleted",
     "accountDeleteFailed": "Failed to delete account",
-    "invalidPassword": "Invalid password"
+    "invalidPassword": "Invalid password",
+    "deleteAllData": "Delete All Data",
+    "deleteAllDataDescription": "Permanently delete all business data associated with your shop/workspace",
+    "deleteAllDataButton": "Delete All Data",
+    "deleteAllDataTitle": "Delete All Data",
+    "deleteAllDataWarning": "This action cannot be undone. All your orders, products, parties, transactions, and bank accounts will be permanently deleted.",
+    "allDataDeletedSuccess": "All workspace data has been successfully deleted",
+    "allDataDeleteFailed": "Failed to delete data",
+    "deleting": "Deleting..."
   },
   "aiChat": {
     "title": "Dukaan Chat AI",

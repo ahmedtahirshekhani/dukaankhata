@@ -49,7 +49,7 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
-    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHODS);
     const item = await collection.findOne({
       _id: toObjectId(id),
       user_id: toObjectId(userId),
@@ -106,7 +106,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Bank name is required' }, { status: 400 });
     }
 
-    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHODS);
 
     // Check for duplicate bank name
     const duplicate = await collection.findOne({
@@ -179,7 +179,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
-    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHODS);
     const result = await collection.deleteOne({
       _id: toObjectId(id),
       user_id: toObjectId(userId),

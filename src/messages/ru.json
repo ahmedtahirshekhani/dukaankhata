@@ -1572,7 +1572,15 @@
     "cancelDeletion": "Cancel",
     "accountDeletedSuccess": "Aapka account kamyabi se delete ho gaya",
     "accountDeleteFailed": "Account delete karne mein nakaami",
-    "invalidPassword": "Password galat hai"
+    "invalidPassword": "Password galat hai",
+    "deleteAllData": "Tamam Data Delete Karein",
+    "deleteAllDataDescription": "Apne shop/workspace ka tamam karobari data hamesha ke liye delete karein",
+    "deleteAllDataButton": "Tamam Data Delete Karein",
+    "deleteAllDataTitle": "Tamam Data Delete Karein",
+    "deleteAllDataWarning": "Yeh action wapas nahi ho sakta. Aap ke tamam orders, products, parties, transactions aur bank accounts hamesha ke liye delete ho jayenge.",
+    "allDataDeletedSuccess": "Tamam workspace data kamyabi se delete ho gaya hai",
+    "allDataDeleteFailed": "Data delete karne mein masla pesh aaya",
+    "deleting": "Delete ho raha hai..."
   },
   "aiChat": {
     "title": "Dukaan Chat AI",

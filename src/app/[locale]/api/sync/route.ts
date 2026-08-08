@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       { name: 'expenses', key: COLLECTIONS.EXPENSES },
       { name: 'quotations', key: COLLECTIONS.QUOTATIONS },
       { name: 'categories', key: COLLECTIONS.CATEGORIES },
-      { name: 'payment_methods', key: COLLECTIONS.PAYMENT_METHOD },
+      { name: 'payment_methods', key: COLLECTIONS.PAYMENT_METHODS },
       { name: 'vendor_transactions', key: COLLECTIONS.VENDOR_TRANSACTIONS },
       { name: 'sale_return_transactions', key: COLLECTIONS.SALE_RETURN_TRANSACTIONS },
       { name: 'transactions', key: COLLECTIONS.TRANSACTIONS },
