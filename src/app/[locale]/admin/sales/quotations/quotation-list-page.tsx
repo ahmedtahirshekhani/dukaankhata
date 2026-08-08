@@ -128,6 +128,69 @@ export default function QuotationListPage() {
       if (quotation) {
         quotation.status = "converted";
         await db.quotations.put(quotation);
+        
+        // Create offline order
+        const invoiceNo = `INV-${quotation.quotation_no || quotationId.slice(-6)}`.toUpperCase();
+        
+        const orderItems = (quotation.items || []).map((item: any) => ({
+          product_id: item.product_id || item.productId || item.id,
+          name: item.product_name || item.name,
+          description: item.product_description || item.description || "",
+          quantity: Number(item.quantity || 0),
+          quantityType: "prime",
+          price: Number(item.unit_price || item.sell_price || item.price || 0),
+          discount: Number(item.discount || 0),
+          discountType: item.discount_type || "fixed",
+          unit_of_measurement: item.uom || item.unit_of_measurement || "",
+        }));
+
+        const now = new Date().toISOString();
+        const orderId = crypto.randomUUID();
+        
+        const orderDoc: any = {
+          id: orderId,
+          customer_id: quotation.party_id,
+          party_name: quotation.party_name,
+          total_amount: Number(quotation.total_amount || 0),
+          subtotal: Number(quotation.total_amount || 0),
+          invoice_no: invoiceNo,
+          sale_date: now,
+          due_date: null,
+          charges: [],
+          overallDiscount: Number(quotation.discount || 0),
+          discountType: quotation.discount_type || "fixed",
+          tax: Number(quotation.tax || 0),
+          taxType: quotation.tax_type || "fixed",
+          shippingCharges: 0,
+          items: orderItems,
+          payment: {
+            method: "cash",
+            paid_amount: 0,
+            paid_date: null,
+            no_payment_at_all: true,
+          },
+          status: "completed",
+          created_at: now,
+          updated_at: now,
+          quotation_id: quotationId,
+          notes: quotation.notes || `Converted from Quotation ${quotation.quotation_no || quotationId}`,
+        };
+        await db.orders.put(orderDoc);
+
+        // Deduct stock offline
+        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        if (quotation.items && Array.isArray(quotation.items)) {
+          for (const item of quotation.items) {
+             const productId = item.product_id || item.productId || item.id;
+             if (productId) {
+               await adjustOfflineStock(productId.toString(), -(Number(item.quantity) || 0));
+             }
+          }
+        }
+        
+        // Update customer ledger
+        const { updateOfflinePartyBalance } = await import('@/lib/ledger/offline-ledger');
+        await updateOfflinePartyBalance(quotation.party_id, Number(quotation.total_amount || 0));
       }
       
       // Queue offline sync
