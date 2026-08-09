@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     user_id: transaction.user_id.toString(),
   }));
 
-  await updateUserLastActivity(user.id);
+  await updateUserLastActivity();
   return NextResponse.json({
     data: transactions,
     total: count,
@@ -154,13 +154,13 @@ export async function POST(request: Request) {
 
   // ✅ Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
-  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) }, undefined, user.id);
+  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
   const transaction = await transactionsCollection.findOne({
     _id: result.insertedId,
   });
 
-  await updateUserLastActivity(user.id);
+  await updateUserLastActivity();
   return NextResponse.json({
     ...transaction,
     id: transaction?._id.toString(),
