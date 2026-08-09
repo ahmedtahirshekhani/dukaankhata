@@ -250,40 +250,110 @@ export async function PUT(
     // Ledger adjustments (reverse old, apply new)
     const oldCustomerId = existing.customer_id?.toString();
     const oldAmount = existing.payment_amount ?? 0;
+    const oldPaidAmount = existing.paid_amount ?? 0;
     const newCustomerId = customerId;
 
-    if (oldCustomerId && isValidObjectId(oldCustomerId) && oldAmount > 0) {
-      await appendCustomerLedgerEntry({
-        userId: user.id,
-        customerId: oldCustomerId,
-        eventKey: `sale_return_update_reversal:${id}:${oldCustomerId}:${oldAmount}:${new Date(existing.date).getTime()}`,
-        eventType: "manual_adjustment",
-        eventSource: "party_transaction",
-        eventSourceId: id,
-        amountDelta: oldAmount,
-        effectiveAt: new Date(),
-        metadata: {
-          reason: "sale_return_update_reversal",
-          transaction_id: id,
-        },
-      });
+    const { adjustStock } = await import('@/lib/db/stock-manager');
+    // Revert old stock
+    if (existing.items && Array.isArray(existing.items)) {
+      for (const item of existing.items) {
+        if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
+      }
+    }
+    // Apply new stock
+    if (lineItems && Array.isArray(lineItems)) {
+      for (const item of lineItems) {
+        if (item.productId) await adjustStock(item.productId, user.id, (item.quantity || 0));
+      }
     }
 
-    if (newCustomerId && isValidObjectId(newCustomerId) && paymentAmount > 0) {
-      await appendCustomerLedgerEntry({
-        userId: user.id,
-        customerId: newCustomerId,
-        eventKey: `sale_return_update_apply:${id}:${newCustomerId}:${paymentAmount}:${date.getTime()}`,
-        eventType: "manual_adjustment",
-        eventSource: "party_transaction",
-        eventSourceId: id,
-        amountDelta: -paymentAmount,
-        effectiveAt: date,
-        metadata: {
-          reason: "sale_return_update_apply",
-          transaction_id: id,
-        },
-      });
+    if (oldCustomerId && isValidObjectId(oldCustomerId)) {
+      if (oldAmount > 0) {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId: oldCustomerId,
+          eventKey: `sale_return_update_reversal_credit:${id}:${oldCustomerId}:${oldAmount}:${new Date(existing.date).getTime()}`,
+          eventType: "sale_return_credit",
+          eventSource: "party_transaction",
+          eventSourceId: id,
+          amountDelta: oldAmount,
+          effectiveAt: new Date(),
+          metadata: {
+            reason: "sale_return_update_reversal",
+            transaction_id: id,
+          },
+        });
+      }
+      if (oldPaidAmount > 0) {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId: oldCustomerId,
+          eventKey: `sale_return_update_reversal_debit:${id}:${oldCustomerId}:${oldPaidAmount}:${new Date(existing.date).getTime()}`,
+          eventType: "sale_return_debit",
+          eventSource: "party_transaction",
+          eventSourceId: id,
+          amountDelta: -oldPaidAmount,
+          effectiveAt: new Date(),
+          metadata: {
+            reason: "sale_return_update_reversal_refund",
+            transaction_id: id,
+          },
+        });
+        
+        // Remove old refund transaction from transactions collection
+        const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+        await transactionsCollection.deleteOne({ order_id: toObjectId(id) });
+      }
+    }
+
+    if (newCustomerId && isValidObjectId(newCustomerId)) {
+      if (paymentAmount > 0) {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId: newCustomerId,
+          eventKey: `sale_return_update_apply_credit:${id}:${newCustomerId}:${paymentAmount}:${date.getTime()}`,
+          eventType: "sale_return_credit",
+          eventSource: "party_transaction",
+          eventSourceId: id,
+          amountDelta: -paymentAmount,
+          effectiveAt: date,
+          metadata: {
+            reason: "sale_return_update_apply",
+            transaction_id: id,
+          },
+        });
+      }
+      if (paidAmount > 0) {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId: newCustomerId,
+          eventKey: `sale_return_update_apply_debit:${id}:${newCustomerId}:${paidAmount}:${date.getTime()}`,
+          eventType: "sale_return_debit",
+          eventSource: "party_transaction",
+          eventSourceId: id,
+          amountDelta: paidAmount,
+          effectiveAt: date,
+          metadata: {
+            reason: "sale_return_update_apply_refund",
+            transaction_id: id,
+          },
+        });
+        
+        // Add new refund transaction
+        const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+        await transactionsCollection.insertOne({
+          user_id: toObjectId(user.id),
+          amount: paidAmount,
+          status: "completed",
+          category: "selling", // or refund
+          type: "expense", // cash out
+          description: `Refund for sale return #${returnNumber}`,
+          payment_date: date,
+          payment_method_id: isHardcodedMethod ? paymentMethodId : toObjectId(paymentMethodId),
+          order_id: toObjectId(id),
+          created_at: new Date(),
+        });
+      }
     }
 
     // ✅ Use setLastUpdated helper instead of manual $set
@@ -385,22 +455,53 @@ export async function DELETE(
 
     const customerId = existing.customer_id?.toString();
     const paymentAmount = existing.payment_amount ?? 0;
+    const paidAmount = existing.paid_amount ?? 0;
 
-    if (customerId && isValidObjectId(customerId) && paymentAmount > 0) {
-      await appendCustomerLedgerEntry({
-        userId: user.id,
-        customerId,
-        eventKey: `sale_return_delete_reversal:${id}:${customerId}:${paymentAmount}:${new Date(existing.date).getTime()}`,
-        eventType: "manual_adjustment",
-        eventSource: "party_transaction",
-        eventSourceId: id,
-        amountDelta: paymentAmount,
-        effectiveAt: new Date(),
-        metadata: {
-          reason: "sale_return_delete_reversal",
-          transaction_id: id,
-        },
-      });
+    const { adjustStock } = await import('@/lib/db/stock-manager');
+    // Revert stock
+    if (existing.items && Array.isArray(existing.items)) {
+      for (const item of existing.items) {
+        if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
+      }
+    }
+
+    if (customerId && isValidObjectId(customerId)) {
+      if (paymentAmount > 0) {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId,
+          eventKey: `sale_return_delete_reversal_credit:${id}:${customerId}:${paymentAmount}:${new Date(existing.date).getTime()}`,
+          eventType: "sale_return_credit",
+          eventSource: "party_transaction",
+          eventSourceId: id,
+          amountDelta: paymentAmount,
+          effectiveAt: new Date(),
+          metadata: {
+            reason: "sale_return_delete_reversal",
+            transaction_id: id,
+          },
+        });
+      }
+      if (paidAmount > 0) {
+        await appendCustomerLedgerEntry({
+          userId: user.id,
+          customerId,
+          eventKey: `sale_return_delete_reversal_debit:${id}:${customerId}:${paidAmount}:${new Date(existing.date).getTime()}`,
+          eventType: "sale_return_debit",
+          eventSource: "party_transaction",
+          eventSourceId: id,
+          amountDelta: -paidAmount,
+          effectiveAt: new Date(),
+          metadata: {
+            reason: "sale_return_delete_reversal_refund",
+            transaction_id: id,
+          },
+        });
+        
+        // Remove refund transaction from transactions collection
+        const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
+        await transactionsCollection.deleteOne({ order_id: toObjectId(id) });
+      }
     }
 
     const result = await collection.deleteOne({

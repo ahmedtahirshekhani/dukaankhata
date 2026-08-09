@@ -21,6 +21,7 @@ interface PaymentMethodDoc {
   user_id: ObjectId;
   bank_name: string;
   bank_details: string;
+  opening_balance?: number;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -48,7 +49,7 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
-    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHODS);
     const item = await collection.findOne({
       _id: toObjectId(id),
       user_id: toObjectId(userId),
@@ -63,6 +64,7 @@ export async function GET(
       id: item._id.toString(),
       bankName: item.bank_name ?? '',
       bankDetails: item.bank_details ?? '',
+      openingBalance: item.opening_balance ?? 0,
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     });
@@ -98,12 +100,13 @@ export async function PUT(
     const body = await req.json();
     const bankName = typeof body?.bankName === 'string' ? body.bankName.trim() : '';
     const bankDetails = typeof body?.bankDetails === 'string' ? body.bankDetails.trim() : '';
+    const openingBalance = typeof body?.openingBalance === 'number' ? body.openingBalance : 0;
 
     if (!bankName) {
       return NextResponse.json({ error: 'Bank name is required' }, { status: 400 });
     }
 
-    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHODS);
 
     // Check for duplicate bank name
     const duplicate = await collection.findOne({
@@ -118,11 +121,10 @@ export async function PUT(
       );
     }
 
-    // Use setLastUpdated helper
     const updateResult = await setLastUpdated(
       collection,
       { _id: toObjectId(id), user_id: toObjectId(userId) },
-      { bank_name: bankName, bank_details: bankDetails }
+      { bank_name: bankName, bank_details: bankDetails, opening_balance: openingBalance }
     );
 
     if (updateResult.matchedCount === 0) {
@@ -144,6 +146,7 @@ export async function PUT(
       id: updatedDoc._id.toString(),
       bankName: updatedDoc.bank_name ?? '',
       bankDetails: updatedDoc.bank_details ?? '',
+      openingBalance: updatedDoc.opening_balance ?? 0,
       createdAt: updatedDoc.created_at,
       updatedAt: updatedDoc.updated_at,
     });
@@ -176,7 +179,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
-    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection<PaymentMethodDoc>(COLLECTIONS.PAYMENT_METHODS);
     const result = await collection.deleteOne({
       _id: toObjectId(id),
       user_id: toObjectId(userId),

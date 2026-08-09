@@ -104,6 +104,7 @@ export async function POST(
     const orderIdStr = orderId.toString();
 
     // 3. Deduct Stock from Products (only for goods type)
+    const { adjustStock } = await import('@/lib/db/stock-manager');
     for (const item of orderItems) {
       if (!item.product_id) continue;
       
@@ -117,24 +118,18 @@ export async function POST(
       const quantityType = item.quantityType || "prime";
       const isDamaged = quantityType === "damaged";
 
-      let stockField: string;
       if (isDamaged) {
-        stockField = "damaged_quantity";
+        const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+        const newQty = Math.round((currentQty - parseFloat(orderQty.toString())) * 100000) / 100000;
+        await productsCollection.updateOne(
+          { _id: item.product_id },
+          { 
+            $set: { damaged_quantity: newQty, updated_at: now } 
+          }
+        );
       } else {
-        stockField = productDoc.quantity !== undefined && productDoc.quantity !== null
-          ? "quantity"
-          : productDoc.in_stock !== undefined && productDoc.in_stock !== null
-            ? "in_stock"
-            : "quantity";
+        await adjustStock(item.product_id.toString(), user.id, -orderQty);
       }
-
-      await productsCollection.updateOne(
-        { _id: item.product_id },
-        { 
-          $inc: { [stockField]: -orderQty },
-          $set: { updated_at: now } 
-        }
-      );
     }
 
     // 4. Update Customer Ledger (Record the sale)

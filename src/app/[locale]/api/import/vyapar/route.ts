@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     const purchaseCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
     const txnCol = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
     const expenseCol = await getCollection(COLLECTIONS.EXPENSES);
-    const paymentMethodCol = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const paymentMethodCol = await getCollection(COLLECTIONS.PAYMENT_METHODS);
     const ledgerEntriesCol = await getCollection(COLLECTIONS.PARTY_LEDGER_ENTRIES);
     const balanceStateCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
 

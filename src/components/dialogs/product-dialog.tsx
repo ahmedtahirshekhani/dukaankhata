@@ -76,6 +76,27 @@ const UNIT_VALUES = [
   "tube",
   "packet",
   "strip",
+  "ton",
+  "cft",
+  "sft",
+  "rft",
+  "bale",
+  "cone",
+  "than",
+  "guz",
+  "crate",
+  "sack",
+  "tin",
+  "drum",
+  "maund",
+  "seer",
+  "tablet",
+  "capsule",
+  "ampoule",
+  "vial",
+  "coil",
+  "bucket",
+  "ream",
 ] as const;
 
 /** @deprecated Use UNIT_VALUES with translations. Exported for counter-sale page compatibility. */
@@ -116,6 +137,27 @@ export const UNITS_OF_MEASUREMENT: UnitOption[] = [
   { value: "tube", label: "Tube" },
   { value: "packet", label: "Packet" },
   { value: "strip", label: "Strip" },
+  { value: "ton", label: "Ton" },
+  { value: "cft", label: "Cubic Foot (cft)" },
+  { value: "sft", label: "Square Foot (sft)" },
+  { value: "rft", label: "Running Foot (rft)" },
+  { value: "bale", label: "Bale" },
+  { value: "cone", label: "Cone" },
+  { value: "than", label: "Than" },
+  { value: "guz", label: "Guz" },
+  { value: "crate", label: "Crate" },
+  { value: "sack", label: "Sack / Bori" },
+  { value: "tin", label: "Tin" },
+  { value: "drum", label: "Drum" },
+  { value: "maund", label: "Maund" },
+  { value: "seer", label: "Seer" },
+  { value: "tablet", label: "Tablet" },
+  { value: "capsule", label: "Capsule" },
+  { value: "ampoule", label: "Ampoule" },
+  { value: "vial", label: "Vial" },
+  { value: "coil", label: "Coil" },
+  { value: "bucket", label: "Bucket" },
+  { value: "ream", label: "Ream" },
 ];
 
 const selectStyles = {
@@ -146,6 +188,22 @@ const selectStyles = {
   }),
 };
 
+const formatInitialQuantity = (val: number | string | undefined | null) => {
+  if (val === undefined || val === null || val === "") return "";
+  const num = Number(val);
+  if (isNaN(num)) return "";
+  if (Number.isInteger(num)) return num.toString();
+  return Number(num.toFixed(5)).toString();
+};
+
+const formatInitialPrice = (val: number | string | undefined | null) => {
+  if (val === undefined || val === null || val === "") return "";
+  const num = Number(val);
+  if (isNaN(num)) return "";
+  if (Number.isInteger(num)) return num.toString();
+  return num.toFixed(2);
+};
+
 export function ProductDialog({
   open,
   onOpenChange,
@@ -164,11 +222,11 @@ export function ProductDialog({
   const [itemType, setItemType] = useState<"goods" | "services">("goods");
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
-  const [productPrice, setProductPrice] = useState<number | "">("");
-  const [sellPrice, setSellPrice] = useState<number | "">("");
-  const [costPrice, setCostPrice] = useState<number | "">("");
-  const [productInStock, setProductInStock] = useState<number | "">("");
-  const [damagedQuantity, setDamagedQuantity] = useState<number | "">("");
+  const [productPrice, setProductPrice] = useState<number | string>("");
+  const [sellPrice, setSellPrice] = useState<number | string>("");
+  const [costPrice, setCostPrice] = useState<number | string>("");
+  const [productInStock, setProductInStock] = useState<number | string>("");
+  const [damagedQuantity, setDamagedQuantity] = useState<number | string>("");
   const [productCategory, setProductCategory] = useState("");
   const [unitOfMeasurement, setUnitOfMeasurement] = useState("");
   const [branch, setBranch] = useState("");
@@ -182,14 +240,14 @@ export function ProductDialog({
       setProductName(selectedProduct.name);
       setProductDescription(selectedProduct.description || "");
       if (selectedProduct.type === "goods") {
-        setSellPrice(selectedProduct.sell_price || "");
-        setCostPrice(selectedProduct.cost_price || "");
-        setProductInStock(selectedProduct.quantity || "");
-        setDamagedQuantity(selectedProduct.damaged_quantity || "");
+        setSellPrice(selectedProduct.sell_price_str ?? formatInitialPrice(selectedProduct.sell_price));
+        setCostPrice(selectedProduct.cost_price_str ?? formatInitialPrice(selectedProduct.cost_price));
+        setProductInStock(selectedProduct.quantity_str ?? formatInitialQuantity(selectedProduct.quantity));
+        setDamagedQuantity(selectedProduct.damaged_quantity_str ?? formatInitialQuantity(selectedProduct.damaged_quantity));
         setUnitOfMeasurement(selectedProduct.unit_of_measurement || "");
         setBranch(selectedProduct.branch || "");
       } else {
-        setSellPrice(selectedProduct.sell_price || "");
+        setSellPrice(selectedProduct.sell_price_str ?? formatInitialPrice(selectedProduct.sell_price));
       }
       setProductCategory(selectedProduct.category || "");
     } else {
@@ -220,14 +278,20 @@ export function ProductDialog({
         description: productDescription,
         category: productCategory,
         ...(itemType === "goods" && {
-          sell_price: sellPrice === "" ? 0 : sellPrice,
-          cost_price: costPrice === "" ? 0 : costPrice,
-          quantity: productInStock === "" ? 0 : productInStock,
+          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price_str: sellPrice === "" ? "" : String(sellPrice),
+          cost_price: costPrice === "" ? 0 : Number(costPrice),
+          cost_price_str: costPrice === "" ? "" : String(costPrice),
+          quantity: productInStock === "" ? 0 : Number(productInStock),
+          quantity_str: productInStock === "" ? "" : String(productInStock),
+          damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
+          damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
           branch: branch,
         }),
         ...(itemType === "services" && {
-          sell_price: sellPrice === "" ? 0 : sellPrice,
+          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
         created_at: new Date().toISOString(),
       };
@@ -270,15 +334,20 @@ export function ProductDialog({
         description: productDescription,
         category: productCategory,
         ...(itemType === "goods" && {
-          sell_price: sellPrice === "" ? 0 : sellPrice,
-          cost_price: costPrice === "" ? 0 : costPrice,
-          quantity: productInStock === "" ? 0 : productInStock,
-          damaged_quantity: damagedQuantity === "" ? 0 : damagedQuantity,
+          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price_str: sellPrice === "" ? "" : String(sellPrice),
+          cost_price: costPrice === "" ? 0 : Number(costPrice),
+          cost_price_str: costPrice === "" ? "" : String(costPrice),
+          quantity: productInStock === "" ? 0 : Number(productInStock),
+          quantity_str: productInStock === "" ? "" : String(productInStock),
+          damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
+          damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
           branch: branch,
         }),
         ...(itemType === "services" && {
-          sell_price: sellPrice === "" ? 0 : sellPrice,
+          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
       };
       const updatedProductFromServer = { ...selectedProduct, ...updatedProduct };
@@ -426,12 +495,13 @@ export function ProductDialog({
                     </div>
                     <Input
                       id="sellPrice"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={sellPrice}
                       onChange={(e) => {
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setSellPrice(val === "" ? "" : Math.max(0, val));
+                        const val = e.target.value;
+                        if (val !== "" && Number(val) < 0) return;
+                        setSellPrice(val);
                       }}
                       placeholder="0"
                       min="0"
@@ -452,12 +522,13 @@ export function ProductDialog({
                     </div>
                     <Input
                       id="costPrice"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={costPrice}
                       onChange={(e) => {
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setCostPrice(val === "" ? "" : Math.max(0, val));
+                        const val = e.target.value;
+                        if (val !== "" && Number(val) < 0) return;
+                        setCostPrice(val);
                       }}
                       placeholder="0"
                       min="0"
@@ -480,12 +551,13 @@ export function ProductDialog({
                     </div>
                     <Input
                       id="quantity"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={productInStock}
                       onChange={(e) => {
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setProductInStock(val === "" ? "" : Math.max(0, val));
+                        const val = e.target.value;
+                        if (val !== "" && Number(val) < 0) return;
+                        setProductInStock(val);
                       }}
                       placeholder="0"
                       min="0"
@@ -510,12 +582,13 @@ export function ProductDialog({
                     </div>
                     <Input
                       id="damagedQuantity"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={damagedQuantity}
                       onChange={(e) => {
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setDamagedQuantity(val === "" ? "" : Math.max(0, val));
+                        const val = e.target.value;
+                        if (val !== "" && Number(val) < 0) return;
+                        setDamagedQuantity(val);
                       }}
                       placeholder="0"
                       min="0"
@@ -585,12 +658,13 @@ export function ProductDialog({
                     </div>
                     <Input
                       id="sellPrice"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={sellPrice}
                       onChange={(e) => {
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setSellPrice(val === "" ? "" : Math.max(0, val));
+                        const val = e.target.value;
+                        if (val !== "" && Number(val) < 0) return;
+                        setSellPrice(val);
                       }}
                       placeholder="0"
                       min="0"

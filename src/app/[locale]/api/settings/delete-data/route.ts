@@ -1,0 +1,96 @@
+import { auth } from "@/auth";
+import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import bcrypt from "bcryptjs";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(request: Request) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.email) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { password } = await request.json();
+
+    if (!password) {
+      return Response.json({ error: "Password is required" }, { status: 400 });
+    }
+
+    // Get user from database to verify password
+    const usersCollection = await getCollection(COLLECTIONS.USERS);
+    const user = await usersCollection.findOne({
+      email: session.user.email,
+    });
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return Response.json({ error: "Invalid password" }, { status: 401 });
+    }
+
+    const workspaceId = toObjectId(session.user.id);
+    const filter = { user_id: { $in: [workspaceId, workspaceId.toString()] } };
+
+    // List of collections to clear
+    const collectionsToClear = [
+      COLLECTIONS.PRODUCTS,
+      COLLECTIONS.PARTIES,
+      COLLECTIONS.ORDERS,
+      COLLECTIONS.ORDER_ITEMS,
+      COLLECTIONS.PARTY_TRANSACTIONS,
+      COLLECTIONS.VENDOR_TRANSACTIONS,
+      COLLECTIONS.SALE_RETURN_TRANSACTIONS,
+      COLLECTIONS.PURCHASE_BILLS,
+      COLLECTIONS.PARTY_LEDGER_ENTRIES,
+      COLLECTIONS.PARTY_BALANCE_STATE,
+      COLLECTIONS.EXPENSES,
+      COLLECTIONS.TRANSACTIONS,
+      COLLECTIONS.QUOTATIONS,
+      COLLECTIONS.CATEGORIES,
+      COLLECTIONS.PAYMENT_METHODS,
+    ];
+
+    console.log(`\n========================================`);
+    console.log(`[DELETE_ALL_DATA] Starting deletion for User/Workspace ID: ${workspaceId}`);
+    console.log(`========================================`);
+
+    // Delete isolated data from each collection
+    let totalDeleted = 0;
+    for (const collectionName of collectionsToClear) {
+      const collection = await getCollection(collectionName);
+      
+      // First check how much data exists
+      const count = await collection.countDocuments(filter);
+      
+      if (count > 0) {
+        console.log(`- Deleting ${count} records from ${collectionName}...`);
+        const result = await collection.deleteMany(filter);
+        console.log(`  ✓ Successfully deleted ${result.deletedCount} records from ${collectionName}`);
+        totalDeleted += result.deletedCount;
+      } else {
+        console.log(`- No records found in ${collectionName}`);
+      }
+    }
+
+    console.log(`========================================`);
+    console.log(`[DELETE_ALL_DATA] Deletion Complete. Total records deleted: ${totalDeleted}`);
+    console.log(`========================================\n`);
+    
+    // We deleted payment_methods, which included "Cash in Hand" etc.
+    return Response.json({ success: true, message: "All workspace data deleted successfully" });
+  } catch (error) {
+    console.error("[DELETE_ALL_DATA]", error);
+    return Response.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}

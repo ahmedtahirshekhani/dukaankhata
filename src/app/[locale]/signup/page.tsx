@@ -83,8 +83,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const signupInputClassName =
-    "h-11 px-4 border-border/80 bg-background/50 hover:bg-background/80 focus:bg-background text-foreground shadow-sm focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 transition-all duration-200 rounded-xl";
+  const signupInputClassName = "placeholder:opacity-50 focus:placeholder-transparent transition-all";
 
   useEffect(() => {
     if (!otpSent || resendCooldown <= 0) {
@@ -646,81 +645,47 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   };
 
   const renderStatusBars = () => {
-    const steps: { step: SignupStep; label: string; icon: any }[] = allowOtp
+    const steps = allowOtp
       ? [
-          { step: 1, label: "Business", icon: Store },
-          { step: 2, label: "Contact", icon: Mail },
-          { step: 3, label: "Verify", icon: Key },
-          { step: 4, label: "Security", icon: Lock },
+          { step: 1, label: "Business" },
+          { step: 2, label: "Contact" },
+          { step: 3, label: "Verify" },
+          { step: 4, label: "Security" },
         ]
       : [
-          { step: 1, label: "Business", icon: Store },
-          { step: 2, label: "Contact", icon: Mail },
-          { step: 4, label: "Security", icon: Lock },
+          { step: 1, label: "Business" },
+          { step: 2, label: "Contact" },
+          { step: 4, label: "Security" },
         ];
 
-    const leftPercent = allowOtp ? "12.5%" : "16.67%";
-    const totalWidthPercent = allowOtp ? "75%" : "66.67%";
-    
-    let activeWidth = "0%";
-    if (allowOtp) {
-      if (currentStep === 2) activeWidth = "25%";
-      else if (currentStep === 3) activeWidth = "50%";
-      else if (currentStep === 4) activeWidth = "75%";
-    } else {
-      if (currentStep === 2) activeWidth = "33.33%";
-      else if (currentStep === 4) activeWidth = "66.67%";
-    }
+    const currentStepIndex = allowOtp 
+      ? (currentStep === 4 ? 4 : currentStep) 
+      : (currentStep === 1 ? 1 : currentStep === 2 ? 2 : 3);
 
     return (
-      <div className="relative w-full max-w-lg mx-auto py-3 px-1 my-2">
-        {/* Connection Line Background */}
-        <div 
-          className="absolute top-[28px] h-[2px] bg-muted -z-0"
-          style={{ left: leftPercent, width: totalWidthPercent }}
-        />
-        {/* Connection Line Active Progress */}
-        <div
-          className="absolute top-[28px] h-[2px] bg-primary transition-all duration-500 -z-0"
-          style={{
-            left: leftPercent,
-            width: activeWidth,
-          }}
-        />
-
-        <div className="relative z-10 flex justify-between items-center w-full">
-          {steps.map((item) => {
-            const StepIcon = item.icon;
-            const isCompleted =
-              currentStep > item.step ||
-              (item.step === 3 && currentStep === 3 && emailVerified);
-            const isActive = currentStep === item.step;
+      <div className="w-full space-y-2 pt-2 pb-1">
+        <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-0.5">
+          <span>Step {currentStepIndex} of {steps.length}</span>
+          <span className="font-bold text-sky-500">
+            {steps.find((_, idx) => (idx + 1) === currentStepIndex)?.label || ""}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 w-full">
+          {steps.map((item, idx) => {
+            const stepNum = idx + 1;
+            const isCompleted = currentStepIndex > stepNum;
+            const isActive = currentStepIndex === stepNum;
 
             return (
-              <div key={item.step} className="flex flex-col items-center flex-1">
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                    isCompleted
-                      ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/25"
-                      : isActive
-                      ? "bg-background border-primary text-primary ring-4 ring-primary/15 font-bold"
-                      : "bg-muted border-muted text-muted-foreground"
-                  }`}
-                >
-                  {isCompleted ? (
-                    <Check className="h-4.5 w-4.5 stroke-[3]" />
-                  ) : (
-                    <StepIcon className="h-4 w-4" />
-                  )}
-                </div>
-                <span
-                  className={`text-[10px] font-semibold tracking-wider uppercase mt-2.5 transition-colors duration-300 ${
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </div>
+              <div
+                key={item.label}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  isCompleted || isActive
+                    ? "bg-sky-500"
+                    : "bg-gray-200 dark:bg-gray-700"
+                }`}
+                title={item.label}
+              />
             );
           })}
         </div>
@@ -740,7 +705,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               <Input
                 id="name"
                 name="name"
-                placeholder="Muhammad Ali Khan"
+                placeholder="Enter your name"
                 value={formData.name}
                 onChange={handleChange}
                 required
@@ -758,7 +723,7 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
               <Input
                 id="companyName"
                 name="companyName"
-                placeholder={t("companyNamePlaceholder")}
+                placeholder="Enter company name"
                 value={formData.companyName}
                 onChange={handleChange}
                 required
@@ -976,197 +941,187 @@ export default function SignUpPage({ params }: { params: { locale: string } }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-secondary/20 flex flex-col relative">
-      {/* Mobile Navbar */}
-      <div className="md:hidden sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3">
-          <Link href={`/${params.locale}`}>
-            <Button variant="outline" size="sm" className="gap-2 rounded-lg">
-              <Home className="h-4 w-4" />
-              {t("home")}
-            </Button>
-          </Link>
-          <LanguageSwitcher />
-        </div>
-      </div>
-
-      {/* Desktop Buttons */}
-      <div className="hidden md:block absolute top-4 left-4 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 left-4 z-10">
         <Link href={`/${params.locale}`}>
-          <Button variant="outline" size="sm" className="gap-2 rounded-lg">
+          <Button variant="outline" size="sm" className="gap-2">
             <Home className="h-4 w-4" />
             {t("home")}
           </Button>
         </Link>
       </div>
-      <div className="hidden md:block absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10">
         <LanguageSwitcher />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-lg overflow-hidden border border-border/80 bg-background/80 backdrop-blur-md shadow-2xl shadow-foreground/5 rounded-3xl relative">
-          <div className="h-1.5 w-full bg-gradient-to-r from-primary via-secondary to-accent" />
-          {isCreatingBusiness ? (
-            <CardContent className="flex flex-col items-center justify-center py-24 space-y-6">
-              <Loader2 className="h-16 w-16 animate-spin text-primary" />
-              <div className="space-y-2 text-center">
-                <h3 className="text-2xl font-bold text-foreground">
-                  Launching your Dukaan Khata...
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  Please wait while we finalize your account and configure your business.
-                </p>
-              </div>
-            </CardContent>
-          ) : (
-            <>
-              <CardHeader className="space-y-4 pb-4">
-                <div className="space-y-2 text-center">
-                  <CardTitle className="text-2xl md:text-3xl text-center font-bold tracking-tight">
-                    {t("signUpTitle")}
-                  </CardTitle>
-                  <CardDescription className="text-center text-muted-foreground text-sm">
-                    {t("signUpSubtitle")}
-                  </CardDescription>
-                </div>
+      <Card className="w-full max-w-md shadow-lg">
+        {isCreatingBusiness ? (
+          <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+            <div className="space-y-2 text-center">
+              <h3 className="text-xl font-bold text-foreground">
+                Launching your Dukaan Khata...
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Please wait while we finalize your account and configure your business.
+              </p>
+            </div>
+          </CardContent>
+        ) : (
+          <>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-2xl text-center">
+                {t("signUpTitle")}
+              </CardTitle>
+              <CardDescription className="text-center">
+                {t("signUpSubtitle")}
+              </CardDescription>
+              {renderStatusBars()}
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
 
-                {renderStatusBars()}
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && (
-                    <div className="flex items-start gap-2.5 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-sm font-medium animate-in fade-in duration-300">
-                      <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{error}</span>
-                    </div>
-                  )}
+                {success && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-700 text-sm">
+                    {success}
+                  </div>
+                )}
 
-                  {success && (
-                    <div className="flex items-start gap-2.5 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{success}</span>
-                    </div>
-                  )}
+                {renderStepContent()}
 
-                  {renderStepContent()}
-
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
-                    {/* CTA Button (Continue / Submit) */}
-                    <div className="w-full sm:w-auto sm:order-2 sm:ml-auto">
-                      {currentStep < 4 ? (
-                        <Button
-                          type="button"
-                          className="w-full h-11 px-6 rounded-xl gap-2 font-semibold shadow-lg shadow-primary/20"
-                          onClick={goToNextStep}
-                          disabled={
-                            isLoading ||
-                            otpLoading ||
-                            (currentStep === 1 && !isStepOneComplete) ||
-                            (currentStep === 2 && !isStepTwoComplete) ||
-                            (currentStep === 3 && !isStepThreeComplete)
-                          }
-                        >
-                          {otpLoading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Working...
-                            </>
-                          ) : currentStep === 2 ? (
-                            <>
-                              {allowOtp ? "Send OTP" : "Continue"}
-                              <ArrowRight className="h-4 w-4" />
-                            </>
-                          ) : currentStep === 3 ? (
-                            <>
-                              {emailVerified ? "Continue" : "Verify Email"}
-                              <ArrowRight className="h-4 w-4" />
-                            </>
-                          ) : (
-                            <>
-                              Continue
-                              <ArrowRight className="h-4 w-4" />
-                            </>
-                          )}
-                        </Button>
+                <div className="space-y-2 pt-2">
+                  {/* CTA Button (Continue / Submit) */}
+                  {currentStep < 4 ? (
+                    <Button
+                      type="button"
+                      className="w-full"
+                      onClick={goToNextStep}
+                      disabled={
+                        isLoading ||
+                        otpLoading ||
+                        (currentStep === 1 && !isStepOneComplete) ||
+                        (currentStep === 2 && !isStepTwoComplete) ||
+                        (currentStep === 3 && !isStepThreeComplete)
+                      }
+                    >
+                      {otpLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Working...
+                        </>
+                      ) : currentStep === 2 ? (
+                        <>
+                          {allowOtp ? "Send OTP" : "Continue"}
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </>
+                      ) : currentStep === 3 ? (
+                        <>
+                          {emailVerified ? "Continue" : "Verify Email"}
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </>
                       ) : (
-                        <Button
-                          type="submit"
-                          className="w-full h-11 px-6 rounded-xl font-semibold shadow-lg shadow-primary/20"
-                          disabled={isLoading || otpLoading || !isStepFourComplete}
-                        >
-                          {isLoading ? (
-                            <span className="flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              {t("creatingAccount")}
-                            </span>
-                          ) : (
-                            "Create Account"
-                          )}
-                        </Button>
+                        <>
+                          Continue
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </>
                       )}
-                    </div>
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isLoading || otpLoading || !isStepFourComplete}
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {t("creatingAccount")}
+                        </span>
+                      ) : (
+                        "Create Account"
+                      )}
+                    </Button>
+                  )}
 
-                    {/* Resend OTP button */}
-                    {currentStep === 3 && otpSent && !emailVerified && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full sm:w-auto h-11 px-4 rounded-xl gap-2 border-border/85 sm:order-1"
-                        onClick={sendOtp}
-                        disabled={isLoading || otpLoading || resendCooldown > 0}
-                      >
-                        {otpLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : resendCooldown > 0 ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Resend in {resendCooldown}s
-                          </>
-                        ) : (
-                          <>
-                            Resend OTP
-                            <ArrowRight className="h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
-                    )}
-
-                    {/* Back Button */}
+                  {/* Resend OTP button */}
+                  {currentStep === 3 && otpSent && !emailVerified && (
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full sm:w-auto h-11 px-5 rounded-xl border-border/85 sm:order-1"
+                      className="w-full"
+                      onClick={sendOtp}
+                      disabled={isLoading || otpLoading || resendCooldown > 0}
+                    >
+                      {otpLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Sending...
+                        </>
+                      ) : resendCooldown > 0 ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Resend in {resendCooldown}s
+                        </>
+                      ) : (
+                        <>
+                          Resend OTP
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {/* Back Button */}
+                  {currentStep > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
                       onClick={() =>
                         setCurrentStep((prev) => {
                           if (prev === 4 && !allowOtp) return 2;
                           return prev > 1 ? (prev - 1) as SignupStep : prev;
                         })
                       }
-                      disabled={currentStep === 1 || isLoading || otpLoading}
+                      disabled={isLoading || otpLoading}
                     >
                       Back
                     </Button>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="text-center text-sm text-muted-foreground pt-2">
-                    <span>{t("alreadyHaveAccount")} </span>
-                    <Link
-                      href={`/${params.locale}/login`}
-                      className="text-primary hover:underline font-semibold"
-                    >
-                      {t("signIn")}
-                    </Link>
-                  </div>
-                </form>
-              </CardContent>
-            </>
-          )}
-        </Card>
-      </div>
+                <div className="text-center text-sm pt-2">
+                  <span>{t("alreadyHaveAccount")} </span>
+                  <Link
+                    href={`/${params.locale}/login`}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    {t("signIn")}
+                  </Link>
+                </div>
+
+                <div className="mt-4 text-center text-xs text-muted-foreground">
+                  <p className="font-medium">
+                    Need help? Contact Support:{" "}
+                    <a href="tel:03352575725" className="text-blue-600 hover:underline">
+                      03352575725
+                    </a>
+                    {" / "}
+                    <a href="tel:03212575665" className="text-blue-600 hover:underline">
+                      03212575665
+                    </a>
+                  </p>
+                </div>
+              </form>
+            </CardContent>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

@@ -43,11 +43,31 @@ export async function PUT(
     user_id: toObjectId(user.id)
   };
 
+  // Fetch old transaction for stock adjustment
+  const oldTransaction = await transactionsCollection.findOne(filter);
+
   // ✅ Use setLastUpdated helper
-  const updateResult = await setLastUpdated(transactionsCollection, filter, updateData);
+  const updateResult = await setLastUpdated(transactionsCollection, filter, updateData, user.id);
 
   if (updateResult.matchedCount === 0) {
     return NextResponse.json({ error: 'Transaction not found or not authorized' }, { status: 404 })
+  }
+
+  // Handle stock adjustment for counter sale
+  if (oldTransaction && updatedTransaction.productId && updatedTransaction.productId !== "0" && updatedTransaction.quantity !== undefined) {
+    let incVal = 0;
+    // Revert old transaction effect
+    if (oldTransaction.type === "income") incVal += (Number(oldTransaction.quantity) || 0);
+    else incVal -= (Number(oldTransaction.quantity) || 0);
+    
+    // Apply new transaction effect
+    if (updatedTransaction.type === "income") incVal -= (Number(updatedTransaction.quantity) || 0);
+    else incVal += (Number(updatedTransaction.quantity) || 0);
+    
+    if (incVal !== 0) {
+      const { adjustStock } = await import('@/lib/db/stock-manager');
+      await adjustStock(updatedTransaction.productId, user.id, incVal);
+    }
   }
 
   // Fetch updated document
@@ -58,9 +78,7 @@ export async function PUT(
 
   // ✅ Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
-  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
-
-  await updateUserLastActivity();
+  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) }, undefined, user.id);
   return NextResponse.json({
     ...updatedDoc,
     id: updatedDoc._id.toString(),
@@ -93,19 +111,31 @@ export async function DELETE(
   }
 
   const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
-  const result = await transactionsCollection.deleteOne({
+  const filter = {
     _id: toObjectId(transactionId),
     user_id: toObjectId(user.id)
-  });
+  };
+
+  const transactionToDelete = await transactionsCollection.findOne(filter);
+
+  const result = await transactionsCollection.deleteOne(filter);
 
   if (result.deletedCount === 0) {
     return NextResponse.json({ error: 'Transaction not found or not authorized' }, { status: 404 })
   }
 
+  // Handle stock reversion for counter sale
+  if (transactionToDelete && transactionToDelete.productId && transactionToDelete.productId !== "0" && transactionToDelete.quantity) {
+    const qtyNum = Number(transactionToDelete.quantity) || 0;
+    const incVal = transactionToDelete.type === "income" ? qtyNum : -qtyNum;
+    if (incVal !== 0) {
+      const { adjustStock } = await import('@/lib/db/stock-manager');
+      await adjustStock(transactionToDelete.productId, user.id, incVal);
+    }
+  }
+
   // ✅ Update user's last activity after deletion
   const usersCollection = await getCollection(COLLECTIONS.USERS);
-  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
-
-  await updateUserLastActivity();
+  await setLastUpdated(usersCollection, { _id: toObjectId(user.id) }, undefined, user.id);
   return NextResponse.json({ message: 'Transaction deleted successfully' });
 }

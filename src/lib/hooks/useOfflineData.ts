@@ -329,6 +329,79 @@ export function useOfflinePaymentMethods() {
   return useSafeLiveQuery(() => db.payment_methods.toArray());
 }
 
+export function useOfflinePaymentMethodsWithBalance() {
+  return useSafeLiveQuery(async () => {
+    const methods = await db.payment_methods.toArray();
+    
+    const [partyTransactions, orders, purchaseBills, saleReturns, expenses, vendorTransactions] = await Promise.all([
+      db.party_transactions.toArray(),
+      db.orders.toArray(),
+      db.purchase_bills.toArray(),
+      db.sale_return_transactions.toArray(),
+      db.expenses.toArray(),
+      db.vendor_transactions.toArray(),
+    ]);
+
+    return methods.map(method => {
+      const methodIdStr = (method.id || method._id)?.toString();
+      let currentBalance = parseFloat(method.opening_balance || method.openingBalance) || 0;
+
+      partyTransactions.forEach(t => {
+        if ((t.paymentMethodId || t.payment_method_id)?.toString() === methodIdStr) {
+          const amount = parseFloat(t.paymentAmount || t.payment_amount || t.amount) || 0;
+          if (t.type === 'payment-in') currentBalance += amount;
+          if (t.type === 'payment-out') currentBalance -= amount;
+        }
+      });
+      
+      vendorTransactions.forEach(t => {
+        if ((t.paymentMethodId || t.payment_method_id)?.toString() === methodIdStr) {
+          const amount = parseFloat(t.paymentAmount || t.payment_amount || t.amount) || 0;
+          if (t.type === 'payment-in') currentBalance += amount;
+          if (t.type === 'payment-out') currentBalance -= amount;
+        }
+      });
+
+      orders.forEach(o => {
+        const orderMethod = (o.payment?.method || o.payment_method_id || o.paymentMethodId)?.toString();
+        if (orderMethod === methodIdStr) {
+          const amount = parseFloat(o.payment?.paid_amount || o.paid_amount || o.paidAmount) || 0;
+          currentBalance += amount; // IN
+        }
+      });
+
+      purchaseBills.forEach(p => {
+        const pMethod = (p.payment?.method || p.payment_method_id || p.paymentMethodId)?.toString();
+        if (pMethod === methodIdStr) {
+          const amount = parseFloat(p.payment?.paid_amount || p.paid_amount || p.paidAmount) || 0;
+          currentBalance -= amount; // OUT
+        }
+      });
+
+      saleReturns.forEach(s => {
+        const sMethod = (s.paymentMethodId || s.payment_method_id)?.toString();
+        if (sMethod === methodIdStr) {
+          const amount = parseFloat(s.paidAmount || s.paid_amount) || 0;
+          currentBalance -= amount; // OUT
+        }
+      });
+
+      expenses.forEach(e => {
+        const eMethod = (e.paymentMethodId || e.payment_method_id)?.toString();
+        if (eMethod === methodIdStr) {
+          const amount = parseFloat(e.amount) || 0;
+          currentBalance -= amount; // OUT
+        }
+      });
+
+      return {
+        ...method,
+        currentBalance
+      };
+    });
+  });
+}
+
 export function useOfflineQuotations(searchQuery: string = "") {
   return useSafeLiveQuery(() => {
     return db.quotations
@@ -688,28 +761,36 @@ export function useOfflineStaff(searchQuery: string = "") {
         const firstRoleMapping = myRoles[0];
         
         let roleName = "Unknown";
-        let roleId = firstRoleMapping?.role_id || null;
-
         if (firstRoleMapping) {
-          const roleObj = roles.find(r => (String(r.id) === String(firstRoleMapping.role_id) || String(r._id) === String(firstRoleMapping.role_id)));
-          if (roleObj) {
-            roleName = roleObj.name;
-          }
+          const matchedRole = roles.find(r => (String(r.id) === String(firstRoleMapping.role_id) || String(r._id) === String(firstRoleMapping.role_id)));
+          if (matchedRole) roleName = matchedRole.name;
         }
-        
+
         return {
           ...user,
-          role_id: roleId,
-          role_name: roleName,
+          role_id: firstRoleMapping?.role_id || null,
           roles: myRoles.map(ur => {
-            const r = roles.find(r => (String(r.id) === String(ur.role_id) || String(r._id) === String(ur.role_id)));
+            const r = roles.find(rl => (String(rl.id) === String(ur.role_id) || String(rl._id) === String(ur.role_id)));
             return r ? r.name : "Unknown";
           }),
-          roleData: myRoles.map(ur => {
-             const r = roles.find(rl => (String(rl.id) === String(ur.role_id) || String(rl._id) === String(ur.role_id)));
-             return r || null;
-          }).filter(Boolean)
+          roleData: myRoles.map(ur => roles.find(r => (String(r.id) === String(ur.role_id) || String(r._id) === String(ur.role_id)))).filter(Boolean),
+          role_name: roleName
         };
-      });
+      })
+      .reduce((acc, current) => {
+        // Deduplicate by email to remove pending invites if a real user exists
+        if (current.email) {
+          const existingIndex = acc.findIndex((u: any) => u.email === current.email);
+          if (existingIndex >= 0) {
+            const existing = acc[existingIndex];
+            if (!current.is_pending && existing.is_pending) {
+              acc[existingIndex] = current;
+            }
+            return acc;
+          }
+        }
+        acc.push(current);
+        return acc;
+      }, [] as any[]);
   }, [searchQuery]);
 }

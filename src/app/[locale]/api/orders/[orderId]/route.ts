@@ -15,7 +15,8 @@ function isGoodsProduct(productDoc: any): boolean {
 // Reverse stock for an old order item
 async function reverseStockItem(
   productsCollection: any,
-  item: any
+  item: any,
+  userId: string
 ): Promise<void> {
   if (!item.product_id) return;
   const productDoc = await productsCollection.findOne({ _id: item.product_id });
@@ -26,20 +27,24 @@ async function reverseStockItem(
   if (qty <= 0) return;
 
   const isDamaged = item.quantityType === 'damaged';
-  const stockField = isDamaged
-    ? 'damaged_quantity'
-    : (productDoc.quantity !== undefined ? 'quantity' : 'in_stock');
-
-  await productsCollection.updateOne(
-    { _id: item.product_id },
-    { $inc: { [stockField]: qty } } // add back to stock
-  );
+  if (isDamaged) {
+    const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+    const newQty = Math.round((currentQty + parseFloat(qty.toString())) * 100000) / 100000;
+    await productsCollection.updateOne(
+      { _id: item.product_id },
+      { $set: { damaged_quantity: newQty } }
+    );
+  } else {
+    const { adjustStock } = await import('@/lib/db/stock-manager');
+    await adjustStock(item.product_id.toString(), userId, qty);
+  }
 }
 
 // Apply stock deduction for a new order item
 async function applyStockItem(
   productsCollection: any,
-  item: any
+  item: any,
+  userId: string
 ): Promise<void> {
   if (!item.product_id) return;
   const productDoc = await productsCollection.findOne({ _id: item.product_id });
@@ -50,14 +55,17 @@ async function applyStockItem(
   if (qty <= 0) return;
 
   const isDamaged = item.quantityType === 'damaged';
-  const stockField = isDamaged
-    ? 'damaged_quantity'
-    : (productDoc.quantity !== undefined ? 'quantity' : 'in_stock');
-
-  await productsCollection.updateOne(
-    { _id: item.product_id },
-    { $inc: { [stockField]: -qty } } // deduct from stock
-  );
+  if (isDamaged) {
+    const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+    const newQty = Math.round((currentQty - parseFloat(qty.toString())) * 100000) / 100000;
+    await productsCollection.updateOne(
+      { _id: item.product_id },
+      { $set: { damaged_quantity: newQty } }
+    );
+  } else {
+    const { adjustStock } = await import('@/lib/db/stock-manager');
+    await adjustStock(item.product_id.toString(), userId, -qty);
+  }
 }
 
 export async function PUT(
@@ -110,7 +118,7 @@ export async function PUT(
   // 2. Reverse old stock for all old items
   const oldItems = existingOrder.items || [];
   for (const item of oldItems) {
-    await reverseStockItem(productsCollection, item);
+    await reverseStockItem(productsCollection, item, user.id);
   }
 
   // 3. Prepare new items & apply stock deduction
@@ -125,6 +133,7 @@ export async function PUT(
       name: p.name,
       description: p.description,
       quantity: p.quantity,
+      quantity_str: p.quantity_str || String(p.quantity),
       quantityType: p.quantityType || 'prime',
       price: p.price,
       discount: p.discount || 0,
@@ -132,7 +141,7 @@ export async function PUT(
       unit_of_measurement: p.unit_of_measurement,
     };
     newItems.push(newItem);
-    await applyStockItem(productsCollection, newItem);
+    await applyStockItem(productsCollection, newItem, user.id);
   }
 
   // 4. Prepare update data (without updated_at, will use setLastUpdated)
@@ -293,6 +302,7 @@ export async function DELETE(
 
   // Reverse stock for all items before deletion
   const items = order.items || [];
+  const { adjustStock } = await import('@/lib/db/stock-manager');
   for (const item of items) {
     if (!item.product_id) continue;
     const productDoc = await productsCollection.findOne({ _id: item.product_id });
@@ -300,13 +310,16 @@ export async function DELETE(
       const qty = item.quantity || 0;
       if (qty > 0) {
         const isDamaged = item.quantityType === 'damaged';
-        const stockField = isDamaged
-          ? 'damaged_quantity'
-          : (productDoc.quantity !== undefined ? 'quantity' : 'in_stock');
-        await productsCollection.updateOne(
-          { _id: item.product_id },
-          { $inc: { [stockField]: qty } }
-        );
+        if (isDamaged) {
+          const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+          const newQty = Math.round((currentQty + parseFloat(qty.toString())) * 100000) / 100000;
+          await productsCollection.updateOne(
+            { _id: item.product_id },
+            { $set: { damaged_quantity: newQty } }
+          );
+        } else {
+          await adjustStock(item.product_id.toString(), user.id, qty);
+        }
       }
     }
   }

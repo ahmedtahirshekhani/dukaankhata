@@ -641,7 +641,7 @@ export default function ReceivableSummaryPage() {
                     <tbody>
                       <tr>
                         <td style={{ width: "55%", verticalAlign: "top" }}>
-                          {branding.logo ? (
+                          {branding.logo && (
                             <Image
                               src={branding.logo}
                               alt="Company Logo"
@@ -653,14 +653,13 @@ export default function ReceivableSummaryPage() {
                                 width: "auto",
                                 objectFit: "contain",
                                 display: "block",
-                                marginBottom: "6px",
+                                marginBottom: "4px",
                               }}
                             />
-                          ) : (
-                            <div style={{ fontWeight: 900, fontSize: "18px", color: "#0f172a", textTransform: "uppercase" }}>
-                              {branding.name}
-                            </div>
                           )}
+                          <div style={{ fontWeight: 900, fontSize: "18px", color: "#0f172a", textTransform: "uppercase" }}>
+                            {branding.name}
+                          </div>
                           <div style={{ fontSize: "10px", color: "#475569", lineHeight: 1.4 }}>
                             {branding.address}
                           </div>
@@ -673,7 +672,7 @@ export default function ReceivableSummaryPage() {
                           )}
                         </td>
                         <td style={{ width: "45%", textAlign: "right", verticalAlign: "top" }}>
-                          <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase" }}>
                             {titleStr}
                           </div>
                           <div style={{ fontSize: "10px", color: "#475569", marginTop: "4px" }}>

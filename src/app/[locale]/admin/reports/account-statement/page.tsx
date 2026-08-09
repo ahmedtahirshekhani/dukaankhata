@@ -21,6 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyString, formatStatementDate } from "@/lib/utils";
 import {
@@ -189,11 +195,15 @@ export default function AccountStatementPage() {
   );
 
   const handleExportPdf = useCallback(async () => {
-    if (!reportRef.current) return;
     setExportingPdf(true);
 
-    // Give React time to re-render and display reportRef container in DOM
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Give React time to mount the Dialog and reportRef container in DOM
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    if (!reportRef.current) {
+        setExportingPdf(false);
+        return;
+    }
 
     const pdfHeader = reportRef.current.querySelector(".pdf-header") as HTMLElement;
     try {
@@ -222,7 +232,8 @@ export default function AccountStatementPage() {
             scale: 2,
             useCORS: true,
             letterRendering: true,
-            windowWidth: 1200,
+            width: 1123,
+            windowWidth: 1123,
           },
           jsPDF: {
             unit: "mm",
@@ -271,6 +282,7 @@ export default function AccountStatementPage() {
       payment_out: t("typePaymentOut"),
       purchase_bill: t("typePurchase"),
       adjustment: t("typeAdjustment"),
+      sale_return: t("typeSaleReturn"),
       opening_balance: t("typeOpeningBalance"),
     };
     return types[type] || type;
@@ -631,84 +643,10 @@ export default function AccountStatementPage() {
             </div>
           </div>
 
-          {/* Desktop Report Container for PDF & Desktop Table */}
-          <div ref={reportRef} className={exportingPdf ? "block bg-white p-6 max-w-[1000px] mx-auto text-slate-900 font-sans" : "hidden md:block"}>
-            {/* PDF Header - Minimal & Professional A4 Layout */}
-            <div className="pdf-header" style={{ display: "none", backgroundColor: "white" }}>
-              <div style={{ paddingBottom: "16px", marginBottom: "16px", borderBottom: "2px solid #0f172a" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <tbody>
-                    <tr>
-                      <td style={{ width: "40%", verticalAlign: "top" }}>
-                        {branding.logo ? (
-                          <Image
-                            src={branding.logo}
-                            alt="Company Logo"
-                            width={140}
-                            height={50}
-                            unoptimized
-                            style={{
-                              height: "50px",
-                              width: "auto",
-                              objectFit: "contain",
-                              display: "block",
-                            }}
-                          />
-                        ) : (
-                          <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase" }}>
-                            {branding.name}
-                          </div>
-                        )}
-                        <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px", lineHeight: 1.4 }}>
-                          {branding.address}
-                        </div>
-                        {(branding.phone || branding.email) && (
-                          <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
-                            {branding.phone ? `Phone: ${branding.phone}` : ""}
-                            {branding.phone && branding.email ? " | " : ""}
-                            {branding.email ? `Email: ${branding.email}` : ""}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ width: "60%", textAlign: "right", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 900, fontSize: "22px", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                          {t("title") || "ACCOUNT STATEMENT"}
-                        </div>
-                        <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
-                          Company: <span style={{ fontWeight: 700, color: "#0f172a" }}>{branding.name}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Minimal Metadata Summary Bar */}
-              <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px 16px", marginBottom: "20px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
-                  <tbody>
-                    <tr>
-                      <td style={{ width: "25%", color: "#64748b", fontWeight: 500 }}>
-                        {t("customer") || "Party"}: <span style={{ color: "#0f172a", fontWeight: 700 }}>{reportMeta?.customerName}</span>
-                      </td>
-                      <td style={{ width: "25%", color: "#64748b", fontWeight: 500 }}>
-                        Customer ID: <span style={{ color: "#0f172a", fontWeight: 600 }}>{reportMeta?.customerId || "-"}</span>
-                      </td>
-                      <td style={{ width: "25%", color: "#64748b", fontWeight: 500 }}>
-                        Period: <span style={{ color: "#0f172a", fontWeight: 600 }}>{reportMeta?.fromDate} to {reportMeta?.toDate}</span>
-                      </td>
-                      <td style={{ width: "25%", textAlign: "right", color: "#64748b", fontWeight: 500 }}>
-                        Generated: <span style={{ color: "#0f172a", fontWeight: 600 }}>{reportMeta?.reportDate}</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Main Table - Without horizontal scroll in UI */}
+          {/* Desktop View Table */}
+          <div className="hidden md:block bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
             <Card className="border-none shadow-none bg-white overflow-hidden">
-              <div className="overflow-x-auto md:overflow-visible [.is-exporting_&]:overflow-visible">
+              <div className="overflow-x-auto">
                 <Table className="min-w-[800px] md:min-w-full">
                   <TableHeader>
                     <TableRow className="bg-gray-50 border-b border-gray-100">
@@ -716,10 +654,6 @@ export default function AccountStatementPage() {
                       <TableHead className="w-[80px] text-center text-xs text-gray-600 font-bold uppercase">{t("voucher")}</TableHead>
                       <TableHead className="w-[80px] text-center text-xs text-gray-600 font-bold uppercase">{t("type")}</TableHead>
                       <TableHead className="min-w-[200px] text-xs text-gray-600 font-bold uppercase">{t("descriptionItems")}</TableHead>
-                      {/* These columns are hidden in UI but show in PDF */}
-                      <TableHead className="w-[60px] text-center text-xs text-gray-600 font-bold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("qty")}</TableHead>
-                      <TableHead className="w-[80px] text-right text-xs text-gray-600 font-bold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("rate")}</TableHead>
-                      <TableHead className="w-[90px] text-right text-xs text-gray-600 font-bold uppercase hidden [.is-exporting_&]:table-cell print:table-cell">{t("amount")}</TableHead>
                       <TableHead className="w-[100px] text-right text-xs text-gray-600 font-bold uppercase">{t("debit")}</TableHead>
                       <TableHead className="w-[100px] text-right text-xs text-gray-600 font-bold uppercase">{t("credit")}</TableHead>
                       <TableHead className="w-[110px] text-right text-xs text-gray-600 font-bold uppercase">{t("balance")}</TableHead>
@@ -737,7 +671,7 @@ export default function AccountStatementPage() {
                           <TableCell className="text-center py-2.5 text-xs text-gray-700">
                             {formatStatementDate(txn.dateTime)}
                           </TableCell>
-                          <TableCell className="text-center py-2.5 text-xs text-gray-600">
+                          <TableCell className="text-center py-2.5 text-xs text-gray-600 max-w-[100px] break-all whitespace-normal">
                             {txn.orderId || "-"}
                           </TableCell>
                           <TableCell className="text-center py-2.5">
@@ -754,42 +688,13 @@ export default function AccountStatementPage() {
                                 {txn.items?.map((item, itemIdx) => (
                                   <div key={itemIdx}>
                                     • {item.name}
-                                    {/* Show quantity inline only in UI, not in separate column */}
-                                    <span className="inline md:inline [.is-exporting_&]:hidden print:hidden ml-1">
+                                    <span className="ml-1">
                                       (x{item.quantity})
                                     </span>
                                   </div>
                                 ))}
                               </div>
                             )}
-                          </TableCell>
-                          {/* PDF-only columns - show quantity, rate, amount in separate lines for PDF */}
-                          <TableCell className="text-center py-2.5 text-xs text-gray-600 hidden [.is-exporting_&]:table-cell print:table-cell">
-                            {hasItems ? (
-                              <div className="space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>{item.quantity}</div>
-                                ))}
-                              </div>
-                            ) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-gray-600 hidden [.is-exporting_&]:table-cell print:table-cell">
-                            {hasItems ? (
-                              <div className="space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>{formatCurrencyString(item.price)}</div>
-                                ))}
-                              </div>
-                            ) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-gray-700 hidden [.is-exporting_&]:table-cell print:table-cell">
-                            {hasItems ? (
-                              <div className="space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>{formatCurrencyString(item.amount)}</div>
-                                ))}
-                              </div>
-                            ) : "-"}
                           </TableCell>
                           <TableCell className="text-right py-2.5 text-xs text-red-600">
                             {txn.debit ? formatCurrencyString(txn.debit) : "-"}
@@ -834,6 +739,253 @@ export default function AccountStatementPage() {
               </div>
             </Card>
           </div>
+
+          {/* PDF Preview & Auto-Download Dialog Modal */}
+          <Dialog
+            open={exportingPdf}
+            onOpenChange={(open) => {
+              if (!open) setExportingPdf(false);
+            }}
+          >
+            <DialogContent className="max-w-6xl w-full p-4 max-h-[90vh] flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-900 border border-border">
+              <DialogHeader className="pb-3 border-b border-border flex flex-row items-center justify-between shrink-0">
+                <div>
+                  <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                    <Printer className="h-4 w-4 text-sky-500" />
+                    <span>PDF Report Preview</span>
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
+                    <span>Preparing & downloading your Landscape account statement PDF...</span>
+                  </p>
+                </div>
+              </DialogHeader>
+
+              {/* Scrollable Preview Area containing printable reportRef */}
+              <div className="flex-1 overflow-y-auto overflow-x-auto p-2 sm:p-4 bg-zinc-200/50 dark:bg-zinc-950/50 rounded-lg my-2 hide-scrollbar">
+                <div 
+                  ref={reportRef} 
+                  className="bg-white mx-auto text-slate-900 font-sans"
+                  style={{
+                    width: "1123px", // A4 Landscape roughly
+                    padding: "24px",
+                    boxSizing: "border-box",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {/* PDF Header - Minimal & Professional A4 Layout */}
+                  <div className="pdf-header" style={{ display: "none", backgroundColor: "white" }}>
+                    <div style={{ paddingBottom: "16px", marginBottom: "16px", borderBottom: "2px solid #0f172a" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ width: "40%", verticalAlign: "top" }}>
+                        {branding.logo && (
+                          <Image
+                            src={branding.logo}
+                            alt="Company Logo"
+                            width={140}
+                            height={50}
+                            unoptimized
+                            style={{
+                              height: "50px",
+                              width: "auto",
+                              objectFit: "contain",
+                              display: "block",
+                            }}
+                          />
+                        )}
+                        <div style={{ fontWeight: 900, fontSize: "20px", color: "#0f172a", textTransform: "uppercase", marginTop: branding.logo ? "4px" : "0" }}>
+                          {branding.name}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#1e293b", fontWeight: 500, marginTop: "4px", lineHeight: 1.4 }}>
+                          {branding.address}
+                        </div>
+                        {(branding.phone || branding.email) && (
+                          <div style={{ fontSize: "10px", color: "#334155", fontWeight: 600, marginTop: "2px" }}>
+                            {branding.phone ? `Phone: ${branding.phone}` : ""}
+                            {branding.phone && branding.email ? " | " : ""}
+                            {branding.email ? `Email: ${branding.email}` : ""}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ width: "60%", textAlign: "right", verticalAlign: "top" }}>
+                        <div style={{ fontWeight: 900, fontSize: "22px", color: "#0f172a", textTransform: "uppercase" }}>
+                          {t("title") || "ACCOUNT STATEMENT"}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Minimal Metadata Summary Bar */}
+              <div style={{ marginBottom: "16px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", tableLayout: "fixed" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ padding: "8px 10px", textAlign: "left", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>{t("customer") || "Party"}</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.customerName}
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px", textAlign: "left", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Customer ID</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.customerId || "-"}
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px", textAlign: "left", borderRight: "1px solid #cbd5e1", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Period</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.fromDate} to {reportMeta?.toDate}
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px", textAlign: "right", backgroundColor: "#f1f5f9" }}>
+                        <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Generated</div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                          {reportMeta?.reportDate}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Main Table - Without horizontal scroll in UI */}
+            <Card className="border-none shadow-none bg-white overflow-hidden">
+              <div className="overflow-x-auto md:overflow-visible [.is-exporting_&]:overflow-visible">
+                <Table className="min-w-[800px] md:min-w-full">
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 border-b border-gray-100 [.is-exporting_&]:bg-[#0f172a] [.is-exporting_&]:border-[#0f172a]">
+                      <TableHead className="w-[100px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("date")}</TableHead>
+                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("voucher")}</TableHead>
+                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("type")}</TableHead>
+                      <TableHead className="min-w-[200px] text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("descriptionItems")}</TableHead>
+                      {/* These columns are hidden in UI but show in PDF */}
+                      <TableHead className="w-[60px] text-center text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("qty")}</TableHead>
+                      <TableHead className="w-[80px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("rate")}</TableHead>
+                      <TableHead className="w-[90px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("amount")}</TableHead>
+                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("debit")}</TableHead>
+                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("credit")}</TableHead>
+                      <TableHead className="w-[110px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("balance")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map((txn, idx) => {
+                      const hasItems = txn.items && txn.items.length > 0;
+                      const isOpening = txn.id === "opening_balance";
+                      return (
+                        <TableRow
+                          key={txn.id}
+                          className={`${isOpening ? "bg-blue-50/30" : ""} ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/30"} border-b border-gray-100`}
+                        >
+                          <TableCell className="text-center py-2.5 text-xs text-gray-900 font-medium">
+                            {formatStatementDate(txn.dateTime)}
+                          </TableCell>
+                          <TableCell className="text-center py-2.5 text-xs text-gray-900 font-medium max-w-[100px] break-all whitespace-normal">
+                            {txn.orderId || "-"}
+                          </TableCell>
+                          <TableCell className="text-center py-2.5">
+                            <span className="text-xs text-gray-900 font-medium">
+                              {getTransactionType(txn.type)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            <div className="text-xs text-gray-900 font-medium">
+                              {txn.description}
+                            </div>
+                            {hasItems && (
+                              <div className="text-[10px] text-gray-800 font-medium mt-1 space-y-0.5">
+                                {txn.items?.map((item, itemIdx) => (
+                                  <div key={itemIdx}>
+                                    • {item.name}
+                                    {/* Show quantity inline only in UI, not in separate column */}
+                                    <span className="inline md:inline [.is-exporting_&]:hidden print:hidden ml-1">
+                                      (x{item.quantity})
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </TableCell>
+                          {/* PDF-only columns - show quantity, rate, amount in separate lines for PDF */}
+                          <TableCell className="text-center py-2.5 text-xs text-gray-900 font-medium hidden [.is-exporting_&]:table-cell print:table-cell">
+                            {hasItems ? (
+                              <div className="space-y-0.5">
+                                {txn.items?.map((item, itemIdx) => (
+                                  <div key={itemIdx}>{item.quantity}</div>
+                                ))}
+                              </div>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-medium hidden [.is-exporting_&]:table-cell print:table-cell">
+                            {hasItems ? (
+                              <div className="space-y-0.5">
+                                {txn.items?.map((item, itemIdx) => (
+                                  <div key={itemIdx}>{formatCurrencyString(item.price)}</div>
+                                ))}
+                              </div>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-medium hidden [.is-exporting_&]:table-cell print:table-cell">
+                            {hasItems ? (
+                              <div className="space-y-0.5">
+                                {txn.items?.map((item, itemIdx) => (
+                                  <div key={itemIdx}>{formatCurrencyString(item.amount)}</div>
+                                ))}
+                              </div>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right py-2.5 text-xs text-red-700 font-semibold">
+                            {txn.debit ? formatCurrencyString(txn.debit) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right py-2.5 text-xs text-green-700 font-semibold">
+                            {txn.credit ? formatCurrencyString(txn.credit) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right py-2.5 text-xs font-bold text-gray-900">
+                            <span className={getBalanceColor(txn.balance)}>
+                              {formatCurrencyString(txn.balance)}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Footer Summary */}
+              <div className="border-t border-gray-100 bg-gray-50/30 p-3">
+                <div className="flex justify-end gap-6 text-xs font-bold uppercase">
+                  <div>
+                    <span className="text-gray-400">{t("totalDebit")}:</span>
+                    <span className="ml-2 text-red-600">
+                      {formatCurrencyString(totalDebit)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">{t("totalCredit")}:</span>
+                    <span className="ml-2 text-green-600">
+                      {formatCurrencyString(totalCredit)}
+                    </span>
+                  </div>
+                  <div className="pl-4 border-l border-gray-200">
+                    <span className="text-gray-400">{t("closingBalance")}:</span>
+                    <span className={`ml-2 ${getBalanceColor(summary?.currentBalance || 0)}`}>
+                      {formatCurrencyString(summary?.currentBalance || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       ) : null}
     </div>

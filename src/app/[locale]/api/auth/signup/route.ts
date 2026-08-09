@@ -141,6 +141,25 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create default party for user", err);
     }
 
+    // Create default payment method: Cash in Hand
+    try {
+      const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
+      await paymentMethodsCollection.insertOne({
+        user_id: newUser?._id,
+        bank_name: "Cash in Hand",
+        bank_details: "Auto-created cash account",
+        opening_balance: 0,
+        current_balance: 0,
+        created_at: new Date(),
+        updated_at: new Date(),
+        is_default: true,
+        status: "active"
+      });
+    } catch (err) {
+      // Log but don't block signup
+      console.error("Failed to create default payment method for user", err);
+    }
+
     // Create trial subscription
     try {
       const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);

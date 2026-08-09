@@ -2,8 +2,30 @@ import { db, SyncOperation } from '../db/offline-db';
 
 export class SyncEngine {
   
-  static async pullInitialData() {
+  private static isPullingData = false;
+
+  static async pullInitialData(force = false) {
+    if (this.isPullingData) return true;
+    
     try {
+      if (typeof window !== 'undefined' && !force) {
+        const lastLocalSync = localStorage.getItem('last_local_sync_time');
+        if (lastLocalSync) {
+          const timeSinceLastSync = Date.now() - parseInt(lastLocalSync);
+          // If synced within the last 120 seconds, skip (throttle)
+          if (timeSinceLastSync < 120000) {
+            console.log(`Skipping sync, last sync was only ${Math.round(timeSinceLastSync/1000)}s ago.`);
+            return true;
+          }
+        }
+      }
+
+      this.isPullingData = true;
+      if (typeof window !== 'undefined') {
+        // Optimistically set the last sync time to avoid duplicate syncs on quick refreshes
+        // even if the first sync hasn't completed yet
+        localStorage.setItem('last_local_sync_time', Date.now().toString());
+      }
       let workspaceId = "";
       try {
         const infoStr = localStorage.getItem('tenant_info');
@@ -41,90 +63,96 @@ export class SyncEngine {
         db.transactions, db.subscriptions, db.configurations,
         db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
         async () => {
-          if (data.products?.length) await db.products.bulkPut(data.products);
-          if (data.parties?.length) await db.parties.bulkPut(data.parties);
-          if (data.orders?.length) await db.orders.bulkPut(data.orders);
-          if (data.party_transactions?.length) await db.party_transactions.bulkPut(data.party_transactions);
-          if (data.party_ledger_entries?.length) await db.party_ledger_entries.bulkPut(data.party_ledger_entries);
-          if (data.party_balance_state?.length) await db.party_balance_state.bulkPut(data.party_balance_state);
-          if (data.purchase_bills?.length) await db.purchase_bills.bulkPut(data.purchase_bills);
-          if (data.expenses?.length) await db.expenses.bulkPut(data.expenses);
-          if (data.quotations?.length) await db.quotations.bulkPut(data.quotations);
-          if (data.categories?.length) await db.categories.bulkPut(data.categories);
-          if (data.vendor_transactions?.length) await db.vendor_transactions.bulkPut(data.vendor_transactions);
-          if (data.sale_return_transactions?.length) await db.sale_return_transactions.bulkPut(data.sale_return_transactions);
-          if (data.transactions?.length) await db.transactions.bulkPut(data.transactions);
-          if (data.subscriptions?.length) await db.subscriptions.bulkPut(data.subscriptions);
-          if (data.users?.length) await db.users.bulkPut(data.users);
-          if (data.modules?.length) await db.modules.bulkPut(data.modules);
+          const promises = [];
+          if (data.products?.length) promises.push(db.products.bulkPut(data.products));
+          if (data.parties?.length) promises.push(db.parties.bulkPut(data.parties));
+          if (data.orders?.length) promises.push(db.orders.bulkPut(data.orders));
+          if (data.party_transactions?.length) promises.push(db.party_transactions.bulkPut(data.party_transactions));
+          if (data.party_ledger_entries?.length) promises.push(db.party_ledger_entries.bulkPut(data.party_ledger_entries));
+          if (data.party_balance_state?.length) promises.push(db.party_balance_state.bulkPut(data.party_balance_state));
+          if (data.purchase_bills?.length) promises.push(db.purchase_bills.bulkPut(data.purchase_bills));
+          if (data.expenses?.length) promises.push(db.expenses.bulkPut(data.expenses));
+          if (data.quotations?.length) promises.push(db.quotations.bulkPut(data.quotations));
+          if (data.categories?.length) promises.push(db.categories.bulkPut(data.categories));
+          if (data.vendor_transactions?.length) promises.push(db.vendor_transactions.bulkPut(data.vendor_transactions));
+          if (data.sale_return_transactions?.length) promises.push(db.sale_return_transactions.bulkPut(data.sale_return_transactions));
+          if (data.transactions?.length) promises.push(db.transactions.bulkPut(data.transactions));
+          if (data.subscriptions?.length) promises.push(db.subscriptions.bulkPut(data.subscriptions));
+          if (data.users?.length) promises.push(db.users.bulkPut(data.users));
+          if (data.modules?.length) promises.push(db.modules.bulkPut(data.modules));
           
           if (data.payment_methods?.length) {
-            try {
-              // console.log("Saving payment_methods to Dexie:", data.payment_methods);
-              await db.payment_methods.bulkPut(data.payment_methods);
-              // console.log("payment_methods saved successfully.");
-            } catch (err) {
-              console.error("Failed to save payment_methods:", err);
-            }
+            promises.push(db.payment_methods.bulkPut(data.payment_methods).catch(err => console.error("Failed to save payment_methods:", err)));
           }
-          
           if (data.permissions?.length) {
-            try {
-              // console.log("Saving permissions to Dexie:", data.permissions);
-              await db.permissions.bulkPut(data.permissions);
-              // console.log("permissions saved successfully.");
-            } catch (err) {
-              console.error("Failed to save permissions:", err);
-            }
+            promises.push(db.permissions.bulkPut(data.permissions).catch(err => console.error("Failed to save permissions:", err)));
           }
           
-          if (data.roles?.length) await db.roles.bulkPut(data.roles);
-          if (data.role_permissions?.length) await db.role_permissions.bulkPut(data.role_permissions);
-          if (data.user_roles?.length) await db.user_roles.bulkPut(data.user_roles);
+          if (data.roles?.length) promises.push(db.roles.bulkPut(data.roles));
+          if (data.role_permissions?.length) promises.push(db.role_permissions.bulkPut(data.role_permissions));
+          if (data.user_roles?.length) promises.push(db.user_roles.bulkPut(data.user_roles));
           
           if (data.configurations?.length) {
-            await db.configurations.bulkPut(data.configurations);
-            // Also sync to localStorage for immediate UI availability
-            const config = data.configurations[0];
-            if (config) {
-              localStorage.setItem("setting_counterSale", String(config.is_counterSale_enable || false));
-              localStorage.setItem("setting_aiChat", String(config.is_AI_Chat_Enable || false));
-              localStorage.setItem("setting_wa", String(config.is_Whatsapp_enable || false));
-              if (typeof window !== "undefined") window.dispatchEvent(new Event("featureSettingsUpdated"));
-            }
+            promises.push(db.configurations.bulkPut(data.configurations).then(() => {
+              const config = data.configurations[0];
+              if (config) {
+                localStorage.setItem("setting_counterSale", String(config.is_counterSale_enable || false));
+                localStorage.setItem("setting_aiChat", String(config.is_AI_Chat_Enable || false));
+                localStorage.setItem("setting_wa", String(config.is_Whatsapp_enable || false));
+                if (typeof window !== "undefined") window.dispatchEvent(new Event("featureSettingsUpdated"));
+              }
+            }));
           }
+          
+          await Promise.all(promises);
         }
       );
       
       localStorage.setItem(timestampKey, server_timestamp);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('last_local_sync_time', Date.now().toString());
+      }
       return true;
     } catch (error) {
       console.error('Initial sync failed:', error);
+      // If it fails, remove the optimistic throttle so they can try again if they want
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('last_local_sync_time');
+      }
       return false;
     } finally {
+      this.isPullingData = false;
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('initialSyncComplete'));
       }
     }
   }
   static async clearCacheAndResync() {
-    await db.delete();
-    if (typeof window !== 'undefined') {
-      try {
-        const infoStr = localStorage.getItem('tenant_info');
-        if (infoStr) {
-          const info = JSON.parse(infoStr);
-          if (info.userId) {
-            localStorage.removeItem(`last_sync_timestamp_${info.userId}`);
-          }
-        }
-      } catch(e) {}
-      localStorage.removeItem('last_sync_timestamp');
+    try {
+      // Clear all tables instead of dropping the DB to keep dexie hooks alive
+      await Promise.all(db.tables.map(table => table.clear()));
       
-      window.location.reload();
+      if (typeof window !== 'undefined') {
+        try {
+          const infoStr = localStorage.getItem('tenant_info');
+          if (infoStr) {
+            const info = JSON.parse(infoStr);
+            if (info.userId) {
+              localStorage.removeItem(`last_sync_timestamp_${info.userId}`);
+            }
+          }
+        } catch(e) {}
+        localStorage.removeItem('last_sync_timestamp');
+        
+        // Fetch fresh data seamlessly without page reload
+        const success = await this.pullInitialData(true);
+        return success;
+      }
       return true;
+    } catch (err) {
+      console.error("Failed to clear cache:", err);
+      return false;
     }
-    return false;
   }
 
   private static isSyncing = false;
@@ -172,14 +200,15 @@ export class SyncEngine {
             result = await response.json().catch(() => ({})); // Parse JSON safely
           }
           
+          const newId = result.id || result._id;
           // If this was a POST and the server returned a new ID, update the local record
-          if (op.method === 'POST' && result.id && op.localId && result.id !== op.localId) {
+          if (op.method === 'POST' && newId && op.localId && newId !== op.localId) {
             const collectionName = op.collection as keyof typeof db;
             const table = db[collectionName] as any; // Cast to bypass strict typings for dynamic access
             
             const item = await table.get(op.localId);
             if (item) {
-              item.id = result.id;
+              item.id = newId;
               await table.put(item);
               await table.delete(op.localId);
             }
@@ -192,13 +221,13 @@ export class SyncEngine {
               if (otherOp.data) {
                 const dataStr = JSON.stringify(otherOp.data);
                 if (dataStr.includes(op.localId)) {
-                  otherOp.data = JSON.parse(dataStr.replaceAll(op.localId, result.id));
+                  otherOp.data = JSON.parse(dataStr.replaceAll(op.localId, newId));
                   modified = true;
                 }
               }
               
               if (otherOp.url && otherOp.url.includes(op.localId)) {
-                otherOp.url = otherOp.url.replaceAll(op.localId, result.id);
+                otherOp.url = otherOp.url.replaceAll(op.localId, newId);
                 modified = true;
               }
               
@@ -211,8 +240,21 @@ export class SyncEngine {
             if (op.collection === 'users' && op.localId) {
               const userRoles = await db.user_roles.where('user_id').equals(op.localId).toArray();
               for (const ur of userRoles) {
-                ur.user_id = result.id;
+                ur.user_id = newId;
                 await db.user_roles.put(ur);
+              }
+            }
+          }
+
+          // Special handling for offline quotation conversion orders
+          if (op.method === 'POST' && op.url.includes('/convert') && result.orderId && op.localId) {
+            const dummyOrder = await db.orders.where('quotation_id').equals(op.localId).first();
+            if (dummyOrder && dummyOrder.id !== result.orderId) {
+              const oldId = dummyOrder.id;
+              dummyOrder.id = result.orderId;
+              await db.orders.put(dummyOrder);
+              if (oldId !== result.orderId) {
+                await db.orders.delete(oldId);
               }
             }
           }

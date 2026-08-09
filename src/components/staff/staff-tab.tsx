@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, AwaitedReactNode, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, Loader2, SearchIcon, FilterIcon, XIcon, PlusCircle, Edit } from "lucide-react";
 import { toast } from "sonner";
@@ -94,16 +94,49 @@ export function StaffTab() {
     if (!email.trim() || !selectedRole) {
       return toast.error("Email and role are required");
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return toast.error("Invalid email format");
+    }
     
     try {
       setIsSaving(true);
       
       if (!editingStaff) {
+        // Offline validation: check if email is already in staff list
+        const existingUsers = await db.users.filter(u => u.email?.toLowerCase() === email.toLowerCase()).toArray();
+        if (existingUsers.length > 0) {
+          const userRoles = await db.user_roles.filter(ur => String(ur.user_id) === String(existingUsers[0].id) || String(ur.user_id) === String(existingUsers[0]._id)).toArray();
+          if (userRoles.length > 0 || existingUsers[0].role === "staff") {
+            toast.error("User is already staff in this shop");
+            setIsSaving(false);
+            return;
+          }
+        }
+
         // Queue new invite offline
         const payload = { email, role_id: selectedRole };
         const tempId = `temp-inv-${Date.now()}`;
         
-        await SyncEngine.queueOperation("invitations", "POST", "/api/staff/invite", payload, tempId);
+        // Insert optimistic pending user into local DB so they appear immediately
+        await db.users.put({
+          id: tempId,
+          name: "Pending Invite",
+          email: email,
+          role: "staff",
+          is_pending: true
+        });
+        
+        // Also map their role locally
+        await db.user_roles.put({
+          id: `ur-${tempId}`,
+          user_id: tempId,
+          role_id: selectedRole
+        });
+        
+        // Queue under 'users' collection to prevent sync engine crash, as 'invitations' doesn't exist locally
+        await SyncEngine.queueOperation("users", "POST", "/api/staff/invite", payload, tempId);
         
         toast.success("Invitation queued! It will be sent automatically.");
         setIsModalOpen(false);
@@ -167,7 +200,7 @@ export function StaffTab() {
   };
 
   const filteredStaff = useMemo(() => {
-    return staff.filter((member) => {
+    return staff.filter((member: any) => {
       // Exclude the currently logged-in user
       if (session?.user?.email && member.email === session.user.email) {
         return false;
@@ -283,7 +316,7 @@ export function StaffTab() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedStaff.map((member) => (
+                  paginatedStaff.map((member: any) => (
                     <TableRow key={member.id || member._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
@@ -335,7 +368,7 @@ export function StaffTab() {
                   {t("noRecords")}
                 </div>
              ) : (
-                paginatedStaff.map((member) => (
+                paginatedStaff.map((member: any) => (
                    <Card key={member.id || member._id} className="p-4 shadow-sm border space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">

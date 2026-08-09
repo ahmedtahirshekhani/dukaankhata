@@ -126,7 +126,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
   const normalizeQuantity = (value: number, fallback = 1) => {
     if (Number.isNaN(value)) return fallback;
-    return Math.max(1, Math.trunc(value));
+    return Math.max(0, value);
   };
 
   useEffect(() => {
@@ -140,7 +140,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
         name: item.name,
         description: item.description,
         quantity: normalizeQuantity(item.quantity ?? 1),
-        quantityInput: String(normalizeQuantity(item.quantity ?? 1)),
+        quantityInput: item.quantity_str || String(normalizeQuantity(item.quantity ?? 1)),
         quantityType: item.quantityType || "prime",
         sell_price: item.price,
         discount: item.discount || 0,
@@ -207,7 +207,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
       quantity:
         rawQuantity.trim() === ""
           ? current.quantity
-          : normalizeQuantity(Number.parseInt(rawQuantity, 10), current.quantity),
+          : normalizeQuantity(Number.parseFloat(rawQuantity), current.quantity),
     };
     setProducts(updated);
   };
@@ -219,8 +219,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
     updated[idx] = {
       ...current,
-      quantityInput: current.quantityInput?.trim()
-        ? String(normalizeQuantity(Number.parseInt(current.quantityInput, 10), current.quantity))
+      quantityInput: current.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(current.quantityInput))
+        ? current.quantityInput
         : String(current.quantity),
     };
     setProducts(updated);
@@ -283,6 +283,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
             name: p.name,
             description: p.description,
             quantity: p.quantity,
+            quantity_str: p.quantityInput || String(p.quantity),
             quantityType: p.quantityType,
             price: p.sell_price,
             discount: p.discount,
@@ -305,13 +306,18 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
 
       // 1. Revert Old Stock
       if (order.items && Array.isArray(order.items)) {
+         const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
          for (const item of order.items) {
            if (item.product_id) {
              const productDoc = await db.products.get(item.product_id.toString());
              if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
+               if (item.quantityType === "damaged") {
+                 const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                 const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                 await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+               } else {
+                 await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+               }
              }
            }
          }
@@ -325,13 +331,18 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
       }
 
       // 3. Apply New Stock
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const p of products) {
         if (!p.type || p.type === "goods" || p.type === "good") {
-          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
           const productDoc = await db.products.get(p.id.toString());
           if (productDoc) {
-             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+             if (p.quantityType === "damaged") {
+               const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+               const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+               await db.products.update(p.id.toString(), { damaged_quantity: newQty });
+             } else {
+               await adjustOfflineStock(p.id.toString(), -(Number(p.quantity) || 0));
+             }
           }
         }
       }
@@ -366,6 +377,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
           name: p.name,
           description: p.description,
           quantity: p.quantity,
+          quantity_str: p.quantityInput || String(p.quantity),
           quantityType: p.quantityType || "prime",
           price: p.sell_price,
           discount: p.discount || 0,
@@ -445,10 +457,10 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min="0" step="0.01" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
+                        <Input type="text" inputMode="decimal" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min="1" step="1" inputMode="numeric" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
+                        <Input type="text" inputMode="decimal" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
                       </TableCell>
                       <TableCell>
                         <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
@@ -485,7 +497,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                   ))}
                   <TableRow>
                     <TableCell colSpan={7}>
-                      <ProductDropdown value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+                      <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -517,9 +529,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                       <div>
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("price")}</Label>
                         <Input 
-                          type="number" 
-                          min="0"
-                          step="0.01"
+                          type="text" 
+                          inputMode="decimal"
                           value={p.sell_price} 
                           onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} 
                           className="h-8 text-xs" 
@@ -528,10 +539,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                       <div>
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("quantity")}</Label>
                         <Input 
-                          type="number" 
-                          min="1"
-                          step="1"
-                          inputMode="numeric"
+                          type="text" 
+                          inputMode="decimal"
                           value={p.quantityInput ?? String(p.quantity)} 
                           onChange={(e) => handleQuantityChange(idx, e.target.value)} 
                           onBlur={() => handleQuantityBlur(idx)}
@@ -579,7 +588,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                 </Card>
               ))}
               <div className="pt-2">
-                <ProductDropdown value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+                <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
               </div>
             </div>
           </div>
@@ -831,13 +840,18 @@ export default function OrdersPage() {
     try {
       // 1. Revert stock locally
       if (orderToDelete.items && Array.isArray(orderToDelete.items)) {
+         const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
          for (const item of orderToDelete.items) {
            if (item.product_id) {
              const productDoc = await db.products.get(item.product_id.toString());
              if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
+               if (item.quantityType === "damaged") {
+                 const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                 const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                 await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+               } else {
+                 await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+               }
              }
            }
          }
@@ -1245,6 +1259,7 @@ export default function OrdersPage() {
             name: item.name,
             description: item.description,
             quantity: item.quantity,
+            quantity_str: (item as any).quantity_str,
             sell_price: item.price,
             unit_of_measurement: item.unit_of_measurement,
             discount: item.discount,
@@ -1255,8 +1270,8 @@ export default function OrdersPage() {
           overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
           shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
           total={selectedInvoiceOrder.total_amount}
+
           onMakePayment={() => {}}
-          onCreateOrder={() => {}}
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
           customerNotes={selectedInvoiceOrder.customer_notes}

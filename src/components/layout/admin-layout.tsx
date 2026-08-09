@@ -40,6 +40,7 @@ import {
   Star,
   Users,
   Store,
+  Search,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -53,6 +54,8 @@ import { db, clearUserDatabase } from "@/lib/db/offline-db";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
+import { proAccessPaymentInfo } from "@/lib/contact-info";
+import { QuickActions } from "@/components/layout/quick-actions";
 
 // useSearchParams() opts the whole route out of static prerendering unless
 // isolated behind its own Suspense boundary — without this, every page that
@@ -98,13 +101,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     };
   }, [highlightHamburger]);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
-  const [salesExpanded, setSalesExpanded] = useState(false);
-  const [purchaseExpanded, setPurchaseExpanded] = useState(false);
-  const [reportsExpanded, setReportsExpanded] = useState(false);
+  const [salesExpanded, setSalesExpanded] = useState(true);
+  const [purchaseExpanded, setPurchaseExpanded] = useState(true);
+  const [reportsExpanded, setReportsExpanded] = useState(true);
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const [blockedSubscriptionData, setBlockedSubscriptionData] = useState<any>(null);
+  const [showBlockedCard, setShowBlockedCard] = useState(false);
 
   // Feature Toggles
   const [enableCounterSale, setEnableCounterSale] = useState(false);
@@ -267,6 +272,17 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     return () => window.removeEventListener("featureSettingsUpdated", loadFeatures);
   }, []);
 
+  useEffect(() => {
+    const handleBlocked = (event: any) => {
+      setBlockedSubscriptionData(event.detail);
+      if (localStorage.getItem("hasSeenBlockedCard_" + event.detail?.userId) === "true" || localStorage.getItem("hasSeenBlockedCard") === "true") {
+        setShowBlockedCard(true);
+      }
+    };
+    window.addEventListener("subscriptionLoginBlocked", handleBlocked);
+    return () => window.removeEventListener("subscriptionLoginBlocked", handleBlocked);
+  }, []);
+
   // Remove locale and /admin from pathname to get current page
   const pathWithoutLocale = pathname.replace(`/${locale}`, "");
   const salesSubRoutes = [
@@ -351,7 +367,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   };
 
   const navItemBase =
-    "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200";
+    "group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200";
   const navItemActive =
     "bg-accent/70 text-foreground ring-1 ring-border/60 shadow-sm";
   const navItemInactive =
@@ -359,11 +375,25 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const navItemCompact = sidebarMinimized ? "sm:justify-center sm:px-0" : "";
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div 
+      className="flex min-h-screen w-full flex-col bg-muted/40"
+      onClickCapture={(e) => {
+        if (blockedSubscriptionData && !showBlockedCard) {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowBlockedCard(true);
+          localStorage.setItem("hasSeenBlockedCard_" + blockedSubscriptionData.userId, "true");
+          localStorage.setItem("hasSeenBlockedCard", "true");
+        }
+      }}
+    >
+      {blockedSubscriptionData && !showBlockedCard && (
+        <div className="fixed inset-0 z-[9999] cursor-pointer" title="Click anywhere to continue" />
+      )}
       <Suspense fallback={null}>
         <SignupHighlightWatcher onSignup={handleSignupHighlight} />
       </Suspense>
-      <header className={`sticky top-0 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 ${highlightHamburger ? "z-50" : "z-30"}`}>
+      <header className={`sticky top-0 flex h-12 items-center gap-1.5 sm:gap-3 border-b bg-background px-2.5 sm:px-4 ${highlightHamburger ? "z-50" : "z-30"}`}>
         <div className="relative sm:hidden">
           {highlightHamburger && (
             <>
@@ -373,32 +403,14 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               />
               
               {/* Guidance Speech Bubble / Card */}
-              <div className="absolute top-16 left-0 z-50 flex flex-col items-start w-72 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-500">
-                {/* Small Arrow pointing up */}
-                <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[7px] border-b-background dark:border-b-card ml-3.5 drop-shadow-[0_-1px_1px_rgba(0,0,0,0.05)]" />
+              <div className="absolute top-14 left-0 z-50 flex flex-col items-start w-64 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+                {/* Prominent Arrow pointing up to the menu button */}
+                <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[14px] border-b-background dark:border-b-card ml-2.5 drop-shadow-[0_-2px_2px_rgba(0,0,0,0.08)]" />
                 
                 {/* Card body */}
-                <div className="bg-background dark:bg-card text-card-foreground p-4 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-border flex flex-col gap-2.5 leading-normal">
-                  <div className="flex items-center gap-2 text-primary">
-                    <div className="p-1 rounded-lg bg-primary/10">
-                      <Sparkles className="h-4 w-4 animate-pulse fill-primary/10" />
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/90">
-                      {t("common.welcome")}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-foreground">
-                      {tNav("clickMenuToStart")}
-                    </h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Tap the highlighted menu icon to start exploring your account dashboard, parties, inventory, and sales.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-primary/80 font-semibold animate-pulse mt-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    <span>Tap menu button to begin</span>
-                  </div>
+                <div className="bg-background dark:bg-card text-card-foreground px-3.5 py-2.5 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-border flex flex-col items-start whitespace-nowrap">
+                  <span className="text-xs font-bold uppercase tracking-wider text-sky-500 mb-0.5">Welcome</span>
+                  <span className="text-sm font-bold text-foreground">Click the button to see more features</span>
                 </div>
               </div>
             </>
@@ -409,7 +421,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           <Button
             variant="ghost"
             size="icon"
-            className={`relative z-50 transition-all duration-300 ${
+            className={`h-7 w-7 sm:h-8 sm:w-8 relative z-50 transition-all duration-300 ${
               highlightHamburger 
                 ? "bg-background text-primary shadow-lg shadow-primary/40 ring-2 ring-primary" 
                 : ""
@@ -428,45 +440,51 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             }}
           >
             {sidebarOpen ? (
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             ) : (
-              <Menu className="h-5 w-5" />
+              <Menu className="h-4 w-4" />
             )}
           </Button>
         </div>
         <Link
           href={`/${locale}/admin`}
-          className="flex items-center gap-1 sm:gap-2 text-sm sm:text-lg font-semibold flex-shrink-0"
+          className="flex items-center gap-1.5 text-xs sm:text-sm font-bold flex-shrink-0"
         >
-          <Package2Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span className="hidden sm:inline">{t("common.appName")}</span>
+          <Image
+            src="/images/DukaanKhataLogo.svg"
+            alt="DukaanKhata Logo"
+            width={28}
+            height={28}
+            className="h-6 w-6 sm:h-7 sm:w-7 object-contain"
+          />
+          <span className="hidden sm:inline font-bold text-xs sm:text-sm">{t("common.appName")}</span>
         </Link>
         {companyName && (
           <div className="flex flex-1 justify-center items-center min-w-0">
-            <span className="text-sm sm:text-lg font-bold text-foreground truncate">
+            <span className="text-xs sm:text-sm font-bold tracking-tight text-foreground truncate">
               {companyName}
             </span>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-1 sm:gap-3 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
 
           {/* Offline / Sync Indicator Badge */}
           <div className="flex items-center">
             {!isOnline ? (
               <span title={tCommon("offlineTooltip")}>
-                <WifiOff className="w-5 h-5 text-red-500" />
+                <WifiOff className="w-4 h-4 text-red-500" />
               </span>
             ) : failedSyncCount > 0 ? (
-              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
-                <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Failed</span>
+              <div className="flex items-center text-[10px] font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md" title={tCommon("syncFailedTooltip", { count: failedSyncCount })}>
+                <WifiOff className="w-3 h-3" />
+                <span className="ml-1 whitespace-nowrap hidden sm:inline">{tCommon("syncFailed")} ({failedSyncCount})</span>
+                <span className="ml-1 whitespace-nowrap sm:hidden">Failed</span>
               </div>
             ) : pendingSyncCount > 0 ? (
-              <div className="flex items-center text-[10px] sm:text-xs font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-1.5 sm:px-2 py-1 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
-                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
-                <span className="ml-1 sm:ml-1.5 whitespace-nowrap sm:hidden">Syncing</span>
+              <div className="flex items-center text-[10px] font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md" title={tCommon("syncingTooltip", { count: pendingSyncCount })}>
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span className="ml-1 whitespace-nowrap hidden sm:inline">{tCommon("syncing")} ({pendingSyncCount})</span>
+                <span className="ml-1 whitespace-nowrap sm:hidden">Syncing</span>
               </div>
             ) : null}
           </div>
@@ -475,10 +493,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             variant="outline"
             size="sm"
             onClick={() => setShowClearCacheDialog(true)}
-            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 text-amber-700 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+            className="flex items-center gap-1 h-7 sm:h-7 px-2 text-[11px] sm:text-xs text-amber-700 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
           >
-            <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline text-xs sm:text-sm">{tCommon("clearCache")}</span>
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{tCommon("clearCache")}</span>
           </Button>
           <SubscriptionStatusBadge />
           <LanguageSwitcher />
@@ -487,9 +505,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               <Button
                 variant="outline"
                 size="icon"
-                className="overflow-hidden rounded-full"
+                className="h-7 w-7 sm:h-8 sm:w-8 overflow-hidden rounded-full p-0"
               >
-                <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm">
                   {user?.name?.charAt(0).toUpperCase() || "U"}
                 </div>
               </Button>
@@ -517,12 +535,12 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         </div>
       </header>
       <div
-        className={`flex flex-col sm:gap-4 sm:py-4 transition-all ${sidebarMinimized ? "sm:pl-16 md:pl-16" : "sm:pl-48 md:pl-64"
+        className={`flex flex-col sm:gap-4 sm:py-4 transition-all ${sidebarMinimized ? "sm:pl-16 md:pl-16" : "sm:pl-44 md:pl-52"
           }`}
       >
         {sidebarOpen && (
           <div
-            className="fixed inset-0 mt-14 z-10 bg-black/50 sm:hidden"
+            className="fixed inset-0 mt-12 z-10 bg-black/50 sm:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -531,23 +549,23 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         <Button
           variant="outline"
           size="icon"
-          className={`hidden sm:flex fixed top-16 z-50 h-8 w-8 items-center justify-center rounded-lg border-2 bg-background shadow-lg transition-all hover:bg-accent ${sidebarMinimized ? "left-[4.5rem]" : "left-[11rem] md:left-[15rem]"
+          className={`hidden sm:flex fixed top-14 z-50 h-7 w-7 items-center justify-center rounded-md border bg-background shadow-md transition-all hover:bg-accent ${sidebarMinimized ? "left-[4.25rem]" : "left-[10.25rem] md:left-[12.25rem]"
             }`}
           onClick={() => setSidebarMinimized(!sidebarMinimized)}
         >
           {sidebarMinimized ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           )}
         </Button>
 
         <aside
-          className={`fixed top-14 inset-y-0 left-0 z-40 flex-col border-r border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all flex ${sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
-            } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-64 sm:w-48 md:w-64"}`}
+          className={`fixed top-12 inset-y-0 left-0 z-40 flex-col border-r border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all flex ${sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+            } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-60 sm:w-44 md:w-52"}`}
         >
           <nav
-            className={`flex h-full overflow-y-auto flex-col gap-1.5 py-3 md:py-4 ${sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-3"
+            className={`flex h-full overflow-y-auto flex-col gap-1 py-2 md:py-3 ${sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-2.5"
               }`}
           >
             {/* Workspace Switcher at the very top */}
@@ -563,13 +581,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? t("common.welcome") : ""}
               >
-                <Home className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">{t("common.welcome")}</span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">{t("common.appName")}</span>
-                </div>
+                <Home className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  {t("common.welcome")}
+                </span>
               </Link>
             </div>
 
@@ -583,17 +598,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("dashboard") : ""}
               >
-                <LayoutDashboardIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">
-                    {tNav("dashboard")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("dashboardDescription")}
-                  </span>
-                </div>
+                <LayoutDashboardIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  {tNav("dashboard")}
+                </span>
               </Link>
             </div>
 
@@ -608,23 +616,16 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     } ${navItemCompact}`}
                   title={sidebarMinimized ? tNav("aiChat") : ""}
                 >
-                  <MessageSquare className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("aiChat")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("aiChatDescription")}
-                    </span>
-                  </div>
+                  <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("aiChat")}
+                  </span>
                   {!sidebarMinimized && (
                     <span
                       title="Dukaan Chat AI"
                       className="ml-auto flex-shrink-0"
                     >
-                      <Star className="h-4 w-4 text-amber-500 fill-amber-500 drop-shadow-sm animate-pulse" />
+                      <Star className="h-3 w-3 text-amber-500 fill-amber-500 drop-shadow-sm animate-pulse" />
                     </span>
                   )}
                 </Link>
@@ -643,17 +644,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("customers") : ""}
               >
-                <UsersIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">
-                    {tNav("customers")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("customersDescription")}
-                  </span>
-                </div>
+                <UsersIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  {tNav("customers")}
+                </span>
               </Link>
             </div>
             )}
@@ -669,17 +663,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("products") : ""}
               >
-                <PackageIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">
-                    {tNav("products")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("productsDescription")}
-                  </span>
-                </div>
+                <PackageIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  {tNav("products")}
+                </span>
               </Link>
             </div>
             )}
@@ -697,17 +684,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     } ${navItemCompact}`}
                   title={sidebarMinimized ? tNav("sales") : ""}
                 >
-                  <ShoppingCartIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("sales")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("salesDescription")}
-                    </span>
-                  </div>
+                  <ShoppingCartIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("sales")}
+                  </span>
                 </Link>
 
                 {!sidebarMinimized && hasSalesSub && (
@@ -715,7 +695,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={`h-auto px-2 rounded-xl border border-transparent ${isSalesSectionActive
+                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isSalesSectionActive
                       ? "text-primary hover:bg-primary/10"
                       : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                       }`}
@@ -724,21 +704,21 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     onClick={() => setSalesExpanded((prev) => !prev)}
                   >
                     <ChevronRight
-                      className={`h-4 w-4 transition-transform ${salesExpanded ? "rotate-90" : ""}`}
+                      className={`h-3 w-3 transition-transform ${salesExpanded ? "rotate-90" : ""}`}
                     />
                   </Button>
                 )}
               </div>
 
               {!sidebarMinimized && salesExpanded && (
-                <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
+                <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
                   {can('sales', 'view_quotations') && (
                     <Link
                       href={`/${locale}/admin/sales/quotations`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/quotations" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/quotations"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/quotations"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -752,7 +732,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/invoice" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/invoice"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/invoice"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -767,7 +747,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/payment-in" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/payment-in"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/payment-in"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -781,7 +761,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/sale-return" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/sale-return"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/sale-return"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -795,7 +775,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -821,17 +801,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     } ${navItemCompact}`}
                   title={sidebarMinimized ? tNav("purchase") : ""}
                 >
-                  <ShoppingBagIcon className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("purchase")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("purchaseDescription")}
-                    </span>
-                  </div>
+                  <ShoppingBagIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("purchase")}
+                  </span>
                 </Link>
 
                 {!sidebarMinimized && hasPurchaseSub && (
@@ -839,7 +812,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={`h-auto px-2 rounded-xl border border-transparent ${isPurchaseSectionActive
+                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isPurchaseSectionActive
                       ? "text-primary hover:bg-primary/10"
                       : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                       }`}
@@ -848,21 +821,21 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     onClick={() => setPurchaseExpanded((prev) => !prev)}
                   >
                     <ChevronRight
-                      className={`h-4 w-4 transition-transform ${purchaseExpanded ? "rotate-90" : ""}`}
+                      className={`h-3 w-3 transition-transform ${purchaseExpanded ? "rotate-90" : ""}`}
                     />
                   </Button>
                 )}
               </div>
 
               {!sidebarMinimized && purchaseExpanded && (
-                <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
+                <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
                   {can('purchase', 'view_purchase_bill') && (
                     <Link
                       href={`/${locale}/admin/purchase/purchase-bill`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/purchase/purchase-bill" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/purchase-bill"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/purchase/purchase-bill"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -876,7 +849,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/purchase/payment-out" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/purchase/payment-out"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/purchase/payment-out"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -900,17 +873,29 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   } ${navItemCompact}`}
                 title={sidebarMinimized ? tNav("expenses") : ""}
               >
-                <Receipt className="h-5 w-5 flex-shrink-0 opacity-90" />
-                <div
-                  className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                >
-                  <span className="font-medium leading-none">
-                    {tNav("expenses")}
-                  </span>
-                  <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                    {tNav("expensesDescription")}
-                  </span>
-                </div>
+                <Receipt className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  {tNav("expenses")}
+                </span>
+              </Link>
+            </div>
+            )}
+
+            {/* Bank Accounts */}
+            {hasModuleAccess("payment_methods") && (
+            <div>
+              <Link
+                href={`/${locale}/admin/bank-accounts`}
+                prefetch={false}
+                onClick={() => setSidebarOpen(false)}
+                className={`${navItemBase} ${pathWithoutLocale === "/admin/bank-accounts" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("bankAccounts") : ""}
+              >
+                <Store className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  {tNav("bankAccounts")}
+                </span>
               </Link>
             </div>
             )}
@@ -927,17 +912,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     } ${navItemCompact}`}
                   title={sidebarMinimized ? tNav("reports") : ""}
                 >
-                  <BarChart className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("reports")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("reportsDescription")}
-                    </span>
-                  </div>
+                  <BarChart className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("reports")}
+                  </span>
                 </Link>
 
                 {!sidebarMinimized && hasReportsSub && (
@@ -945,7 +923,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={`h-auto px-2 rounded-xl border border-transparent ${isReportsSectionActive
+                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isReportsSectionActive
                       ? "text-primary hover:bg-primary/10"
                       : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                       }`}
@@ -954,21 +932,23 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     onClick={() => setReportsExpanded((prev) => !prev)}
                   >
                     <ChevronRight
-                      className={`h-4 w-4 transition-transform ${reportsExpanded ? "rotate-90" : ""}`}
+                      className={`h-3 w-3 transition-transform ${reportsExpanded ? "rotate-90" : ""}`}
                     />
                   </Button>
                 )}
               </div>
 
+              
+
               {!sidebarMinimized && reportsExpanded && (
-                <div className="ml-5 mt-1 border-l border-border/70 pl-3 flex flex-col gap-1">
+                <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
                   {can('reports', 'view_account_statement') && (
                     <Link
                       href={`/${locale}/admin/reports/account-statement`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/account-statement" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/account-statement"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/account-statement"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -982,7 +962,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/stock"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/stock"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -996,7 +976,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -1010,7 +990,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
-                      className={`rounded-lg px-2.5 py-2 text-sm transition-all ${pathWithoutLocale === "/admin/reports/profitability"
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/profitability"
                         ? "bg-accent/80 font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         }`}
@@ -1035,17 +1015,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     } ${navItemCompact}`}
                   title={sidebarMinimized ? "WhatsApp" : ""}
                 >
-                  <MessageCircle className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("whatsapp")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("whatsappDescription")}
-                    </span>
-                  </div>
+                  <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("whatsapp")}
+                  </span>
                 </Link>
               </div>
             )}
@@ -1060,17 +1033,10 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     } ${navItemCompact}`}
                   title={sidebarMinimized ? "Staff" : ""}
                 >
-                  <Users className="h-5 w-5 flex-shrink-0 opacity-90" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium leading-none">
-                      {tNav("staffManagement")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block mt-0.5">
-                      {tNav("staffManagementDescription")}
-                    </span>
-                  </div>
+                  <Users className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("staffManagement")}
+                  </span>
                 </Link>
               </div>
             )}
@@ -1084,40 +1050,106 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   href={`/${locale}/admin/configuration`}
                   prefetch={false}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-2 md:gap-3 rounded-lg px-2 md:px-3 py-2 transition-colors ${pathWithoutLocale === "/admin/configuration"
+                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors ${pathWithoutLocale === "/admin/configuration"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                     } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
                   title={sidebarMinimized ? tNav("configuration") : ""}
                 >
-                  <Settings className="h-5 w-5 flex-shrink-0" />
-                  <div
-                    className={`flex flex-col min-w-0 ${sidebarMinimized ? "sm:hidden" : ""}`}
-                  >
-                    <span className="font-medium text-xs md:text-sm">
-                      {tNav("configuration")}
-                    </span>
-                    <span className="text-xs opacity-70 hidden md:block">
-                      {tNav("configurationDescription")}
-                    </span>
-                  </div>
+                  <Settings className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className={`font-medium text-xs truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                    {tNav("configuration")}
+                  </span>
                 </Link>
               </div>
             )}
           </nav>
         </aside>
         <main
-          className={`flex-1 p-3 sm:p-4 md:px-6 md:py-0 transition-all ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
+          className={`flex-1 p-3 sm:p-4 md:px-6 md:pt-12 md:pb-6 transition-all relative ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
             }`}
         >
-          {isClearingCache || isInitialSyncing ? (
+          {/* Quick Actions Sub-Header */}
+          {!blockedSubscriptionData && (
+            <div className={`hidden md:flex items-center justify-end bg-background/95 backdrop-blur-sm border-b px-6 py-1.5 fixed top-12 right-0 z-20 transition-all ${sidebarMinimized ? "left-16" : "left-52"}`}>
+              <QuickActions />
+            </div>
+          )}
+          {blockedSubscriptionData && showBlockedCard ? (
+            <div className="flex flex-col items-center justify-center min-h-[80vh]">
+              <div className="max-w-[520px] w-full bg-card border border-border shadow-md rounded-xl overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-border bg-muted/30">
+                  <h2 className="text-xl font-bold text-foreground">
+                    Subscription Blocked
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Your access has been blocked. Please renew your subscription to continue using the application.
+                  </p>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+                    <p className="font-semibold text-foreground border-b border-border/50 pb-2">
+                      Subscription Details
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-medium capitalize">{blockedSubscriptionData.plan || 'N/A'}</span>
+                      
+                      <span className="text-muted-foreground">Status</span>
+                      <span className="font-medium capitalize text-red-500 font-bold">{blockedSubscriptionData.status?.replace('_', ' ') || 'N/A'}</span>
+                      
+                      {blockedSubscriptionData.expiryDate && (
+                        <>
+                          <span className="text-muted-foreground">Expiry Date</span>
+                          <span className="font-medium">{new Date(blockedSubscriptionData.expiryDate).toLocaleDateString()}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2 text-sm">
+                    <p className="font-semibold text-foreground border-b border-border/50 pb-2">
+                      {proAccessPaymentInfo.provider}
+                    </p>
+                    <p className="text-muted-foreground">{proAccessPaymentInfo.provider}</p>
+                    <p className="font-medium text-foreground">{proAccessPaymentInfo.accountNumber}</p>
+                    <p className="text-muted-foreground">{proAccessPaymentInfo.accountHolder}</p>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2 text-sm">
+                    <p className="font-semibold text-foreground">WhatsApp Payment Proof</p>
+                    <p className="text-muted-foreground">
+                      Please send the payment receipt screenshot to our WhatsApp number: {proAccessPaymentInfo.proofWhatsappDisplay}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 border-t border-border bg-muted/30 flex gap-3 justify-end items-center">
+                  <Button variant="outline" onClick={() => {
+                    import("@/lib/db/offline-db").then(m => m.clearUserDatabase()).then(() => signOut({ callbackUrl: `/${locale}/login` }));
+                  }}>
+                    Logout
+                  </Button>
+                  <Button asChild>
+                    <a href={proAccessPaymentInfo.proofWhatsappHref} target="_blank" rel="noreferrer">
+                      Open WhatsApp
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : isClearingCache || isInitialSyncing ? (
             <div className="flex flex-col items-center justify-center h-[80vh]">
               <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
               <h2 className="text-xl font-semibold">{tCommon("syncingData") || "Syncing Data..."}</h2>
               <p className="text-muted-foreground mt-2 text-sm">{tCommon("pleaseWait") || "Please wait while we set up your offline database."}</p>
             </div>
           ) : (
-            children
+            <>
+              
+              {children}
+            </>
           )}
         </main>
       </div>

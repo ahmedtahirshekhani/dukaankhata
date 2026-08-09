@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
     const paymentsCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
-    const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
 
     // Parallel queries
     const [customer, userDoc, rangeEntries, balanceState, openingBalanceAgg, paymentMethodsDocs] = await Promise.all([
@@ -206,7 +206,16 @@ export async function GET(request: NextRequest) {
       .map((entry) => entry.event_source_id!.toString())
       .filter(isValidObjectId);
 
-    const [orderDocs, paymentDocs, purchaseBillDocs] = await Promise.all([
+    const saleReturnIds = entries
+      .filter(
+        (entry) =>
+          (entry.event_type === "sale_return_credit" || entry.event_type === "sale_return_debit") &&
+          entry.event_source_id
+      )
+      .map((entry) => entry.event_source_id!.toString())
+      .filter(isValidObjectId);
+
+    const [orderDocs, paymentDocs, purchaseBillDocs, saleReturnDocs] = await Promise.all([
       orderIds.length
         ? ordersCollection
             .find({
@@ -231,6 +240,16 @@ export async function GET(request: NextRequest) {
             })
             .toArray()
         : Promise.resolve([]),
+      saleReturnIds.length
+        ? getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS).then((c) =>
+            c
+              .find({
+                _id: { $in: saleReturnIds.map((id) => toObjectId(id)) },
+                user_id: userId,
+              })
+              .toArray()
+          )
+        : Promise.resolve([]),
     ]);
 
     const orderMap = new Map(orderDocs.map((doc: any) => [doc._id.toString(), doc]));
@@ -239,6 +258,9 @@ export async function GET(request: NextRequest) {
     );
     const purchaseBillMap = new Map(
       purchaseBillDocs.map((doc: any) => [doc._id.toString(), doc])
+    );
+    const saleReturnMap = new Map(
+      saleReturnDocs.map((doc: any) => [doc._id.toString(), doc])
     );
 
     let runningBalance = openingBalance;
@@ -253,14 +275,18 @@ export async function GET(request: NextRequest) {
         entry.event_type === "order_payment_credit";
       const isPaymentOutDebit = entry.event_type === "payment_out_debit";
       const isPurchaseBillDebit = entry.event_type === "purchase_bill_debit";
+      const isSaleReturnCredit = entry.event_type === "sale_return_credit";
+      const isSaleReturnDebit = entry.event_type === "sale_return_debit";
 
       const sourceId = entry.event_source_id?.toString?.() || null;
       const sourceOrder = sourceId ? orderMap.get(sourceId) : null;
       const sourcePayment = sourceId ? paymentMap.get(sourceId) : null;
       const sourcePurchaseBill = sourceId ? purchaseBillMap.get(sourceId) : null;
+      const sourceSaleReturn = sourceId ? saleReturnMap.get(sourceId) : null;
 
       const items = Array.isArray(sourceOrder?.items) ? sourceOrder.items : [];
       const billItems = Array.isArray(sourcePurchaseBill?.items) ? sourcePurchaseBill.items : [];
+      const saleReturnItems = Array.isArray(sourceSaleReturn?.items) ? sourceSaleReturn.items : [];
       
       let description = "Adjustment";
       let expandedItems = [];
@@ -298,6 +324,22 @@ export async function GET(request: NextRequest) {
             amount: amt
           };
         });
+      } else if (isSaleReturnCredit) {
+        description = "SALE RETURN (Credit Note)";
+        expandedItems = saleReturnItems.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const prc = parseFloat(item.price) || 0;
+          return {
+            name: item.itemName || item.name || "Item",
+            quantity: qty,
+            price: prc,
+            amount: qty * prc
+          };
+        });
+      } else if (isSaleReturnDebit) {
+        const methodId = sourceSaleReturn?.payment_method_id?.toString() || "";
+        const methodName = paymentMethodMap.get(methodId) || "Cash";
+        description = `Refund against Sale Return - ${methodName}`;
       } else if (entry.event_type === "manual_adjustment") {
         description = "Manual Adjustment";
       } else if (entry.event_type === "opening_balance") {
@@ -309,10 +351,12 @@ export async function GET(request: NextRequest) {
       // Calculate debit/credit based on user rules for display, but keep original amountDelta for balance
       let debit = 0;
       let credit = 0;
-      if (isOrderDebit || isPaymentOutDebit) {
-        debit = amount;
-      } else if (isPaymentCredit || isPurchaseBillDebit) {
-        credit = amount;
+      if (isOrderDebit || isPaymentOutDebit || isSaleReturnDebit) {
+        if (amountDelta >= 0) debit = amount;
+        else credit = amount;
+      } else if (isPaymentCredit || isPurchaseBillDebit || isSaleReturnCredit) {
+        if (amountDelta <= 0) credit = amount;
+        else debit = amount;
       } else {
         debit = amountDelta > 0 ? amount : 0;
         credit = amountDelta < 0 ? amount : 0;
@@ -328,7 +372,9 @@ export async function GET(request: NextRequest) {
               ? "payment_out"
               : isPurchaseBillDebit
                 ? "purchase_bill"
-                : "adjustment",
+                : (isSaleReturnCredit || isSaleReturnDebit)
+                  ? "sale_return"
+                  : "adjustment",
         description,
         items: expandedItems,
         amount,
@@ -336,15 +382,21 @@ export async function GET(request: NextRequest) {
         credit,
         orderId:
           sourceOrder?.invoice_no ||
+          sourceSaleReturn?.return_number ||
           sourceOrder?._id?.toString?.() ||
           (isOrderDebit ? sourceId : null) ||
-          (isPurchaseBillDebit && sourcePurchaseBill?.id ? sourcePurchaseBill.id : null),
+          (isPurchaseBillDebit && sourcePurchaseBill?.id ? sourcePurchaseBill.id : null) ||
+          (isSaleReturnCredit || isSaleReturnDebit ? sourceId : null),
         dateTime: asISO(entry.effective_at || entry.created_at),
         balance: runningBalance,
       };
     });
 
     // Virtual Opening Balance record
+    const openingDate = from.getFullYear() === 1970 && customer?.created_at
+      ? new Date(customer.created_at).toISOString()
+      : from.toISOString();
+
     const openingBalanceRecord = {
       id: "opening_balance",
       type: "opening_balance",
@@ -354,13 +406,19 @@ export async function GET(request: NextRequest) {
       debit: openingBalance > 0 ? Math.abs(openingBalance) : 0,
       credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
       orderId: null, // Removed hardcoded OP-76
-      dateTime: from.toISOString(),
+      dateTime: openingDate,
       balance: openingBalance,
     };
 
-    const totalOrders = entries
+    const totalOrdersGross = entries
       .filter((entry) => entry.event_type === "order_debit")
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalSaleReturns = entries
+      .filter((entry) => entry.event_type === "sale_return_credit")
+      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+
+    const totalOrders = totalOrdersGross - totalSaleReturns;
 
     const totalPurchaseBills = entries
       .filter((entry) => entry.event_type === "purchase_bill_debit")
@@ -375,7 +433,7 @@ export async function GET(request: NextRequest) {
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
 
     const totalPaymentsOut = entries
-      .filter((entry) => entry.event_type === "payment_out_debit")
+      .filter((entry) => entry.event_type === "payment_out_debit" || entry.event_type === "sale_return_debit")
       .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
 
     const currentBalance = Number(

@@ -3,9 +3,14 @@
  *
  * High-level functions for tracking common business events in the POS system.
  * These are wrappers around the low-level GTM push functions in src/lib/analytics/gtm.ts
+ * and Meta Pixel helpers in src/lib/analytics/meta-pixel.ts.
  */
 
 import { pushBusinessEvent } from "@/lib/analytics/gtm";
+import {
+  trackMetaCustomEvent,
+  trackMetaStandardEvent,
+} from "@/lib/analytics/meta-pixel";
 
 /**
  * Track when an invoice is created/completed.
@@ -30,6 +35,14 @@ export const trackInvoiceCreated = (invoice: {
       quantity: item.quantity,
     })),
   });
+
+  trackMetaStandardEvent("Purchase", {
+    value: invoice.total,
+    currency: "PKR",
+    content_type: "product",
+    content_ids: invoice.items.map((item) => item.id),
+    num_items: invoice.items.reduce((sum, item) => sum + item.quantity, 0),
+  });
 };
 
 /**
@@ -39,6 +52,8 @@ export const trackLogin = () => {
   pushBusinessEvent({
     event: "login",
   });
+
+  trackMetaStandardEvent("Login");
 };
 
 /**
@@ -48,6 +63,11 @@ export const trackProductSearch = (query: string, resultCount: number) => {
   pushBusinessEvent({
     event: "search",
     search_term: query,
+    result_count: resultCount,
+  });
+
+  trackMetaStandardEvent("Search", {
+    search_string: query,
     result_count: resultCount,
   });
 };
@@ -61,6 +81,10 @@ export const trackCustomerAction = (
 ) => {
   pushBusinessEvent({
     event: `customer_${action}`,
+    customer_id: customerId,
+  });
+
+  trackMetaCustomEvent(`Customer${action.charAt(0).toUpperCase()}${action.slice(1)}`, {
     customer_id: customerId,
   });
 };
@@ -79,6 +103,14 @@ export const trackProductView = (
     item_name: productName,
     price,
   });
+
+  trackMetaStandardEvent("ViewContent", {
+    content_ids: [productId],
+    content_name: productName,
+    content_type: "product",
+    value: price,
+    currency: "PKR",
+  });
 };
 
 /**
@@ -94,6 +126,13 @@ export const trackOrderCreated = (order: {
     order_id: order.id,
     order_value: order.total,
     item_count: order.itemCount,
+  });
+
+  trackMetaStandardEvent("InitiateCheckout", {
+    value: order.total,
+    currency: "PKR",
+    num_items: order.itemCount,
+    order_id: order.id,
   });
 };
 
@@ -112,5 +151,64 @@ export const trackCategoryEvent = (
     event_action: action,
     event_label: label,
     event_value: value,
+  });
+
+  trackMetaCustomEvent("CategoryEvent", {
+    category,
+    action,
+    label,
+    value,
+  });
+};
+
+export const trackHomepageViewed = () => {
+  trackMetaCustomEvent("HomepageViewed", {
+    page_type: "landing",
+  });
+};
+
+export const trackTrialSignupIntent = (source: string) => {
+  trackMetaCustomEvent("TrialSignupIntent", {
+    source,
+  });
+};
+
+export const trackSubscriptionRenewalViewed = (status: string, plan?: string) => {
+  trackMetaCustomEvent("SubscriptionRenewalViewed", {
+    status,
+    plan,
+  });
+};
+
+export const trackSubscriptionRenewalContactClicked = (
+  channel: "whatsapp" | "call" | "email",
+  status: string,
+  plan?: string,
+) => {
+  trackMetaCustomEvent("SubscriptionRenewalContactClicked", {
+    channel,
+    status,
+    plan,
+  });
+};
+
+export const trackPlanWhatsAppOpened = (
+  plan: string,
+  price: string,
+) => {
+  trackMetaCustomEvent("PlanWhatsAppOpened", {
+    channel: "whatsapp",
+    plan,
+    price,
+  });
+
+  const numericPrice = Number(price);
+
+  trackMetaStandardEvent("Purchase", {
+    value: Number.isFinite(numericPrice) ? numericPrice : undefined,
+    currency: "PKR",
+    content_type: "subscription",
+    content_name: plan,
+    content_category: "plan_purchase",
   });
 };
