@@ -83,8 +83,8 @@ export const COLLECTIONS = {
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
   CONFIGURATIONS: "configurations",
   ORDER_ITEMS: "order_items",
-
   WAITLIST: "waitlist",
+  PAYMENT_METHOD: "payment_method",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -122,8 +122,7 @@ export function isValidObjectId(id: string): boolean {
 export async function setLastUpdated<T extends Document>(
   collection: Collection<T>,
   filter: Filter<T>,
-  additionalUpdate?: Record<string, any>,
-  userId?: string
+  additionalUpdate?: Record<string, any>
 ) {
   // 1. Update target document's updated_at field
   const update: UpdateFilter<T> = {
@@ -135,7 +134,7 @@ export async function setLastUpdated<T extends Document>(
   const result = await collection.updateOne(filter, update);
 
   // 2. Call the user activity update function (instead of duplicating logic)
-  await updateUserLastActivity(userId);
+  await updateUserLastActivity();
 
   return result;
 }
@@ -145,18 +144,14 @@ export async function setLastUpdated<T extends Document>(
  * Use this for INSERT and DELETE operations where you want to track user activity
  * Also used internally by setLastUpdated
  */
-export async function updateUserLastActivity(userId?: string) {
+export async function updateUserLastActivity() {
   try {
-    let finalUserId = userId;
-    if (!finalUserId) {
-      const user = await getCurrentUser();
-      if (user?.id) finalUserId = user.id;
-    }
-    
-    if (finalUserId) {
+    const user = await getCurrentUser();
+    // console.log("Current user in updateUserLastActivity:", user);
+    if (user?.id) {
       const usersCollection = await getCollection(COLLECTIONS.USERS);
       await usersCollection.updateOne(
-        { _id: toObjectId(finalUserId) },
+        { _id: toObjectId(user.id) },
         { $set: { user_last_updated_at: new Date() } }
       );
       return true;
@@ -203,7 +198,9 @@ export async function createIndexes() {
       .createIndex({ name: 1 }, { unique: true });
 
     // Payment method (configuration) collection indexes
-
+    await db
+      .collection(COLLECTIONS.PAYMENT_METHOD)
+      .createIndex({ user_id: 1 });
 
     // Party transactions (payment in) collection indexes
     await db
