@@ -86,7 +86,8 @@
     "offlineWorkspaceSwitchErrorDesc": "یہ کام کرنے کے لیے آپ کا آن لائن ہونا ضروری ہے۔ براہ کرم اپنا انٹرنیٹ کنکشن چیک کریں۔",
     "balance": "بیلنس",
     "openingBalance": "اوپننگ بیلنس",
-    "amountInDukaanKhata": "دکان کھاتہ میں رقم"
+    "amountInDukaanKhata": "دکان کھاتہ میں رقم",
+    "close": "بند کریں"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -978,7 +979,7 @@
     "includeSignatureInInvoice": "انوائس میں دستخط شامل کریں",
     "requestCustomerSignature": "گاہک کا دستخط طلب کریں",
     "createOrder": "آرڈر بنائیں",
-    "creatingOrder": "آرڈر بنایا جا رہا ہے...",
+    "creatingOrder": "Creating Order...",
     "orderCreatedTitle": "آرڈر بن گیا",
     "orderCreatedDescription": "آرڈر کامیابی سے بنا دیا گیا ہے۔",
     "sendOnWhatsApp": "واٹس ایپ پر بھیجیں",
@@ -1048,7 +1049,7 @@
     "quotationNumberExists": "کوٹیشن نمبر پہلے سے موجود ہے",
     "delete_quotation_item": "کوٹیشن آئٹم حذف کریں",
     "error": "براہ کرم ایک پارٹی منتخب کریں اور کم از کم ایک آئٹم شامل کریں۔",
-    "editInvoice": "انوائس میں ایڈٹ",
+    "editInvoice": "Edit Invoice",
     "updateOrder": "آرڈر اپ ڈیٹ کریں",
     "convert_to_sale_title": "سیل میں تبدیل کریں",
     "convert_to_sale_description": "کیا آپ واقعی اس کوٹیشن کو سیل انوائس میں تبدیل کرنا چاہتے ہیں؟ اس سے ایک نیا آرڈر بن جائے گا اور انوینٹری سے اسٹاک کم ہو جائے گا۔",
@@ -1066,7 +1067,12 @@
     "failed_to_delete": "کوٹیشن حذف کرنے میں ناکامی",
     "error_deleting": "کوٹیشن حذف کرنے میں خرابی",
     "loading_quotations_error": "کوٹیشن لوڈ کرنے میں خرابی",
-    "no_quotations_found": "کوئی کوٹیشن نہیں ملی"
+    "no_quotations_found": "کوئی کوٹیشن نہیں ملی",
+    "editInvoiceDescription": "Modify the details of this invoice",
+    "updateInvoice": "Update Invoice",
+    "saveInvoice": "Save Invoice",
+    "saving": "Saving...",
+    "balance": "Balance"
   },
   "accountStatement": {
     "title": "اکاؤنٹ سٹیٹمنٹ",

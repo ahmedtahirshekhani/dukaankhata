@@ -127,6 +127,20 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       }
     }, [methods, value, defaultToCash, onValueChange]);
 
+    React.useEffect(() => {
+      const handleLocalIdReplaced = (e: any) => {
+        const { collection, oldId, newId } = e.detail;
+        if (collection === "payment_methods" && value === oldId) {
+          // If the currently selected method got replaced, update the value
+          const newMethod = methods.find(m => m.id === newId) || { id: newId, name: "" };
+          onValueChange(newId, newMethod as PaymentMethod);
+        }
+      };
+
+      window.addEventListener("localIdReplaced", handleLocalIdReplaced);
+      return () => window.removeEventListener("localIdReplaced", handleLocalIdReplaced);
+    }, [value, methods, onValueChange]);
+
     const resetForm = () => {
       setBankName("");
       setBankDetails("");

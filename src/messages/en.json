@@ -85,7 +85,8 @@
     "offlineWorkspaceSwitchErrorTitle": "Action Unavailable Offline",
     "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection.",
     "balance": "Balance",
-    "amountInDukaanKhata": "Amount in DukaanKhata"
+    "amountInDukaanKhata": "Amount in DukaanKhata",
+    "close": "Close"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -977,7 +978,7 @@
     "includeSignatureInInvoice": "Include signature in invoice",
     "requestCustomerSignature": "Request party signature",
     "createOrder": "Create Order",
-    "creatingOrder": "Creating order...",
+    "creatingOrder": "Creating Order...",
     "orderCreatedTitle": "Order created",
     "orderCreatedDescription": "The order has been created successfully.",
     "sendOnWhatsApp": "Send on WhatsApp",
@@ -1046,7 +1047,7 @@
     "edit_quotation_item": "Edit Item",
     "delete_quotation_item": "Delete Item",
     "error": "Please select a party and add at least one item.",
-    "editInvoice": "Edit Invoice Details",
+    "editInvoice": "Edit Invoice",
     "updateOrder": "Update Order",
     "quotationNumberExists": "Quotation number already exists",
     "convert_to_sale_title": "Convert to Sale",
@@ -1065,7 +1066,12 @@
     "failed_to_delete": "Failed to delete quotation",
     "error_deleting": "Error deleting quotation",
     "loading_quotations_error": "Error loading quotations",
-    "no_quotations_found": "No quotations found"
+    "no_quotations_found": "No quotations found",
+    "editInvoiceDescription": "Modify the details of this invoice",
+    "updateInvoice": "Update Invoice",
+    "saveInvoice": "Save Invoice",
+    "saving": "Saving...",
+    "balance": "Balance"
   },
   "accountStatement": {
     "title": "Account Statement",

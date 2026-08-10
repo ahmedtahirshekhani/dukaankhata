@@ -182,9 +182,48 @@ export async function GET(request: NextRequest) {
       ...(paymentMethodsDocs.map((pm: any) => [pm._id.toString(), pm.bank_name || ''] as [string, string]))
     ]);
 
-    const entries = rangeEntries.filter(
+    const rawEntries = rangeEntries.filter(
       (entry) => entry.event_type !== "opening_balance"
     );
+
+    // Pre-process entries to collapse order edits (reverse + apply)
+    const processedEntries: LedgerEntryDoc[] = [];
+    const orderOriginals = new Map<string, LedgerEntryDoc>();
+    const orderAdjustments = new Map<string, LedgerEntryDoc>();
+
+    for (const entry of rawEntries) {
+      const sourceIdStr = entry.event_source_id?.toString();
+
+      if (entry.event_type === "order_debit" && sourceIdStr) {
+        const newEntry = { ...entry };
+        orderOriginals.set(sourceIdStr, newEntry);
+        processedEntries.push(newEntry);
+      } else if (
+        entry.event_type === "manual_adjustment" && 
+        (entry.event_key === "order_update_reverse" || entry.event_key === "order_update_apply") &&
+        sourceIdStr
+      ) {
+        if (orderOriginals.has(sourceIdStr)) {
+          // Fold into original order within the same date range
+          const orig = orderOriginals.get(sourceIdStr)!;
+          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
+        } else {
+          // Fold into a single adjustment entry for this order (original order is outside date range)
+          if (orderAdjustments.has(sourceIdStr)) {
+            const adj = orderAdjustments.get(sourceIdStr)!;
+            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
+          } else {
+            const adj = { ...entry, event_key: "order_update_net", event_type: "manual_adjustment" };
+            orderAdjustments.set(sourceIdStr, adj);
+            processedEntries.push(adj);
+          }
+        }
+      } else {
+        processedEntries.push(entry);
+      }
+    }
+
+    const entries = processedEntries;
 
     const orderIds = entries
       .filter((entry) => entry.event_source === "order" && entry.event_source_id)
@@ -341,7 +380,11 @@ export async function GET(request: NextRequest) {
         const methodName = paymentMethodMap.get(methodId) || "Cash";
         description = `Refund against Sale Return - ${methodName}`;
       } else if (entry.event_type === "manual_adjustment") {
-        description = "Manual Adjustment";
+        if (entry.event_key === "order_update_net") {
+          description = "Invoice (Updated)";
+        } else {
+          description = "Manual Adjustment";
+        }
       } else if (entry.event_type === "opening_balance") {
         description = "Initial Opening Balance";
       }
@@ -386,7 +429,8 @@ export async function GET(request: NextRequest) {
           sourceOrder?._id?.toString?.() ||
           (isOrderDebit ? sourceId : null) ||
           (isPurchaseBillDebit && sourcePurchaseBill?.id ? sourcePurchaseBill.id : null) ||
-          (isSaleReturnCredit || isSaleReturnDebit ? sourceId : null),
+          (isSaleReturnCredit || isSaleReturnDebit ? sourceId : null) ||
+          (entry.event_key === "order_update_net" ? sourceId : null),
         dateTime: asISO(entry.effective_at || entry.created_at),
         balance: runningBalance,
       };

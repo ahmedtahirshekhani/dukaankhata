@@ -178,6 +178,19 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       }
     }, [filteredCustomers, value, autoSelectCash, onValueChange]);
 
+    useEffect(() => {
+      const handleLocalIdReplaced = (e: any) => {
+        const { collection, oldId, newId } = e.detail;
+        if (collection === "parties" && value === oldId) {
+          const newParty = filteredCustomers.find(p => getPartyId(p) === newId) || { id: newId, name: "" };
+          onValueChange(newId, newParty as Party);
+        }
+      };
+
+      window.addEventListener("localIdReplaced", handleLocalIdReplaced);
+      return () => window.removeEventListener("localIdReplaced", handleLocalIdReplaced);
+    }, [value, filteredCustomers, onValueChange]);
+
     const resetForm = () => {
       setNewPartyName("");
       setNewPartyEmail("");
