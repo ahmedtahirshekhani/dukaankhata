@@ -159,6 +159,13 @@
     "addPaymentIn": "پیمنٹ ان"
   },
   "configurationPage": {
+    "dangerZone": "خطرناک زون",
+    "deleteAllDataTitle": "تمام ورک اسپیس ڈیٹا حذف کریں",
+    "deleteAllDataDescription": "اپنے ورک اسپیس کا تمام ڈیٹا ہمیشہ کے لیے حذف کریں۔",
+    "deleteAllDataWarning": "کیا آپ واقعی تمام ڈیٹا حذف کرنا چاہتے ہیں؟ اسے واپس نہیں لایا جا سکتا۔",
+    "deleteAllDataButton": "تمام ڈیٹا حذف کریں",
+    "enterPassword": "پاس ورڈ درج کریں",
+    "enterPasswordDescription": "تصدیق کے لیے پاس ورڈ درج کریں",
     "searchPlaceholder": "ادائیگی کے طریقے تلاش کریں",
     "cashInHandBalance": "کیش اِن ہینڈ بیلنس",
     "totalBankBalance": "کل بینک بیلنس",

@@ -64,20 +64,54 @@ export async function POST(request: Request) {
 
     // Delete isolated data from each collection
     let totalDeleted = 0;
+    
+    // Fetch Cash Sale party and Cash in Hand method to exclude/reset
+    const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
+    const cashParty = await partiesCollection.findOne({ ...filter, type: 'cash' });
+    
+    const pmCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
+    const cashMethod = await pmCollection.findOne({ ...filter, type: 'cash' });
+
     for (const collectionName of collectionsToClear) {
       const collection = await getCollection(collectionName);
-      
+      let currentFilter: any = { ...filter };
+
+      if (collectionName === COLLECTIONS.PARTIES) {
+         currentFilter.type = { $ne: 'cash' };
+      } else if (collectionName === COLLECTIONS.PAYMENT_METHODS) {
+         currentFilter.type = { $ne: 'cash' };
+      } else if (collectionName === COLLECTIONS.PARTY_BALANCE_STATE && cashParty) {
+         currentFilter.party_id = { $ne: cashParty._id };
+      }
+
       // First check how much data exists
-      const count = await collection.countDocuments(filter);
+      const count = await collection.countDocuments(currentFilter);
       
       if (count > 0) {
         console.log(`- Deleting ${count} records from ${collectionName}...`);
-        const result = await collection.deleteMany(filter);
+        const result = await collection.deleteMany(currentFilter);
         console.log(`  ✓ Successfully deleted ${result.deletedCount} records from ${collectionName}`);
         totalDeleted += result.deletedCount;
       } else {
         console.log(`- No records found in ${collectionName}`);
       }
+    }
+
+    // Reset default cash balances
+    if (cashParty) {
+       const balanceCollection = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+       await balanceCollection.updateOne(
+          { party_id: cashParty._id },
+          { $set: { current_balance: 0 } },
+          { upsert: true }
+       );
+    }
+    
+    if (cashMethod) {
+       await pmCollection.updateOne(
+          { _id: cashMethod._id },
+          { $set: { current_balance: 0, opening_balance: 0 } }
+       );
     }
 
     console.log(`========================================`);

@@ -17,6 +17,14 @@ import {
 } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function ConfigurationPage({
   params,
@@ -45,6 +53,12 @@ export default function ConfigurationPage({
   const [signatureError, setSignatureError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Delete Data Modal State
+  const [showDeleteDataModal, setShowDeleteDataModal] = useState(false);
+  const [deleteDataPassword, setDeleteDataPassword] = useState("");
+  const [deleteDataError, setDeleteDataError] = useState<string>("");
+  const [isDeletingData, setIsDeletingData] = useState(false);
 
   // Feature Switches State
   const [enableCounterSale, setEnableCounterSale] = useState(true);
@@ -147,6 +161,36 @@ export default function ConfigurationPage({
     localStorage.setItem("setting_wa", String(val));
     window.dispatchEvent(new Event("featureSettingsUpdated"));
     syncFeatureSettings({ wa: val });
+  };
+
+  const handleDeleteData = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteDataError("");
+    if (!deleteDataPassword) {
+      setDeleteDataError(t("enterPassword"));
+      return;
+    }
+    
+    setIsDeletingData(true);
+    try {
+      const res = await fetch(`/${params.locale}/api/settings/delete-data`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deleteDataPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete data");
+      }
+      setShowDeleteDataModal(false);
+      setDeleteDataPassword("");
+      // Optionally reload the page or show success message
+      window.location.reload();
+    } catch (err: any) {
+      setDeleteDataError(err.message || "Something went wrong");
+    } finally {
+      setIsDeletingData(false);
+    }
   };
 
   const readFileAsDataUrl = (file: File) =>
@@ -455,10 +499,108 @@ export default function ConfigurationPage({
                       </Button>
                     </div>
                   )}
+
+                  {canEditConfig && (
+                    <Card className="mt-8 border-red-200 bg-red-50/50">
+                      <CardHeader>
+                        <CardTitle className="text-red-600">{t("dangerZone") || "Danger Zone"}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-1 text-red-900/90">
+                            <h3 className="font-medium text-red-800">{t("deleteAllDataTitle") || "Delete All Workspace Data"}</h3>
+                            <p className="text-sm">{t("deleteAllDataDescription") || "This will delete all sales, expenses, and records for this workspace. Cash defaults will be reset."}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDataModal(true)}
+                            className="bg-white text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 w-full sm:w-auto shrink-0"
+                          >
+                            {t("deleteAllDataButton") || "Delete Data"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </>
               )}
             </>
           )}
+
+          {/* Delete All Data Modal */}
+          <Dialog
+            open={showDeleteDataModal}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeleteDataPassword("");
+                setDeleteDataError("");
+              }
+              setShowDeleteDataModal(open);
+            }}
+          >
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="h-5 w-5" />
+                  {t("deleteAllDataTitle") || "Delete All Workspace Data"}
+                </DialogTitle>
+                <DialogDescription>
+                  {t("deleteAllDataWarning") || "Are you sure you want to delete all data? This cannot be undone."}
+                </DialogDescription>
+              </DialogHeader>
+
+              <form onSubmit={handleDeleteData} className="space-y-4">
+                {deleteDataError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {deleteDataError}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="delete-data-password">
+                    {t("enterPassword") || "Enter Password"} <span className="text-red-600">*</span>
+                  </Label>
+                  <Input
+                    id="delete-data-password"
+                    type="password"
+                    value={deleteDataPassword}
+                    onChange={(e) => setDeleteDataPassword(e.target.value)}
+                    placeholder={t("enterPasswordDescription") || "Enter password to confirm"}
+                    disabled={isDeletingData}
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowDeleteDataModal(false);
+                      setDeleteDataPassword("");
+                      setDeleteDataError("");
+                    }}
+                    disabled={isDeletingData}
+                  >
+                    {t("cancelDeletion") || "Cancel"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-red-600 hover:bg-red-700"
+                    disabled={isDeletingData}
+                  >
+                    {isDeletingData ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("deleting") || "Deleting..."}
+                      </>
+                    ) : (
+                      t("confirmDeletion") || "Confirm"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
 
           {!canViewConfig && !canViewPaymentMethods && (
                 <div className="text-center p-8 text-muted-foreground border rounded-lg bg-gray-50 mt-8">
