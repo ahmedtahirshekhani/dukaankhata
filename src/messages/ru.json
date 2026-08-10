@@ -86,7 +86,8 @@
     "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein.",
     "balance": "Balance",
     "openingBalance": "Opening Balance",
-    "amountInDukaanKhata": "DukaanKhata mein raqam"
+    "amountInDukaanKhata": "DukaanKhata mein raqam",
+    "close": "Закрыть"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -985,7 +986,7 @@
     "includeSignatureInInvoice": "Invoice mein dastakhat shamil karain",
     "requestCustomerSignature": "Party ka dastakhat talab karain",
     "createOrder": "Order Banayen",
-    "creatingOrder": "Order banaya ja raha hai...",
+    "creatingOrder": "Creating Order...",
     "orderCreatedTitle": "Order ban gaya",
     "orderCreatedDescription": "Order kamyabi se bana diya gaya hai.",
     "sendOnWhatsApp": "WhatsApp par bhejain",
@@ -1073,7 +1074,12 @@
     "failed_to_delete": "Quotation delete karne mein nakami",
     "error_deleting": "Quotation delete karne mein kharabi",
     "loading_quotations_error": "Quotations load karne mein kharabi",
-    "no_quotations_found": "Koi quotation nahi mili"
+    "no_quotations_found": "Koi quotation nahi mili",
+    "editInvoiceDescription": "Modify the details of this invoice",
+    "updateInvoice": "Update Invoice",
+    "saveInvoice": "Save Invoice",
+    "saving": "Saving...",
+    "balance": "Balance"
   },
   "accountStatement": {
     "title": "Account Statement",

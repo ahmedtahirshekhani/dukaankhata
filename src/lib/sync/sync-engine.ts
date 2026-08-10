@@ -211,6 +211,12 @@ export class SyncEngine {
               item.id = newId;
               await table.put(item);
               await table.delete(op.localId);
+              
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('localIdReplaced', { 
+                  detail: { collection: op.collection, oldId: op.localId, newId: newId } 
+                }));
+              }
             }
 
             // Fix foreign keys in other pending operations

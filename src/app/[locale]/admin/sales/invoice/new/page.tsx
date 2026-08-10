@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import React, { useRef, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -77,6 +77,7 @@ type Customer = {
   name: string;
   email?: string;
   phone?: string;
+  type?: string;
 };
  
 interface POSProduct extends Product {
@@ -93,6 +94,8 @@ export default function NewInvoicePage() {
   const t = useTranslations("invoice");
   const tCommon = useTranslations("common");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editOrderId = searchParams.get("edit");
   const locale = useLocale();
 
   const { data: session } = useSession();
@@ -148,9 +151,11 @@ export default function NewInvoicePage() {
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentAmount, setPaymentAmount] = useState<number | "">("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [orderSaved, setOrderSaved] = useState(false);
+  
+  const isCashSale = selectedCustomer?.name?.toLowerCase()?.includes("cash") || selectedCustomer?.type === "cash";
   
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const sanitizeOverallDiscount = (
@@ -184,8 +189,79 @@ export default function NewInvoicePage() {
   };
 
   useEffect(() => {
-    generateInvoiceNo();
-  }, []);
+    const loadEditOrder = async () => {
+      if (editOrderId) {
+        try {
+          const order = await db.orders.get(editOrderId);
+          if (order) {
+            if (!order.invoice_no) {
+              const timestamp = Date.now();
+              const random = Math.floor(Math.random() * 1000);
+              setInvoiceNo(`INV-${timestamp}-${random}`);
+            } else {
+              setInvoiceNo(order.invoice_no);
+            }
+            setSelectedDate(order.sale_date?.split("T")[0] || getTodayDateString());
+            if (order.due_date) {
+              setAddDueDate(true);
+              setDueDate(order.due_date.split("T")[0]);
+            } else {
+              setAddDueDate(false);
+            }
+            
+            const customer = await db.parties.get(order.customer_id);
+            if (customer) {
+              setSelectedCustomer({
+                id: customer.id,
+                _id: customer._id || customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                email: customer.email
+              });
+            }
+
+            let orderItems = order.items;
+            if (typeof orderItems === "string") {
+              try { orderItems = JSON.parse(orderItems); } catch(e) {}
+            }
+
+            if (orderItems && Array.isArray(orderItems)) {
+              const items: POSProduct[] = orderItems.map((item: any) => ({
+                id: item.product_id || item.id,
+                name: item.name,
+                description: item.description,
+                quantity: normalizeQuantity(Number(item.quantity ?? 1)),
+                quantityInput: item.quantity_str || String(normalizeQuantity(Number(item.quantity ?? 1))),
+                quantityType: item.quantityType || "prime",
+                sell_price: item.price ?? item.sell_price ?? 0,
+                sellPriceInput: String(item.price ?? item.sell_price ?? 0),
+                discount: parseFloat(item.discount) || 0,
+                discountType: item.discountType || "value",
+                discountInput: String(item.discount || "0"),
+                unit_of_measurement: item.unit_of_measurement
+              }));
+              setSelectedProducts(items);
+            }
+
+            setCharges(order.charges || []);
+            setOverallDiscount(parseFloat(order.overallDiscount?.toString() || "0"));
+            setShippingCharges(parseFloat(order.shippingCharges?.toString() || "0"));
+            if (order.customer_notes) setCustomerNotes(order.customer_notes);
+
+            if (order.payment && !order.payment.no_payment_at_all) {
+               setPaymentMethod(order.payment.method || "");
+               setPaymentAmount(order.payment.paid_amount || 0);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading order for edit:", error);
+        }
+      } else {
+        generateInvoiceNo();
+      }
+    };
+    loadEditOrder();
+  }, [editOrderId]);
 
   useEffect(() => {
     setCustomerNotes((prev) =>
@@ -436,7 +512,7 @@ export default function NewInvoicePage() {
       return;
     }
 
-    if (paymentAmount > 0) {
+    if (!isCashSale && paymentAmount !== "" && paymentAmount > 0) {
       if (paymentAmount > Math.floor(finalTotal)) {
         setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
         setShowSaveErrorDialog(true);
@@ -486,12 +562,22 @@ export default function NewInvoicePage() {
   };
 
   const executeCreateOrder = async () => {
-    await handleCreateOrder({
-      paidAmount: paymentAmount > 0 ? paymentAmount : 0,
-      paymentMethod: paymentAmount > 0 ? paymentMethod : "",
-      paidDate: new Date().toISOString(),
-      noPaymentAtAll: paymentAmount === 0,
-    });
+    if (isCashSale) {
+      await handleCreateOrder({
+        paidAmount: Math.floor(finalTotal),
+        paymentMethod: paymentMethod || "cash",
+        paidDate: new Date().toISOString(),
+        noPaymentAtAll: false,
+      });
+    } else {
+      const pAmount = paymentAmount === "" ? 0 : paymentAmount;
+      await handleCreateOrder({
+        paidAmount: pAmount > 0 ? pAmount : 0,
+        paymentMethod: pAmount > 0 ? paymentMethod : "",
+        paidDate: new Date().toISOString(),
+        noPaymentAtAll: pAmount === 0,
+      });
+    }
   };
 
   const handleOverstockConfirm = () => {
@@ -676,14 +762,45 @@ export default function NewInvoicePage() {
         customerNotes,
       };
 
-      // 1. Generate local ID
-      const localOrderId = `local_order_${Date.now()}`;
       const now = new Date().toISOString();
+      const localOrderId = editOrderId || `local_order_${Date.now()}`;
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
 
-      // 2. Insert Order locally
-      const orderData = {
+      // 1. If editing, revert old stock and balance
+      if (editOrderId) {
+        const oldOrder = await db.orders.get(editOrderId);
+        if (oldOrder) {
+          // Revert old stock
+          if (oldOrder.items && Array.isArray(oldOrder.items)) {
+             for (const item of oldOrder.items) {
+               if (item.product_id) {
+                 const productDoc = await db.products.get(item.product_id.toString());
+                 if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+                   if (item.quantityType === "damaged") {
+                     const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                     const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                     await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+                   } else {
+                     await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+                   }
+                 }
+               }
+             }
+          }
+
+          // Revert old balance
+          const oldPaid = oldOrder.payment && !oldOrder.payment.no_payment_at_all ? (oldOrder.payment.paid_amount || 0) : 0;
+          const oldNetAmount = (oldOrder.total_amount || 0) - oldPaid;
+          if (oldNetAmount !== 0 && oldOrder.customer_id) {
+            await updateOfflinePartyBalance(oldOrder.customer_id.toString(), -oldNetAmount);
+          }
+        }
+      }
+
+      // 2. Insert or Update Order locally
+      const orderData: any = {
         id: localOrderId,
-        customer_id: selectedCustomer.id.toString(),
+        customer_id: (selectedCustomer.id || (selectedCustomer as any)._id || "").toString(),
         total_amount: finalTotal,
         subtotal: total,
         invoice_no: invoiceNo || null,
@@ -704,7 +821,7 @@ export default function NewInvoicePage() {
         created_at: now,
         updated_at: now,
         items: selectedProducts.map(p => ({
-          product_id: p.id.toString(),
+          product_id: (p.id || (p as any)._id || "").toString(),
           name: p.name,
           description: p.description,
           quantity: p.quantity,
@@ -717,20 +834,29 @@ export default function NewInvoicePage() {
         }))
       };
       
-      await db.orders.add(orderData);
+      if (editOrderId) {
+        const oldOrder = await db.orders.get(editOrderId);
+        if (oldOrder) {
+          orderData.created_at = oldOrder.created_at;
+          orderData.status = oldOrder.status;
+        }
+        await db.orders.put(orderData);
+      } else {
+        await db.orders.add(orderData);
+      }
 
       // 3. Update stock locally (optimistic)
-      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const p of selectedProducts) {
         if (!p.type || p.type === "goods" || p.type === "good") {
-          const productDoc = await db.products.get(p.id.toString());
+          const prodId = (p.id || (p as any)._id || "").toString();
+          const productDoc = await db.products.get(prodId);
           if (productDoc) {
              if (p.quantityType === "damaged") {
                const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
                const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
-               await db.products.update(p.id.toString(), { damaged_quantity: newQty });
+               await db.products.update(prodId, { damaged_quantity: newQty });
              } else {
-               await adjustOfflineStock(p.id.toString(), -(Number(p.quantity) || 0));
+               await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
              }
           }
         }
@@ -739,11 +865,15 @@ export default function NewInvoicePage() {
       // 4. Update balance locally (optimistic)
       const netAmount = finalTotal - (paymentDetails.noPaymentAtAll ? 0 : paymentDetails.paidAmount);
       if (netAmount !== 0) {
-        await updateOfflinePartyBalance(selectedCustomer.id.toString(), netAmount);
+        await updateOfflinePartyBalance((selectedCustomer.id || (selectedCustomer as any)._id || "").toString(), netAmount);
       }
 
       // 5. Sync to server
-      await SyncEngine.queueOperation("orders", "POST", "/api/orders", payload, localOrderId);
+      if (editOrderId) {
+        await SyncEngine.queueOperation("orders", "PUT", `/api/orders/${editOrderId}`, payload, editOrderId);
+      } else {
+        await SyncEngine.queueOperation("orders", "POST", "/api/orders", payload, localOrderId);
+      }
 
       setCreatedOrderShareData(shareData);
 
@@ -751,8 +881,10 @@ export default function NewInvoicePage() {
       setShowInvoicePreview(true);
       
       // We will reset the form and navigate when they close the preview
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating order:", error);
+      setSaveError(error?.message || "An unexpected error occurred while saving the order.");
+      setShowSaveErrorDialog(true);
     } finally {
       setIsCreatingOrder(false);
     }
@@ -762,9 +894,9 @@ export default function NewInvoicePage() {
     <div className="container mx-auto p-0">
       <div className="flex flex-col gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <h1 className="text-2xl font-bold">{editOrderId ? t("editInvoice") || "Edit Invoice" : t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("pageDescription")}
+            {editOrderId ? t("editInvoiceDescription") || "Modify the details of this invoice" : t("pageDescription")}
           </p>
         </div>
       </div>
@@ -801,6 +933,7 @@ export default function NewInvoicePage() {
                 filterActiveOnly={true}
                 enableSearch={true}
                 searchPlaceholder={t("searchCustomer") || "Search customer..."}
+                autoSelectCash={true}
               />
             </div>
 
@@ -1180,52 +1313,6 @@ export default function NewInvoicePage() {
           <div className="mt-4 md:mt-6 flex flex-col md:flex-row gap-6 justify-between">
             {/* Left Column: Payment Section & Customer Notes */}
             <div className="w-full md:w-1/2 lg:w-5/12 flex flex-col gap-6">
-              {/* Payment Section */}
-              <div>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{t("receivePayment") || "Receive Payment"}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-normal mt-0.5">Optional: Record payment at the time of invoice creation</p>
-                  </CardHeader>
-
-                  <CardContent className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-semibold">{t("amountLabel") || "Amount Received"}</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{t("currencySymbol")}</span>
-                        <Input
-                          type="number"
-                          value={paymentAmount === 0 ? "" : paymentAmount}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            if (val > Math.floor(finalTotal)) {
-                              setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
-                              setShowSaveErrorDialog(true);
-                              setPaymentAmount(Math.floor(finalTotal));
-                            } else {
-                              setPaymentAmount(val);
-                            }
-                          }}
-                          placeholder="0"
-                          min={0}
-                          className="pl-9 h-11 text-lg font-semibold bg-background"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-semibold">{t("paymentMethod") || "Payment Method"} {paymentAmount > 0 && <span className="text-red-500">*</span>}</Label>
-                      <div className="bg-background rounded-md">
-                        <PaymentMethodDropdown
-                          value={paymentMethod}
-                          onValueChange={setPaymentMethod}
-                          placeholder={t("selectPaymentMethod") || "Select Method"}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
               {/* Customer Notes */}
               <div>
                 <div className="flex flex-col gap-1 w-full">
@@ -1396,6 +1483,53 @@ export default function NewInvoicePage() {
                         Rs. {Math.floor(finalTotal)}
                       </span>
                     </div>
+
+                    {/* Receive Payment Fields */}
+                    <div className="space-y-3 pt-2">
+                      {!isCashSale && (
+                        <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
+                          <span className="text-sm text-right font-medium">{t("amountLabel") || "Amount Received"}:</span>
+                          <Input
+                            type="number"
+                            value={paymentAmount === "" ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              if (val !== "" && val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="w-full h-9 text-sm"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
+                        <span className="text-sm text-right font-medium">{t("paymentMethod") || "Payment Method"}:</span>
+                        <div className="w-full">
+                          <PaymentMethodDropdown
+                            value={paymentMethod}
+                            onValueChange={setPaymentMethod}
+                            placeholder="Select Method"
+                            defaultToCash={true}
+                          />
+                        </div>
+                      </div>
+                      
+                      {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                        <div className="grid grid-cols-[auto_120px] gap-x-4 items-center pt-1 text-muted-foreground">
+                          <span className="text-sm text-right font-medium">{t("balance") || "Balance"}:</span>
+                          <span className="text-left text-sm font-bold">
+                            Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1560,6 +1694,53 @@ export default function NewInvoicePage() {
                       </span>
                     </div>
                   </Card>
+
+                  {/* Receive Payment Fields - Mobile */}
+                  <Card className="p-4">
+                    <div className="space-y-3">
+                      {!isCashSale && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-sm font-medium">{t("amountLabel") || "Amount Received"}:</span>
+                          <Input
+                            type="number"
+                            value={paymentAmount === "" ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              if (val !== "" && val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="w-full h-9 text-sm"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-sm font-medium">{t("paymentMethod") || "Payment Method"}:</span>
+                        <PaymentMethodDropdown
+                          value={paymentMethod}
+                          onValueChange={setPaymentMethod}
+                          placeholder="Select Method"
+                          defaultToCash={true}
+                        />
+                      </div>
+                      
+                      {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                        <div className="flex justify-between items-center pt-2 mt-2 border-t text-muted-foreground">
+                          <span className="text-sm font-medium">{t("balance") || "Balance"}:</span>
+                          <span className="text-sm font-bold">
+                            Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
                 </div>
               </div>
 
@@ -1580,10 +1761,10 @@ export default function NewInvoicePage() {
                   {isCreatingOrder ? (
                     <>
                       <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
-                      {t("creatingOrder") || t("saving") || "Saving..."}
+                      {t("creatingOrder") || tCommon("saving") || "Saving..."}
                     </>
                   ) : (
-                    t("save")
+                    editOrderId ? t("updateInvoice") || "Update Invoice" : t("saveInvoice") || t("save") || "Save"
                   )}
                 </Button>
               </div>

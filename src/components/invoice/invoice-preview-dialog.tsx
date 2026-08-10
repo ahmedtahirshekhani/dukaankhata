@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -785,7 +786,17 @@ export function InvoicePreviewDialog({
               </div>
             )}
           </div>
-        </div>
+          </div>
+          
+          <DialogFooter className="mt-4 sm:mt-0 flex justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              className="w-full sm:w-auto"
+            >
+              {tCommon("close") || "Close"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

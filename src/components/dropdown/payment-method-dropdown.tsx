@@ -45,6 +45,7 @@ interface PaymentMethodDropdownProps {
   noResultsText?: string;
   addButtonPosition?: "top" | "bottom";
   includeDefaultMethods?: boolean; // include Cash & Cheque
+  defaultToCash?: boolean; // auto-select cash method if available
 }
 
 const DEFAULT_METHODS: PaymentMethod[] = [
@@ -65,6 +66,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       noResultsText = "No payment methods found",
       addButtonPosition = "bottom",
       includeDefaultMethods = false,
+      defaultToCash = false,
     },
     ref
   ) => {
@@ -115,6 +117,29 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
           m.bankDetails?.toLowerCase().includes(term)
       );
     }, [methods, searchTerm]);
+
+    React.useEffect(() => {
+      if (defaultToCash && !value && methods.length > 0) {
+        const cashMethod = methods.find((m) => m.name?.toLowerCase().includes("cash"));
+        if (cashMethod) {
+          onValueChange(cashMethod.id, cashMethod);
+        }
+      }
+    }, [methods, value, defaultToCash, onValueChange]);
+
+    React.useEffect(() => {
+      const handleLocalIdReplaced = (e: any) => {
+        const { collection, oldId, newId } = e.detail;
+        if (collection === "payment_methods" && value === oldId) {
+          // If the currently selected method got replaced, update the value
+          const newMethod = methods.find(m => m.id === newId) || { id: newId, name: "" };
+          onValueChange(newId, newMethod as PaymentMethod);
+        }
+      };
+
+      window.addEventListener("localIdReplaced", handleLocalIdReplaced);
+      return () => window.removeEventListener("localIdReplaced", handleLocalIdReplaced);
+    }, [value, methods, onValueChange]);
 
     const resetForm = () => {
       setBankName("");
