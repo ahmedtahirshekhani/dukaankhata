@@ -5,7 +5,7 @@ async function migrate() {
   try {
     console.log("Fetching shops...");
     const shopsCollection = await getCollection(COLLECTIONS.SHOPS);
-    const pmCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const pmCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
 
     const shops = await shopsCollection.find({}).toArray();
     console.log(`Found ${shops.length} total shops.`);
