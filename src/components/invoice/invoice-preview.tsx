@@ -177,6 +177,17 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           margin: "0 auto",
         }}
       >
+        {isThermal && (
+          <style>{`
+            .invoice-preview-container * {
+              font-weight: 800 !important;
+              color: #000000 !important;
+            }
+            .invoice-preview-container table td, .invoice-preview-container table th {
+              border-color: #000000 !important;
+            }
+          `}</style>
+        )}
         {/*
           INNER FLEX COLUMN
           • minHeight keeps A4/Letter content area tall enough that the spacer

@@ -54,6 +54,7 @@ interface PartyDropdownProps {
   enableSearch?: boolean;
   searchPlaceholder?: string;
   noResultsText?: string;
+  autoSelectCash?: boolean;
 }
 
 export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
@@ -71,6 +72,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       enableSearch = true,
       searchPlaceholder = "Search party...",
       noResultsText = "No parties found",
+      autoSelectCash = false,
     },
     ref
   ) => {
@@ -165,6 +167,16 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
       return () => observer.disconnect();
     }, [hasMore, loading, loadingMore, isOpen]);
+
+    // Auto-select cash party
+    useEffect(() => {
+      if (autoSelectCash && !value && filteredCustomers.length > 0) {
+        const cashParty = filteredCustomers.find(p => (p as any).type === "cash" || p.name.toLowerCase().includes("cash"));
+        if (cashParty) {
+          onValueChange(getPartyId(cashParty), cashParty);
+        }
+      }
+    }, [filteredCustomers, value, autoSelectCash, onValueChange]);
 
     const resetForm = () => {
       setNewPartyName("");

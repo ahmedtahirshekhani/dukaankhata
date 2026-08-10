@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
       await partiesCollection.insertOne({
-        name: "Walk In Customer",
+        name: "Cash Sale",
         type: "cash",
         user_id: result.insertedId, // Must be the new shop ID!
         owner_id: result.insertedId, // Legacy backward compatibility

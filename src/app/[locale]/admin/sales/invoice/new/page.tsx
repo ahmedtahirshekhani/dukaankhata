@@ -148,9 +148,11 @@ export default function NewInvoicePage() {
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentAmount, setPaymentAmount] = useState<number | "">("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [orderSaved, setOrderSaved] = useState(false);
+  
+  const isCashSale = selectedCustomer?.name?.toLowerCase()?.includes("cash") || selectedCustomer?.type === "cash";
   
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const sanitizeOverallDiscount = (
@@ -436,7 +438,7 @@ export default function NewInvoicePage() {
       return;
     }
 
-    if (paymentAmount > 0) {
+    if (!isCashSale && paymentAmount !== "" && paymentAmount > 0) {
       if (paymentAmount > Math.floor(finalTotal)) {
         setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
         setShowSaveErrorDialog(true);
@@ -486,12 +488,22 @@ export default function NewInvoicePage() {
   };
 
   const executeCreateOrder = async () => {
-    await handleCreateOrder({
-      paidAmount: paymentAmount > 0 ? paymentAmount : 0,
-      paymentMethod: paymentAmount > 0 ? paymentMethod : "",
-      paidDate: new Date().toISOString(),
-      noPaymentAtAll: paymentAmount === 0,
-    });
+    if (isCashSale) {
+      await handleCreateOrder({
+        paidAmount: Math.floor(finalTotal),
+        paymentMethod: paymentMethod || "cash",
+        paidDate: new Date().toISOString(),
+        noPaymentAtAll: false,
+      });
+    } else {
+      const pAmount = paymentAmount === "" ? 0 : paymentAmount;
+      await handleCreateOrder({
+        paidAmount: pAmount > 0 ? pAmount : 0,
+        paymentMethod: pAmount > 0 ? paymentMethod : "",
+        paidDate: new Date().toISOString(),
+        noPaymentAtAll: pAmount === 0,
+      });
+    }
   };
 
   const handleOverstockConfirm = () => {
@@ -801,6 +813,7 @@ export default function NewInvoicePage() {
                 filterActiveOnly={true}
                 enableSearch={true}
                 searchPlaceholder={t("searchCustomer") || "Search customer..."}
+                autoSelectCash={true}
               />
             </div>
 
@@ -1180,52 +1193,6 @@ export default function NewInvoicePage() {
           <div className="mt-4 md:mt-6 flex flex-col md:flex-row gap-6 justify-between">
             {/* Left Column: Payment Section & Customer Notes */}
             <div className="w-full md:w-1/2 lg:w-5/12 flex flex-col gap-6">
-              {/* Payment Section */}
-              <div>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{t("receivePayment") || "Receive Payment"}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-normal mt-0.5">Optional: Record payment at the time of invoice creation</p>
-                  </CardHeader>
-
-                  <CardContent className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-semibold">{t("amountLabel") || "Amount Received"}</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{t("currencySymbol")}</span>
-                        <Input
-                          type="number"
-                          value={paymentAmount === 0 ? "" : paymentAmount}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            if (val > Math.floor(finalTotal)) {
-                              setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
-                              setShowSaveErrorDialog(true);
-                              setPaymentAmount(Math.floor(finalTotal));
-                            } else {
-                              setPaymentAmount(val);
-                            }
-                          }}
-                          placeholder="0"
-                          min={0}
-                          className="pl-9 h-11 text-lg font-semibold bg-background"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-semibold">{t("paymentMethod") || "Payment Method"} {paymentAmount > 0 && <span className="text-red-500">*</span>}</Label>
-                      <div className="bg-background rounded-md">
-                        <PaymentMethodDropdown
-                          value={paymentMethod}
-                          onValueChange={setPaymentMethod}
-                          placeholder={t("selectPaymentMethod") || "Select Method"}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
               {/* Customer Notes */}
               <div>
                 <div className="flex flex-col gap-1 w-full">
@@ -1396,6 +1363,53 @@ export default function NewInvoicePage() {
                         Rs. {Math.floor(finalTotal)}
                       </span>
                     </div>
+
+                    {/* Receive Payment Fields */}
+                    <div className="space-y-3 pt-2">
+                      {!isCashSale && (
+                        <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
+                          <span className="text-sm text-right font-medium">{t("amountLabel") || "Amount Received"}:</span>
+                          <Input
+                            type="number"
+                            value={paymentAmount === "" ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              if (val !== "" && val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="w-full h-9 text-sm"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
+                        <span className="text-sm text-right font-medium">{t("paymentMethod") || "Payment Method"}:</span>
+                        <div className="w-full">
+                          <PaymentMethodDropdown
+                            value={paymentMethod}
+                            onValueChange={setPaymentMethod}
+                            placeholder="Select Method"
+                            defaultToCash={true}
+                          />
+                        </div>
+                      </div>
+                      
+                      {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                        <div className="grid grid-cols-[auto_120px] gap-x-4 items-center pt-1 text-muted-foreground">
+                          <span className="text-sm text-right font-medium">{t("balance") || "Balance"}:</span>
+                          <span className="text-left text-sm font-bold">
+                            Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1558,6 +1572,53 @@ export default function NewInvoicePage() {
                       <span className="font-bold text-lg">
                         {t("currencySymbol")} {Math.floor(finalTotal)}
                       </span>
+                    </div>
+                  </Card>
+
+                  {/* Receive Payment Fields - Mobile */}
+                  <Card className="p-4">
+                    <div className="space-y-3">
+                      {!isCashSale && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-sm font-medium">{t("amountLabel") || "Amount Received"}:</span>
+                          <Input
+                            type="number"
+                            value={paymentAmount === "" ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              if (val !== "" && val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="w-full h-9 text-sm"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-sm font-medium">{t("paymentMethod") || "Payment Method"}:</span>
+                        <PaymentMethodDropdown
+                          value={paymentMethod}
+                          onValueChange={setPaymentMethod}
+                          placeholder="Select Method"
+                          defaultToCash={true}
+                        />
+                      </div>
+                      
+                      {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                        <div className="flex justify-between items-center pt-2 mt-2 border-t text-muted-foreground">
+                          <span className="text-sm font-medium">{t("balance") || "Balance"}:</span>
+                          <span className="text-sm font-bold">
+                            Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 </div>
