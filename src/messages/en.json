@@ -216,7 +216,9 @@
     "paymentMethodDeleteDescription": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
     "paymentMethodSaved": "Payment method saved",
     "paymentMethodUpdated": "Payment method updated",
-    "paymentMethodDeleted": "Payment method deleted"
+    "paymentMethodDeleted": "Payment method deleted",
+    "cancelDeletion": "Cancel",
+    "confirmDeletion": "Confirm Deletion"
   },
   "auth": {
     "error": "Error",

@@ -217,7 +217,9 @@
     "paymentMethodDeleteDescription": "کیا آپ واقعی \"{name}\" حذف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں لیا جا سکتا۔",
     "paymentMethodSaved": "ادائیگی کا طریقہ محفوظ ہو گیا",
     "paymentMethodUpdated": "ادائیگی کا طریقہ اپ ڈیٹ ہو گیا",
-    "paymentMethodDeleted": "ادائیگی کا طریقہ حذف ہو گیا"
+    "paymentMethodDeleted": "ادائیگی کا طریقہ حذف ہو گیا",
+    "cancelDeletion": "Cancel",
+    "confirmDeletion": "Confirm Deletion"
   },
   "auth": {
     "error": "خرابی",
