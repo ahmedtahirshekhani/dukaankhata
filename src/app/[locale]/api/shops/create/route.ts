@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({ error: "Failed to create shop" }, { status: 500 });
     }
     
-    // Create default party: Walk In Customer for this shop
+    // Create default party: Cash Sale for this shop
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
       await partiesCollection.insertOne({
-        name: "Walk In Customer",
+        name: "Cash Sale",
         type: "cash",
         user_id: result.insertedId, // Must be the new shop ID!
         owner_id: result.insertedId, // Legacy backward compatibility

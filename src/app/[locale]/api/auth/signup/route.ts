@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create default shop for user", err);
     }
 
-    // Create default party: Walk In Customer
+    // Create default party: Cash Sale
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
       await partiesCollection.insertOne({
-        name: "Walk In Customer",
+        name: "Cash Sale",
         type: "cash",
         user_id: newUser?._id,
         company_name: companyName,

@@ -158,6 +158,13 @@
     "addPaymentIn": "Payment In"
   },
   "configurationPage": {
+    "dangerZone": "Danger Zone",
+    "deleteAllDataTitle": "Delete All Workspace Data",
+    "deleteAllDataDescription": "Permanently delete all data in your workspace.",
+    "deleteAllDataWarning": "Are you sure you want to delete all data? This cannot be undone.",
+    "deleteAllDataButton": "Delete All Data",
+    "enterPassword": "Enter Password",
+    "enterPasswordDescription": "Enter password to confirm",
     "searchPlaceholder": "Search Payment Methods",
     "cashInHandBalance": "Cash in Hand Balance",
     "totalBankBalance": "Total Bank Balance",

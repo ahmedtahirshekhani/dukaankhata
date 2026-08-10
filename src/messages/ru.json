@@ -159,6 +159,13 @@
     "addPaymentIn": "Входящий платеж"
   },
   "configurationPage": {
+    "dangerZone": "Danger Zone",
+    "deleteAllDataTitle": "Tamam Workspace Data Delete Karein",
+    "deleteAllDataDescription": "Apne workspace ka tamam data hamesha ke liye delete karein.",
+    "deleteAllDataWarning": "Kya aap waqai tamam data delete karna chahte hain? Yeh wapas nahi laya ja sakta.",
+    "deleteAllDataButton": "Tamam Data Delete Karein",
+    "enterPassword": "Password Darj Karein",
+    "enterPasswordDescription": "Tasdeeq ke liye password darj karein",
     "searchPlaceholder": "Payment Methods Search Karain",
     "cashInHandBalance": "Cash in Hand Balance",
     "totalBankBalance": "Total Bank Balance",

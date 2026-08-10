@@ -52,11 +52,6 @@ export default function SettingsPage({
   const [deleteError, setDeleteError] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Delete Data Modal State
-  const [showDeleteDataModal, setShowDeleteDataModal] = useState(false);
-  const [deleteDataPassword, setDeleteDataPassword] = useState("");
-  const [deleteDataError, setDeleteDataError] = useState<string>("");
-  const [isDeletingData, setIsDeletingData] = useState(false);
 
   // Feature Switches State
   const [enableCounterSale, setEnableCounterSale] = useState(true);
@@ -311,53 +306,7 @@ export default function SettingsPage({
     }
   };
 
-  const handleDeleteData = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setDeleteDataError("");
 
-    if (!deleteDataPassword) {
-      setDeleteDataError(t("passwordRequired"));
-      return;
-    }
-
-    setIsDeletingData(true);
-
-    try {
-      const res = await fetch(`/${params.locale}/api/settings/delete-data`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: deleteDataPassword,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        let errorKey = "allDataDeleteFailed";
-        if (data?.error?.includes("password") || data?.error?.toLowerCase().includes("invalid")) {
-          errorKey = "invalidPassword";
-        }
-        throw new Error(t(errorKey));
-      }
-
-      await clearUserDatabase();
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("last_sync_timestamp");
-      }
-
-      setMessage(t("allDataDeletedSuccess"));
-      setShowDeleteDataModal(false);
-      
-      setTimeout(() => {
-        window.location.href = `/${params.locale}/admin`;
-      }, 1000);
-    } catch (error: any) {
-      setDeleteDataError(error.message || t("allDataDeleteFailed"));
-    } finally {
-      setIsDeletingData(false);
-    }
-  };
 
   return (
     <ProtectedRoute locale={params.locale}>
@@ -517,20 +466,6 @@ export default function SettingsPage({
               <CardTitle className="text-red-600">{t("dangerZone")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-red-200/50">
-                <div className="space-y-1 text-red-900/90">
-                  <h3 className="font-medium text-red-800">{t("deleteAllDataTitle")}</h3>
-                  <p className="text-sm">{t("deleteAllDataDescription")}</p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteDataModal(true)}
-                  className="bg-white text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 w-full sm:w-auto shrink-0"
-                >
-                  {t("deleteAllDataButton")}
-                </Button>
-              </div>
-
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1 text-red-900/90">
                   <h3 className="font-medium text-red-800">{t("deleteAccountTitle")}</h3>
@@ -634,81 +569,6 @@ export default function SettingsPage({
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     {t("deleteAccountButton")}
-                  </>
-                ) : (
-                  t("confirmDeletion")
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete All Data Modal */}
-      <Dialog
-        open={showDeleteDataModal}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteDataPassword("");
-            setDeleteDataError("");
-          }
-          setShowDeleteDataModal(open);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-              {t("deleteAllDataTitle")}
-            </DialogTitle>
-            <DialogDescription>
-              {t("deleteAllDataWarning")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleDeleteData} className="space-y-4">
-            {deleteDataError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                {deleteDataError}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="delete-data-password">
-                {t("enterPassword")} <span className="text-red-600">*</span>
-              </Label>
-              <Input
-                id="delete-data-password"
-                type="password"
-                value={deleteDataPassword}
-                onChange={(e) => setDeleteDataPassword(e.target.value)}
-                placeholder={t("enterPasswordDescription")}
-                disabled={isDeletingData}
-              />
-            </div>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteDataModal(false);
-                  setDeleteDataPassword("");
-                  setDeleteDataError("");
-                }}
-                disabled={isDeletingData}
-              >
-                {t("cancelDeletion")}
-              </Button>
-              <Button
-                type="submit"
-                className="bg-red-600 hover:bg-red-700"
-                disabled={isDeletingData}
-              >
-                {isDeletingData ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("deleting")}
                   </>
                 ) : (
                   t("confirmDeletion")
