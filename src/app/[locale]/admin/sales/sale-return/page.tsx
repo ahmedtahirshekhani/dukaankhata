@@ -639,7 +639,7 @@ export default function SaleReturnPage() {
         <div className="space-y-2">
           <Label>{t("date")}</Label>
           <Input
-            type="date"
+            type="daute"
             value={formDate}
             onChange={(e) => setFormDate(e.target.value)}
           />
@@ -651,7 +651,7 @@ export default function SaleReturnPage() {
             onValueChange={(id) => setFormCustomerId(id)}
             placeholder={t("selectCustomer")}
             enableSearch={true}
-            searchPlaceholder={tCommon("searchCustomer") || "Search Party..."}
+            searchPlaceholder={tCommon("searchCustomer")}
           />
         </div>
         <div className="space-y-2">
@@ -661,10 +661,10 @@ export default function SaleReturnPage() {
             onValueChange={(id) => setFormPaymentMethodId(id)}
             placeholder={t("selectPaymentMethod")}
             enableSearch={true}
-            searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
-            noResultsText={t("noPaymentMethodsFound") || "No payment methods found"}
+            searchPlaceholder={tCommon("searchPaymentMethods")}
+            noResultsText={t("noPaymentMethodsFound")}
             addButtonPosition="bottom"
-            includeDefaultMethods={true}
+            // includeDefaultMethods={true}
           />
         </div>
         <div className="space-y-2">

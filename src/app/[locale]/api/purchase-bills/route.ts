@@ -600,7 +600,7 @@ export async function PUT(request: Request) {
           eventType: "purchase_bill_debit",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: totalAmount,
+          amountDelta: -totalAmount,
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
@@ -622,7 +622,7 @@ export async function PUT(request: Request) {
           eventType: "purchase_bill_credit",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: -finalPaidAmount,
+          amountDelta: finalPaidAmount,
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),

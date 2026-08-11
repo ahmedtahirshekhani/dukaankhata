@@ -84,7 +84,6 @@ export const COLLECTIONS = {
   CONFIGURATIONS: "configurations",
   ORDER_ITEMS: "order_items",
   WAITLIST: "waitlist",
-  PAYMENT_METHOD: "payment_method",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -196,11 +195,6 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.PAYMENT_METHODS)
       .createIndex({ name: 1 }, { unique: true });
-
-    // Payment method (configuration) collection indexes
-    await db
-      .collection(COLLECTIONS.PAYMENT_METHOD)
-      .createIndex({ user_id: 1 });
 
     // Party transactions (payment in) collection indexes
     await db

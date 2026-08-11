@@ -394,7 +394,7 @@ function AddPurchaseBillPageInner() {
             if (editingBillId) {
                 const oldBill = await db.purchase_bills.get(editingBillId);
                 if (oldBill && oldBill.balance_due !== undefined) {
-                    await updateOfflinePartyBalance(oldBill.party_id, -oldBill.balance_due);
+                    await updateOfflinePartyBalance(oldBill.party_id, oldBill.balance_due);
                 }
                 // Revert old stock
                 if (oldBill && oldBill.items) {
@@ -403,14 +403,14 @@ function AddPurchaseBillPageInner() {
                     }
                 }
                 await db.purchase_bills.update(editingBillId, finalBillData);
-                await updateOfflinePartyBalance(selectedPartyId, finalBillData.balance_due);
+                await updateOfflinePartyBalance(selectedPartyId, -finalBillData.balance_due);
                 // Apply new stock
                 for (const item of billItems) {
                     if (item.product_id) await adjustOfflineStock(item.product_id, Number(item.quantity) || 0);
                 }
             } else {
                 await db.purchase_bills.add(finalBillData);
-                await updateOfflinePartyBalance(selectedPartyId, finalBillData.balance_due);
+                await updateOfflinePartyBalance(selectedPartyId, -finalBillData.balance_due);
                 // Apply new stock
                 for (const item of billItems) {
                     if (item.product_id) await adjustOfflineStock(item.product_id, Number(item.quantity) || 0);
@@ -847,7 +847,7 @@ function AddPurchaseBillPageInner() {
                                         searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
                                         noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
                                         addButtonPosition="bottom"
-                                        includeDefaultMethods={true}
+                                        // includeDefaultMethods={true}
                                     />
                                 </div>
                             </>

@@ -1119,6 +1119,7 @@
     "typePaymentOut": "ادائیگی باہر",
     "typeAdjustment": "ایڈجسٹمنٹ",
     "typePurchase": "خریداری",
+    "typePurchaseBillPayment": "خریداری کی ادائیگی",
     "typeSaleReturn": "سیل ریٹرن",
     "typeOpeningBalance": "ابتدائی بیلنس",
     "amount": "رقم",
