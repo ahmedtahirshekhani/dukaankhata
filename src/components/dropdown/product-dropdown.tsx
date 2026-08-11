@@ -111,6 +111,19 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       }
     };
 
+    useEffect(() => {
+      const handleLocalIdReplaced = (e: any) => {
+        const { collection, oldId, newId } = e.detail;
+        if (collection === "products" && value === oldId) {
+          const newProduct = products.find(p => getProductId(p) === newId) || { id: newId, name: "" };
+          onValueChange(newId, newProduct as Product);
+        }
+      };
+
+      window.addEventListener("localIdReplaced", handleLocalIdReplaced);
+      return () => window.removeEventListener("localIdReplaced", handleLocalIdReplaced);
+    }, [value, products, onValueChange]);
+
     const handleValueChange = (newValue: string) => {
       const selected = products.find((p) => getProductId(p) === newValue);
       onValueChange(newValue, selected);
@@ -204,6 +217,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />

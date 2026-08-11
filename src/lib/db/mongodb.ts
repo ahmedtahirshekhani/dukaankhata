@@ -83,7 +83,6 @@ export const COLLECTIONS = {
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
   CONFIGURATIONS: "configurations",
   ORDER_ITEMS: "order_items",
-  PAYMENT_METHOD: "payment_method",
   WAITLIST: "waitlist",
 } as const;
 
@@ -196,11 +195,6 @@ export async function createIndexes() {
     await db
       .collection(COLLECTIONS.PAYMENT_METHODS)
       .createIndex({ name: 1 }, { unique: true });
-
-    // Payment method (configuration) collection indexes
-    await db
-      .collection(COLLECTIONS.PAYMENT_METHOD)
-      .createIndex({ user_id: 1 });
 
     // Party transactions (payment in) collection indexes
     await db

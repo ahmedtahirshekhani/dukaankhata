@@ -54,6 +54,7 @@ interface PartyDropdownProps {
   enableSearch?: boolean;
   searchPlaceholder?: string;
   noResultsText?: string;
+  autoSelectCash?: boolean;
 }
 
 export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
@@ -71,6 +72,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       enableSearch = true,
       searchPlaceholder = "Search party...",
       noResultsText = "No parties found",
+      autoSelectCash = false,
     },
     ref
   ) => {
@@ -165,6 +167,29 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
 
       return () => observer.disconnect();
     }, [hasMore, loading, loadingMore, isOpen]);
+
+    // Auto-select cash party
+    useEffect(() => {
+      if (autoSelectCash && !value && filteredCustomers.length > 0) {
+        const cashParty = filteredCustomers.find(p => (p as any).type === "cash" || p.name.toLowerCase().includes("cash"));
+        if (cashParty) {
+          onValueChange(getPartyId(cashParty), cashParty);
+        }
+      }
+    }, [filteredCustomers, value, autoSelectCash, onValueChange]);
+
+    useEffect(() => {
+      const handleLocalIdReplaced = (e: any) => {
+        const { collection, oldId, newId } = e.detail;
+        if (collection === "parties" && value === oldId) {
+          const newParty = filteredCustomers.find(p => getPartyId(p) === newId) || { id: newId, name: "" };
+          onValueChange(newId, newParty as Party);
+        }
+      };
+
+      window.addEventListener("localIdReplaced", handleLocalIdReplaced);
+      return () => window.removeEventListener("localIdReplaced", handleLocalIdReplaced);
+    }, [value, filteredCustomers, onValueChange]);
 
     const resetForm = () => {
       setNewPartyName("");
@@ -285,6 +310,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />

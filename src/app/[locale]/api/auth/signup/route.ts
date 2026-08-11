@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create default shop for user", err);
     }
 
-    // Create default party: Walk In Customer
+    // Create default party: Cash Sale
     try {
       const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
       await partiesCollection.insertOne({
-        name: "Walk In Customer",
+        name: "Cash Sale",
         type: "cash",
         user_id: newUser?._id,
         company_name: companyName,
@@ -143,14 +143,17 @@ export async function POST(request: NextRequest) {
 
     // Create default payment method: Cash in Hand
     try {
-      const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+      const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
       await paymentMethodsCollection.insertOne({
         user_id: newUser?._id,
         bank_name: "Cash in Hand",
         bank_details: "Auto-created cash account",
         opening_balance: 0,
+        current_balance: 0,
         created_at: new Date(),
         updated_at: new Date(),
+        is_default: true,
+        status: "active"
       });
     } catch (err) {
       // Log but don't block signup

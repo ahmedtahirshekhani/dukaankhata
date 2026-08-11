@@ -52,6 +52,7 @@ export default function SettingsPage({
   const [deleteError, setDeleteError] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
 
+
   // Feature Switches State
   const [enableCounterSale, setEnableCounterSale] = useState(true);
   const [enableAiChat, setEnableAiChat] = useState(true);
@@ -298,12 +299,14 @@ export default function SettingsPage({
       // Redirect to home
       setShowDeleteModal(false);
       router.push(`/${params.locale}`);
-    } catch (err: any) {
-      setDeleteError(err?.message || t("accountDeleteFailed"));
+    } catch (error: any) {
+      setDeleteError(error.message || t("accountDeleteFailed"));
     } finally {
       setIsDeleting(false);
     }
   };
+
+
 
   return (
     <ProtectedRoute locale={params.locale}>
@@ -364,36 +367,6 @@ export default function SettingsPage({
               </form>
             </CardContent>
           </Card>
-
-          {/* <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Feature Modules</CardTitle>
-              <CardDescription>Enable or disable specific features across the application</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Counter Sale</Label>
-                  <p className="text-sm text-gray-500">Enable counter sale module for quick transactions.</p>
-                </div>
-                <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>AI Chat</Label>
-                  <p className="text-sm text-gray-500">Enable AI chat assistance.</p>
-                </div>
-                <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>WhatsApp Integration</Label>
-                  <p className="text-sm text-gray-500">Enable WhatsApp messaging capabilities.</p>
-                </div>
-                <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
-              </div>
-            </CardContent>
-          </Card> */}
 
           <Card className="mt-8">
             <CardHeader>
@@ -491,15 +464,20 @@ export default function SettingsPage({
           <Card className="mt-8 border-red-200 bg-red-50/50">
             <CardHeader>
               <CardTitle className="text-red-600">{t("dangerZone")}</CardTitle>
-              <CardDescription>{t("deleteAccountDescription")}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button
-                onClick={() => setShowDeleteModal(true)}
-                className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
-              >
-                {t("deleteAccountButton")}
-              </Button>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 text-red-900/90">
+                  <h3 className="font-medium text-red-800">{t("deleteAccountTitle")}</h3>
+                  <p className="text-sm">{t("deleteAccountDescription")}</p>
+                </div>
+                <Button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="bg-red-600 hover:bg-red-700 w-full sm:w-auto shrink-0 shadow-sm"
+                >
+                  {t("deleteAccountButton")}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

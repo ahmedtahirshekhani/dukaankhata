@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
     // Lookup payment methods
     pipeline.push({
       $lookup: {
-        from: COLLECTIONS.PAYMENT_METHOD,
+        from: COLLECTIONS.PAYMENT_METHODS,
         localField: "payment_method_id",
         foreignField: "_id",
         as: "paymentMethod"
@@ -288,6 +288,7 @@ export async function POST(req: NextRequest) {
 
     // Increment stock for returned products
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const { adjustStock } = await import('@/lib/db/stock-manager');
     for (const item of lineItems) {
       if (!item.productId || !isValidObjectId(item.productId)) continue;
       
@@ -305,18 +306,7 @@ export async function POST(req: NextRequest) {
       const returnQty = item.quantity || 0;
       if (returnQty <= 0) continue;
 
-      const productQuantity = (productDoc as { quantity?: number }).quantity;
-      const productInStock = (productDoc as { in_stock?: number }).in_stock;
-      const stockField = productQuantity !== undefined && productQuantity !== null
-        ? "quantity"
-        : productInStock !== undefined && productInStock !== null
-          ? "in_stock"
-          : "quantity";
-
-      await productsCollection.updateOne(
-        { _id: toObjectId(item.productId) },
-        { $inc: { [stockField]: returnQty } }
-      );
+      await adjustStock(item.productId, user.id, returnQty);
     }
 
     await appendCustomerLedgerEntry({

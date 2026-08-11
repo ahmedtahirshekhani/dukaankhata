@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
-    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
 
     const filter = { user_id: toObjectId(user.id), type: type };
     

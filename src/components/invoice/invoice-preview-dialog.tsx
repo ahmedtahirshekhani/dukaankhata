@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -64,12 +65,9 @@ interface InvoicePreviewDialogProps {
   shippingCharges?: number;
   total: number;
   onMakePayment?: () => void;
-  onCreateOrder: (paymentDetails: {
-    paymentMethod: string;
-    paidAmount: number;
-    paidDate: string | null;
-    noPaymentAtAll: boolean;
-  }) => Promise<void> | void;
+  onWhatsApp?: () => Promise<void> | void;
+  isSendingWhatsApp?: boolean;
+  disableWhatsApp?: boolean;
   isCreatingOrder?: boolean;
   hidePaymentActions?: boolean;
   initialPayment?: {
@@ -99,7 +97,9 @@ export function InvoicePreviewDialog({
   shippingCharges = 0,
   total,
   onMakePayment,
-  onCreateOrder,
+  onWhatsApp,
+  isSendingWhatsApp = false,
+  disableWhatsApp = false,
   isCreatingOrder = false,
   hidePaymentActions = false,
   initialPayment = null,
@@ -141,6 +141,8 @@ export function InvoicePreviewDialog({
   const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">(
     "a4",
   );
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const getToday = () => {
     const d = new Date();
@@ -170,7 +172,7 @@ export function InvoicePreviewDialog({
       ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
       : null);
     setNoPaymentAtAll(initialPayment?.no_payment_at_all || false);
-    
+
     // Also update payment seed
     setPaymentSeed({
       amount: initialPayment?.paid_amount || total,
@@ -270,30 +272,30 @@ export function InvoicePreviewDialog({
       setCompanyEmail(email || initialCompanyEmail || "");
 
       // Update localStorage cache
-      if (logo) localStorage.setItem("companyLogo", logo);
-      else localStorage.removeItem("companyLogo");
+      if (logo) localStorage.setItem(`companyLogo_${wsId}`, logo);
+      else localStorage.removeItem(`companyLogo_${wsId}`);
 
-      if (sig) localStorage.setItem("invoiceSignature", sig);
-      else localStorage.removeItem("invoiceSignature");
+      if (sig) localStorage.setItem(`invoiceSignature_${wsId}`, sig);
+      else localStorage.removeItem(`invoiceSignature_${wsId}`);
 
-      if (addr) localStorage.setItem("companyAddress", addr);
-      else localStorage.removeItem("companyAddress");
+      if (addr) localStorage.setItem(`companyAddress_${wsId}`, addr);
+      else localStorage.removeItem(`companyAddress_${wsId}`);
 
-      if (name) localStorage.setItem("companyName", name);
-      else localStorage.removeItem("companyName");
+      if (name) localStorage.setItem(`companyName_${wsId}`, name);
+      else localStorage.removeItem(`companyName_${wsId}`);
 
-      if (phone) localStorage.setItem("companyPhone", phone);
-      else localStorage.removeItem("companyPhone");
+      if (phone) localStorage.setItem(`companyPhone_${wsId}`, phone);
+      else localStorage.removeItem(`companyPhone_${wsId}`);
 
-      if (email) localStorage.setItem("companyEmail", email);
-      else localStorage.removeItem("companyEmail");
+      if (email) localStorage.setItem(`companyEmail_${wsId}`, email);
+      else localStorage.removeItem(`companyEmail_${wsId}`);
     } catch (err) {
       console.error("branding fetch failed", err);
     }
   };
 
   useEffect(() => {
-    loadBranding(true); // Force fresh load on mount to avoid stale data from other pages
+    loadBranding(); // Use localStorage for immediate display, then background fetch
 
     const handleUpdate = () => {
       loadBranding();
@@ -306,51 +308,63 @@ export function InvoicePreviewDialog({
 
   const handleDownloadPdf = async () => {
     if (!invoiceRef.current) return;
-    const mod = await import("html2pdf.js");
-    const html2pdf = mod.default || mod;
+    setIsDownloading(true);
+    // Wait a tick for the DOM to update so zoom is removed
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    try {
+      const mod = await import("html2pdf.js");
+      const html2pdf = mod.default || mod;
 
-    let opt: any;
+      let opt: any;
 
-    switch (printFormat) {
-      case "thermal":
-        // Thermal printer (80mm width, common for receipts)
-        opt = {
-          margin: 5,
-          filename: `${invoiceNo || "preview"}_receipt.pdf`,
-          image: { type: "jpeg", quality: 0.95 },
-          html2canvas: { scale: 1.5 },
-          jsPDF: { unit: "mm", format: [80, 297], orientation: "portrait" },
-        };
-        break;
-      case "letter":
-        // US Letter size
-        opt = {
-          margin: 10,
-          filename: `${invoiceNo || "preview"}_letter.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
-        };
-        break;
-      case "a4":
-      default:
-        // A4 size (default)
-        opt = {
-          margin: 10,
-          filename: `${invoiceNo || "preview"}_a4.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        };
-        break;
+      switch (printFormat) {
+        case "thermal":
+          // Thermal printer (80mm width, common for receipts)
+          opt = {
+            margin: 5,
+            filename: `${invoiceNo || "preview"}_receipt.pdf`,
+            image: { type: "jpeg", quality: 0.95 },
+            html2canvas: { scale: 2, windowWidth: 320 },
+            jsPDF: { unit: "mm", format: [80, 297], orientation: "portrait" },
+          };
+          break;
+        case "letter":
+          // US Letter size
+          opt = {
+            margin: 10,
+            filename: `${invoiceNo || "preview"}_letter.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
+          };
+          break;
+        case "a4":
+        default:
+          // A4 size (default)
+          opt = {
+            margin: 10,
+            filename: `${invoiceNo || "preview"}_a4.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          };
+          break;
+      }
+
+      await html2pdf().set(opt).from(invoiceRef.current).save();
+    } catch (error) {
+      console.error("Download error:", error);
+    } finally {
+      setIsDownloading(false);
     }
-
-    html2pdf().set(opt).from(invoiceRef.current).save();
   };
 
   const handlePrintInvoice = async () => {
     if (!invoiceRef.current || typeof window === "undefined") return;
 
+    setIsPrinting(true);
+    // Wait a tick for the DOM to update so zoom is removed
+    await new Promise((resolve) => setTimeout(resolve, 50));
     try {
       const html2canvas = (await import("html2canvas")).default;
 
@@ -360,9 +374,9 @@ export function InvoicePreviewDialog({
 
       switch (printFormat) {
         case "thermal":
-          // 80mm width (approximately 226 pixels at 72 dpi)
-          windowWidth = 226;
-          scale = 1.5;
+          // 80mm width (approximately 302 pixels at 96 dpi)
+          windowWidth = 320;
+          scale = 2;
           break;
         case "letter":
           // 8.5 inches (612 pixels)
@@ -400,15 +414,46 @@ export function InvoicePreviewDialog({
         return;
       }
 
+      // Calculate physical height in mm based on width
+      const imgWidthMm = printFormat === "thermal" ? 80 : (printFormat === "letter" ? 215.9 : 210);
+      const pxPerMm = canvas.width / imgWidthMm;
+      const imgHeightMm = Math.ceil(canvas.height / pxPerMm);
+
+      let pageCss = '';
+      let imgCss = '';
+      if (printFormat === "thermal") {
+        pageCss = `@page { margin: 0mm !important; size: 80mm ${imgHeightMm}mm; }`;
+        imgCss = `width: 80mm !important; max-width: 100%; margin: 0;`;
+      } else if (printFormat === "letter") {
+        pageCss = `@page { margin: 0mm !important; size: letter portrait; }`;
+        imgCss = `width: calc(100% - 20mm); margin: 0 auto;`;
+      } else {
+        pageCss = `@page { margin: 0mm !important; size: A4 portrait; }`;
+        imgCss = `width: calc(100% - 20mm); margin: 0 auto;`;
+      }
+
       iframeDoc.write(`
         <!DOCTYPE html>
         <html>
           <head>
             <title>${invoiceNo || "Invoice"}</title>
             <style>
-              @page { margin: 0; }
-              body { margin: 10mm; padding: 0; background: white; }
-              img { max-width: 100%; height: auto; display: block; }
+              @media print {
+                ${pageCss}
+                body { margin: 0 !important; padding: 0 !important; background: white; }
+                img { 
+                  ${imgCss}
+                  height: auto; 
+                  display: block; 
+                  break-inside: auto;
+                  page-break-inside: auto;
+                  break-before: avoid;
+                  page-break-before: avoid;
+                }
+              }
+              /* Screen styles (just in case) */
+              body { margin: 0; background: white; }
+              img { ${imgCss} height: auto; display: block; }
             </style>
           </head>
           <body>
@@ -430,6 +475,8 @@ export function InvoicePreviewDialog({
       }, 300);
     } catch (error) {
       console.error("Print error:", error);
+    } finally {
+      setIsPrinting(false);
     }
   };
 
@@ -455,9 +502,8 @@ export function InvoicePreviewDialog({
     <React.Fragment>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`max-h-[90vh] overflow-y-auto overflow-x-hidden w-[95vw] sm:w-full ${
-            printFormat === "thermal" ? "max-w-3xl" : "max-w-4xl"
-          } p-3 sm:p-6 transition-all duration-300`}
+          className={`max-h-[90vh] overflow-y-auto overflow-x-hidden w-[95vw] sm:w-full ${printFormat === "thermal" ? "max-w-3xl" : "max-w-4xl"
+            } p-3 sm:p-6 transition-all duration-300`}
         >
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">
@@ -465,21 +511,17 @@ export function InvoicePreviewDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div
-            className={
-              hidePaymentActions
-                ? "flex flex-col gap-4"
-                : "flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6"
-            }
-          >
-            <div
-              className={
-                hidePaymentActions 
-                  ? "w-full overflow-x-auto" 
-                  : "lg:col-span-2 overflow-x-auto overflow-y-hidden pb-4 custom-scrollbar max-w-full"
-              }
-            >
-              <div className={`md:min-w-0 inline-block w-full transition-all duration-300 ${printFormat === 'thermal' ? 'max-w-[320px] mx-auto block' : ''}`}>
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
+            <div className="lg:col-span-2 overflow-auto pb-4 custom-scrollbar max-w-full">
+              <div
+                className="md:min-w-0 inline-block transition-all duration-300 mx-auto block origin-top"
+                style={{
+                  width: printFormat === 'thermal' ? '100%' : (printFormat === 'letter' ? '816px' : '794px'),
+                  maxWidth: printFormat === 'thermal' ? '320px' : 'none',
+                  minWidth: printFormat === 'thermal' ? '0' : (printFormat === 'letter' ? '816px' : '794px'),
+                  zoom: (isPrinting || isDownloading) ? 1 : (printFormat === 'thermal' ? 1 : 0.65),
+                }}
+              >
                 <InvoicePreview
                   ref={invoiceRef}
                   invoiceNo={invoiceNo}
@@ -505,288 +547,255 @@ export function InvoicePreviewDialog({
                   companyEmail={companyEmail}
                   customerNotes={customerNotes}
                   printFormat={printFormat}
+                  isScreen={!(isPrinting || isDownloading)}
                 />
               </div>
             </div>
 
-            {hidePaymentActions ? (
-              <div className="flex flex-col gap-3 sm:gap-4 pt-2 sm:pt-4">
-                <div className="space-y-2 sm:space-y-3">
-                  <Label className="text-xs sm:text-sm font-medium">
-                    {t("printFormat")}
-                  </Label>
-                  <div className="flex flex-col gap-1.5 sm:gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="printFormat"
-                        value="a4"
-                        checked={printFormat === "a4"}
-                        onChange={(e) => setPrintFormat("a4")}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-xs sm:text-sm">
-                        {t("a4SizeStandard")}
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="printFormat"
-                        value="thermal"
-                        checked={printFormat === "thermal"}
-                        onChange={(e) => setPrintFormat("thermal")}
-                        className="w-3 h-3 sm:w-4 sm:h-4"
-                      />
-                      <span className="text-xs sm:text-sm">
-                        {t("thermalReceipt80mm")}
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="printFormat"
-                        value="letter"
-                        checked={printFormat === "letter"}
-                        onChange={(e) => setPrintFormat("letter")}
-                        className="w-3 h-3 sm:w-4 sm:h-4"
-                      />
-                      <span className="text-xs sm:text-sm">
-                        {t("letterSizeUS")}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Party Signature Toggle */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 mt-2">
-                  <div className="space-y-0.5">
-                    <Label className="text-xs sm:text-sm font-bold text-slate-700">Party Signature</Label>
-                    <p className="text-[10px] text-muted-foreground italic">Show &quot;Sign Here&quot; box for customer</p>
-                  </div>
-                  <Switch 
-                    checked={requestCustomerSignature} 
-                    onCheckedChange={setRequestCustomerSignature}
-                  />
-                </div>
-                
-                {/* UPDATED: Smaller buttons with consistent sizing */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    onClick={handlePrintInvoice}
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-[11px] h-8"
-                    disabled={isCreatingOrder}
-                  >
-                    <Printer className="h-3 w-3 mr-1.5" />
-                    {tCommon("print")}
-                  </Button>
-                  <Button
-                    onClick={handleDownloadPdf}
-                    variant="default"
-                    size="sm"
-                    className="w-full text-[11px] h-8"
-                    disabled={isCreatingOrder}
-                  >
-                    <Download className="h-3 w-3 mr-1.5" />
-                    {t("downloadInvoice")}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="lg:col-span-1">
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
-                    <Label className="text-xs sm:text-sm">
-                      {t("includeSignatureInInvoice")}
+            <div className="space-y-4 lg:space-y-6">
+              {hidePaymentActions ? (
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  <div className="space-y-2 sm:space-y-3">
+                    <Label className="text-xs sm:text-sm font-medium">
+                      {t("printFormat")}
                     </Label>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={includeSignature}
-                      onClick={() => setIncludeSignature((v) => !v)}
-                      className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${includeSignature ? "bg-primary" : "bg-gray-300"}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white shadow transform transition-transform ${includeSignature ? "translate-x-4 sm:translate-x-5" : "translate-x-1"}`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
-                    <Label className="text-xs sm:text-sm">
-                      {t("requestCustomerSignature")}
-                    </Label>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={requestCustomerSignature}
-                      onClick={() => setRequestCustomerSignature((v) => !v)}
-                      className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${requestCustomerSignature ? "bg-primary" : "bg-gray-300"}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white shadow transform transition-transform ${requestCustomerSignature ? "translate-x-4 sm:translate-x-5" : "translate-x-1"}`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 pt-2 border-t">
-                    <Label className="text-xs font-medium text-slate-500 mb-1 block">Payment Details</Label>
-                    {!noPaymentAtAll && (
-                      isPaymentMade ? (
-                        <Button
-                          onClick={() => {
-                            setPaymentSeed(editPaymentSeed);
-                            setPaymentDialogOpen(true);
-                          }}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          {t("editPayment")}
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={() => {
-                            setPaymentSeed(newPaymentSeed);
-                            setNoPaymentAtAll(false);
-                            setPaymentDialogOpen(true);
-                          }}
-                          className="w-full"
-                          variant="default"
-                        >
-                          Make Payment
-                        </Button>
-                      )
-                    )}
-                    <div className="flex items-center gap-2 px-2 pt-1">
-                      <input
-                        type="checkbox"
-                        id="no-payment"
-                        checked={noPaymentAtAll}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setNoPaymentAtAll(checked);
-                          if (checked) {
-                            setPaidAmount(0);
-                            setPaidDate(null);
-                          }
-                        }}
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded"
-                      />
-                      <label
-                        htmlFor="no-payment"
-                        className="text-xs sm:text-sm cursor-pointer"
-                      >
-                        {t("noPaymentAtAll")}
+                    <div className="flex flex-col gap-1.5 sm:gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="printFormat"
+                          value="a4"
+                          checked={printFormat === "a4"}
+                          onChange={(e) => setPrintFormat("a4")}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-xs sm:text-sm">
+                          {t("a4SizeStandard")}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="printFormat"
+                          value="thermal"
+                          checked={printFormat === "thermal"}
+                          onChange={(e) => setPrintFormat("thermal")}
+                          className="w-3 h-3 sm:w-4 sm:h-4"
+                        />
+                        <span className="text-xs sm:text-sm">
+                          {t("thermalReceipt80mm")}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="printFormat"
+                          value="letter"
+                          checked={printFormat === "letter"}
+                          onChange={(e) => setPrintFormat("letter")}
+                          className="w-3 h-3 sm:w-4 sm:h-4"
+                        />
+                        <span className="text-xs sm:text-sm">
+                          {t("letterSizeUS") || "Letter Size (US)"}
+                        </span>
                       </label>
                     </div>
                   </div>
 
-                  <div>
-                    <Button
-                      onClick={async () => {
-                        if (isCreatingRef.current || isCreatingOrder) return;
-                        isCreatingRef.current = true;
-                        try {
-                          await onCreateOrder({
-                            paymentMethod,
-                            paidAmount,
-                            paidDate,
-                            noPaymentAtAll,
-                          });
-                        } finally {
-                          isCreatingRef.current = false;
-                        }
-                      }}
-                      variant="default"
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      disabled={isActionDisabled}
-                    >
-                      {isCreatingOrder ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          {t("creatingOrder")}
-                        </>
-                      ) : (
-                        t("createOrder")
-                      )}
-                    </Button>
+                  {/* Party Signature Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 mt-2">
+                    <div className="space-y-0.5">
+                      <Label className="text-xs sm:text-sm font-bold text-slate-700">Party Signature</Label>
+                      <p className="text-[10px] text-muted-foreground italic">Show &quot;Sign Here&quot; box for customer</p>
+                    </div>
+                    <Switch
+                      checked={requestCustomerSignature}
+                      onCheckedChange={setRequestCustomerSignature}
+                    />
                   </div>
 
-                  <div className="pt-2 border-t">
-                    <div className="space-y-2 mb-3">
-                      <Label className="text-xs font-medium">
-                        {t("printFormat")}
-                      </Label>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="printFormat"
-                            value="a4"
-                            checked={printFormat === "a4"}
-                            onChange={(e) => setPrintFormat("a4")}
-                            className="w-3 h-3"
-                          />
-                          <span className="text-xs flex items-center gap-1.5">{t("a4Size")}</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="printFormat"
-                            value="thermal"
-                            checked={printFormat === "thermal"}
-                            onChange={(e) => setPrintFormat("thermal")}
-                            className="w-3 h-3"
-                          />
-                          <span className="text-xs flex items-center gap-1.5">
-                            <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
-                            {t("thermalReceipt")}
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="printFormat"
-                            value="letter"
-                            checked={printFormat === "letter"}
-                            onChange={(e) => setPrintFormat("letter")}
-                            className="w-3 h-3"
-                          />
-                          <span className="text-xs flex items-center gap-1.5">{t("letterSize")}</span>
-                        </label>
-                      </div>
-                    </div>
-                    
-                    {/* UPDATED: Smaller buttons with consistent sizing */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        onClick={handlePrintInvoice}
-                        variant="outline"
-                        size="sm"
-                        className="w-24 text-[11px] h-8"
-                        disabled={isCreatingOrder}
-                      >
+                  {/* UPDATED: Smaller buttons with consistent sizing */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={handlePrintInvoice}
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-[11px] h-8"
+                      disabled={isPrinting || isCreatingOrder}
+                    >
+                      {isPrinting ? (
+                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                      ) : (
                         <Printer className="h-3 w-3 mr-1.5" />
-                        {tCommon("print")}
-                      </Button>
-                      <Button
-                        onClick={handleDownloadPdf}
-                        variant="outline"
-                        size="sm"
-                        className="w-24 text-[11px] h-8"
-                        disabled={isCreatingOrder}
-                      >
+                      )}
+                      {tCommon("print")}
+                    </Button>
+                    <Button
+                      onClick={handleDownloadPdf}
+                      variant="default"
+                      size="sm"
+                      className="w-full text-[11px] h-8"
+                      disabled={isDownloading || isCreatingOrder}
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                      ) : (
                         <Download className="h-3 w-3 mr-1.5" />
-                        {t("downloadInvoice")}
-                      </Button>
+                      )}
+                      {t("downloadInvoice")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="lg:col-span-1">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
+                      <Label className="text-xs sm:text-sm">
+                        {t("includeSignatureInInvoice")}
+                      </Label>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={includeSignature}
+                        onClick={() => setIncludeSignature((v) => !v)}
+                        className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${includeSignature ? "bg-primary" : "bg-gray-300"}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white shadow transform transition-transform ${includeSignature ? "translate-x-4 sm:translate-x-5" : "translate-x-1"}`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between px-1 gap-2 sm:gap-3">
+                      <Label className="text-xs sm:text-sm">
+                        {t("requestCustomerSignature")}
+                      </Label>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={requestCustomerSignature}
+                        onClick={() => setRequestCustomerSignature((v) => !v)}
+                        className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${requestCustomerSignature ? "bg-primary" : "bg-gray-300"}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white shadow transform transition-transform ${requestCustomerSignature ? "translate-x-4 sm:translate-x-5" : "translate-x-1"}`}
+                        />
+                      </button>
+                    </div>
+
+
+                    <div className="pt-2 border-t">
+                      <div className="space-y-2 mb-3">
+                        <Label className="text-xs font-medium">
+                          {t("printFormat")}
+                        </Label>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="printFormat"
+                              value="a4"
+                              checked={printFormat === "a4"}
+                              onChange={(e) => setPrintFormat("a4")}
+                              className="w-3 h-3"
+                            />
+                            <span className="text-xs flex items-center gap-1.5">{t("a4Size")}</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="printFormat"
+                              value="thermal"
+                              checked={printFormat === "thermal"}
+                              onChange={(e) => setPrintFormat("thermal")}
+                              className="w-3 h-3"
+                            />
+                            <span className="text-xs flex items-center gap-1.5">
+                              <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
+                              {t("thermalReceipt")}
+                            </span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="printFormat"
+                              value="letter"
+                              checked={printFormat === "letter"}
+                              onChange={(e) => setPrintFormat("letter")}
+                              className="w-3 h-3"
+                            />
+                            <span className="text-xs flex items-center gap-1.5">{t("letterSize")}</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* UPDATED: Smaller buttons with consistent sizing */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          onClick={handlePrintInvoice}
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-[11px] h-8"
+                          disabled={isPrinting}
+                        >
+                          {isPrinting ? (
+                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                          ) : (
+                            <Printer className="h-3 w-3 mr-1.5" />
+                          )}
+                          {tCommon("print")}
+                        </Button>
+                        <Button
+                          onClick={handleDownloadPdf}
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-[11px] h-8"
+                          disabled={isDownloading}
+                        >
+                          {isDownloading ? (
+                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3 mr-1.5" />
+                          )}
+                          {t("downloadInvoice")}
+                        </Button>
+                      </div>
+                      {onWhatsApp && (
+                        <Button
+                          onClick={onWhatsApp}
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-[11px] h-8 mt-2"
+                          disabled={isSendingWhatsApp || disableWhatsApp}
+                        >
+                          {isSendingWhatsApp ? (
+                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                          ) : (
+                            <span className="flex items-center">
+                              <svg className="w-3 h-3 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                              </svg>
+                              {t("sendInvoicePdfOnWhatsApp")}
+                            </span>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
+
+          <DialogFooter className="mt-4 sm:mt-0 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto"
+            >
+              {tCommon("close") || "Close"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

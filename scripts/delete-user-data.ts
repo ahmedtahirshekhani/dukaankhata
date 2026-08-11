@@ -65,7 +65,7 @@ async function deleteUserData(db: Db, userId: string, dryRun: boolean): Promise<
 
   await deleteCollection("products", COLLECTIONS.PRODUCTS);
   await deleteCollection("parties", COLLECTIONS.PARTIES);
-  await deleteCollection("payment_method", COLLECTIONS.PAYMENT_METHOD);
+  await deleteCollection("payment_methods", COLLECTIONS.PAYMENT_METHODS);
   await deleteCollection("orders", COLLECTIONS.ORDERS);
   await deleteCollection("party_transaction", COLLECTIONS.PARTY_TRANSACTIONS);
   await deleteCollection("vendor_transaction", COLLECTIONS.VENDOR_TRANSACTIONS);
@@ -112,14 +112,14 @@ async function deleteUserData(db: Db, userId: string, dryRun: boolean): Promise<
   const userDeleteCount = dryRun
     ? await usersCollection.countDocuments({ _id: userObjectId })
     : (await usersCollection.updateOne(
-        { _id: userObjectId },
-        {
-          $set: {
-            isDeleted: false,
-            deletedAt: new Date(),
-          },
-        }
-      )).matchedCount ?? 0;
+      { _id: userObjectId },
+      {
+        $set: {
+          isDeleted: false,
+          deletedAt: new Date(),
+        },
+      }
+    )).matchedCount ?? 0;
   results.push({ label: "users_flagged", deletedCount: userDeleteCount });
 
   return results;

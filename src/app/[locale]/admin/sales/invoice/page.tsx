@@ -56,6 +56,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { InvoicePreviewDialog } from "@/components/invoice/invoice-preview-dialog";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -274,48 +275,53 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
     setLoading(true);
     try {
       const payload = {
-          customerId,
-          saleDate,
-          dueDate: dueDate || null,
-          invoiceNo,
-          products: products.map(p => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            quantity: p.quantity,
-            quantity_str: p.quantityInput || String(p.quantity),
-            quantityType: p.quantityType,
-            price: p.sell_price,
-            discount: p.discount,
-            discountType: p.discountType,
-            unit_of_measurement: p.unit_of_measurement,
-          })),
-          subtotal,
-          charges: charges.map(c => ({ item: c.item, value: c.value })),
-          overallDiscount,
-          shippingCharges,
-          total,
-          payment: {
-            method: payment.method,
-            paidAmount: payment.paidAmount,
-            paidDate: payment.paidDate || null,
-            noPaymentAtAll: payment.noPaymentAtAll,
-          },
-          customerNotes,
+        customerId,
+        saleDate,
+        dueDate: dueDate || null,
+        invoiceNo,
+        products: products.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          quantity: p.quantity,
+          quantity_str: p.quantityInput || String(p.quantity),
+          quantityType: p.quantityType,
+          price: p.sell_price,
+          discount: p.discount,
+          discountType: p.discountType,
+          unit_of_measurement: p.unit_of_measurement,
+        })),
+        subtotal,
+        charges: charges.map(c => ({ item: c.item, value: c.value })),
+        overallDiscount,
+        shippingCharges,
+        total,
+        payment: {
+          method: payment.method,
+          paidAmount: payment.paidAmount,
+          paidDate: payment.paidDate || null,
+          noPaymentAtAll: payment.noPaymentAtAll,
+        },
+        customerNotes,
       };
 
       // 1. Revert Old Stock
       if (order.items && Array.isArray(order.items)) {
-         for (const item of order.items) {
-           if (item.product_id) {
-             const productDoc = await db.products.get(item.product_id.toString());
-             if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
-             }
-           }
-         }
+        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        for (const item of order.items) {
+          if (item.product_id) {
+            const productDoc = await db.products.get(item.product_id.toString());
+            if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+              if (item.quantityType === "damaged") {
+                const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+              } else {
+                await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+              }
+            }
+          }
+        }
       }
 
       // 2. Revert Old Balance
@@ -326,13 +332,18 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
       }
 
       // 3. Apply New Stock
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const p of products) {
         if (!p.type || p.type === "goods" || p.type === "good") {
-          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
           const productDoc = await db.products.get(p.id.toString());
           if (productDoc) {
-             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+            if (p.quantityType === "damaged") {
+              const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+              const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+              await db.products.update(p.id.toString(), { damaged_quantity: newQty });
+            } else {
+              await adjustOfflineStock(p.id.toString(), -(Number(p.quantity) || 0));
+            }
           }
         }
       }
@@ -356,10 +367,10 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
         overallDiscount: overallDiscount,
         shippingCharges: shippingCharges,
         payment: payment.noPaymentAtAll ? null : {
-           method: payment.method,
-           paid_amount: payment.paidAmount || 0,
-           paid_date: payment.paidDate || null,
-           no_payment_at_all: payment.noPaymentAtAll
+          method: payment.method,
+          paid_amount: payment.paidAmount || 0,
+          paid_date: payment.paidDate || null,
+          no_payment_at_all: payment.noPaymentAtAll
         },
         updated_at: new Date().toISOString(),
         items: products.map(p => ({
@@ -376,7 +387,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
         })),
         customer_notes: customerNotes
       };
-      
+
       await db.orders.put(updatedOrder);
 
       // 6. Sync to server
@@ -396,301 +407,301 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:w-[90vw] md:max-w-5xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="text-base sm:text-lg">{t("editOrder")} - {order?.invoice_no || `ORD-${order?.id}`}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            <div>
-              <Label className="text-xs sm:text-sm">{t("customer")}</Label>
-              <PartyDropdown value={customerId} onValueChange={setCustomerId} placeholder={t("selectCustomer")} />
+        <DialogContent className="w-[95vw] sm:w-[90vw] md:max-w-5xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base sm:text-lg">{t("editOrder")} - {order?.invoice_no || `ORD-${order?.id}`}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <div>
+                <Label className="text-xs sm:text-sm">{t("customer")}</Label>
+                <PartyDropdown value={customerId} onValueChange={setCustomerId} placeholder={t("selectCustomer")} />
+              </div>
+              <div>
+                <Label className="text-xs sm:text-sm">{t("saleDate")}</Label>
+                <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="h-9 sm:h-10 text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs sm:text-sm">{t("dueDate")}</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9 sm:h-10 text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs sm:text-sm">{t("invoiceNo")}</Label>
+                <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="h-9 sm:h-10 text-sm" />
+              </div>
             </div>
-            <div>
-              <Label className="text-xs sm:text-sm">{t("saleDate")}</Label>
-              <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="h-9 sm:h-10 text-sm" />
-            </div>
-            <div>
-              <Label className="text-xs sm:text-sm">{t("dueDate")}</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9 sm:h-10 text-sm" />
-            </div>
-            <div>
-              <Label className="text-xs sm:text-sm">{t("invoiceNo")}</Label>
-              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="h-9 sm:h-10 text-sm" />
-            </div>
-          </div>
 
-          {/* Products Table */}
-          <div>
-            <Label className="mb-2 block text-sm font-semibold">{t("products")}</Label>
-            
-            {/* Desktop Table View */}
-            <div className="hidden md:block border rounded-md overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("product")}</TableHead>
-                    <TableHead>{t("price")}</TableHead>
-                    <TableHead>{t("quantity")}</TableHead>
-                    <TableHead>{t("type")}</TableHead>
-                    <TableHead>{t("discount")}</TableHead>
-                    <TableHead>{t("total")}</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((p, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="min-w-[150px]">
-                        <div className="font-medium">{p.name}</div>
-                        {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <Input type="text" inputMode="decimal" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
-                      </TableCell>
-                      <TableCell>
-                        <Input type="text" inputMode="decimal" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
-                      </TableCell>
-                      <TableCell>
-                        <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
-                          <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="prime">{t("prime")}</SelectItem>
-                            <SelectItem value="damaged">{t("damaged")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="flex gap-1">
-                        <Input type="number" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
-                        <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
-                          <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="value">PKR</SelectItem>
-                            <SelectItem value="percentage">%</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-sm">{Math.floor(calculateLineTotal(p))}</TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="danger" 
-                          size="icon" 
-                          onClick={() => handleRemoveProduct(idx)}
-                          disabled={products.length <= 1 && p.quantity <= 1}
-                          className="h-8 w-8"
-                        >
-                          <XIcon className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
+            {/* Products Table */}
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">{t("products")}</Label>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block border rounded-md overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("product")}</TableHead>
+                      <TableHead>{t("price")}</TableHead>
+                      <TableHead>{t("quantity")}</TableHead>
+                      <TableHead>{t("type")}</TableHead>
+                      <TableHead>{t("discount")}</TableHead>
+                      <TableHead>{t("total")}</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
-              {products.map((p, idx) => (
-                <Card key={idx} className="p-3 border shadow-sm">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div className="max-w-[80%]">
-                        <p className="font-semibold text-sm leading-tight">{p.name}</p>
-                        {p.description && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{p.description}</p>}
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleRemoveProduct(idx)}
-                        disabled={products.length <= 1 && p.quantity <= 1}
-                        className="h-6 w-6 p-0 text-red-500"
-                      >
-                        <XIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("price")}</Label>
-                        <Input 
-                          type="text" 
-                          inputMode="decimal"
-                          value={p.sell_price} 
-                          onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} 
-                          className="h-8 text-xs" 
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("quantity")}</Label>
-                        <Input 
-                          type="text" 
-                          inputMode="decimal"
-                          value={p.quantityInput ?? String(p.quantity)} 
-                          onChange={(e) => handleQuantityChange(idx, e.target.value)} 
-                          onBlur={() => handleQuantityBlur(idx)}
-                          className="h-8 text-xs" 
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("type")}</Label>
-                        <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="prime">{t("prime")}</SelectItem>
-                            <SelectItem value="damaged">{t("damaged")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex flex-col">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("discount")}</Label>
-                        <div className="flex gap-1">
-                          <Input 
-                            type="number" 
-                            value={p.discount} 
-                            onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} 
-                            className="h-8 text-xs flex-1" 
-                          />
-                          <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
-                            <SelectTrigger className="h-8 w-12 text-xs px-1"><SelectValue /></SelectTrigger>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((p, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="min-w-[150px]">
+                          <div className="font-medium">{p.name}</div>
+                          {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
+                        </TableCell>
+                        <TableCell>
+                          <Input type="text" inputMode="decimal" value={p.sell_price} onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm" />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="text" inputMode="decimal" value={p.quantityInput ?? String(p.quantity)} onChange={(e) => handleQuantityChange(idx, e.target.value)} onBlur={() => handleQuantityBlur(idx)} className="w-20 h-8 text-sm" />
+                        </TableCell>
+                        <TableCell>
+                          <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
+                            <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="value">Rs</SelectItem>
+                              <SelectItem value="prime">{t("prime")}</SelectItem>
+                              <SelectItem value="damaged">{t("damaged")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="flex gap-1">
+                          <Input type="number" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
+                          <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
+                            <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="value">PKR</SelectItem>
                               <SelectItem value="percentage">%</SelectItem>
                             </SelectContent>
                           </Select>
+                        </TableCell>
+                        <TableCell className="text-sm">{Math.floor(calculateLineTotal(p))}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="danger"
+                            size="icon"
+                            onClick={() => handleRemoveProduct(idx)}
+                            disabled={products.length <= 1 && p.quantity <= 1}
+                            className="h-8 w-8"
+                          >
+                            <XIcon className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={7}>
+                        <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {products.map((p, idx) => (
+                  <Card key={idx} className="p-3 border shadow-sm">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="max-w-[80%]">
+                          <p className="font-semibold text-sm leading-tight">{p.name}</p>
+                          {p.description && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{p.description}</p>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveProduct(idx)}
+                          disabled={products.length <= 1 && p.quantity <= 1}
+                          className="h-6 w-6 p-0 text-red-500"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("price")}</Label>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={p.sell_price}
+                            onChange={(e) => handleUpdateProduct(idx, "sell_price", parseFloat(e.target.value) || 0)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("quantity")}</Label>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={p.quantityInput ?? String(p.quantity)}
+                            onChange={(e) => handleQuantityChange(idx, e.target.value)}
+                            onBlur={() => handleQuantityBlur(idx)}
+                            className="h-8 text-xs"
+                          />
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <span className="text-xs font-medium text-muted-foreground">{t("total")}</span>
-                      <span className="text-sm font-bold">Rs. {Math.floor(calculateLineTotal(p))}</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-              <div className="pt-2">
-                <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
-              </div>
-            </div>
-          </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("type")}</Label>
+                          <Select value={p.quantityType} onValueChange={(val) => handleUpdateProduct(idx, "quantityType", val)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="prime">{t("prime")}</SelectItem>
+                              <SelectItem value="damaged">{t("damaged")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex flex-col">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("discount")}</Label>
+                          <div className="flex gap-1">
+                            <Input
+                              type="number"
+                              value={p.discount}
+                              onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)}
+                              className="h-8 text-xs flex-1"
+                            />
+                            <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
+                              <SelectTrigger className="h-8 w-12 text-xs px-1"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="value">Rs</SelectItem>
+                                <SelectItem value="percentage">%</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
 
-          {/* Charges */}
-          <div className="space-y-2">
-            <Label className="block text-sm font-semibold">{t("charges")}</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {charges.map((ch, idx) => (
-                <div key={ch.id} className="flex gap-2 items-end p-2 border rounded-md bg-muted/20">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase">{t("chargeName")}</Label>
-                    <Input placeholder={t("chargeName")} value={ch.item} onChange={(e) => handleUpdateCharge(idx, "item", e.target.value)} className="h-8 text-xs" />
-                  </div>
-                  <div className="w-24 space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase">{t("amount")}</Label>
-                    <Input type="number" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(idx)} className="h-8 w-8 text-red-500"><XIcon className="w-4 h-4" /></Button>
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <span className="text-xs font-medium text-muted-foreground">{t("total")}</span>
+                        <span className="text-sm font-bold">Rs. {Math.floor(calculateLineTotal(p))}</span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                <div className="pt-2">
+                  <ProductDropdown resetOnChange value="" onValueChange={(val, prod) => prod && handleAddProduct(val, prod)} placeholder={t("addProduct")} />
                 </div>
-              ))}
-            </div>
-            <Button variant="outline" size="sm" onClick={handleAddCharge} className="w-full sm:w-auto h-8 text-xs mt-2">
-              <Plus className="w-4 h-4 mr-1" />{t("addCharge")}
-            </Button>
-          </div>
-
-          {/* Discount & Shipping */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs sm:text-sm font-semibold">{t("overallDiscount")}</Label>
-              <div className="flex gap-2">
-                <Input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
-                <Select value={overallDiscountType} onValueChange={(val: any) => setOverallDiscountType(val)}>
-                  <SelectTrigger className="w-24 h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="value">PKR</SelectItem>
-                    <SelectItem value="percentage">%</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
-            <div>
-              <Label className="text-xs sm:text-sm font-semibold">{t("shippingCharges")}</Label>
-              <Input type="number" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
-            </div>
-          </div>
 
-          {/* Payment */}
-          <div className="space-y-3">
-            <Label className="block text-sm font-semibold">{t("payment")}</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {!payment.noPaymentAtAll && (
-                <>
-                  <div className="sm:col-span-1">
-                    <Label className="text-xs sm:text-sm">{t("paymentMethod")}</Label>
-                    <PaymentMethodDropdown
-                      value={payment.method}
-                      onValueChange={(val) => setPayment({ ...payment, method: val })}
-                      placeholder={t("selectMethod") || "Select Method"}
-                      enableSearch={true}
-                      searchPlaceholder="Search payment method..."
-                      noResultsText="No payment methods found"
-                      addButtonPosition="bottom"
-                      includeDefaultMethods={true}
-                    />
+            {/* Charges */}
+            <div className="space-y-2">
+              <Label className="block text-sm font-semibold">{t("charges")}</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {charges.map((ch, idx) => (
+                  <div key={ch.id} className="flex gap-2 items-end p-2 border rounded-md bg-muted/20">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-[10px] text-muted-foreground uppercase">{t("chargeName")}</Label>
+                      <Input placeholder={t("chargeName")} value={ch.item} onChange={(e) => handleUpdateCharge(idx, "item", e.target.value)} className="h-8 text-xs" />
+                    </div>
+                    <div className="w-24 space-y-1">
+                      <Label className="text-[10px] text-muted-foreground uppercase">{t("amount")}</Label>
+                      <Input type="number" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(idx)} className="h-8 w-8 text-red-500"><XIcon className="w-4 h-4" /></Button>
                   </div>
-                  <div className="sm:col-span-1">
-                    <Label className="text-xs sm:text-sm">{t("paidAmount")}</Label>
-                    <Input
-                      type="number"
-                      value={payment.paidAmount}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        if (val > total) {
-                          setErrorMessage(t("paidAmountExceedsTotal"));
-                          setShowErrorDialog(true);
-                        }
-                        setPayment({ ...payment, paidAmount: val });
-                      }}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <Label className="text-xs sm:text-sm">{t("paidDate")}</Label>
-                    <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} className="h-9 text-sm" />
-                  </div>
-                </>
-              )}
-              <div className="flex items-center gap-2 col-span-full pt-1">
-                <input type="checkbox" id="noPayment" checked={payment.noPaymentAtAll} onChange={(e) => setPayment({ ...payment, noPaymentAtAll: e.target.checked })} className="h-4 w-4 rounded" />
-                <Label htmlFor="noPayment" className="text-sm font-medium cursor-pointer">{t("noPaymentAtAll")}</Label>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={handleAddCharge} className="w-full sm:w-auto h-8 text-xs mt-2">
+                <Plus className="w-4 h-4 mr-1" />{t("addCharge")}
+              </Button>
+            </div>
+
+            {/* Discount & Shipping */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs sm:text-sm font-semibold">{t("overallDiscount")}</Label>
+                <div className="flex gap-2">
+                  <Input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
+                  <Select value={overallDiscountType} onValueChange={(val: any) => setOverallDiscountType(val)}>
+                    <SelectTrigger className="w-24 h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="value">PKR</SelectItem>
+                      <SelectItem value="percentage">%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs sm:text-sm font-semibold">{t("shippingCharges")}</Label>
+                <Input type="number" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
               </div>
             </div>
-          </div>
 
-          {/* Customer Notes */}
-          <div>
-            <Label>{t("customerNotes")}</Label>
-            <textarea className="w-full border rounded-md p-2" rows={3} value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} />
-          </div>
+            {/* Payment */}
+            <div className="space-y-3">
+              <Label className="block text-sm font-semibold">{t("payment")}</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {!payment.noPaymentAtAll && (
+                  <>
+                    <div className="sm:col-span-1">
+                      <Label className="text-xs sm:text-sm">{t("paymentMethod")}</Label>
+                      <PaymentMethodDropdown
+                        value={payment.method}
+                        onValueChange={(val) => setPayment({ ...payment, method: val })}
+                        placeholder={t("selectMethod") || "Select Method"}
+                        enableSearch={true}
+                        searchPlaceholder="Search payment method..."
+                        noResultsText="No payment methods found"
+                        addButtonPosition="bottom"
+                        includeDefaultMethods={true}
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <Label className="text-xs sm:text-sm">{t("paidAmount")}</Label>
+                      <Input
+                        type="number"
+                        value={payment.paidAmount}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          if (val > total) {
+                            setErrorMessage(t("paidAmountExceedsTotal"));
+                            setShowErrorDialog(true);
+                          }
+                          setPayment({ ...payment, paidAmount: val });
+                        }}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <Label className="text-xs sm:text-sm">{t("paidDate")}</Label>
+                      <Input type="date" value={payment.paidDate} onChange={(e) => setPayment({ ...payment, paidDate: e.target.value })} className="h-9 text-sm" />
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center gap-2 col-span-full pt-1">
+                  <input type="checkbox" id="noPayment" checked={payment.noPaymentAtAll} onChange={(e) => setPayment({ ...payment, noPaymentAtAll: e.target.checked })} className="h-4 w-4 rounded" />
+                  <Label htmlFor="noPayment" className="text-sm font-medium cursor-pointer">{t("noPaymentAtAll")}</Label>
+                </div>
+              </div>
+            </div>
 
-          {/* Total */}
-          <div className="text-right text-xl font-bold">
-            {t("total")}: {Math.floor(total)} PKR
+            {/* Customer Notes */}
+            <div>
+              <Label>{t("customerNotes")}</Label>
+              <textarea className="w-full border rounded-md p-2" rows={3} value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} />
+            </div>
+
+            {/* Total */}
+            <div className="text-right text-xl font-bold">
+              {t("total")}: {Math.floor(total)} PKR
+            </div>
           </div>
-        </div>
-        <DialogFooter className="flex-col sm:flex-row gap-2 mt-6">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto h-10">{t("cancel")}</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="w-full sm:w-auto h-10">{loading ? t("updating") : t("updateOrder")}</Button>
-        </DialogFooter>
-      </DialogContent>
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-6">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto h-10">{t("cancel")}</Button>
+            <Button onClick={handleSubmit} disabled={loading} className="w-full sm:w-auto h-10">{loading ? t("updating") : t("updateOrder")}</Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
       <ErrorDialog
         open={showErrorDialog}
@@ -749,6 +760,7 @@ type Order = {
 export default function OrdersPage() {
   const t = useTranslations("orders");
   const locale = useLocale();
+  const router = useRouter();
   const { can } = usePermissions();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -761,11 +773,11 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({ status: "all" });
   const [sortBy, setSortBy] = useState("default");
-  const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
-  const [editOrderOpen, setEditOrderOpen] = useState(false);
+  // const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+  // const [editOrderOpen, setEditOrderOpen] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -776,7 +788,7 @@ export default function OrdersPage() {
   useEffect(() => {
     if (offlineOrders) {
       let processedOrders = [...offlineOrders];
-      
+
       if (sortBy === "totalHighToLow") {
         processedOrders.sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
       } else if (sortBy === "balanceHighToLow") {
@@ -790,7 +802,7 @@ export default function OrdersPage() {
       setTotalCount(processedOrders.length);
       const limit = pageSize === -1 ? 0 : pageSize;
       setTotalPages(limit > 0 ? Math.ceil(processedOrders.length / limit) : 1);
-      
+
       const skip = limit > 0 ? (currentPage - 1) * limit : 0;
       const paginated = limit > 0 ? processedOrders.slice(skip, skip + limit) : processedOrders;
       setOrders(paginated);
@@ -798,7 +810,7 @@ export default function OrdersPage() {
   }, [offlineOrders, currentPage, pageSize, sortBy]);
 
   // filteredOrders is still useful for local filtering if needed, but we should probably rely on backend search
-  const filteredOrders = orders; 
+  const filteredOrders = orders;
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -811,8 +823,10 @@ export default function OrdersPage() {
   };
 
   const handleEditOrder = (order: Order) => {
-    setOrderToEdit(order);
-    setEditOrderOpen(true);
+    // setOrderToEdit(order);
+    // setEditOrderOpen(true);
+    // Instead of opening the dialog, we redirect to the New Invoice page in edit mode
+    router.push(`/${locale}/admin/sales/invoice/new?edit=${order.id}`);
   };
 
   const handleOrderUpdated = () => {
@@ -830,16 +844,21 @@ export default function OrdersPage() {
     try {
       // 1. Revert stock locally
       if (orderToDelete.items && Array.isArray(orderToDelete.items)) {
-         for (const item of orderToDelete.items) {
-           if (item.product_id) {
-             const productDoc = await db.products.get(item.product_id.toString());
-             if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-               const qtyField = item.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-               const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-               await db.products.update(item.product_id.toString(), { [qtyField]: currentQty + (item.quantity || 0) });
-             }
-           }
-         }
+        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        for (const item of orderToDelete.items) {
+          if (item.product_id) {
+            const productDoc = await db.products.get(item.product_id.toString());
+            if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+              if (item.quantityType === "damaged") {
+                const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+              } else {
+                await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+              }
+            }
+          }
+        }
       }
 
       // 2. Revert Balance locally
@@ -1041,7 +1060,7 @@ export default function OrdersPage() {
                         {Math.floor(order.total_amount)}</TableCell>
                       <TableCell>
                         {/* {t("currencySymbol")} */}
-                         {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
+                        {Math.floor(order.payment?.paid_amount || 0)}</TableCell>
                       <TableCell>
                         {/* {t("currencySymbol")}{" "} */}
                         {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
@@ -1196,7 +1215,7 @@ export default function OrdersPage() {
             <div className="text-sm text-muted-foreground whitespace-nowrap">
               {totalCount} {t("total")}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground whitespace-nowrap">
                 Rows per page
@@ -1255,23 +1274,24 @@ export default function OrdersPage() {
           overallDiscount={selectedInvoiceOrder.overallDiscount || 0}
           shippingCharges={selectedInvoiceOrder.shippingCharges || 0}
           total={selectedInvoiceOrder.total_amount}
-          onMakePayment={() => {}}
-          onCreateOrder={() => {}}
+
+          onMakePayment={() => { }}
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
           customerNotes={selectedInvoiceOrder.customer_notes}
+          // onDuplicate={() => router.push(`/${locale}/admin/sales/invoice/new?duplicate=${selectedInvoiceOrder.id}`)}
         />
       )}
 
       {/* Edit Order Dialog */}
-      {orderToEdit && (
+      {/* {orderToEdit && (
         <EditOrderDialog
           open={editOrderOpen}
           onOpenChange={setEditOrderOpen}
           order={orderToEdit}
           onOrderUpdated={handleOrderUpdated}
         />
-      )}
+      )} */}
 
       <ConfirmDialog
         open={deleteConfirmOpen}

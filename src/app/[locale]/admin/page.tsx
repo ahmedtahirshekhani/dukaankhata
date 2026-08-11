@@ -437,7 +437,7 @@ export default function DashboardPage() {
                 email: item?.email || "-",
                 phone: item?.phone || "-",
                 balance: Number(item?.balance || 0),
-                status: item?.status || "active",
+                status: item?.status || "Active",
             }));
             
             setCustomerRows(rows);
@@ -922,7 +922,7 @@ export default function DashboardPage() {
                     <TableCell>
                       {isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}
                     </TableCell>
-                    <TableCell>{row.status}</TableCell>
+                    <TableCell className="capitalize">{row.status}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button asChild size="sm" variant="outline">

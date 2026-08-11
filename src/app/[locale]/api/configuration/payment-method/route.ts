@@ -30,7 +30,7 @@ export async function GET() {
       opening_balance?: number;
       created_at?: Date;
       updated_at?: Date;
-    }>(COLLECTIONS.PAYMENT_METHOD);
+    }>(COLLECTIONS.PAYMENT_METHODS);
 
     const items = await collection
       .find(
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Bank name is required' }, { status: 400 });
     }
 
-    const collection = await getCollection(COLLECTIONS.PAYMENT_METHOD);
+    const collection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
     const existing = await collection.findOne({
       user_id: toObjectId(userId),
       bank_name: { $regex: new RegExp(`^${escapeRegex(bankName)}$`, 'i') },

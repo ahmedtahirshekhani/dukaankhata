@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import React, { useRef, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -45,7 +45,8 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
-import { XIcon } from "lucide-react";
+import { XIcon, Loader2Icon } from "lucide-react";
+import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
@@ -76,6 +77,7 @@ type Customer = {
   name: string;
   email?: string;
   phone?: string;
+  type?: string;
 };
 
 interface POSProduct extends Product {
@@ -92,6 +94,8 @@ export default function NewInvoicePage() {
   const t = useTranslations("invoice");
   const tCommon = useTranslations("common");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editOrderId = searchParams.get("edit");
   const locale = useLocale();
 
   const { data: session } = useSession();
@@ -147,6 +151,12 @@ export default function NewInvoicePage() {
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const invoiceShareRef = useRef<HTMLDivElement | null>(null);
 
+  const [paymentAmount, setPaymentAmount] = useState<number | "">("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [orderSaved, setOrderSaved] = useState(false);
+
+  const isCashSale = selectedCustomer?.name?.toLowerCase()?.includes("cash") || selectedCustomer?.type === "cash";
+
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const sanitizeOverallDiscount = (
     value: number,
@@ -179,8 +189,79 @@ export default function NewInvoicePage() {
   };
 
   useEffect(() => {
-    generateInvoiceNo();
-  }, []);
+    const loadEditOrder = async () => {
+      if (editOrderId) {
+        try {
+          const order = await db.orders.get(editOrderId);
+          if (order) {
+            if (!order.invoice_no) {
+              const timestamp = Date.now();
+              const random = Math.floor(Math.random() * 1000);
+              setInvoiceNo(`INV-${timestamp}-${random}`);
+            } else {
+              setInvoiceNo(order.invoice_no);
+            }
+            setSelectedDate(order.sale_date?.split("T")[0] || getTodayDateString());
+            if (order.due_date) {
+              setAddDueDate(true);
+              setDueDate(order.due_date.split("T")[0]);
+            } else {
+              setAddDueDate(false);
+            }
+
+            const customer = await db.parties.get(order.customer_id);
+            if (customer) {
+              setSelectedCustomer({
+                id: customer.id,
+                _id: customer._id || customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                email: customer.email
+              });
+            }
+
+            let orderItems = order.items;
+            if (typeof orderItems === "string") {
+              try { orderItems = JSON.parse(orderItems); } catch (e) { }
+            }
+
+            if (orderItems && Array.isArray(orderItems)) {
+              const items: POSProduct[] = orderItems.map((item: any) => ({
+                id: item.product_id || item.id,
+                name: item.name,
+                description: item.description,
+                quantity: normalizeQuantity(Number(item.quantity ?? 1)),
+                quantityInput: item.quantity_str || String(normalizeQuantity(Number(item.quantity ?? 1))),
+                quantityType: item.quantityType || "prime",
+                sell_price: item.price ?? item.sell_price ?? 0,
+                sellPriceInput: String(item.price ?? item.sell_price ?? 0),
+                discount: parseFloat(item.discount) || 0,
+                discountType: item.discountType || "value",
+                discountInput: String(item.discount || "0"),
+                unit_of_measurement: item.unit_of_measurement
+              }));
+              setSelectedProducts(items);
+            }
+
+            setCharges(order.charges || []);
+            setOverallDiscount(parseFloat(order.overallDiscount?.toString() || "0"));
+            setShippingCharges(parseFloat(order.shippingCharges?.toString() || "0"));
+            if (order.customer_notes) setCustomerNotes(order.customer_notes);
+
+            if (order.payment && !order.payment.no_payment_at_all) {
+              setPaymentMethod(order.payment.method || "");
+              setPaymentAmount(order.payment.paid_amount || 0);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading order for edit:", error);
+        }
+      } else {
+        generateInvoiceNo();
+      }
+    };
+    loadEditOrder();
+  }, [editOrderId]);
 
   useEffect(() => {
     setCustomerNotes((prev) =>
@@ -203,10 +284,10 @@ export default function NewInvoicePage() {
         selectedProducts.map((p) =>
           p.id === productId
             ? {
-                ...p,
-                quantity: p.quantity + 1,
-                quantityInput: String(p.quantity + 1),
-              }
+              ...p,
+              quantity: p.quantity + 1,
+              quantityInput: String(p.quantity + 1),
+            }
             : p,
         ),
       );
@@ -244,13 +325,13 @@ export default function NewInvoicePage() {
       selectedProducts.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              quantityInput: rawQuantity,
-              quantity:
-                rawQuantity.trim() === ""
-                  ? p.quantity
-                  : normalizeQuantity(Number.parseFloat(rawQuantity), p.quantity),
-            }
+            ...p,
+            quantityInput: rawQuantity,
+            quantity:
+              rawQuantity.trim() === ""
+                ? p.quantity
+                : normalizeQuantity(Number.parseFloat(rawQuantity), p.quantity),
+          }
           : p,
       ),
     );
@@ -261,11 +342,11 @@ export default function NewInvoicePage() {
       current.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              quantityInput: p.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(p.quantityInput))
-                ? p.quantityInput
-                : String(p.quantity),
-            }
+            ...p,
+            quantityInput: p.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(p.quantityInput))
+              ? p.quantityInput
+              : String(p.quantity),
+          }
           : p,
       ),
     );
@@ -319,10 +400,10 @@ export default function NewInvoicePage() {
       selectedProducts.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              sell_price: safePrice,
-              sellPriceInput: rawSellPrice,
-            }
+            ...p,
+            sell_price: safePrice,
+            sellPriceInput: rawSellPrice,
+          }
           : p,
       ),
     );
@@ -333,9 +414,9 @@ export default function NewInvoicePage() {
       current.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              sellPriceInput: String(p.sell_price),
-            }
+            ...p,
+            sellPriceInput: String(p.sell_price),
+          }
           : p,
       ),
     );
@@ -431,6 +512,19 @@ export default function NewInvoicePage() {
       return;
     }
 
+    if (!isCashSale && paymentAmount !== "" && paymentAmount > 0) {
+      if (paymentAmount > Math.floor(finalTotal)) {
+        setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+        setShowSaveErrorDialog(true);
+        return;
+      }
+      if (!paymentMethod) {
+        setSaveError(t("paymentMethodRequired") || "Payment Method is required");
+        setShowSaveErrorDialog(true);
+        return;
+      }
+    }
+
     setSaveError("");
     if (!invoiceNo) {
       return;
@@ -464,13 +558,32 @@ export default function NewInvoicePage() {
       return;
     }
 
-    setShowInvoicePreview(true);
+    executeCreateOrder();
+  };
+
+  const executeCreateOrder = async () => {
+    if (isCashSale) {
+      await handleCreateOrder({
+        paidAmount: Math.floor(finalTotal),
+        paymentMethod: paymentMethod || "cash",
+        paidDate: new Date().toISOString(),
+        noPaymentAtAll: false,
+      });
+    } else {
+      const pAmount = paymentAmount === "" ? 0 : paymentAmount;
+      await handleCreateOrder({
+        paidAmount: pAmount > 0 ? pAmount : 0,
+        paymentMethod: pAmount > 0 ? paymentMethod : "",
+        paidDate: new Date().toISOString(),
+        noPaymentAtAll: pAmount === 0,
+      });
+    }
   };
 
   const handleOverstockConfirm = () => {
     setShowOverstockDialog(false);
     setOverstockItems([]);
-    setShowInvoicePreview(true);
+    executeCreateOrder();
   };
 
   const handleOverstockCancel = () => {
@@ -646,16 +759,48 @@ export default function NewInvoicePage() {
           paidDate: paymentDetails.paidDate,
           noPaymentAtAll: paymentDetails.noPaymentAtAll,
         },
+        customerNotes,
       };
 
-      // 1. Generate local ID
-      const localOrderId = `local_order_${Date.now()}`;
       const now = new Date().toISOString();
+      const localOrderId = editOrderId || `local_order_${Date.now()}`;
+      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
 
-      // 2. Insert Order locally
-      const orderData = {
+      // 1. If editing, revert old stock and balance
+      if (editOrderId) {
+        const oldOrder = await db.orders.get(editOrderId);
+        if (oldOrder) {
+          // Revert old stock
+          if (oldOrder.items && Array.isArray(oldOrder.items)) {
+            for (const item of oldOrder.items) {
+              if (item.product_id) {
+                const productDoc = await db.products.get(item.product_id.toString());
+                if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+                  if (item.quantityType === "damaged") {
+                    const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                    const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                    await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+                  } else {
+                    await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+                  }
+                }
+              }
+            }
+          }
+
+          // Revert old balance
+          const oldPaid = oldOrder.payment && !oldOrder.payment.no_payment_at_all ? (oldOrder.payment.paid_amount || 0) : 0;
+          const oldNetAmount = (oldOrder.total_amount || 0) - oldPaid;
+          if (oldNetAmount !== 0 && oldOrder.customer_id) {
+            await updateOfflinePartyBalance(oldOrder.customer_id.toString(), -oldNetAmount);
+          }
+        }
+      }
+
+      // 2. Insert or Update Order locally
+      const orderData: any = {
         id: localOrderId,
-        customer_id: selectedCustomer.id.toString(),
+        customer_id: (selectedCustomer.id || (selectedCustomer as any)._id || "").toString(),
         total_amount: finalTotal,
         subtotal: total,
         invoice_no: invoiceNo || null,
@@ -665,17 +810,18 @@ export default function NewInvoicePage() {
         overallDiscount: overallDiscountAmount,
         shippingCharges: shippingChargesNum,
         payment: paymentDetails.noPaymentAtAll ? null : {
-           method: paymentDetails.paymentMethod,
-           paid_amount: paymentDetails.paidAmount || 0,
-           paid_date: paymentDetails.paidDate || null,
-           no_payment_at_all: paymentDetails.noPaymentAtAll
+          method: paymentDetails.paymentMethod,
+          paid_amount: paymentDetails.paidAmount || 0,
+          paid_date: paymentDetails.paidDate || null,
+          no_payment_at_all: paymentDetails.noPaymentAtAll
         },
+        customer_notes: customerNotes || null,
         user_id: (session?.user as any)?.id || "",
         status: "completed",
         created_at: now,
         updated_at: now,
         items: selectedProducts.map(p => ({
-          product_id: p.id.toString(),
+          product_id: (p.id || (p as any)._id || "").toString(),
           name: p.name,
           description: p.description,
           quantity: p.quantity,
@@ -687,17 +833,31 @@ export default function NewInvoicePage() {
           unit_of_measurement: p.unit_of_measurement,
         }))
       };
-      
-      await db.orders.add(orderData);
+
+      if (editOrderId) {
+        const oldOrder = await db.orders.get(editOrderId);
+        if (oldOrder) {
+          orderData.created_at = oldOrder.created_at;
+          orderData.status = oldOrder.status;
+        }
+        await db.orders.put(orderData);
+      } else {
+        await db.orders.add(orderData);
+      }
 
       // 3. Update stock locally (optimistic)
       for (const p of selectedProducts) {
         if (!p.type || p.type === "goods" || p.type === "good") {
-          const qtyField = p.quantityType === "damaged" ? "damaged_quantity" : "quantity";
-          const productDoc = await db.products.get(p.id.toString());
+          const prodId = (p.id || (p as any)._id || "").toString();
+          const productDoc = await db.products.get(prodId);
           if (productDoc) {
-             const currentQty = productDoc[qtyField] ?? productDoc.in_stock ?? 0;
-             await db.products.update(p.id.toString(), { [qtyField]: Math.max(0, currentQty - p.quantity) });
+            if (p.quantityType === "damaged") {
+              const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+              const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+              await db.products.update(prodId, { damaged_quantity: newQty });
+            } else {
+              await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+            }
           }
         }
       }
@@ -705,30 +865,26 @@ export default function NewInvoicePage() {
       // 4. Update balance locally (optimistic)
       const netAmount = finalTotal - (paymentDetails.noPaymentAtAll ? 0 : paymentDetails.paidAmount);
       if (netAmount !== 0) {
-        await updateOfflinePartyBalance(selectedCustomer.id.toString(), netAmount);
+        await updateOfflinePartyBalance((selectedCustomer.id || (selectedCustomer as any)._id || "").toString(), netAmount);
       }
 
       // 5. Sync to server
-      await SyncEngine.queueOperation("orders", "POST", "/api/orders", payload, localOrderId);
+      if (editOrderId) {
+        await SyncEngine.queueOperation("orders", "PUT", `/api/orders/${editOrderId}`, payload, editOrderId);
+      } else {
+        await SyncEngine.queueOperation("orders", "POST", "/api/orders", payload, localOrderId);
+      }
 
       setCreatedOrderShareData(shareData);
 
-      // Reset the form
-      setSelectedProducts([]);
-      setSelectedCustomer(null);
-      setInvoiceNo("");
-      setSelectedDate(todayIso || getTodayDateString());
-      setAddDueDate(false);
-      setDueDate(todayIso || getTodayDateString());
-      setCharges([]);
-      setShowAddCharge(false);
-      setShowInvoicePreview(false);
-      setShowOrderCreatedDialog(true);
-      
-      // Navigate to invoice list page
-      // router.push(`/${locale}/admin/invoice`);
-    } catch (error) {
+      // Show preview dialog directly, no intermediate success dialog
+      setShowInvoicePreview(true);
+
+      // We will reset the form and navigate when they close the preview
+    } catch (error: any) {
       console.error("Error creating order:", error);
+      setSaveError(error?.message || "An unexpected error occurred while saving the order.");
+      setShowSaveErrorDialog(true);
     } finally {
       setIsCreatingOrder(false);
     }
@@ -738,9 +894,9 @@ export default function NewInvoicePage() {
     <div className="container mx-auto p-0">
       <div className="flex flex-col gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <h1 className="text-2xl font-bold">{editOrderId ? t("editInvoice") || "Edit Invoice" : t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("pageDescription")}
+            {editOrderId ? t("editInvoiceDescription") || "Modify the details of this invoice" : t("pageDescription")}
           </p>
         </div>
       </div>
@@ -777,6 +933,7 @@ export default function NewInvoicePage() {
                 filterActiveOnly={true}
                 enableSearch={true}
                 searchPlaceholder={t("searchCustomer") || "Search customer..."}
+                autoSelectCash={true}
               />
             </div>
 
@@ -1153,353 +1310,464 @@ export default function NewInvoicePage() {
           </div>
 
           {/* Summary Section */}
-          <div className="mt-4 md:mt-6 space-y-4">
-            {/* Summary Grid - Desktop */}
-            <div className="hidden md:flex justify-end mb-4">
-              <div className="space-y-3 max-w-md w-full">
-                <div className="grid grid-cols-[auto_190px] gap-x-3 gap-y-2 items-center">
-                  <span className="text-sm text-right">{t("subTotal")}</span>
-                  <span className="text-left font-semibold">
-                    {t("currencySymbol")} {Math.round(total)}
-                  </span>
-
-                  <span className="text-sm text-right">
-                    {t("overallDiscount")}
-                  </span>
-                  <div className="flex gap-1 items-center">
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      min="0"
-                      max={
-                        overallDiscountType === "percentage" ? 100 : undefined
-                      }
-                      className="w-28 h-8 text-sm"
-                      value={overallDiscount || ""}
-                      onChange={(e) =>
-                        handleOverallDiscountInputChange(e.target.value)
-                      }
-                    />
-                    <Select
-                      value={overallDiscountType}
-                      onValueChange={(val) =>
-                        handleOverallDiscountTypeChange(
-                          val as "value" | "percentage",
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-20 h-8 text-xs">
-                        <SelectValue placeholder={t("pkr")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="value">{t("pkr")}</SelectItem>
-                        <SelectItem value="percentage">
-                          {t("percentage")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <span className="text-sm text-right">
-                    {t("shippingCharges")}
-                  </span>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    min="0"
-                    className="w-full h-8 text-sm"
-                    value={shippingCharges || ""}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
-                    }}
+          <div className="mt-4 md:mt-6 flex flex-col md:flex-row gap-6 justify-between">
+            {/* Left Column: Payment Section & Customer Notes */}
+            <div className="w-full md:w-1/2 lg:w-5/12 flex flex-col gap-6">
+              {/* Customer Notes */}
+              <div>
+                <div className="flex flex-col gap-1 w-full">
+                  <Label className="text-sm font-medium">
+                    {t("customerNotes")}
+                  </Label>
+                  <textarea
+                    className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    value={customerNotes}
+                    onChange={(e) => setCustomerNotes(e.target.value)}
                   />
-                </div>
-
-                {/* Add Charge Form */}
-                <div className="space-y-2">
-                  <div className="flex gap-2 items-center justify-end">
-                    <Input
-                      id="new-charge-item"
-                      placeholder={t("adjustment")}
-                      className="w-32 h-8 text-sm"
-                      value={newChargeItem}
-                      onChange={(e) => setNewChargeItem(e.target.value)}
-                    />
-                    <span className="text-sm">:</span>
-                    <Input
-                      id="new-charge-value"
-                      type="number"
-                      placeholder={t("value")}
-                      className="w-24 h-8 text-sm"
-                      value={newChargeValue}
-                      onChange={(e) => setNewChargeValue(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Add More Button */}
-                  <div className="flex justify-end mt-2">
-                    <Button
-                      onClick={handleAddNewCharge}
-                      variant="default"
-                      size="sm"
-                      className="h-8 text-xs"
-                      disabled={!newChargeItem.trim() || !newChargeValue}
-                    >
-                      {t("addMore")}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {/* Display Added Charges */}
-                    {charges.map((charge) => (
-                      <div
-                        key={charge.id}
-                        className="flex gap-2 items-center justify-end"
-                      >
-                        <Input
-                          placeholder={t("adjustment")}
-                          value={charge.item}
-                          onChange={(e) =>
-                            handleChargeChange(
-                              charge.id,
-                              "item",
-                              e.target.value,
-                            )
-                          }
-                          className="w-32 h-8 text-sm"
-                        />
-                        <span className="text-sm">:</span>
-                        <Input
-                          type="number"
-                          placeholder={t("value")}
-                          value={charge.value || ""}
-                          onChange={(e) =>
-                            handleChargeChange(
-                              charge.id,
-                              "value",
-                              e.target.value,
-                            )
-                          }
-                          className="w-24 h-8 text-sm"
-                        />
-                        <Button
-                          onClick={() => handleRemoveCharge(charge.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Final Total */}
-                <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
-                  <span className="text-lg text-right font-bold">Total:</span>
-                  <span className="text-left text-lg font-bold">
-                    Rs. {Math.floor(finalTotal)}
+                  <span className="text-xs text-muted-foreground">
+                    {t("willBeDisplayedOnInvoice")}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Summary Section - Mobile */}
-            <div className="md:hidden space-y-3">
-              <Card className="p-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {t("subTotal")}
-                    </span>
-                    <span className="font-semibold text-sm">
-                      {t("currencySymbol")} {Math.round(total)}
-                    </span>
-                  </div>
+            {/* Right Column: Totals & Save Button */}
+            <div className="w-full md:w-1/2 lg:w-6/12 flex flex-col justify-between">
+              <div className="space-y-4">
+                {/* Summary Grid - Desktop */}
+                <div className="hidden md:flex justify-end">
+                  <div className="space-y-3 w-full max-w-sm">
+                    <div className="grid grid-cols-[auto_190px] gap-x-3 gap-y-2 items-center">
+                      <span className="text-sm text-right">{t("subTotal")}</span>
+                      <span className="text-left font-semibold">
+                        {t("currencySymbol")} {Math.round(total)}
+                      </span>
 
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {t("overallDiscount")}
-                    </p>
-                    <div className="flex gap-2 items-center">
+                      <span className="text-sm text-right">
+                        {t("overallDiscount")}
+                      </span>
+                      <div className="flex gap-1 items-center">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          max={
+                            overallDiscountType === "percentage" ? 100 : undefined
+                          }
+                          className="w-28 h-8 text-sm"
+                          value={overallDiscount || ""}
+                          onChange={(e) =>
+                            handleOverallDiscountInputChange(e.target.value)
+                          }
+                        />
+                        <Select
+                          value={overallDiscountType}
+                          onValueChange={(val) =>
+                            handleOverallDiscountTypeChange(
+                              val as "value" | "percentage",
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-20 h-8 text-xs">
+                            <SelectValue placeholder={t("pkr")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="value">{t("pkr")}</SelectItem>
+                            <SelectItem value="percentage">
+                              {t("percentage")}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <span className="text-sm text-right">
+                        {t("shippingCharges")}
+                      </span>
                       <Input
                         type="number"
                         placeholder="0"
                         min="0"
-                        max={
-                          overallDiscountType === "percentage" ? 100 : undefined
-                        }
-                        className="w-24 h-7 text-xs"
-                        value={overallDiscount || ""}
-                        onChange={(e) =>
-                          handleOverallDiscountInputChange(e.target.value)
-                        }
+                        className="w-full h-8 text-sm"
+                        value={shippingCharges || ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
+                        }}
                       />
-                      <Select
-                        value={overallDiscountType}
-                        onValueChange={(val) =>
-                          handleOverallDiscountTypeChange(
-                            val as "value" | "percentage",
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-16 h-7 text-xs">
-                          <SelectValue placeholder={t("pkr")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="value">{t("pkr")}</SelectItem>
-                          <SelectItem value="percentage">
-                            {t("percentage")}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {t("shippingCharges")}
-                    </p>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      min="0"
-                      className="w-full h-7 text-xs"
-                      value={shippingCharges || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
-                      }}
-                    />
-                  </div>
-                </div>
-              </Card>
+                    {/* Add Charge Form */}
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center justify-end">
+                        <Input
+                          id="new-charge-item"
+                          placeholder={t("adjustment")}
+                          className="w-32 h-8 text-sm"
+                          value={newChargeItem}
+                          onChange={(e) => setNewChargeItem(e.target.value)}
+                        />
+                        <span className="text-sm">:</span>
+                        <Input
+                          id="new-charge-value"
+                          type="number"
+                          placeholder={t("value")}
+                          className="w-24 h-8 text-sm"
+                          value={newChargeValue}
+                          onChange={(e) => setNewChargeValue(e.target.value)}
+                        />
+                      </div>
 
-              {/* Add Charge Form - Mobile */}
-              <Card className="p-3">
-                <div className="space-y-2">
-                  <p className="text-xs font-medium">
-                    {t("additionalCharges")}
-                  </p>
-                  <div className="flex gap-2">
-                    <Input
-                      id="new-charge-item"
-                      placeholder={t("adjustment")}
-                      className="flex-1 h-7 text-xs"
-                      value={newChargeItem}
-                      onChange={(e) => setNewChargeItem(e.target.value)}
-                    />
-                    <Input
-                      id="new-charge-value"
-                      type="number"
-                      placeholder={t("value")}
-                      className="w-20 h-7 text-xs"
-                      value={newChargeValue}
-                      onChange={(e) => setNewChargeValue(e.target.value)}
-                    />
-                    <Button
-                      onClick={handleAddNewCharge}
-                      variant="default"
-                      size="sm"
-                      className="h-7 text-xs px-2"
-                      disabled={!newChargeItem.trim() || !newChargeValue}
-                    >
-                      {t("add")}
-                    </Button>
-                  </div>
-
-                  {/* Display Added Charges */}
-                  {charges.length > 0 && (
-                    <div className="space-y-2 border-t pt-2">
-                      {charges.map((charge) => (
-                        <div
-                          key={charge.id}
-                          className="flex gap-2 items-center"
+                      {/* Add More Button */}
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          onClick={handleAddNewCharge}
+                          variant="default"
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={!newChargeItem.trim() || !newChargeValue}
                         >
-                          <Input
-                            placeholder={t("adjustment")}
-                            value={charge.item}
-                            onChange={(e) =>
-                              handleChargeChange(
-                                charge.id,
-                                "item",
-                                e.target.value,
-                              )
-                            }
-                            className="flex-1 h-7 text-xs"
-                          />
+                          {t("addMore")}
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* Display Added Charges */}
+                        {charges.map((charge) => (
+                          <div
+                            key={charge.id}
+                            className="flex gap-2 items-center justify-end"
+                          >
+                            <Input
+                              placeholder={t("adjustment")}
+                              value={charge.item}
+                              onChange={(e) =>
+                                handleChargeChange(
+                                  charge.id,
+                                  "item",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-32 h-8 text-sm"
+                            />
+                            <span className="text-sm">:</span>
+                            <Input
+                              type="number"
+                              placeholder={t("value")}
+                              value={charge.value || ""}
+                              onChange={(e) =>
+                                handleChargeChange(
+                                  charge.id,
+                                  "value",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-24 h-8 text-sm"
+                            />
+                            <Button
+                              onClick={() => handleRemoveCharge(charge.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Final Total */}
+                    <div className="grid grid-cols-[auto_120px] gap-x-4 items-center border-2 border-primary rounded-md p-3 bg-primary/5">
+                      <span className="text-lg text-right font-bold">Total:</span>
+                      <span className="text-left text-lg font-bold">
+                        Rs. {Math.floor(finalTotal)}
+                      </span>
+                    </div>
+
+                    {/* Receive Payment Fields */}
+                    <div className="space-y-3 pt-2">
+                      {!isCashSale && (
+                        <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
+                          <span className="text-sm text-right font-medium">{t("amountLabel") || "Amount Received"}:</span>
                           <Input
                             type="number"
-                            placeholder={t("value")}
-                            value={charge.value || ""}
+                            value={paymentAmount === "" ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              if (val !== "" && val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="w-full h-9 text-sm"
+                          />
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
+                        <span className="text-sm text-right font-medium">{t("paymentMethod") || "Payment Method"}:</span>
+                        <div className="w-full">
+                          <PaymentMethodDropdown
+                            value={paymentMethod}
+                            onValueChange={setPaymentMethod}
+                            placeholder="Select Method"
+                            defaultToCash={true}
+                          />
+                        </div>
+                      </div>
+
+                      {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                        <div className="grid grid-cols-[auto_120px] gap-x-4 items-center pt-1 text-muted-foreground">
+                          <span className="text-sm text-right font-medium">{t("balance") || "Balance"}:</span>
+                          <span className="text-left text-sm font-bold">
+                            Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary Section - Mobile */}
+                <div className="md:hidden space-y-3">
+                  <Card className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {t("subTotal")}
+                        </span>
+                        <span className="font-semibold text-sm">
+                          {t("currencySymbol")} {Math.round(total)}
+                        </span>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {t("overallDiscount")}
+                        </p>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            min="0"
+                            max={
+                              overallDiscountType === "percentage" ? 100 : undefined
+                            }
+                            className="w-24 h-7 text-xs"
+                            value={overallDiscount || ""}
                             onChange={(e) =>
-                              handleChargeChange(
-                                charge.id,
-                                "value",
-                                e.target.value,
+                              handleOverallDiscountInputChange(e.target.value)
+                            }
+                          />
+                          <Select
+                            value={overallDiscountType}
+                            onValueChange={(val) =>
+                              handleOverallDiscountTypeChange(
+                                val as "value" | "percentage",
                               )
                             }
-                            className="w-20 h-7 text-xs"
-                          />
-                          <Button
-                            onClick={() => handleRemoveCharge(charge.id)}
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
                           >
-                            ×
-                          </Button>
+                            <SelectTrigger className="w-16 h-7 text-xs">
+                              <SelectValue placeholder={t("pkr")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="value">{t("pkr")}</SelectItem>
+                              <SelectItem value="percentage">
+                                {t("percentage")}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      ))}
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {t("shippingCharges")}
+                        </p>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          className="w-full h-7 text-xs"
+                          value={shippingCharges || ""}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            setShippingCharges(isNaN(value) ? 0 : Math.abs(value));
+                          }}
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
-              </Card>
+                  </Card>
 
-              {/* Final Total - Mobile */}
-              <Card className="p-4 border-2 border-primary bg-primary/5">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-base">{t("total")}:</span>
-                  <span className="font-bold text-lg">
-                    {t("currencySymbol")} {Math.floor(finalTotal)}
-                  </span>
-                </div>
-              </Card>
-            </div>
+                  {/* Add Charge Form - Mobile */}
+                  <Card className="p-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium">
+                        {t("additionalCharges")}
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          id="new-charge-item-mobile"
+                          placeholder={t("adjustment")}
+                          className="flex-1 h-7 text-xs"
+                          value={newChargeItem}
+                          onChange={(e) => setNewChargeItem(e.target.value)}
+                        />
+                        <Input
+                          id="new-charge-value-mobile"
+                          type="number"
+                          placeholder={t("value")}
+                          className="w-20 h-7 text-xs"
+                          value={newChargeValue}
+                          onChange={(e) => setNewChargeValue(e.target.value)}
+                        />
+                        <Button
+                          onClick={handleAddNewCharge}
+                          variant="default"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          disabled={!newChargeItem.trim() || !newChargeValue}
+                        >
+                          {t("add")}
+                        </Button>
+                      </div>
 
-            {/* Customer Notes */}
-            <div className="mt-4 md:mt-6">
-              <div className="flex flex-col gap-1 w-full md:max-w-md">
-                <Label className="text-sm font-medium">
-                  {t("customerNotes")}
-                </Label>
-                <textarea
-                  className="w-full min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  value={customerNotes}
-                  onChange={(e) => setCustomerNotes(e.target.value)}
-                />
-                <span className="text-xs text-muted-foreground">
-                  {t("willBeDisplayedOnInvoice")}
-                </span>
+                      {/* Display Added Charges */}
+                      {charges.length > 0 && (
+                        <div className="space-y-2 border-t pt-2">
+                          {charges.map((charge) => (
+                            <div
+                              key={charge.id}
+                              className="flex gap-2 items-center"
+                            >
+                              <Input
+                                placeholder={t("adjustment")}
+                                value={charge.item}
+                                onChange={(e) =>
+                                  handleChargeChange(
+                                    charge.id,
+                                    "item",
+                                    e.target.value,
+                                  )
+                                }
+                                className="flex-1 h-7 text-xs"
+                              />
+                              <Input
+                                type="number"
+                                placeholder={t("value")}
+                                value={charge.value || ""}
+                                onChange={(e) =>
+                                  handleChargeChange(
+                                    charge.id,
+                                    "value",
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-20 h-7 text-xs"
+                              />
+                              <Button
+                                onClick={() => handleRemoveCharge(charge.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Final Total - Mobile */}
+                  <Card className="p-4 border-2 border-primary bg-primary/5">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-base">{t("total")}:</span>
+                      <span className="font-bold text-lg">
+                        {t("currencySymbol")} {Math.floor(finalTotal)}
+                      </span>
+                    </div>
+                  </Card>
+
+                  {/* Receive Payment Fields - Mobile */}
+                  <Card className="p-4">
+                    <div className="space-y-3">
+                      {!isCashSale && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-sm font-medium">{t("amountLabel") || "Amount Received"}:</span>
+                          <Input
+                            type="number"
+                            value={paymentAmount === "" ? "" : paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              if (val !== "" && val > Math.floor(finalTotal)) {
+                                setSaveError(t("paymentGreaterError") || "Payment cannot be greater than Total Amount");
+                                setShowSaveErrorDialog(true);
+                                setPaymentAmount(Math.floor(finalTotal));
+                              } else {
+                                setPaymentAmount(val);
+                              }
+                            }}
+                            placeholder="0"
+                            min={0}
+                            className="w-full h-9 text-sm"
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-sm font-medium">{t("paymentMethod") || "Payment Method"}:</span>
+                        <PaymentMethodDropdown
+                          value={paymentMethod}
+                          onValueChange={setPaymentMethod}
+                          placeholder="Select Method"
+                          defaultToCash={true}
+                        />
+                      </div>
+
+                      {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                        <div className="flex justify-between items-center pt-2 mt-2 border-t text-muted-foreground">
+                          <span className="text-sm font-medium">{t("balance") || "Balance"}:</span>
+                          <span className="text-sm font-bold">
+                            Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
               </div>
-            </div>
 
-            {/* Show error in modal dialog instead of inline */}
-            <ErrorDialog
-              open={showSaveErrorDialog}
-              onOpenChange={setShowSaveErrorDialog}
-              title={t("error")}
-              message={saveError}
-            />
-            <div className="flex justify-end mt-4 md:mt-6">
-              <Button
-                onClick={handleSaveOrder}
-                className="w-full md:w-auto"
-              >
-                {t("save")}
-              </Button>
+              {/* Show error in modal dialog instead of inline */}
+              <ErrorDialog
+                open={showSaveErrorDialog}
+                onOpenChange={setShowSaveErrorDialog}
+                title={t("error")}
+                message={saveError}
+              />
+
+              <div className="flex justify-end mt-6 h-full items-end">
+                <Button
+                  onClick={handleSaveOrder}
+                  className="w-full md:w-auto h-12 px-8 text-base font-semibold"
+                  disabled={isCreatingOrder}
+                >
+                  {isCreatingOrder ? (
+                    <>
+                      <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
+                      {t("creatingOrder") || tCommon("saving") || "Saving..."}
+                    </>
+                  ) : (
+                    editOrderId ? t("updateInvoice") || "Update Invoice" : t("saveInvoice") || t("save") || "Save"
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -1529,48 +1797,6 @@ export default function NewInvoicePage() {
         onCancel={handleOverstockCancel}
         variant="warning"
       />
-
-      <Dialog
-        open={showOrderCreatedDialog}
-        onOpenChange={setShowOrderCreatedDialog}
-      >
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>{t("orderCreatedTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("orderCreatedDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          {createdOrderShareData?.phone ? (
-            <p className="text-sm text-muted-foreground">
-              {t("whatsappContactNumber", {
-                phone: normalizeWhatsAppNumber(createdOrderShareData.phone),
-              })}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t("whatsappNumberUnavailable")}
-            </p>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleSendInvoicePdfOnWhatsApp}
-              disabled={!getWhatsAppLink() || isSendingWhatsApp}
-            >
-              {isSendingWhatsApp
-                ? t("sendingOnWhatsApp")
-                : t("sendInvoicePdfOnWhatsApp")}
-            </Button>
-            <Button onClick={() => {
-              setShowOrderCreatedDialog(false);
-              router.push(`/${locale}/admin/sales/invoice`);
-            }}>
-              {t("ok")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {createdOrderShareData && (
         <div className="hidden" aria-hidden>
@@ -1602,7 +1828,22 @@ export default function NewInvoicePage() {
       {/* Invoice Preview Dialog */}
       <InvoicePreviewDialog
         open={showInvoicePreview}
-        onOpenChange={setShowInvoicePreview}
+        onOpenChange={(isOpen) => {
+          setShowInvoicePreview(isOpen);
+          if (!isOpen && createdOrderShareData) {
+            // Form reset and navigation on close
+            setSelectedProducts([]);
+            setSelectedCustomer(null);
+            setInvoiceNo("");
+            setSelectedDate(getTodayDateString());
+            setAddDueDate(false);
+            setDueDate(getTodayDateString());
+            setCharges([]);
+            setShowAddCharge(false);
+            setCreatedOrderShareData(null);
+            router.push(`/${locale}/admin/sales/invoice`);
+          }
+        }}
         invoiceNo={invoiceNo}
         customer={{
           name: selectedCustomer?.name || "",
@@ -1633,8 +1874,9 @@ export default function NewInvoicePage() {
         total={finalTotal}
         companyName={session?.user?.company || session?.user?.name || ""}
         customerNotes={customerNotes}
-        onCreateOrder={handleCreateOrder}
-        isCreatingOrder={isCreatingOrder}
+        onWhatsApp={handleSendInvoicePdfOnWhatsApp}
+        disableWhatsApp={!getWhatsAppLink()}
+        isSendingWhatsApp={isSendingWhatsApp}
       />
     </div>
   );

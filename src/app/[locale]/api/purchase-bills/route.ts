@@ -28,10 +28,12 @@ function isGoodsProduct(productDoc: any): boolean {
 // Increment stock for purchase bill items
 async function applyPurchaseBillStock(
   productsCollection: any,
-  items: any[]
+  items: any[],
+  userId: string
 ): Promise<void> {
   if (!items || !Array.isArray(items)) return;
 
+  const { adjustStock } = await import('@/lib/db/stock-manager');
   for (const item of items) {
     if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
       continue;
@@ -43,27 +45,19 @@ async function applyPurchaseBillStock(
     const qty = Number(item.quantity) || 0;
     if (qty <= 0) continue;
 
-    const stockField =
-      productDoc.quantity !== undefined && productDoc.quantity !== null
-        ? "quantity"
-        : productDoc.in_stock !== undefined && productDoc.in_stock !== null
-          ? "in_stock"
-          : "quantity";
-
-    await productsCollection.updateOne(
-      { _id: toObjectId(item.product_id.toString()) },
-      { $inc: { [stockField]: qty } }
-    );
+    await adjustStock(item.product_id.toString(), userId, qty);
   }
 }
 
 // Revert/Deduct stock for purchase bill items (reversing purchase)
 async function reversePurchaseBillStock(
   productsCollection: any,
-  items: any[]
+  items: any[],
+  userId: string
 ): Promise<void> {
   if (!items || !Array.isArray(items)) return;
 
+  const { adjustStock } = await import('@/lib/db/stock-manager');
   for (const item of items) {
     if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
       continue;
@@ -75,17 +69,7 @@ async function reversePurchaseBillStock(
     const qty = Number(item.quantity) || 0;
     if (qty <= 0) continue;
 
-    const stockField =
-      productDoc.quantity !== undefined && productDoc.quantity !== null
-        ? "quantity"
-        : productDoc.in_stock !== undefined && productDoc.in_stock !== null
-          ? "in_stock"
-          : "quantity";
-
-    await productsCollection.updateOne(
-      { _id: toObjectId(item.product_id.toString()) },
-      { $inc: { [stockField]: -qty } }
-    );
+    await adjustStock(item.product_id.toString(), userId, -qty);
   }
 }
 
@@ -328,7 +312,7 @@ export async function POST(request: Request) {
     });
 
     // Apply stock increment for purchase
-    await applyPurchaseBillStock(productsCollection, enrichedItems);
+    await applyPurchaseBillStock(productsCollection, enrichedItems, user.id);
 
     // Record ledger entry
     if (totalAmount !== 0) {
@@ -465,8 +449,8 @@ export async function PUT(request: Request) {
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
     // Revert stock of old items
-    if (oldBill.items && Array.isArray(oldBill.items)) {
-      await reversePurchaseBillStock(productsCollection, oldBill.items);
+    if (oldBill.items && oldBill.items.length > 0) {
+      await reversePurchaseBillStock(productsCollection, oldBill.items, user.id);
     }
 
     // Process new items if provided in request
@@ -504,7 +488,7 @@ export async function PUT(request: Request) {
     }
 
     // Apply new stock
-    await applyPurchaseBillStock(productsCollection, enrichedItems);
+    await applyPurchaseBillStock(productsCollection, enrichedItems, user.id);
 
     const finalPaidAmount = Number(paidAmount) || 0;
     if (finalPaidAmount > totalAmount) {
@@ -616,7 +600,7 @@ export async function PUT(request: Request) {
           eventType: "purchase_bill_debit",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: totalAmount,
+          amountDelta: -totalAmount,
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
@@ -638,7 +622,7 @@ export async function PUT(request: Request) {
           eventType: "purchase_bill_credit",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: -finalPaidAmount,
+          amountDelta: finalPaidAmount,
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
@@ -726,8 +710,8 @@ export async function DELETE(request: Request) {
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
     // Reverse stock of all items
-    if (oldBill.items && Array.isArray(oldBill.items)) {
-      await reversePurchaseBillStock(productsCollection, oldBill.items);
+    if (oldBill.items && oldBill.items.length > 0) {
+      await reversePurchaseBillStock(productsCollection, oldBill.items, user.id);
     }
 
     const result = await purchaseBillsCollection.deleteOne({

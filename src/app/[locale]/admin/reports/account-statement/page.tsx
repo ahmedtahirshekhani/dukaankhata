@@ -281,7 +281,9 @@ export default function AccountStatementPage() {
       payment_in: t("typePaymentIn"),
       payment_out: t("typePaymentOut"),
       purchase_bill: t("typePurchase"),
+      purchase_bill_payment: t("typePurchaseBillPayment"),
       adjustment: t("typeAdjustment"),
+      sale_return: t("typeSaleReturn"),
       opening_balance: t("typeOpeningBalance"),
     };
     return types[type] || type;

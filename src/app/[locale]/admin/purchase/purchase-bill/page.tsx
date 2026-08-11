@@ -164,7 +164,13 @@ export default function PurchaseBillPage() {
     try {
       const billToDelete = await db.purchase_bills.get(billId);
       if (billToDelete && billToDelete.balance_due !== undefined) {
-        await updateOfflinePartyBalance(billToDelete.party_id, -billToDelete.balance_due);
+        await updateOfflinePartyBalance(billToDelete.party_id, billToDelete.balance_due);
+      }
+      if (billToDelete && billToDelete.items) {
+        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        for (const item of billToDelete.items) {
+          if (item.product_id) await adjustOfflineStock(item.product_id, -(Number(item.quantity) || 0));
+        }
       }
       
       await db.purchase_bills.delete(billId);
