@@ -79,7 +79,7 @@ type Customer = {
   phone?: string;
   type?: string;
 };
- 
+
 interface POSProduct extends Product {
   quantity: number;
   quantityInput?: string;
@@ -154,9 +154,9 @@ export default function NewInvoicePage() {
   const [paymentAmount, setPaymentAmount] = useState<number | "">("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [orderSaved, setOrderSaved] = useState(false);
-  
+
   const isCashSale = selectedCustomer?.name?.toLowerCase()?.includes("cash") || selectedCustomer?.type === "cash";
-  
+
   const getSalePrice = (product: POSProduct) => product.sell_price;
   const sanitizeOverallDiscount = (
     value: number,
@@ -208,7 +208,7 @@ export default function NewInvoicePage() {
             } else {
               setAddDueDate(false);
             }
-            
+
             const customer = await db.parties.get(order.customer_id);
             if (customer) {
               setSelectedCustomer({
@@ -222,7 +222,7 @@ export default function NewInvoicePage() {
 
             let orderItems = order.items;
             if (typeof orderItems === "string") {
-              try { orderItems = JSON.parse(orderItems); } catch(e) {}
+              try { orderItems = JSON.parse(orderItems); } catch (e) { }
             }
 
             if (orderItems && Array.isArray(orderItems)) {
@@ -249,8 +249,8 @@ export default function NewInvoicePage() {
             if (order.customer_notes) setCustomerNotes(order.customer_notes);
 
             if (order.payment && !order.payment.no_payment_at_all) {
-               setPaymentMethod(order.payment.method || "");
-               setPaymentAmount(order.payment.paid_amount || 0);
+              setPaymentMethod(order.payment.method || "");
+              setPaymentAmount(order.payment.paid_amount || 0);
             }
           }
         } catch (error) {
@@ -284,10 +284,10 @@ export default function NewInvoicePage() {
         selectedProducts.map((p) =>
           p.id === productId
             ? {
-                ...p,
-                quantity: p.quantity + 1,
-                quantityInput: String(p.quantity + 1),
-              }
+              ...p,
+              quantity: p.quantity + 1,
+              quantityInput: String(p.quantity + 1),
+            }
             : p,
         ),
       );
@@ -325,13 +325,13 @@ export default function NewInvoicePage() {
       selectedProducts.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              quantityInput: rawQuantity,
-              quantity:
-                rawQuantity.trim() === ""
-                  ? p.quantity
-                  : normalizeQuantity(Number.parseFloat(rawQuantity), p.quantity),
-            }
+            ...p,
+            quantityInput: rawQuantity,
+            quantity:
+              rawQuantity.trim() === ""
+                ? p.quantity
+                : normalizeQuantity(Number.parseFloat(rawQuantity), p.quantity),
+          }
           : p,
       ),
     );
@@ -342,11 +342,11 @@ export default function NewInvoicePage() {
       current.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              quantityInput: p.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(p.quantityInput))
-                ? p.quantityInput
-                : String(p.quantity),
-            }
+            ...p,
+            quantityInput: p.quantityInput?.trim() && !Number.isNaN(Number.parseFloat(p.quantityInput))
+              ? p.quantityInput
+              : String(p.quantity),
+          }
           : p,
       ),
     );
@@ -400,10 +400,10 @@ export default function NewInvoicePage() {
       selectedProducts.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              sell_price: safePrice,
-              sellPriceInput: rawSellPrice,
-            }
+            ...p,
+            sell_price: safePrice,
+            sellPriceInput: rawSellPrice,
+          }
           : p,
       ),
     );
@@ -414,9 +414,9 @@ export default function NewInvoicePage() {
       current.map((p) =>
         p.id === productId
           ? {
-              ...p,
-              sellPriceInput: String(p.sell_price),
-            }
+            ...p,
+            sellPriceInput: String(p.sell_price),
+          }
           : p,
       ),
     );
@@ -772,20 +772,20 @@ export default function NewInvoicePage() {
         if (oldOrder) {
           // Revert old stock
           if (oldOrder.items && Array.isArray(oldOrder.items)) {
-             for (const item of oldOrder.items) {
-               if (item.product_id) {
-                 const productDoc = await db.products.get(item.product_id.toString());
-                 if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
-                   if (item.quantityType === "damaged") {
-                     const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
-                     const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
-                     await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
-                   } else {
-                     await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
-                   }
-                 }
-               }
-             }
+            for (const item of oldOrder.items) {
+              if (item.product_id) {
+                const productDoc = await db.products.get(item.product_id.toString());
+                if (productDoc && (!productDoc.type || productDoc.type === "goods" || productDoc.type === "good")) {
+                  if (item.quantityType === "damaged") {
+                    const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                    const newQty = Math.round((currentQty + (Number(item.quantity) || 0)) * 100000) / 100000;
+                    await db.products.update(item.product_id.toString(), { damaged_quantity: newQty });
+                  } else {
+                    await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
+                  }
+                }
+              }
+            }
           }
 
           // Revert old balance
@@ -810,10 +810,10 @@ export default function NewInvoicePage() {
         overallDiscount: overallDiscountAmount,
         shippingCharges: shippingChargesNum,
         payment: paymentDetails.noPaymentAtAll ? null : {
-           method: paymentDetails.paymentMethod,
-           paid_amount: paymentDetails.paidAmount || 0,
-           paid_date: paymentDetails.paidDate || null,
-           no_payment_at_all: paymentDetails.noPaymentAtAll
+          method: paymentDetails.paymentMethod,
+          paid_amount: paymentDetails.paidAmount || 0,
+          paid_date: paymentDetails.paidDate || null,
+          no_payment_at_all: paymentDetails.noPaymentAtAll
         },
         customer_notes: customerNotes || null,
         user_id: (session?.user as any)?.id || "",
@@ -833,7 +833,7 @@ export default function NewInvoicePage() {
           unit_of_measurement: p.unit_of_measurement,
         }))
       };
-      
+
       if (editOrderId) {
         const oldOrder = await db.orders.get(editOrderId);
         if (oldOrder) {
@@ -851,13 +851,13 @@ export default function NewInvoicePage() {
           const prodId = (p.id || (p as any)._id || "").toString();
           const productDoc = await db.products.get(prodId);
           if (productDoc) {
-             if (p.quantityType === "damaged") {
-               const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
-               const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
-               await db.products.update(prodId, { damaged_quantity: newQty });
-             } else {
-               await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
-             }
+            if (p.quantityType === "damaged") {
+              const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+              const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+              await db.products.update(prodId, { damaged_quantity: newQty });
+            } else {
+              await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+            }
           }
         }
       }
@@ -879,7 +879,7 @@ export default function NewInvoicePage() {
 
       // Show preview dialog directly, no intermediate success dialog
       setShowInvoicePreview(true);
-      
+
       // We will reset the form and navigate when they close the preview
     } catch (error: any) {
       console.error("Error creating order:", error);
@@ -1508,7 +1508,7 @@ export default function NewInvoicePage() {
                           />
                         </div>
                       )}
-                      
+
                       <div className="grid grid-cols-[auto_120px] gap-x-4 items-center">
                         <span className="text-sm text-right font-medium">{t("paymentMethod") || "Payment Method"}:</span>
                         <div className="w-full">
@@ -1520,7 +1520,7 @@ export default function NewInvoicePage() {
                           />
                         </div>
                       </div>
-                      
+
                       {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
                         <div className="grid grid-cols-[auto_120px] gap-x-4 items-center pt-1 text-muted-foreground">
                           <span className="text-sm text-right font-medium">{t("balance") || "Balance"}:</span>
@@ -1720,7 +1720,7 @@ export default function NewInvoicePage() {
                           />
                         </div>
                       )}
-                      
+
                       <div className="flex flex-col space-y-1">
                         <span className="text-sm font-medium">{t("paymentMethod") || "Payment Method"}:</span>
                         <PaymentMethodDropdown
@@ -1730,7 +1730,7 @@ export default function NewInvoicePage() {
                           defaultToCash={true}
                         />
                       </div>
-                      
+
                       {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
                         <div className="flex justify-between items-center pt-2 mt-2 border-t text-muted-foreground">
                           <span className="text-sm font-medium">{t("balance") || "Balance"}:</span>
@@ -1751,7 +1751,7 @@ export default function NewInvoicePage() {
                 title={t("error")}
                 message={saveError}
               />
-              
+
               <div className="flex justify-end mt-6 h-full items-end">
                 <Button
                   onClick={handleSaveOrder}

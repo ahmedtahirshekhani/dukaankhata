@@ -254,7 +254,7 @@ export class SyncEngine {
 
           // Special handling for offline quotation conversion orders
           if (op.method === 'POST' && op.url.includes('/convert') && result.orderId && op.localId) {
-            const dummyOrder = await db.orders.where('quotation_id').equals(op.localId).first();
+            const dummyOrder = await db.orders.filter((o: any) => o.quotation_id === op.localId).first();
             if (dummyOrder && dummyOrder.id !== result.orderId) {
               const oldId = dummyOrder.id;
               dummyOrder.id = result.orderId;

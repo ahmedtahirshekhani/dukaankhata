@@ -86,8 +86,7 @@
     "offlineWorkspaceSwitchErrorDesc": "Yeh action perform karne ke liye aap ka online hona zaroori hai. Barae meharbani apna internet connection check karein.",
     "balance": "Balance",
     "openingBalance": "Opening Balance",
-    "amountInDukaanKhata": "DukaanKhata mein raqam",
-    "close": "Закрыть"
+    "amountInDukaanKhata": "DukaanKhata mein raqam"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -218,9 +217,7 @@
     "paymentMethodDeleteDescription": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
     "paymentMethodSaved": "Payment method saved",
     "paymentMethodUpdated": "Payment method updated",
-    "paymentMethodDeleted": "Payment method deleted",
-    "cancelDeletion": "Cancel",
-    "confirmDeletion": "Confirm Deletion"
+    "paymentMethodDeleted": "Payment method deleted"
   },
   "auth": {
     "error": "Kharabi",
@@ -988,7 +985,7 @@
     "includeSignatureInInvoice": "Invoice mein dastakhat shamil karain",
     "requestCustomerSignature": "Party ka dastakhat talab karain",
     "createOrder": "Order Banayen",
-    "creatingOrder": "Creating Order...",
+    "creatingOrder": "Order banaya ja raha hai...",
     "orderCreatedTitle": "Order ban gaya",
     "orderCreatedDescription": "Order kamyabi se bana diya gaya hai.",
     "sendOnWhatsApp": "WhatsApp par bhejain",
@@ -1076,12 +1073,7 @@
     "failed_to_delete": "Quotation delete karne mein nakami",
     "error_deleting": "Quotation delete karne mein kharabi",
     "loading_quotations_error": "Quotations load karne mein kharabi",
-    "no_quotations_found": "Koi quotation nahi mili",
-    "editInvoiceDescription": "Modify the details of this invoice",
-    "updateInvoice": "Update Invoice",
-    "saveInvoice": "Save Invoice",
-    "saving": "Saving...",
-    "balance": "Balance"
+    "no_quotations_found": "Koi quotation nahi mili"
   },
   "accountStatement": {
     "title": "Account Statement",
@@ -1119,6 +1111,7 @@
     "typePaymentOut": "Payment Out",
     "typeAdjustment": "Adjustment",
     "typePurchase": "Purchase",
+    "typePurchaseBillPayment": "Purchase Payment",
     "typeSaleReturn": "Sale Return",
     "typeOpeningBalance": "Opening Balance",
     "amount": "Raqam",
@@ -1734,5 +1727,34 @@
     "totalDebitOut": "Total Debit (Out)",
     "creditIn": "Credit (In)",
     "debitOut": "Debit (Out)"
+  },
+  "configurationPage": {
+    "dangerZone": "Danger Zone",
+    "deleteAllDataTitle": "Tamam Workspace Data Delete Karein",
+    "deleteAllDataDescription": "Apne workspace ka tamam data hamesha ke liye delete karein.",
+    "deleteAllDataWarning": "Kya aap waqai tamam data delete karna chahte hain? Yeh wapas nahi laya ja sakta.",
+    "deleteAllDataButton": "Tamam Data Delete Karein",
+    "enterPassword": "Password Darj Karein",
+    "enterPasswordDescription": "Tasdeeq ke liye password darj karein",
+    "featureModules": "Feature Modules",
+    "featureModulesDescription": "Apne workspace ke liye mukhtalif features enable ya disable karein",
+    "counterSaleTitle": "Counter Sale",
+    "counterSaleDesc": "Quick counter sales interface enable karein",
+    "aiChatTitle": "AI Chat",
+    "aiChatDesc": "Business insights ke liye AI assistant enable karein",
+    "whatsappTitle": "WhatsApp Integration",
+    "whatsappDesc": "WhatsApp sharing aur notifications enable karein",
+    "companyDetails": "Company ki Tafseelat",
+    "companyDetailsDescription": "Apni company ki profile aur branding manage karein",
+    "companyName": "Company ka Naam",
+    "companyAddress": "Company ka Pata",
+    "enterCompanyAddress": "Company ka pata darj karein",
+    "companyPhone": "Company ka Phone",
+    "enterCompanyPhone": "Company ka phone number darj karein",
+    "companyEmail": "Company ka Email",
+    "enterCompanyEmail": "Company ka email darj karein",
+    "companyLogo": "Company ka Logo",
+    "authorizedSignature": "Authorized Signature",
+    "saveDetails": "Tafseelat Save Karein"
   }
 }

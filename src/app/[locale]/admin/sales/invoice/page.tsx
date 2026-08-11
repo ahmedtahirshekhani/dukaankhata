@@ -1279,6 +1279,7 @@ export default function OrdersPage() {
           hidePaymentActions={true}
           initialPayment={selectedInvoiceOrder.payment}
           customerNotes={selectedInvoiceOrder.customer_notes}
+          // onDuplicate={() => router.push(`/${locale}/admin/sales/invoice/new?duplicate=${selectedInvoiceOrder.id}`)}
         />
       )}
 

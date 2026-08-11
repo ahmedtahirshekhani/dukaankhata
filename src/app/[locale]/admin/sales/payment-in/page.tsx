@@ -648,7 +648,7 @@ export default function PaymentInPage() {
                 searchPlaceholder={t("searchPaymentMethods")}
                 noResultsText={t("noPaymentMethodsFound")}
                 addButtonPosition="bottom"
-                includeDefaultMethods={true}
+                // includeDefaultMethods={true}
               />
             </div>
             <div className="space-y-2">
@@ -715,7 +715,7 @@ export default function PaymentInPage() {
                 searchPlaceholder={tCommon("searchPaymentMethods")}
                 noResultsText={tCommon("noPaymentMethodsFound")}
                 addButtonPosition="bottom"
-                includeDefaultMethods={true}
+                // includeDefaultMethods={true}
               />
             </div>
             <div className="space-y-2">

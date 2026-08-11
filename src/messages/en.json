@@ -1118,6 +1118,7 @@
     "typePaymentOut": "Payment Out",
     "typeAdjustment": "Adjustment",
     "typePurchase": "Purchase",
+    "typePurchaseBillPayment": "Purchase Payment",
     "typeSaleReturn": "Sale Return",
     "typeOpeningBalance": "Opening Balance",
     "amount": "Amount",

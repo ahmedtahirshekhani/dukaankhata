@@ -674,7 +674,7 @@ export default function PaymentOutPage() {
                 searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
                 noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
                 addButtonPosition="bottom"
-                includeDefaultMethods={true}
+                // includeDefaultMethods={true}
               />
             </div>
             <div className="space-y-2">
@@ -762,7 +762,7 @@ export default function PaymentOutPage() {
                 searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
                 noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
                 addButtonPosition="bottom"
-                includeDefaultMethods={true}
+                // includeDefaultMethods={true}
               />
             </div>
             <div className="space-y-2">
