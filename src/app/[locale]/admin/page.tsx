@@ -41,6 +41,7 @@ import VyaparImportButton from "@/components/VyaparImportButton";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { SummaryCarousel } from "@/components/summary-carousel";
 import { Pagination } from "@/components/ui/pagination";
+import { UniversalImport } from "@/components/import/UniversalImport";
 import { cn, maskInvoiceNo } from "@/lib/utils";
 import {
   Select,
@@ -143,6 +144,7 @@ export default function DashboardPage() {
   const tDash = useTranslations("dashboard");
   const tCust = useTranslations("customers");
   const tInvoice = useTranslations("invoice");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const params = useParams();
   const { hasModuleAccess } = usePermissions();
@@ -747,17 +749,30 @@ export default function DashboardPage() {
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-1 sm:gap-2 justify-center h-7 px-2 py-1 text-[10px] sm:h-8 sm:px-3 sm:text-xs" size="sm" variant="outline">
                   <File className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Import Your Data</span>
-                  <span className="inline sm:hidden">Import</span>
+                  <span className="hidden sm:inline">Import Vyapar</span>
+                  <span className="inline sm:hidden">Vyapar</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Import Your Data</DialogTitle>
+                  <DialogTitle>Import Vyapar Data</DialogTitle>
                 </DialogHeader>
                 <div className="mt-4">
                   <VyaparImportButton />
                 </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-1 sm:gap-2 justify-center h-7 px-2 py-1 text-[10px] sm:h-8 sm:px-3 sm:text-xs" size="sm" variant="outline">
+                  <File className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                  <span className="hidden sm:inline">{tCommon("universalImportButton") || "Universal Import"}</span>
+                  <span className="inline sm:hidden">{tCommon("universalImportMobile") || "Import"}</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <UniversalImport />
               </DialogContent>
             </Dialog>
           </div>

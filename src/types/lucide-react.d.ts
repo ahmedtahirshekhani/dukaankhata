@@ -220,6 +220,11 @@ declare module 'lucide-react' {
   export const PlayCircle: Icon;
   export const Building2: Icon;
   export const Landmark: Icon;
+  export const UploadCloud: Icon;
+  export const FileType: Icon;
+  export const CheckCircle2: Icon;
+  export const AlertCircle: Icon;
+  
 
   // Catch-all for any other icons that might be used
   const lucideReact: {
