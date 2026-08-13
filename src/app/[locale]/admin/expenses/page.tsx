@@ -103,8 +103,8 @@ function generateExpenseNumber() {
 
 const generateObjectId = () => {
   const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
-  const randomString = Math.random().toString(16).substring(2, 18);
-  return timestamp + randomString.substring(0, 16);
+  const randomString = Math.random().toString(16).substring(2).padEnd(16, '0');
+  return timestamp + randomString;
 };
 
 function createLine(): ExpenseLine {
