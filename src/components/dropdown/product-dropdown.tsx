@@ -22,7 +22,7 @@ import { Product } from "@/types/product";
 interface ProductDropdownProps {
   value?: string | number;
   onValueChange: (value: string, product?: Product) => void;
-  placeholder?: string;
+  placeholder?: string | React.ReactNode;
   disabled?: boolean;
   className?: string;
   enableSearch?: boolean;
