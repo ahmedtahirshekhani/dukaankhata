@@ -195,10 +195,10 @@ export default function PartiesPage() {
   useEffect(() => {
     setTotalCount(processedCustomers.length);
     setTotalPages(Math.ceil(processedCustomers.length / pageSize) || 1);
-    if (!isDexieLoading && (allOfflineCustomers.length > 0 || isSyncReady)) {
+    if (!isDexieLoading) {
       setLoading(false);
     }
-  }, [processedCustomers.length, pageSize, allOfflineCustomers.length, isSyncReady, isDexieLoading]);
+  }, [processedCustomers.length, pageSize, isDexieLoading]);
 
   const filteredCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
