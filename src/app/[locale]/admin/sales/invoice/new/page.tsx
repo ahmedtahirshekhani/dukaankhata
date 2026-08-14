@@ -895,19 +895,19 @@ export default function NewInvoicePage() {
     <div className="bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-3 bg-white p-3 rounded-lg shadow-sm">
-        <div>
+        <div className="w-full md:w-auto">
           <h1 className="text-2xl font-bold text-gray-900">{editOrderId ? (t("editInvoice") || "Edit Invoice") : (t("title") || "Create Invoice")}</h1>
           <p className="text-xs text-gray-500">
             {editOrderId ? (t("editInvoiceDescription") || "Modify the details of this invoice") : (t("pageDescription") || "Customer ko Invoice banakar bhejein")}
           </p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none">
-            <span className="text-gray-600">Clear</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:flex items-center gap-2 w-full md:w-auto">
+          <Button variant="outline" className="w-full md:w-auto">
+            <span className="text-gray-600">{tCommon("clear") || "Clear"}</span>
           </Button>
           <Button
             variant="outline"
-            className="flex-1 md:flex-none text-primary border-primary hover:bg-primary/5 hover:text-primary"
+            className="w-full md:w-auto text-primary border-primary hover:bg-primary/5 hover:text-primary"
             onClick={() => setShowInvoicePreview(true)}
           >
             {t("preview") || "Preview"}
@@ -915,7 +915,7 @@ export default function NewInvoicePage() {
           <Button
             onClick={handleSaveOrder}
             disabled={isCreatingOrder}
-            className="flex-1 md:flex-none bg-primary text-white hover:bg-primary/90"
+            className="w-full md:w-auto bg-primary text-white hover:bg-primary/90"
           >
             {isCreatingOrder ? (
               <>
@@ -999,7 +999,7 @@ export default function NewInvoicePage() {
                       htmlFor="add-due-date"
                       className="text-xs text-gray-600 font-normal cursor-pointer"
                     >
-                      Add Due Date
+                      {t("addDueDate") || "Add Due Date"}
                     </Label>
                   </div>
                 </div>
@@ -1011,7 +1011,7 @@ export default function NewInvoicePage() {
           <Card className="shadow-sm border-0 ring-1 ring-gray-200">
             <CardHeader className="pb-2 border-b border-gray-100 flex flex-row items-center gap-3">
               <div className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs">2</div>
-              <CardTitle className="text-lg m-0">{t("itemsAddKarein") || "Items Add Karein"}</CardTitle>
+              <CardTitle className="text-lg m-0">{t("addItems") || "Add Items"}</CardTitle>
             </CardHeader>
             <CardContent className="pt-3 p-0 md:p-3 md:pt-3">
               <ItemSelectTable
@@ -1038,12 +1038,12 @@ export default function NewInvoicePage() {
             </CardHeader>
             <CardContent className="pt-3">
               <textarea
-                placeholder="Koi note likhein..."
+                placeholder={t("notesPlaceholder") || "Koi note likhein..."}
                 className="w-full min-h-[60px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y"
                 value={customerNotes}
                 onChange={(e) => setCustomerNotes(e.target.value)}
               />
-              <p className="text-xs text-gray-500 mt-3">Yeh note invoice par print hoga</p>
+              <p className="text-xs text-gray-500 mt-3">{t("notePrintMessage") || "Yeh note invoice par print hoga"}</p>
             </CardContent>
           </Card>
 
@@ -1102,11 +1102,6 @@ export default function NewInvoicePage() {
                   />
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-blue-50/50 rounded-lg border border-blue-100 mt-3">
-                  <span className="text-primary font-bold text-sm">{t("totalAmount") || "Total Amount"}</span>
-                  <span className="text-primary font-bold text-base">Rs. {Math.floor(finalTotal)}</span>
-                </div>
-
                 <div className="space-y-2 pt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600 font-medium w-1/3">{t("paymentMethod")}</span>
@@ -1122,7 +1117,7 @@ export default function NewInvoicePage() {
 
                   {!isCashSale && (
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600 font-medium w-1/3">{t("amountLabel") || "Amount Received"}</span>
+                      <span className="text-xs text-gray-600 font-medium w-1/3">{t("receivedAmount") || "Received Amount"}</span>
                       <Input
                         type="number"
                         value={paymentAmount === "" ? "" : paymentAmount}
@@ -1144,13 +1139,18 @@ export default function NewInvoicePage() {
                   )}
 
                   {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
-                    <div className="flex justify-between items-center pt-3">
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                       <span className="text-xs text-gray-600 font-medium">{t("balance") || "Balance"}</span>
                       <span className="text-xs font-semibold text-gray-900">
                         Rs. {Math.floor(finalTotal) - Number(paymentAmount)}
                       </span>
                     </div>
                   )}
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-blue-50/50 rounded-lg border border-blue-100 mt-3">
+                  <span className="text-primary font-bold text-sm">{t("totalAmount") || "Total Amount"}</span>
+                  <span className="text-primary font-bold text-base">Rs. {Math.floor(finalTotal)}</span>
                 </div>
               </div>
             </CardContent>
@@ -1194,6 +1194,19 @@ export default function NewInvoicePage() {
                 
                 <div className="h-px bg-gray-100 my-4"></div>
                 
+                {!isCashSale && paymentAmount !== "" && paymentAmount > 0 && (
+                  <>
+                    <div className="flex justify-between text-xs text-gray-600 mb-2">
+                      <span>{t("receivedAmount") || "Received Amount"}</span>
+                      <span className="font-medium text-gray-900">Rs. {Number(paymentAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-primary font-bold mb-3">
+                      <span>{t("balance") || "Balance"}</span>
+                      <span>Rs. {Math.floor(finalTotal) - Number(paymentAmount)}</span>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-gray-900">{t("totalAmount") || "Total Amount"}</span>
                   <span className="font-bold text-lg text-primary">Rs. {Math.floor(finalTotal)}</span>
@@ -1215,10 +1228,9 @@ export default function NewInvoicePage() {
       </div>
 
       {/* Asaan 4 Steps */}
-      <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+      {/* <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
         <h3 className="text-primary font-semibold mb-3">{t("asaan4Steps") || "Asaan 4 Steps"}</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 relative">
-          {/* Step 1 */}
           <div className="flex gap-3 relative z-10">
             <div className="bg-primary/5 text-primary w-12 h-12 rounded-full flex items-center justify-center shrink-0 border border-primary/10">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1232,13 +1244,12 @@ export default function NewInvoicePage() {
             </div>
           </div>
           
-          {/* Step 2 */}
           <div className="flex gap-3 relative z-10">
             <div className="bg-primary/5 text-primary w-12 h-12 rounded-full flex items-center justify-center shrink-0 border border-primary/10">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 text-xs mb-1">{t("step2Title") || "Items Add Karein"}</h4>
+              <h4 className="font-semibold text-gray-900 text-xs mb-1">{t("step2Title") || "Add Items"}</h4>
               <p className="text-xs text-gray-500 leading-relaxed">{t("step2Desc") || "Products select karein aur quantity aur price dalein"}</p>
             </div>
             <div className="hidden md:block absolute right-[-10px] top-3 text-gray-300">
@@ -1246,7 +1257,6 @@ export default function NewInvoicePage() {
             </div>
           </div>
           
-          {/* Step 3 */}
           <div className="flex gap-3 relative z-10">
             <div className="bg-primary/5 text-primary w-12 h-12 rounded-full flex items-center justify-center shrink-0 border border-primary/10">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
@@ -1260,7 +1270,6 @@ export default function NewInvoicePage() {
             </div>
           </div>
           
-          {/* Step 4 */}
           <div className="flex gap-3 relative z-10">
             <div className="bg-primary/5 text-primary w-12 h-12 rounded-full flex items-center justify-center shrink-0 border border-primary/10">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>
@@ -1271,7 +1280,7 @@ export default function NewInvoicePage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Show error in modal dialog */}
       <ErrorDialog

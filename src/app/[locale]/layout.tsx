@@ -62,7 +62,7 @@ export default async function LocalizedRootLayout({
             <LocaleManager />
             <LanguageInitializer />
             <PWAInstallPrompt />
-            <PWAInstallBanner />
+            {/* <PWAInstallBanner /> */}
             <IOSInstallPromptWrapper />
             <MacChromeInstallPromptWrapper />
             {/* <OfflineIndicator /> */}
