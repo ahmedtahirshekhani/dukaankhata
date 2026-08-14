@@ -4,6 +4,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+
 import { Store, ChevronRight, CheckCircle, Building2, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,6 +96,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
       await updateSession({ active_workspace_id: data.shopId });
       setIsModalOpen(false);
       setNewShopName("");
+      await SyncEngine.clearCacheAndResync();
       window.location.href = `/${locale}/admin`; // Force full reload to rebuild workspaces in auth.ts
     } catch (err) {
       setError(t("networkError"));
@@ -158,7 +161,8 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                     }
                     if (!isActive) {
                       await updateSession({ active_workspace_id: ws.id });
-                      router.push(`/${locale}/admin`);
+                      await SyncEngine.clearCacheAndResync();
+                      window.location.href = `/${locale}/admin`;
                     }
                   }}
                   className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all ${

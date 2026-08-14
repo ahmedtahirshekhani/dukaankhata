@@ -75,10 +75,10 @@
     "youAreOffline": "You are offline",
     "youAreOnline": "You are online",
     "backOnline": "Back online",
-    "clearCache": "Clear Cache",
-    "clearCacheWarning": "Are you sure you want to clear the local cache? This will delete the offline database and re-sync all data from the server.",
-    "clearingCache": "Clearing...",
-    "cacheClearedSuccess": "Cache cleared successfully",
+    "clearCache": "Sync Data",
+    "clearCacheWarning": "Are you sure you want to sync data? This will clear local cache and re-sync all data from the server.",
+    "clearingCache": "Syncing...",
+    "cacheClearedSuccess": "Data synced successfully",
     "syncingData": "Syncing Data...",
     "pleaseWait": "Please wait while we set up your offline database.",
     "all": "All",
@@ -1098,7 +1098,10 @@
     "step4Desc": "Payment method select karein aur Save par click karein",
     "totalAmount": "Total Amount",
     "notesOptional": "Notes (Optional)",
-    "totalAurPayment": "Total Aur Payment"
+    "totalAurPayment": "Total Aur Payment",
+    "receivedAmount": "Received Amount",
+    "addItems": "Add Items",
+    "addAnotherItem": "Add Another Item"
   },
   "accountStatement": {
     "title": "Account Statement",
