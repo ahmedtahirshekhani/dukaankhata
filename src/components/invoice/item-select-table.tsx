@@ -206,7 +206,7 @@ export function ItemSelectTable({
               placeholder={
                 <div className="flex items-center gap-1.5 text-primary font-medium">
                   <PlusCircle className="h-3.5 w-3.5" />
-                  {selectedProducts.length > 0 ? "Add Another Item" : "Add Item"}
+                  {selectedProducts.length > 0 ? (t("addAnotherItem") || "Add Another Item") : (t("addItem") || "Add Item")}
                 </div>
               }
               enableSearch={true}
@@ -374,7 +374,7 @@ export function ItemSelectTable({
             placeholder={
               <div className="flex items-center gap-1.5 text-primary font-medium">
                 <PlusCircle className="h-3.5 w-3.5" />
-                {selectedProducts.length > 0 ? "Add Another Item" : "Add Item"}
+                {selectedProducts.length > 0 ? (t("addAnotherItem") || "Add Another Item") : (t("addItem") || "Add Item")}
               </div>
             }
             enableSearch={true}
