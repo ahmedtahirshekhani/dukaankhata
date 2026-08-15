@@ -270,9 +270,9 @@ export default function AccountStatementPage() {
   }, [tCommon, reportMeta, fromDate, toDate]);
 
   const getBalanceColor = (balance: number) => {
-    if (balance > 0) return "text-red-600";
-    if (balance < 0) return "text-green-600";
-    return "text-gray-600";
+    if (balance > 0) return "text-gray-900";
+    if (balance < 0) return "text-gray-900";
+    return "text-gray-900";
   };
 
   const getTransactionType = (type: string) => {
@@ -347,7 +347,7 @@ export default function AccountStatementPage() {
       color: "green",
       icon: ArrowRightLeft,
       bgClass: "bg-green-50",
-      iconClass: "text-green-600"
+      iconClass: "text-gray-900"
     },
     {
       title: t("currentBalance"),
@@ -355,7 +355,7 @@ export default function AccountStatementPage() {
       color: summary.currentBalance > 0 ? "red" : "green",
       icon: summary.currentBalance > 0 ? TrendingUp : TrendingDown,
       bgClass: summary.currentBalance > 0 ? "bg-red-50" : "bg-green-50",
-      iconClass: summary.currentBalance > 0 ? "text-red-600" : "text-green-600"
+      iconClass: summary.currentBalance > 0 ? "text-gray-900" : "text-gray-900"
     }
   ] : [];
 
@@ -603,11 +603,11 @@ export default function AccountStatementPage() {
                   <div className="flex justify-between items-center pt-2 border-t border-gray-100 text-xs">
                     <div>
                       {txn.debit ? (
-                        <span className="text-red-600 font-semibold">
+                        <span className="text-gray-900 font-semibold">
                           {t("debit") || "Debit"}: {formatCurrencyString(txn.debit)}
                         </span>
                       ) : txn.credit ? (
-                        <span className="text-green-600 font-semibold">
+                        <span className="text-gray-900 font-semibold">
                           {t("credit") || "Credit"}: {formatCurrencyString(txn.credit)}
                         </span>
                       ) : (
@@ -629,11 +629,11 @@ export default function AccountStatementPage() {
             <div className="bg-white border border-gray-100 rounded-lg p-3.5 shadow-sm space-y-2 text-xs">
               <div className="flex justify-between items-center">
                 <span className="text-gray-500 font-medium">{t("totalDebit")}:</span>
-                <span className="font-bold text-red-600">{formatCurrencyString(totalDebit)}</span>
+                <span className="font-bold text-gray-900">{formatCurrencyString(totalDebit)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500 font-medium">{t("totalCredit")}:</span>
-                <span className="font-bold text-green-600">{formatCurrencyString(totalCredit)}</span>
+                <span className="font-bold text-gray-900">{formatCurrencyString(totalCredit)}</span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-gray-100 font-bold">
                 <span className="text-gray-700">{t("closingBalance")}:</span>
@@ -697,10 +697,10 @@ export default function AccountStatementPage() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-red-600">
+                          <TableCell className="text-right py-2.5 text-xs text-gray-900">
                             {txn.debit ? formatCurrencyString(txn.debit) : "-"}
                           </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-green-600">
+                          <TableCell className="text-right py-2.5 text-xs text-gray-900">
                             {txn.credit ? formatCurrencyString(txn.credit) : "-"}
                           </TableCell>
                           <TableCell className="text-right py-2.5 text-xs font-medium">
@@ -720,13 +720,13 @@ export default function AccountStatementPage() {
                 <div className="flex justify-end gap-6 text-xs font-bold uppercase">
                   <div>
                     <span className="text-gray-400">{t("totalDebit")}:</span>
-                    <span className="ml-2 text-red-600">
+                    <span className="ml-2 text-gray-900">
                       {formatCurrencyString(totalDebit)}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400">{t("totalCredit")}:</span>
-                    <span className="ml-2 text-green-600">
+                    <span className="ml-2 text-gray-900">
                       {formatCurrencyString(totalCredit)}
                     </span>
                   </div>
@@ -941,10 +941,10 @@ export default function AccountStatementPage() {
                               </div>
                             ) : "-"}
                           </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-red-700 font-semibold">
+                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-semibold">
                             {txn.debit ? formatCurrencyString(txn.debit) : "-"}
                           </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-green-700 font-semibold">
+                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-semibold">
                             {txn.credit ? formatCurrencyString(txn.credit) : "-"}
                           </TableCell>
                           <TableCell className="text-right py-2.5 text-xs font-bold text-gray-900">
@@ -964,13 +964,13 @@ export default function AccountStatementPage() {
                 <div className="flex justify-end gap-6 text-xs font-bold uppercase">
                   <div>
                     <span className="text-gray-400">{t("totalDebit")}:</span>
-                    <span className="ml-2 text-red-600">
+                    <span className="ml-2 text-gray-900">
                       {formatCurrencyString(totalDebit)}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400">{t("totalCredit")}:</span>
-                    <span className="ml-2 text-green-600">
+                    <span className="ml-2 text-gray-900">
                       {formatCurrencyString(totalCredit)}
                     </span>
                   </div>
