@@ -86,7 +86,9 @@
     "offlineWorkspaceSwitchErrorDesc": "You must be online to perform this action. Please check your internet connection.",
     "balance": "Balance",
     "amountInDukaanKhata": "Amount in DukaanKhata",
-    "close": "Close"
+    "close": "Close",
+    "management": "Management",
+    "clear": "Clear"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -1085,8 +1087,8 @@
     "itemsAddKarein": "Items Add Karein",
     "invoiceSummary": "Invoice Summary",
     "totalQuantity": "Total Quantity",
-    "asaanTip": "Asaan Tip",
-    "asaanTipText": "Pehle Customer select karein, phir items add karein aur Save Invoice par click karein.",
+    "asaanTip": "Quick Tip",
+    "asaanTipText": "First select a customer, then add items and click on Save Invoice.",
     "asaan4Steps": "Asaan 4 Steps",
     "step1Title": "Customer Select",
     "step1Desc": "Customer choose karein ya naya customer banayein",
@@ -1101,7 +1103,9 @@
     "totalAurPayment": "Total Aur Payment",
     "receivedAmount": "Received Amount",
     "addItems": "Add Items",
-    "addAnotherItem": "Add Another Item"
+    "addAnotherItem": "Add Another Item",
+    "notesPlaceholder": "Write a note...",
+    "notePrintMessage": "This note will be printed on the invoice"
   },
   "accountStatement": {
     "title": "Account Statement",

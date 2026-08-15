@@ -88,7 +88,8 @@
     "openingBalance": "اوپننگ بیلنس",
     "amountInDukaanKhata": "دکان کھاتہ میں رقم",
     "close": "بند کریں",
-    "clear": "صاف کریں"
+    "clear": "صاف کریں",
+    "management": "انتظام"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -1088,7 +1089,7 @@
     "invoiceSummary": "انوائس کا خلاصہ",
     "totalQuantity": "کل مقدار",
     "asaanTip": "آسان ٹپ",
-    "asaanTipText": "پہلے کسٹمر منتخب کریں، پھر آئٹمز شامل کریں اور انوائس محفوظ کریں پر کلک کریں۔",
+    "asaanTipText": "پہلے کسٹمر منتخب کریں، پھر آئٹمز شامل کریں اور انوائس محفوظ کرنے پر کلک کریں۔",
     "asaan4Steps": "آسان 4 مراحل",
     "step1Title": "کسٹمر منتخب کریں",
     "step1Desc": "کسٹمر منتخب کریں یا نیا کسٹمر بنائیں",
@@ -1103,8 +1104,8 @@
     "totalAurPayment": "کل رقم اور ادائیگی",
     "receivedAmount": "وصول شدہ رقم",
     "addItems": "آئٹمز شامل کریں",
-    "notesPlaceholder": "کوئی نوٹ لکھیں...",
-    "notePrintMessage": "یہ نوٹ انوائس پر پرنٹ ہوگا۔",
+    "notesPlaceholder": "Koi note likhein...",
+    "notePrintMessage": "Yeh note invoice par print hoga",
     "addAnotherItem": "ایک اور آئٹم شامل کریں"
   },
   "accountStatement": {

@@ -401,7 +401,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const entries = processedEntries;
+    const entries = processedEntries.filter(e => Math.abs(Number(e.amount_delta)) >= 0.01);
 
     const orderIds = entries
       .filter((entry) => entry.event_source === "order" && entry.event_source_id)

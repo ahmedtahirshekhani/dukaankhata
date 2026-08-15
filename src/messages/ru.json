@@ -88,7 +88,8 @@
     "openingBalance": "Opening Balance",
     "amountInDukaanKhata": "DukaanKhata mein raqam",
     "clear": "Clear",
-    "close": "Close"
+    "close": "Close",
+    "management": "Management"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -1101,7 +1102,7 @@
     "addAnotherItem": "Aik Aur Item Add Karein",
     "saveInvoice": "Save Invoice",
     "notesPlaceholder": "Koi note likhein...",
-    "notePrintMessage": "Yeh note invoice par print hoga."
+    "notePrintMessage": "Yeh note invoice par print hoga"
   },
   "accountStatement": {
     "title": "Account Statement",

@@ -143,6 +143,24 @@ export function InvoicePreviewDialog({
   );
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(0.65);
+
+  useEffect(() => {
+    const updateZoom = () => {
+      if (typeof window !== "undefined") {
+        if (window.innerWidth < 768) {
+          // On mobile, zoom out based on screen width (subtract padding)
+          const targetW = printFormat === 'letter' ? 816 : 794;
+          setZoomLevel((window.innerWidth - 24) / targetW);
+        } else {
+          setZoomLevel(0.65); // standard desktop zoom
+        }
+      }
+    };
+    updateZoom();
+    window.addEventListener('resize', updateZoom);
+    return () => window.removeEventListener('resize', updateZoom);
+  }, [printFormat, open]);
 
   const getToday = () => {
     const d = new Date();
@@ -512,14 +530,14 @@ export function InvoicePreviewDialog({
           </DialogHeader>
 
           <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
-            <div className="lg:col-span-2 overflow-auto pb-4 custom-scrollbar max-w-full">
+            <div className="lg:col-span-2 overflow-auto pb-4 custom-scrollbar max-w-full flex justify-center w-full">
               <div
-                className="md:min-w-0 inline-block transition-all duration-300 mx-auto block origin-top"
+                className="transition-all duration-300 origin-top"
                 style={{
                   width: printFormat === 'thermal' ? '100%' : (printFormat === 'letter' ? '816px' : '794px'),
                   maxWidth: printFormat === 'thermal' ? '320px' : 'none',
                   minWidth: printFormat === 'thermal' ? '0' : (printFormat === 'letter' ? '816px' : '794px'),
-                  zoom: (isPrinting || isDownloading) ? 1 : (printFormat === 'thermal' ? 1 : 0.65),
+                  zoom: (isPrinting || isDownloading) ? 1 : (printFormat === 'thermal' ? 1 : zoomLevel),
                 }}
               >
                 <InvoicePreview
