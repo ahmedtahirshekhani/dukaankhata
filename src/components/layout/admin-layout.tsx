@@ -1040,29 +1040,6 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 </Link>
               </div>
             )}
-
-            {/* Settings / Configuration - protected by module access */}
-            {hasModuleAccess("settings") && (
-              <div className="mt-auto flex flex-col gap-2">
-                {/* Workspace Switcher moved to top */}
-                
-                <Link
-                  href={`/${locale}/admin/configuration`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors ${pathWithoutLocale === "/admin/configuration"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                    } ${sidebarMinimized ? "sm:justify-center sm:px-0" : ""}`}
-                  title={sidebarMinimized ? tNav("configuration") : ""}
-                >
-                  <Settings className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className={`font-medium text-xs truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                    {tNav("configuration")}
-                  </span>
-                </Link>
-              </div>
-            )}
           </nav>
         </aside>
         <main

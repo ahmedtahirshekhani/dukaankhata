@@ -2,11 +2,12 @@
 
 import { useTranslations, useLocale } from "next-intl";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 
-import { Store, ChevronRight, CheckCircle, Building2, PlusCircle, Loader2 } from "lucide-react";
+import { Store, ChevronRight, CheckCircle, Building2, PlusCircle, Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,6 +38,8 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
   const t = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
+  const { hasModuleAccess } = usePermissions();
+  const tNav = useTranslations("navigation");
   const { user, updateSession } = useUserProfile();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -165,7 +168,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                       window.location.href = `/${locale}/admin`;
                     }
                   }}
-                  className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all ${
+                  className={`flex items-center gap-2 cursor-pointer p-1.5 rounded-lg transition-all ${
                     !isOnline && !isActive 
                       ? "opacity-50 cursor-not-allowed" 
                       : isActive
@@ -174,33 +177,64 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                   }`}
                 >
                   <div
-                    className={`flex items-center justify-center rounded-md w-8 h-8 shrink-0 border ${
+                    className={`flex items-center justify-center rounded-md w-6 h-6 shrink-0 border ${
                       isActive
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background text-muted-foreground border-border"
                     }`}
                   >
-                    <Building2 className="h-4 w-4" />
+                    <Building2 className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span
-                      className={`truncate text-sm font-medium ${
+                      className={`truncate text-xs font-medium ${
                         isActive ? "font-bold text-primary" : ""
                       }`}
                     >
                       {ws.name}
                     </span>
-                    <span className="text-xs text-muted-foreground capitalize">
+                    <span className="text-[10px] text-muted-foreground capitalize leading-tight">
                       {ws.type}
                     </span>
                   </div>
                   {isActive && (
-                    <CheckCircle className="h-4 w-4 text-primary shrink-0 drop-shadow-sm" />
+                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 drop-shadow-sm" />
                   )}
                 </DropdownMenuItem>
               );
             })}
-            <DropdownMenuSeparator className="my-1.5" />
+            
+            {hasModuleAccess("settings") && (
+              <>
+                <DropdownMenuSeparator className="my-1.5" />
+                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground uppercase tracking-wider px-2 pt-1 pb-2">
+                  {t("management")}
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => router.push(`/${locale}/admin/configuration`)}
+                  className="flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <div className="flex items-center justify-center rounded-md w-8 h-8 shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <Settings className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="truncate text-sm font-medium">
+                      {tNav("configuration")}
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              </>
+            )}
+            
+            {!hasModuleAccess("settings") && (
+              <>
+                <DropdownMenuSeparator className="my-1.5" />
+                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground uppercase tracking-wider px-2 pt-1 pb-2">
+                  {t("management")}
+                </DropdownMenuLabel>
+              </>
+            )}
+
             <DropdownMenuItem
               onClick={(e) => {
                 if (!isOnline) {
