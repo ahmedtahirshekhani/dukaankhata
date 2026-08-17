@@ -88,7 +88,8 @@
     "amountInDukaanKhata": "Amount in DukaanKhata",
     "close": "Close",
     "management": "Management",
-    "clear": "Clear"
+    "clear": "Clear",
+    "maxShopsLimitReached": "Maximum limit of 5 shops reached."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",

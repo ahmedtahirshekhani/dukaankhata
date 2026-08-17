@@ -237,6 +237,10 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
 
             <DropdownMenuItem
               onClick={(e) => {
+                if ((user?.workspaces?.length ?? 0) >= 5) {
+                  e.preventDefault();
+                  return;
+                }
                 if (!isOnline) {
                   e.preventDefault();
                   setShowOfflineAlert(true);
@@ -244,8 +248,9 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                 }
                 setIsModalOpen(true);
               }}
+              disabled={(user?.workspaces?.length ?? 0) >= 5}
               className={`flex items-center gap-3 p-2 rounded-lg transition-all ${
-                !isOnline
+                !isOnline || (user?.workspaces?.length ?? 0) >= 5
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer text-primary hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
               }`}
@@ -257,6 +262,11 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                 <span className="truncate text-sm font-bold">
                   {t("addNewShop")}
                 </span>
+                {user.workspaces.length >= 5 && (
+                  <span className="text-[10px] text-amber-600 font-semibold whitespace-normal leading-tight mt-0.5">
+                    {t("maxShopsLimitReached") || "Maximum limit of 5 shops reached."}
+                  </span>
+                )}
               </div>
             </DropdownMenuItem>
           </div>

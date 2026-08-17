@@ -89,7 +89,8 @@
     "amountInDukaanKhata": "DukaanKhata mein raqam",
     "clear": "Clear",
     "close": "Close",
-    "management": "Management"
+    "management": "Management",
+    "maxShopsLimitReached": "Limit max 5 shops. Mazeed shops add nahi kar sakte."
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
