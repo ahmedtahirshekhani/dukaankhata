@@ -88,7 +88,8 @@
     "amountInDukaanKhata": "Amount in DukaanKhata",
     "close": "Close",
     "management": "Management",
-    "clear": "Clear"
+    "clear": "Clear",
+    "maxShopsLimitReached": "Maximum limit of 5 shops reached."
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -132,7 +133,7 @@
     "quotationsDescription": "Estimates & quotes",
     "convertToSale": "Convert to Sale",
     "configuration": "Configuration",
-    "configurationDescription": "Settings & logo",
+    "configurationDescription": "Configuration & logo",
     "reports": "Reports",
     "reportsDescription": "Financial reports",
     "stockReport": "Stock Report",
@@ -163,9 +164,10 @@
   "configurationPage": {
     "dangerZone": "Danger Zone",
     "deleteAllDataTitle": "Delete All Workspace Data",
-    "deleteAllDataDescription": "Permanently delete all data in your workspace.",
+    "deleteAllDataDescription": "This action will delete all sales, expenses, and records for this workspace. Auto-created Cash Sale party and payment methods will not be deleted, only their balances will be reset.",
     "deleteAllDataWarning": "Are you sure you want to delete all data? This cannot be undone.",
     "deleteAllDataButton": "Delete All Data",
+    "deleting": "Deleting...",
     "enterPassword": "Enter Password",
     "enterPasswordDescription": "Enter password to confirm",
     "searchPlaceholder": "Search Payment Methods",

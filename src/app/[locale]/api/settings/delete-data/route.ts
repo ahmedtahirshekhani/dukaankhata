@@ -67,19 +67,19 @@ export async function POST(request: Request) {
     
     // Fetch Cash Sale party and Cash in Hand method to exclude/reset
     const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
-    const cashParty = await partiesCollection.findOne({ ...filter, type: 'cash' });
+    const cashParty = await partiesCollection.findOne({ ...filter, is_default: true });
     
     const pmCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
-    const cashMethod = await pmCollection.findOne({ ...filter, type: 'cash' });
+    const cashMethod = await pmCollection.findOne({ ...filter, is_default: true });
 
     for (const collectionName of collectionsToClear) {
       const collection = await getCollection(collectionName);
       let currentFilter: any = { ...filter };
 
       if (collectionName === COLLECTIONS.PARTIES) {
-         currentFilter.type = { $ne: 'cash' };
+         currentFilter.is_default = { $ne: true };
       } else if (collectionName === COLLECTIONS.PAYMENT_METHODS) {
-         currentFilter.type = { $ne: 'cash' };
+         currentFilter.is_default = { $ne: true };
       } else if (collectionName === COLLECTIONS.PARTY_BALANCE_STATE && cashParty) {
          currentFilter.party_id = { $ne: cashParty._id };
       }

@@ -18,7 +18,8 @@
     "generate:logo-icons": "node scripts/generate-logo-icons.js",
     "pwa:check": "lighthouse http://localhost:3000 --only-categories=pwa --view",
     "migrate:configs": "tsx --env-file=.env.local scripts/migrate-configs.ts",
-    "seed:payment-methods": "tsx --env-file=.env.local scripts/seed-payment-methods.ts"
+    "seed:payment-methods": "tsx --env-file=.env.local scripts/seed-payment-methods.ts",
+    "migrate:walkin-to-cash-sale": "tsx --env-file=.env.local scripts/migrate-walkin-to-cash-sale.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.82",

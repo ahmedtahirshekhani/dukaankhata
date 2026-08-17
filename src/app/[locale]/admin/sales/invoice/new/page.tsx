@@ -276,6 +276,27 @@ export default function NewInvoicePage() {
     setInvoiceNo(`INV-${timestamp}-${random}`);
   };
 
+  const handleClear = () => {
+    setSelectedProducts([]);
+    setSelectedCustomer(null);
+    generateInvoiceNo();
+    setSelectedDate(getTodayDateString());
+    setAddDueDate(false);
+    setDueDate(getTodayDateString());
+    setCharges([]);
+    setShowAddCharge(false);
+    setNewChargeItem("");
+    setNewChargeValue("");
+    setOverallDiscount(0);
+    setOverallDiscountType("value");
+    setShippingCharges(0);
+    setCustomerNotes("");
+    setPaymentAmount("");
+    setPaymentMethod("");
+    setSaveError("");
+    setCreatedOrderShareData(null);
+  };
+
   const handleSelectProduct = (product: Product) => {
     const productId = product.id;
     if (!product) return;
@@ -902,7 +923,11 @@ export default function NewInvoicePage() {
           </p>
         </div>
         <div className="grid grid-cols-3 md:flex items-center gap-1.5 sm:gap-2 w-full md:w-auto mt-2 md:mt-0">
-          <Button variant="outline" className="w-full text-[10px] sm:text-xs h-8 px-1 sm:px-3 md:w-auto">
+          <Button 
+            variant="outline" 
+            className="w-full text-[10px] sm:text-xs h-8 px-1 sm:px-3 md:w-auto"
+            onClick={handleClear}
+          >
             <span className="text-gray-600">{tCommon("clear") || "Clear"}</span>
           </Button>
           <Button
@@ -1354,6 +1379,21 @@ export default function NewInvoicePage() {
         onWhatsApp={handleSendInvoicePdfOnWhatsApp}
         disableWhatsApp={!getWhatsAppLink()}
         isSendingWhatsApp={isSendingWhatsApp}
+        initialPayment={
+          isCashSale 
+          ? {
+              method: paymentMethod || "cash",
+              paid_amount: Math.floor(finalTotal),
+              paid_date: new Date().toISOString(),
+              no_payment_at_all: false,
+            }
+          : {
+              method: paymentMethod,
+              paid_amount: paymentAmount === "" ? 0 : Number(paymentAmount),
+              paid_date: new Date().toISOString(),
+              no_payment_at_all: paymentAmount === "" || Number(paymentAmount) === 0,
+            }
+        }
       />
     </div>
   );
