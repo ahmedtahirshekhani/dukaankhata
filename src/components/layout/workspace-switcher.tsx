@@ -166,7 +166,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                       await updateSession({ active_workspace_id: ws.id });
                       await SyncEngine.clearCacheAndResync();
                       window.location.href = `/${locale}/admin`;
-                    } else if (hasModuleAccess("settings")) {
+                    } else if (hasModuleAccess("configuration")) {
                       router.push(`/${locale}/admin/configuration`);
                     }
                   }}
@@ -200,7 +200,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                     </span>
                   </div>
                   {isActive && (
-                    hasModuleAccess("settings") ? (
+                    hasModuleAccess("configuration") ? (
                       <Settings className="h-4 w-4 text-primary shrink-0 drop-shadow-sm transition-transform hover:rotate-90" />
                     ) : (
                       <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 drop-shadow-sm" />
