@@ -166,13 +166,15 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                       await updateSession({ active_workspace_id: ws.id });
                       await SyncEngine.clearCacheAndResync();
                       window.location.href = `/${locale}/admin`;
+                    } else if (hasModuleAccess("settings")) {
+                      router.push(`/${locale}/admin/configuration`);
                     }
                   }}
                   className={`flex items-center gap-2 cursor-pointer p-1.5 rounded-lg transition-all ${
                     !isOnline && !isActive 
                       ? "opacity-50 cursor-not-allowed" 
                       : isActive
-                        ? "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary"
+                        ? "bg-primary/10 text-primary hover:bg-primary/20 focus:bg-primary/20 focus:text-primary"
                         : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                   }`}
                 >
@@ -198,43 +200,16 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                     </span>
                   </div>
                   {isActive && (
-                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 drop-shadow-sm" />
+                    hasModuleAccess("settings") ? (
+                      <Settings className="h-4 w-4 text-primary shrink-0 drop-shadow-sm transition-transform hover:rotate-90" />
+                    ) : (
+                      <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 drop-shadow-sm" />
+                    )
                   )}
                 </DropdownMenuItem>
               );
             })}
             
-            {hasModuleAccess("settings") && (
-              <>
-                <DropdownMenuSeparator className="my-1.5" />
-                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground uppercase tracking-wider px-2 pt-1 pb-2">
-                  {t("management")}
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => router.push(`/${locale}/admin/configuration`)}
-                  className="flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  <div className="flex items-center justify-center rounded-md w-8 h-8 shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    <Settings className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="truncate text-sm font-medium">
-                      {tNav("configuration")}
-                    </span>
-                  </div>
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            {!hasModuleAccess("settings") && (
-              <>
-                <DropdownMenuSeparator className="my-1.5" />
-                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground uppercase tracking-wider px-2 pt-1 pb-2">
-                  {t("management")}
-                </DropdownMenuLabel>
-              </>
-            )}
-
             <DropdownMenuItem
               onClick={(e) => {
                 if ((user?.workspaces?.length ?? 0) >= 5) {
