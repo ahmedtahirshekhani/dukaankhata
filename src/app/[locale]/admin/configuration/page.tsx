@@ -182,9 +182,14 @@ export default function ConfigurationPage({
       if (!res.ok) {
         throw new Error(data.error || "Failed to delete data");
       }
+      
+      // Clear offline DB and resync right away
+      const { SyncEngine } = await import('@/lib/sync/sync-engine');
+      await SyncEngine.clearCacheAndResync();
+
       setShowDeleteDataModal(false);
       setDeleteDataPassword("");
-      // Optionally reload the page or show success message
+      // Reload the page
       window.location.reload();
     } catch (err: any) {
       setDeleteDataError(err.message || "Something went wrong");
