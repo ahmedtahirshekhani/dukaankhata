@@ -89,7 +89,8 @@
     "amountInDukaanKhata": "دکان کھاتہ میں رقم",
     "close": "بند کریں",
     "clear": "صاف کریں",
-    "management": "انتظام"
+    "management": "انتظام",
+    "maxShopsLimitReached": "زیادہ سے زیادہ 5 دکانوں کی حد پوری ہو گئی ہے۔"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -167,6 +168,7 @@
     "deleteAllDataDescription": "اپنے ورک اسپیس کا تمام ڈیٹا ہمیشہ کے لیے حذف کریں۔",
     "deleteAllDataWarning": "کیا آپ واقعی تمام ڈیٹا حذف کرنا چاہتے ہیں؟ اسے واپس نہیں لایا جا سکتا۔",
     "deleteAllDataButton": "تمام ڈیٹا حذف کریں",
+    "deleting": "حذف ...",
     "enterPassword": "پاس ورڈ درج کریں",
     "enterPasswordDescription": "تصدیق کے لیے پاس ورڈ درج کریں",
     "searchPlaceholder": "ادائیگی کے طریقے تلاش کریں",

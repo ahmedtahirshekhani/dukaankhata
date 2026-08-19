@@ -21,6 +21,8 @@ interface PWAContextType {
   setShowIOSPrompt: (show: boolean) => void;
   showMacChromePrompt: boolean;
   setShowMacChromePrompt: (show: boolean) => void;
+  showGenericPrompt: boolean;
+  setShowGenericPrompt: (show: boolean) => void;
   canInstall: boolean;
 }
 
@@ -34,6 +36,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [isInstalling, setIsInstalling] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
   const [showMacChromePrompt, setShowMacChromePrompt] = useState(false);
+  const [showGenericPrompt, setShowGenericPrompt] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
 
   // Check if device is iOS
@@ -231,6 +234,12 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       }
       return;
     }
+
+    // Generic fallback for browsers that don't support beforeinstallprompt natively (e.g. Firefox Android, Samsung Internet)
+    setShowGenericPrompt(true);
+    if (typeof window !== "undefined" && (window as any).gtag) {
+      (window as any).gtag("event", "pwa_generic_install_prompt_shown");
+    }
   }, [deferredPrompt]);
 
   const value: PWAContextType = {
@@ -247,7 +256,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     setShowIOSPrompt,
     showMacChromePrompt,
     setShowMacChromePrompt,
-    canInstall: canInstall || isIOS() || isMacOS(),
+    showGenericPrompt,
+    setShowGenericPrompt,
+    canInstall: !isInstalled, // If not installed, it can ALWAYS be installed (even manually)
   };
 
   return <PWAContext.Provider value={value}>{children}</PWAContext.Provider>;
