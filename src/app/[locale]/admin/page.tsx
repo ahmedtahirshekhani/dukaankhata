@@ -38,6 +38,11 @@ import {
 import { usePermissions } from "@/hooks/use-permissions";
 import { Switch } from "@/components/ui/switch";
 import VyaparImportButton from "@/components/VyaparImportButton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
+import { SyncEngine } from "@/lib/sync/sync-engine";
+import { toast } from "sonner";
+import { OfflineWarning } from "@/components/ui/offline-warning";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { SummaryCarousel } from "@/components/summary-carousel";
 import { Pagination } from "@/components/ui/pagination";
@@ -161,6 +166,8 @@ export default function DashboardPage() {
         : "en";
 
   const [loading, setLoading] = useState(true);
+  const [isVyaparImportOpen, setIsVyaparImportOpen] = useState(false);
+  const [isUniversalImportOpen, setIsUniversalImportOpen] = useState(false);
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
   const [enableCounterSale, setEnableCounterSale] = useState(false);
 
@@ -763,7 +770,7 @@ export default function DashboardPage() {
               </DialogContent>
             </Dialog>
 
-            <Dialog>
+            <Dialog open={isUniversalImportOpen} onOpenChange={setIsUniversalImportOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-1 sm:gap-2 justify-center h-7 px-2 py-1 text-[10px] sm:h-8 sm:px-3 sm:text-xs" size="sm" variant="outline">
                   <File className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
@@ -771,8 +778,17 @@ export default function DashboardPage() {
                   <span className="inline sm:hidden">{tCommon("universalImportMobile") || "Import"}</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <UniversalImport />
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Universal Import</DialogTitle>
+                </DialogHeader>
+                <UniversalImport 
+                  onSuccessCallback={async () => {
+                    toast.success(tCommon("importSuccess") || "Data imported successfully! Syncing...");
+                    await SyncEngine.pullInitialData(true);
+                    setIsUniversalImportOpen(false);
+                  }}
+                />
               </DialogContent>
             </Dialog>
           </div>
