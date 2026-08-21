@@ -46,7 +46,7 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
-import { XIcon, Loader2Icon } from "lucide-react";
+import { XIcon, Loader2Icon, ArrowLeftIcon } from "lucide-react";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
@@ -329,6 +329,30 @@ export default function NewInvoicePage() {
         },
       ]);
     }
+  };
+
+  const handleRowProductChange = (oldId: number | string, newProduct: Product, isSync?: boolean) => {
+    if (!newProduct) return;
+    
+    setSelectedProducts((current) => {
+      return current.map((p) => {
+        if (p.id === oldId) {
+          const isSameProduct = isSync || p.name === newProduct.name;
+          return {
+            ...p,
+            id: newProduct.id,
+            name: newProduct.name,
+            description: newProduct.description,
+            unit_of_measurement: newProduct.unit_of_measurement,
+            ...(isSameProduct ? {} : {
+              sell_price: newProduct.sell_price ?? 0,
+              sellPriceInput: String(newProduct.sell_price ?? 0)
+            })
+          };
+        }
+        return p;
+      });
+    });
   };
 
   const handleSelectCustomer = (customerId: string, customer?: Customer) => {
@@ -916,11 +940,21 @@ export default function NewInvoicePage() {
     <div className="bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-3 bg-white p-3 rounded-lg shadow-sm">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl font-bold text-gray-900">{editOrderId ? (t("editInvoice") || "Edit Invoice") : (t("title") || "Create Invoice")}</h1>
-          <p className="text-xs text-gray-500">
-            {editOrderId ? (t("editInvoiceDescription") || "Modify the details of this invoice") : (t("pageDescription") || "Customer ko Invoice banakar bhejein")}
-          </p>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="shrink-0 h-8 w-8 text-gray-500 hover:text-gray-900"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{editOrderId ? (t("editInvoice") || "Edit Invoice") : (t("title") || "Create Invoice")}</h1>
+            <p className="text-xs text-gray-500 hidden sm:block">
+              {editOrderId ? (t("editInvoiceDescription") || "Modify the details of this invoice") : (t("pageDescription") || "Customer ko Invoice banakar bhejein")}
+            </p>
+          </div>
         </div>
         <div className="grid grid-cols-3 md:flex items-center gap-1.5 sm:gap-2 w-full md:w-auto mt-2 md:mt-0">
           <Button 
@@ -986,7 +1020,7 @@ export default function NewInvoicePage() {
                 </div>
                 <div className="space-y-3">
                   <Label htmlFor="invoice-no" className="text-xs font-semibold text-gray-700">
-                    {t("invoiceNo") || "Invoice No"}
+                    {t("invoiceNo")}
                   </Label>
                   <Input
                     id="invoice-no"
@@ -998,10 +1032,9 @@ export default function NewInvoicePage() {
                   />
                 </div>
 
-
                 <div className="space-y-3">
                   <Label htmlFor="sale-date" className="text-xs font-semibold text-gray-700">
-                    {t("invoiceDate") || "Invoice Date"} <span className="text-red-500">*</span>
+                    {t("invoiceDate")} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="sale-date"
@@ -1015,7 +1048,7 @@ export default function NewInvoicePage() {
 
                 <div className="space-y-3">
                   <Label htmlFor="due-date-section" className="text-xs font-semibold text-gray-700">
-                    {t("dueDate") || "Due Date"}
+                    {t("dueDate")}
                   </Label>
                   <Input
                     id="due-date"
@@ -1038,7 +1071,7 @@ export default function NewInvoicePage() {
                       htmlFor="add-due-date"
                       className="text-xs text-gray-600 font-normal cursor-pointer"
                     >
-                      {t("addDueDate") || "Add Due Date"}
+                      {t("addDueDate")}
                     </Label>
                   </div>
                 </div>
@@ -1050,7 +1083,7 @@ export default function NewInvoicePage() {
           <Card className="shadow-sm border-0 ring-1 ring-gray-200">
             <CardHeader className="pb-2 border-b border-gray-100 flex flex-row items-center gap-3">
               <div className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs">2</div>
-              <CardTitle className="text-lg m-0">{t("addItems") || "Add Items"}</CardTitle>
+              <CardTitle className="text-lg m-0">{t("addItems")}</CardTitle>
             </CardHeader>
             <CardContent className="pt-3 p-0 md:p-3 md:pt-3">
               <ItemSelectTable
@@ -1064,6 +1097,7 @@ export default function NewInvoicePage() {
                 handleDiscountTypeChange={handleDiscountTypeChange}
                 handleRemoveProduct={handleRemoveProduct}
                 handleSelectProduct={handleSelectProduct}
+                handleRowProductChange={handleRowProductChange}
               />
             </CardContent>
           </Card>

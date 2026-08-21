@@ -670,6 +670,7 @@
     "searchCustomer": "پارٹی تلاش"
   },
   "customers": {
+    "cannotDeleteDefaultParty": "یہ ڈیفالٹ کیش سیل پارٹی ہے اور اسے ڈیلیٹ نہیں کیا جا سکتا۔",
     "title": "پارٹیز",
     "pageDescription": "اپنے پارٹیز ڈیٹابیس کو منظم کریں",
     "customerName": "پارٹیز کا نام",
