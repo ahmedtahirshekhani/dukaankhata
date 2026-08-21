@@ -12,7 +12,6 @@ const BASE_MODULES = [
   { code: 'reports', name: 'Reports' },
   { code: 'ai_chat', name: 'AI Chat' },
   { code: 'staff', name: 'Staff Management' },
-  { code: 'settings', name: 'Settings & Config' },
   { code: 'payment_methods', name: 'Payment Methods' },
   { code: 'configuration', name: 'Configuration' },
   { code: 'whatsapp', name: 'WhatsApp Integration' }
@@ -40,7 +39,6 @@ const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
     'view_profitability', 'export_profitability'
   ],
   'staff': ['view', 'create', 'edit', 'delete'],
-  'settings': ['view', 'create', 'edit', 'delete'],
   'payment_methods': ['view', 'create', 'edit', 'delete'],
   'configuration': ['view', 'create', 'edit', 'delete'],
   'whatsapp': ['view', 'create', 'edit', 'delete'],
