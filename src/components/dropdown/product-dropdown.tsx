@@ -21,7 +21,7 @@ import { Product } from "@/types/product";
 
 interface ProductDropdownProps {
   value?: string | number;
-  onValueChange: (value: string, product?: Product) => void;
+  onValueChange: (value: string, product?: Product, isSync?: boolean) => void;
   placeholder?: string | React.ReactNode;
   disabled?: boolean;
   className?: string;
@@ -116,7 +116,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
         const { collection, oldId, newId } = e.detail;
         if (collection === "products" && value === oldId) {
           const newProduct = products.find(p => getProductId(p) === newId) || { id: newId, name: "" };
-          onValueChange(newId, newProduct as Product);
+          onValueChange(newId, newProduct as Product, true);
         }
       };
 

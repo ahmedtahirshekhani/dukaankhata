@@ -86,6 +86,8 @@ type Customer = {
   balance?: number;
   status: "active" | "inactive";
   is_delete?: number;
+  type?: string;
+  is_default?: boolean;
 };
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -383,6 +385,20 @@ export default function PartiesPage() {
 
   const handleDeleteCustomer = useCallback(async () => {
     if (!customerToDelete) return;
+
+    if (
+      customerToDelete.is_default ||
+      customerToDelete.type === "cash" ||
+      customerToDelete.name.toLowerCase() === "cash sale"
+    ) {
+      setErrorDialog({
+        open: true,
+        title: t("cannotDelete"),
+        message: t("cannotDeleteDefaultParty"),
+      });
+      setIsDeleteConfirmationOpen(false);
+      return;
+    }
 
     if (
       customerToDelete.balance !== 0 &&
@@ -1437,7 +1453,7 @@ export default function PartiesPage() {
                 {t("cancel")}
               </Button>
               <Button
-                variant="danger"
+                variant="destructive"
                 onClick={handleDeleteCustomer}
                 disabled={isDeleting}
               >
