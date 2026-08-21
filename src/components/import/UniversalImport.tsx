@@ -95,7 +95,7 @@ export function UniversalImport({ onSuccessCallback }: UniversalImportProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to process file");
+        throw new Error(errorData.error || t("failedToProcess") || "Failed to process file");
       }
 
       setProgress(100);
@@ -123,7 +123,7 @@ export function UniversalImport({ onSuccessCallback }: UniversalImportProps) {
       setSuccess(true);
       setFile(null);
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+      setError(err.message || t("unexpectedError") || "An unexpected error occurred");
       setProgress(0);
     } finally {
       setIsProcessing(false);
@@ -145,10 +145,10 @@ export function UniversalImport({ onSuccessCallback }: UniversalImportProps) {
         <div className="space-y-0.5">
           <Label className="text-base flex items-center gap-2">
             <Database className="w-4 h-4 text-primary" />
-            Direct Database Import
+            {t("directImportTitle") || "Direct Database Import"}
           </Label>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Automatically create records in your database instead of downloading a ZIP file.
+            {t("directImportDescription") || "Automatically create records in your database instead of downloading a ZIP file."}
           </p>
         </div>
         <Switch
@@ -210,7 +210,9 @@ export function UniversalImport({ onSuccessCallback }: UniversalImportProps) {
         <div className="mt-6 animate-in fade-in duration-300">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              {isDirectImport ? "Importing records using AI..." : "Generating ZIP using AI..."}
+              {isDirectImport 
+                ? (t("importingUsingAi") || "Importing records using AI...") 
+                : (t("generatingZipUsingAi") || "Generating ZIP using AI...")}
             </span>
             <span className="text-sm text-zinc-500">{progress}%</span>
           </div>
@@ -230,15 +232,15 @@ export function UniversalImport({ onSuccessCallback }: UniversalImportProps) {
           <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-green-800 dark:text-green-300">
-              {isDirectImport ? "Import Successful!" : (t("successTitle") || "Success! ZIP file downloaded.")}
+              {isDirectImport ? (t("importSuccessful") || "Import Successful!") : (t("successTitle") || "Success! ZIP file downloaded.")}
             </p>
             <p className="text-xs text-green-700 dark:text-green-400 mt-1">
               {isDirectImport 
                 ? (
                     <span>
-                      Data has been successfully imported into your database.
+                      {t("dataImportedSuccessfully") || "Data has been successfully imported into your database."}
                       {importedCounts && Object.entries(importedCounts).map(([module, count]) => (
-                        <span key={module} className="block mt-1 capitalize">• {module}: {count} records</span>
+                        <span key={module} className="block mt-1 capitalize">• {module}: {count} {t("recordsText") || "records"}</span>
                       ))}
                     </span>
                   )

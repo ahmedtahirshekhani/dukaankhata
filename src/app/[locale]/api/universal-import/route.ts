@@ -178,8 +178,8 @@ async function handleDirectImport(rows: any[], moduleType: string, userId: strin
       const newPartiesToInsert = new Map();
 
       for (const r of rows) {
-        let partyName = r.party_name || "Walk-In Customer";
-        if (!partyMap.has(partyName) && !newPartiesToInsert.has(partyName)) {
+        let partyName = r.party_name ? String(r.party_name).trim() : "";
+        if (partyName && !partyMap.has(partyName) && !newPartiesToInsert.has(partyName)) {
           newPartiesToInsert.set(partyName, {
             user_id: uId, name: partyName, type: "customer", balance: 0, created_at: now, updated_at: now
           });
@@ -194,24 +194,63 @@ async function handleDirectImport(rows: any[], moduleType: string, userId: strin
         }
       }
 
-      const orderDocs = rows.map(r => ({
-        user_id: uId,
-        party_id: partyMap.get(r.party_name || "Walk-In Customer"),
-        invoice_no: r.invoice_no || `INV-${Date.now()}-${Math.floor(Math.random()*10000)}`,
-        date: r.date ? new Date(r.date) : now,
-        total_amount: Number(r.total_amount) || Number(r.total) || 0,
-        discount: Number(r.discount) || 0,
-        subtotal: Number(r.subtotal) || Number(r.total_amount) || 0,
-        items: [
-          {
-            name: r.product_name || "Imported Item",
-            quantity: Number(r.quantity) || 1,
-            price: Number(r.price) || 0,
-          }
-        ],
-        created_at: now,
-        updated_at: now
-      }));
+      const pmColl = await getCollection(COLLECTIONS.PAYMENT_METHODS);
+      let defaultPmId = null;
+      try {
+        let defaultPm = await pmColl.findOne({ user_id: uId, name: /cash/i });
+        if (!defaultPm) defaultPm = await pmColl.findOne({ user_id: uId });
+        if (defaultPm) defaultPmId = defaultPm._id;
+      } catch (e) {}
+
+      const orderDocs = rows.map((r, index) => {
+        const partyName = r.party_name ? String(r.party_name).trim() : "";
+        const txnDate = r.date ? new Date(r.date) : now;
+        const total = Number(r.total_amount) || Number(r.total) || 0;
+        const discountAmt = Number(r.discount) || 0;
+        const subtotal = Number(r.subtotal) || (total + discountAmt) || 0;
+
+        return {
+          user_id: uId,
+          customer_id: partyName ? partyMap.get(partyName) : null,
+          total_amount: total,
+          subtotal: subtotal,
+          invoice_no: (r.invoice_no && String(r.invoice_no).trim() !== "") ? String(r.invoice_no) : `INV-${Date.now()}-${index}`,
+          sale_date: txnDate,
+          due_date: null,
+          charges: [],
+          overallDiscount: discountAmt,
+          shippingCharges: Number(r.shippingCharges) || 0,
+          customer_notes: "Imported via Universal Import",
+          items: [
+            {
+              product_id: null,
+              name: r.product_name || "Imported Item",
+              description: "",
+              quantity: Number(r.quantity) || 1,
+              quantity_str: String(Number(r.quantity) || 1),
+              quantityType: "prime",
+              price: Number(r.price) || 0,
+              discount: 0,
+              discountType: "value",
+              unit_of_measurement: "pc",
+              cost_price: 0
+            }
+          ],
+          payment: {
+            method: defaultPmId,
+            paid_amount: total,
+            paid_date: txnDate,
+            no_payment_at_all: total === 0,
+            user_id: uId,
+            status: "completed",
+            created_at: now,
+            updated_at: now
+          },
+          status: "completed",
+          created_at: now,
+          updated_at: now
+        };
+      });
       
       if (orderDocs.length > 0) await ordersColl.insertMany(orderDocs);
       break;
@@ -253,14 +292,24 @@ async function handleDirectImport(rows: any[], moduleType: string, userId: strin
     case "payments": {
       const ptColl = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
       const partiesColl = await getCollection(COLLECTIONS.PARTIES);
+      const pmColl = await getCollection(COLLECTIONS.PAYMENT_METHODS);
       
       const existingParties = await partiesColl.find({ user_id: uId }).toArray();
       const partyMap = new Map(existingParties.map(p => [p.name, p._id]));
       const newPartiesToInsert = new Map();
+      
+      let defaultPmId = null;
+      try {
+        let defaultPm = await pmColl.findOne({ user_id: uId, name: /cash/i });
+        if (!defaultPm) {
+          defaultPm = await pmColl.findOne({ user_id: uId }); // Fallback to any PM
+        }
+        if (defaultPm) defaultPmId = defaultPm._id;
+      } catch (e) {}
 
       for (const r of rows) {
-        let partyName = r.party_name || "Unknown Party";
-        if (!partyMap.has(partyName) && !newPartiesToInsert.has(partyName)) {
+        let partyName = r.party_name ? String(r.party_name).trim() : "";
+        if (partyName && !partyMap.has(partyName) && !newPartiesToInsert.has(partyName)) {
           newPartiesToInsert.set(partyName, {
             user_id: uId, name: partyName, type: "customer", balance: 0, created_at: now, updated_at: now
           });
@@ -275,16 +324,20 @@ async function handleDirectImport(rows: any[], moduleType: string, userId: strin
         }
       }
 
-      const paymentDocs = rows.map(r => ({
-        user_id: uId,
-        party_id: partyMap.get(r.party_name || "Unknown Party"),
-        amount: Number(r.payment_amount) || 0,
+      const paymentDocs = rows.map(r => {
+        const partyName = r.party_name ? String(r.party_name).trim() : "";
+        return {
+          user_id: uId,
+          customer_id: partyName ? partyMap.get(partyName) : null,
+          customer_name: partyName || null,
+          payment_amount: Number(r.payment_amount) || 0,
         date: r.date ? new Date(r.date) : now,
         type: r.type === "payment-out" ? "payment-out" : "payment-in",
-        payment_method: r.payment_method || "cash",
+        payment_method_id: defaultPmId,
         created_at: now,
         updated_at: now
-      }));
+      };
+      });
       
       if (paymentDocs.length > 0) await ptColl.insertMany(paymentDocs);
       break;
