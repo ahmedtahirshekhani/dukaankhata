@@ -670,6 +670,7 @@
     "searchCustomer": "Search Party..."
   },
   "customers": {
+    "cannotDeleteDefaultParty": "Yeh default Cash Sale party hai aur isay delete nahi kiya ja sakta.",
     "title": "Party",
     "pageDescription": "Apne gahak database ka intezaam karain",
     "customerName": "Party ka Naam",

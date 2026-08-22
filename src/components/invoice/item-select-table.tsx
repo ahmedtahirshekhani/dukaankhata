@@ -34,6 +34,7 @@ interface ItemSelectTableProps {
   handleDiscountTypeChange: (id: number | string, val: "value" | "percentage") => void;
   handleRemoveProduct: (id: number | string) => void;
   handleSelectProduct: (product: Product) => void;
+  handleRowProductChange?: (oldId: number | string, newProduct: Product, isSync?: boolean) => void;
 }
 
 export function ItemSelectTable({
@@ -47,6 +48,7 @@ export function ItemSelectTable({
   handleDiscountTypeChange,
   handleRemoveProduct,
   handleSelectProduct,
+  handleRowProductChange,
 }: ItemSelectTableProps) {
   const t = useTranslations("invoice");
   const tCommon = useTranslations("common");
@@ -83,7 +85,11 @@ export function ItemSelectTable({
                   <ProductDropdown
                     resetOnChange={false}
                     value={String(product.id)}
-                    onValueChange={(value, newProduct) => {}}
+                    onValueChange={(value, newProduct, isSync) => {
+                      if (newProduct && handleRowProductChange) {
+                        handleRowProductChange(product.id, newProduct as Product, isSync);
+                      }
+                    }}
                     placeholder={product.name}
                     enableSearch={true}
                     searchPlaceholder={tCommon("searchProduct") || "Search product..."}
@@ -226,7 +232,11 @@ export function ItemSelectTable({
                    <ProductDropdown
                       resetOnChange={false}
                       value={String(product.id)}
-                      onValueChange={(value, newProduct) => {}}
+                      onValueChange={(value, newProduct, isSync) => {
+                        if (newProduct && handleRowProductChange) {
+                          handleRowProductChange(product.id, newProduct as Product, isSync);
+                        }
+                      }}
                       placeholder={product.name}
                       className="w-full h-7 text-xs"
                     />
