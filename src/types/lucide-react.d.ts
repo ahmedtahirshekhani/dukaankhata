@@ -224,7 +224,7 @@ declare module 'lucide-react' {
   export const FileType: Icon;
   export const CheckCircle2: Icon;
   export const AlertCircle: Icon;
-  
+  export const ArrowLeftIcon: Icon;
 
   // Catch-all for any other icons that might be used
   const lucideReact: {
