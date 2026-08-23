@@ -124,7 +124,7 @@ export function useOfflineCategories(searchQuery: string = "") {
         if (category.is_delete === 1) return false;
         if (searchQuery) {
           return Boolean(
-            category.category_name
+            (category.category_name || category.name)
               ?.toLowerCase()
               .includes(searchQuery.toLowerCase()),
           );
@@ -138,6 +138,24 @@ export function useOfflineCategories(searchQuery: string = "") {
           const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
           return dateB - dateA;
         }),
+      );
+  }, [searchQuery]);
+}
+
+export function useOfflineBranches(searchQuery: string = "") {
+  return useSafeLiveQuery(() => {
+    return db.branches
+      .filter((branch) => {
+        if (searchQuery) {
+          return Boolean(
+            branch.name?.toLowerCase().includes(searchQuery.toLowerCase()),
+          );
+        }
+        return true;
+      })
+      .toArray()
+      .then((arr) =>
+        arr.sort((a, b) => a.name.localeCompare(b.name)),
       );
   }, [searchQuery]);
 }

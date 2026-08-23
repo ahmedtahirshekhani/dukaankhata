@@ -1300,7 +1300,9 @@ export default function OrdersPage() {
         description={t("confirmDeleteMessage", { invoiceNo: orderToDelete?.invoice_no || `ORD-${orderToDelete?.id}` })}
         onConfirm={handleDeleteConfirm}
         isLoading={deleting}
-        variant="danger"
+        variant="destructive"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
       />
     </div>
   );

@@ -1,19 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
-import CreatableSelect from "react-select/creatable";
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
-
-// Module-level cache to prevent duplicate API calls across component mounts
-let branchesCache: { value: string; label: string }[] | null = null;
-let branchesPromise: Promise<{ value: string; label: string }[]> | null = null;
+import { Info, PlusCircle, SearchIcon, X, Loader2Icon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useOfflineBranches } from "@/lib/hooks/useOfflineData";
+import { db } from "@/lib/db/offline-db";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 interface BranchSelectorProps {
   value: string;
@@ -26,8 +34,6 @@ interface BranchSelectorProps {
   };
 }
 
-const defaultBranches = ["Main"];
-
 export function BranchSelector({
   value,
   onChange,
@@ -37,134 +43,33 @@ export function BranchSelector({
   const label = translations?.label ?? t("branch");
   const tooltip = translations?.tooltip ?? t("branchTooltip");
   const placeholder = translations?.placeholder ?? t("selectOrCreateBranch");
-  const getCreateLabel =
-    translations?.createLabel ??
-    ((v: string) => t("createBranch", { value: v }));
-  const [branches, setBranches] = useState<{ value: string; label: string }[]>(
-    defaultBranches.map((branch) => ({ value: branch, label: branch }))
-  );
-  const [selectedBranch, setSelectedBranch] = useState<{
-    value: string;
-    label: string;
-  } | null>(null);
 
-  useEffect(() => {
-    // Fetch branches from database
-    const fetchBranches = async () => {
-      try {
-        // Return cached data if available
-        if (branchesCache) {
-          setBranches(branchesCache);
-          return;
-        }
+  const [searchTerm, setSearchTerm] = useState("");
+  const branches = useOfflineBranches(searchTerm) || [];
+  const [isOpen, setIsOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newBranchName, setNewBranchName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-        // Reuse in-flight request if available
-        if (branchesPromise) {
-          const result = await branchesPromise;
-          setBranches(result);
-          return;
-        }
-
-        // Create new fetch promise
-        branchesPromise = (async () => {
-          const response = await fetch("/api/branches");
-          if (!response.ok) {
-            throw new Error("Failed to fetch branches");
-          }
-
-          const data = await response.json();
-          const dbBranches = data.map((branch: any) => ({
-            value: branch.name,
-            label: branch.name,
-          }));
-
-          // Merge default branches with database branches, removing duplicates
-          const merged = Array.from(
-            new Map([
-              ...defaultBranches.map((branch) => [
-                branch,
-                { value: branch, label: branch },
-              ]),
-              ...dbBranches.map((branch: any) => [branch.value, branch]),
-            ]).values()
-          ) as { value: string; label: string }[];
-
-          branchesCache = merged;
-          return merged;
-        })();
-
-        const result = await branchesPromise;
-        setBranches(result);
-      } catch (error) {
-        console.error("Error fetching branches:", error);
-      }
-    };
-
-    fetchBranches();
-  }, []);
-
-  useEffect(() => {
-    // Set default value to "Main" if no value provided
-    const defaultValue = value || "Main";
-    const found = branches.find((branch) => branch.value === defaultValue);
-    setSelectedBranch(found || { value: "Main", label: "Main" });
-    if (!value) {
-      onChange("Main");
-    }
-  }, [branches, onChange, value]);
-
-  const handleCreateOption = async (inputValue: string) => {
+  const handleAddBranch = async () => {
+    if (!newBranchName.trim()) return;
     try {
-      const response = await fetch("/api/branches", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: inputValue }),
-      });
-
-      if (!response.ok) {
-        console.error("Failed to create branch");
-        return;
-      }
-
-      const data = await response.json();
-      const newOption = { value: data.name, label: data.name };
-      setBranches((prev) => [...prev, newOption]);
-      setSelectedBranch(newOption);
-      onChange(data.name);
+      setIsSaving(true);
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      const newBranch = { id: tempId, name: newBranchName };
+      
+      await db.branches.add(newBranch);
+      await SyncEngine.queueOperation("branches", "POST", "/api/branches", { name: newBranchName }, tempId);
+      
+      onChange(newBranchName);
+      setIsAddDialogOpen(false);
+      setNewBranchName("");
+      setIsOpen(false);
     } catch (error) {
-      console.error("Error creating branch:", error);
+      console.error("Error saving branch:", error);
+    } finally {
+      setIsSaving(false);
     }
-  };
-
-  const handleChange = (option: { value: string; label: string } | null) => {
-    if (option) {
-      setSelectedBranch(option);
-      onChange(option.value);
-    }
-  };
-
-  const customStyles = {
-    control: (base: any) => ({
-      ...base,
-      minHeight: "36px",
-      fontSize: "14px",
-      borderColor: "#d1d5db",
-      "&:hover": {
-        borderColor: "#9ca3af",
-      },
-    }),
-    option: (base: any, state: any) => ({
-      ...base,
-      backgroundColor: state.isSelected
-        ? "#3b82f6"
-        : state.isFocused
-        ? "#f3f4f6"
-        : "white",
-      color: state.isSelected ? "white" : "black",
-      cursor: "pointer",
-    }),
   };
 
   return (
@@ -182,18 +87,94 @@ export function BranchSelector({
           <TooltipContent>{tooltip}</TooltipContent>
         </Tooltip>
       </div>
-      <CreatableSelect
-        id="branch"
-        isClearable
-        isSearchable
-        options={branches}
-        value={selectedBranch}
-        onChange={handleChange}
-        onCreateOption={handleCreateOption}
-        placeholder={placeholder}
-        styles={customStyles}
-        formatCreateLabel={getCreateLabel}
-      />
+
+      <Select value={value || undefined} onValueChange={onChange} open={isOpen} onOpenChange={setIsOpen}>
+        <SelectTrigger id="branch">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent position="popper" sideOffset={5} className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden">
+          <div className="sticky top-0 bg-popover z-10 border-b p-2">
+            <div className="relative">
+              <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder={t("searchBranch")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="pl-8 pr-8 h-8 text-sm"
+                onClick={(e) => e.stopPropagation()}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchTerm("");
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                >
+                  <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-[200px] overflow-y-auto">
+            {branches.length === 0 && (
+              <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                {t("noBranchesFound")}
+              </div>
+            )}
+            {branches.map((b: any) => (
+              <SelectItem key={b.id || b.name} value={b.name}>
+                {b.name}
+              </SelectItem>
+            ))}
+          </div>
+          
+          <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
+              onClick={() => {
+                setIsOpen(false);
+                setNewBranchName(searchTerm);
+                setIsAddDialogOpen(true);
+              }}
+            >
+              <PlusCircle className="h-4 w-4" />
+              {t("addNewBranch")}
+            </Button>
+          </div>
+        </SelectContent>
+      </Select>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t("addNewBranch")}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>{t("branchName")}</Label>
+              <Input 
+                value={newBranchName} 
+                onChange={(e) => setNewBranchName(e.target.value)} 
+                placeholder={t("branchPlaceholder")}
+                autoFocus 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSaving}>{t("cancel")}</Button>
+            <Button onClick={handleAddBranch} disabled={isSaving || !newBranchName.trim()}>
+              {isSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+              {t("saveBranch")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
