@@ -519,7 +519,7 @@ export default function ConfigurationPage({
                           <Button
                             variant="outline"
                             onClick={() => setShowDeleteDataModal(true)}
-                            className="bg-white text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 w-full sm:w-auto shrink-0"
+                            className="bg-red-600 text-white hover:bg-red-50 hover:text-red-700 border-red-200 w-full sm:w-auto shrink-0"
                           >
                             {t("deleteAllDataButton") || "Delete Data"}
                           </Button>
