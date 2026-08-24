@@ -448,14 +448,16 @@ export default function PurchaseBillPage() {
       <ConfirmDialog
         open={deleteConfirmDialog.open}
         onOpenChange={(open) => setDeleteConfirmDialog({ ...deleteConfirmDialog, open })}
-        title={t("deleteBill") || "Delete Bill"}
-        description={t("confirmDelete") || "Are you sure?"}
+        title={t("deleteBill")}
+        description={t("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        cancelLabel={tCommon("cancel")}
         onConfirm={() => {
           if (deleteConfirmDialog.billId) {
             handleDeleteBill(deleteConfirmDialog.billId);
           }
         }}
-        variant="danger"
+        variant="destructive"
       />
 
       <ErrorDialog

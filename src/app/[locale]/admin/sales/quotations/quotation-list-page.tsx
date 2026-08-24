@@ -595,7 +595,7 @@ export default function QuotationListPage() {
         confirmLabel={isDeleting ? tInv("deleting") : tCommon("delete")}
         cancelLabel={tCommon("cancel")}
         onConfirm={handleDeleteConfirm}
-        variant="danger"
+        variant="destructive"
       />
 
       {/* Error/Success Dialog */}

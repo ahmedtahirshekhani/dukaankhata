@@ -762,7 +762,7 @@ export default function PaymentInPage() {
               {tCommon("cancel")}
             </Button>
             <Button
-              variant="danger"
+              variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
             >
