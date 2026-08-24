@@ -8,6 +8,7 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -241,9 +242,9 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="opening-balance">{tBank("openingBalance")}</Label>
-          <Input
+          <NumericInput
             id="opening-balance"
-            type="number"
+            min="0"
             value={openingBalance}
             onChange={(e) => setOpeningBalance(e.target.value)}
             placeholder="0.00"

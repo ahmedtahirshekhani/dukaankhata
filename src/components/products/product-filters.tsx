@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -131,8 +132,8 @@ export function ProductFilters({
                 {sellPriceRangeLabel}
               </Label>
               <div className="flex gap-2">
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder={minPlaceholder}
                   value={priceRanges.sellPriceMin}
                   onChange={(e) =>
@@ -140,8 +141,8 @@ export function ProductFilters({
                   }
                   className="h-8 text-xs"
                 />
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder={maxPlaceholder}
                   value={priceRanges.sellPriceMax}
                   onChange={(e) =>
@@ -156,8 +157,8 @@ export function ProductFilters({
                 {costPriceRangeLabel}
               </Label>
               <div className="flex gap-2">
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder={minPlaceholder}
                   value={priceRanges.costPriceMin}
                   onChange={(e) =>
@@ -165,8 +166,8 @@ export function ProductFilters({
                   }
                   className="h-8 text-xs"
                 />
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder={maxPlaceholder}
                   value={priceRanges.costPriceMax}
                   onChange={(e) =>

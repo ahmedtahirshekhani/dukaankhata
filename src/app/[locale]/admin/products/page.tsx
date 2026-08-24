@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { ProductDialog } from "@/components/dialogs/product-dialog";
 import { ProductFilters } from "@/components/products/product-filters";
 import {
@@ -716,8 +717,8 @@ export default function Products() {
                 {t("sellPriceRange")}
               </Label>
               <div className="flex gap-2">
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder={t("min")}
                   value={mobilePriceRanges.sellPriceMin}
                   onChange={(e) =>
@@ -725,8 +726,8 @@ export default function Products() {
                   }
                   className="h-9 text-sm"
                 />
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder="Max"
                   value={mobilePriceRanges.sellPriceMax}
                   onChange={(e) =>
@@ -743,8 +744,8 @@ export default function Products() {
                 {t("costPriceRange")}
               </Label>
               <div className="flex gap-2">
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder={t("min")}
                   value={mobilePriceRanges.costPriceMin}
                   onChange={(e) =>
@@ -752,8 +753,8 @@ export default function Products() {
                   }
                   className="h-9 text-sm"
                 />
-                <Input
-                  type="number"
+                <NumericInput
+                  min="0"
                   placeholder="Max"
                   value={mobilePriceRanges.costPriceMax}
                   onChange={(e) =>

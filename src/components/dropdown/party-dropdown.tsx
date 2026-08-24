@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Loader2Icon, SearchIcon, X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -522,9 +523,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">{t("openingBalance")}</Label>
-                    <Input
+                    <NumericInput
                       id="party-balance"
-                      type="number"
+                      min="0"
                       value={newPartyOpeningBalance}
                       onChange={(e) => setNewPartyOpeningBalance(e.target.value)}
                       placeholder={t("balancePlaceholder")}

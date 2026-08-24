@@ -68,6 +68,7 @@ import {
   exportTransactionsTemplate,
 } from "@/lib/excel";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
@@ -1359,8 +1360,8 @@ export default function CounterSale() {
                   <DropdownMenuSeparator />
                   <div className="p-2 space-y-2">
                     <div className="flex gap-2">
-                      <Input
-                        type="number"
+                      <NumericInput
+                        min="0"
                         placeholder={t("min")}
                         value={amountRange.min}
                         onChange={(e) =>
@@ -1368,8 +1369,8 @@ export default function CounterSale() {
                         }
                         className="h-8 text-xs"
                       />
-                      <Input
-                        type="number"
+                      <NumericInput
+                        min="0"
                         placeholder={t("max")}
                         value={amountRange.max}
                         onChange={(e) =>
@@ -1476,9 +1477,9 @@ export default function CounterSale() {
                             />
                           </TableCell>
                           <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                            <Input
+                            <NumericInput
                               name="unitPrice"
-                              type="number"
+                              min="0"
                               value={newTransaction.unitPrice || ""}
                               onChange={handleInputChange}
                               placeholder={t("price")}
@@ -1518,9 +1519,9 @@ export default function CounterSale() {
                             />
                           </TableCell>
                           <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                            <Input
+                            <NumericInput
                               name="amount"
-                              type="number"
+                              min="0"
                               value={newTransaction.amount}
                               onChange={handleInputChange}
                               placeholder={t("amount")}
@@ -1638,9 +1639,9 @@ export default function CounterSale() {
                                   />
                                 </TableCell>
                                 <TableCell className="w-24 px-2 sm:px-4 overflow-hidden">
-                                  <Input
+                                  <NumericInput
                                     name="unitPrice"
-                                    type="number"
+                                    min="0"
                                     value={editFormData.unitPrice || ""}
                                     onChange={handleEditInputChange}
                                     placeholder={t("price")}
@@ -1683,9 +1684,9 @@ export default function CounterSale() {
                                   />
                                 </TableCell>
                                 <TableCell className="w-28 px-2 sm:px-4 overflow-hidden">
-                                  <Input
+                                  <NumericInput
                                     name="amount"
-                                    type="number"
+                                    min="0"
                                     value={editFormData.amount || ""}
                                     onChange={handleEditInputChange}
                                     placeholder="Amount"
@@ -2018,9 +2019,9 @@ export default function CounterSale() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">{t("unitPrice")}</Label>
-                            <Input
+                            <NumericInput
                               name="unitPrice"
-                              type="number"
+                              min="0"
                               value={editFormData.unitPrice || ""}
                               onChange={handleEditInputChange}
                               placeholder={t("price")}
@@ -2065,9 +2066,9 @@ export default function CounterSale() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">{t("amount")}</Label>
-                            <Input
+                            <NumericInput
                               name="amount"
-                              type="number"
+                              min="0"
                               value={editFormData.amount || ""}
                               onChange={handleEditInputChange}
                               placeholder={t("amount")}
@@ -2338,9 +2339,9 @@ export default function CounterSale() {
                 <label className="text-xs sm:text-sm font-medium">
                   {t("unitPrice")}
                 </label>
-                <Input
+                <NumericInput
                   name="unitPrice"
-                  type="number"
+                  min="0"
                   value={newTransaction.unitPrice || ""}
                   onChange={handleInputChange}
                   placeholder={t("price")}
@@ -2389,9 +2390,9 @@ export default function CounterSale() {
                 <label className="text-xs sm:text-sm font-medium">
                   {t("amount")}
                 </label>
-                <Input
+                <NumericInput
                   name="amount"
-                  type="number"
+                  min="0"
                   value={newTransaction.amount}
                   onChange={handleInputChange}
                   placeholder={t("amount")}

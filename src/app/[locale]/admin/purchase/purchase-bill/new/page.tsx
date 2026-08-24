@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -559,25 +560,21 @@ function AddPurchaseBillPageInner() {
                                                 <div className="flex items-center gap-2">
                                                     <div>
                                                         <div className="text-[10px] text-muted-foreground uppercase mb-1">{t("quantity") || "Qty"}</div>
-                                                        <Input
-                                                            type="number"
+                                                        <NumericInput
                                                             value={item.quantity === 0 ? "" : item.quantity}
                                                             onChange={(e) => handleUpdateItemInline(item.id, "quantity", e.target.value)}
                                                             className="h-8 w-16 text-xs px-2"
                                                             min="0"
-                                                            step="any"
                                                         />
                                                     </div>
                                                     <span className="text-muted-foreground self-end mb-2">×</span>
                                                     <div>
                                                         <div className="text-[10px] text-muted-foreground uppercase mb-1">{t("rate") || "Rate"}</div>
-                                                        <Input
-                                                            type="number"
+                                                        <NumericInput
                                                             value={item.cost_price === 0 ? "" : item.cost_price}
                                                             onChange={(e) => handleUpdateItemInline(item.id, "cost_price", e.target.value)}
                                                             className="h-8 w-20 text-xs px-2"
                                                             min="0"
-                                                            step="any"
                                                         />
                                                     </div>
                                                 </div>
@@ -635,23 +632,19 @@ function AddPurchaseBillPageInner() {
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Input
-                                                            type="number"
+                                                        <NumericInput
                                                             value={item.quantity === 0 ? "" : item.quantity}
                                                             onChange={(e) => handleUpdateItemInline(item.id, "quantity", e.target.value)}
                                                             className="h-8 w-20 text-xs px-2"
                                                             min="0"
-                                                            step="any"
                                                         />
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Input
-                                                            type="number"
+                                                        <NumericInput
                                                             value={item.cost_price === 0 ? "" : item.cost_price}
                                                             onChange={(e) => handleUpdateItemInline(item.id, "cost_price", e.target.value)}
                                                             className="h-8 w-24 text-xs px-2"
                                                             min="0"
-                                                            step="any"
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium">
@@ -704,8 +697,7 @@ function AddPurchaseBillPageInner() {
                         <div className="space-y-2">
                             <Label>{t("discount") || "Discount"}</Label>
                             <div className="flex gap-2">
-                                <Input
-                                    type="number"
+                                <NumericInput
                                     value={discount}
                                     onChange={(e) => setDiscount(e.target.value)}
                                     placeholder="0"
@@ -730,8 +722,7 @@ function AddPurchaseBillPageInner() {
                         <div className="space-y-2">
                             <Label>{t("tax") || "Tax"}</Label>
                             <div className="flex gap-2">
-                                <Input
-                                    type="number"
+                                <NumericInput
                                     value={tax}
                                     onChange={(e) => setTax(e.target.value)}
                                     placeholder="0"
@@ -801,8 +792,7 @@ function AddPurchaseBillPageInner() {
                             <>
                                 <div className="space-y-2">
                                     <Label>{t("paidAmount") || "Paid Amount"}</Label>
-                                    <Input
-                                        type="number"
+                                    <NumericInput
                                         value={paidAmount}
                                         onChange={(e) => setPaidAmount(e.target.value)}
                                         placeholder="0"
@@ -913,8 +903,7 @@ function AddPurchaseBillPageInner() {
 
                         <div className="space-y-2">
                             <Label>{t("quantity") || "Quantity"}</Label>
-                            <Input
-                                type="number"
+                            <NumericInput
                                 value={itemQuantity}
                                 onChange={(e) => setItemQuantity(e.target.value)}
                                 min="1"

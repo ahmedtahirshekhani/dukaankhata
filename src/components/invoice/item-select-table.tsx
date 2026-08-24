@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Select,
   SelectContent,
@@ -97,13 +98,11 @@ export function ItemSelectTable({
                   />
                 </TableCell>
                 <TableCell className="py-1">
-                  <input
-                    type="text"
-                    inputMode="decimal"
+                  <NumericInput
                     value={product.quantityInput ?? String(product.quantity ?? 1)}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                     onBlur={() => handleQuantityBlur(product.id)}
-                    className="w-14 p-1 h-7 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-14 h-7 p-1 text-xs"
                   />
                 </TableCell>
                 <TableCell className="py-1">
@@ -133,9 +132,7 @@ export function ItemSelectTable({
                   </Select>
                 </TableCell>
                 <TableCell className="py-1">
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <NumericInput
                     value={product.sellPriceInput ?? String(product.sell_price)}
                     onChange={(e) => handleSellPriceChange(product.id, e.target.value)}
                     onBlur={() => handleSellPriceBlur(product.id)}
@@ -147,14 +144,13 @@ export function ItemSelectTable({
                 </TableCell>
                 <TableCell className="py-1">
                   <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
+                    <NumericInput
                       placeholder="0"
-                      value={product.discount || ""}
+                      value={product.discount ?? ""}
                       onChange={(e) =>
                         handleDiscountChange(
                           product.id,
-                          parseFloat(e.target.value),
+                          parseFloat(e.target.value || "0"),
                         )
                       }
                       className="w-16 h-7 text-xs"
@@ -261,9 +257,7 @@ export function ItemSelectTable({
                   <p className="text-[10px] text-muted-foreground mb-0.5">
                     {t("sellPrice")}
                   </p>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <NumericInput
                     value={product.sellPriceInput ?? String(product.sell_price)}
                     onChange={(e) =>
                       handleSellPriceChange(product.id, e.target.value)
@@ -282,15 +276,13 @@ export function ItemSelectTable({
                     {t("qty")} / {t("uom")}
                   </p>
                   <div className="flex gap-1">
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <NumericInput
                       value={product.quantityInput ?? String(product.quantity ?? 1)}
                       onChange={(e) => {
                         handleQuantityChange(product.id, e.target.value);
                       }}
                       onBlur={() => handleQuantityBlur(product.id)}
-                      className="w-full h-7 p-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-7 p-1 text-xs"
                     />
                     <Select disabled>
                       <SelectTrigger className="w-16 h-7 text-xs bg-gray-50 px-1">
@@ -327,14 +319,13 @@ export function ItemSelectTable({
                 <div>
                   <p className="text-[10px] text-muted-foreground mb-0.5">Discount</p>
                   <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
+                    <NumericInput
                       placeholder="0"
-                      value={product.discount || ""}
+                      value={product.discount ?? ""}
                       onChange={(e) =>
                         handleDiscountChange(
                           product.id,
-                          parseFloat(e.target.value),
+                          parseFloat(e.target.value || "0"),
                         )
                       }
                       className="h-7 text-xs p-1"
