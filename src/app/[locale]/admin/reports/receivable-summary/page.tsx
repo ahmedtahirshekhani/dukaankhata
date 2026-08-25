@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Table,
   TableBody,
@@ -565,16 +566,16 @@ export default function ReceivableSummaryPage() {
                     {tRec("outstandingBalance") || "Balance Range"}
                   </Label>
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
+                    <NumericInput
+                      min="0"
                       placeholder="Min"
                       value={minBalance}
                       onChange={(e) => setMinBalance(e.target.value)}
                       className="h-8 text-xs bg-background"
                     />
                     <span className="text-xs text-muted-foreground">-</span>
-                    <Input
-                      type="number"
+                    <NumericInput
+                      min="0"
                       placeholder="Max"
                       value={maxBalance}
                       onChange={(e) => setMaxBalance(e.target.value)}

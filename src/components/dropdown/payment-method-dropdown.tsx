@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
@@ -371,9 +372,9 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
               </div>
               <div className="space-y-2">
                 <Label htmlFor="opening-balance">{tBank("openingBalance")}</Label>
-                <Input
+                <NumericInput
                   id="opening-balance"
-                  type="number"
+                  min="0"
                   value={openingBalance}
                   onChange={(e) => setOpeningBalance(e.target.value)}
                   placeholder="0.00"

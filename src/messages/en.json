@@ -397,6 +397,7 @@
     "loading": "Loading...",
     "updateItem": "Update Item",
     "units": {
+      "unit": "Unit",
       "piece": "Piece",
       "kg": "Kilogram (kg)",
       "gram": "Gram (g)",

@@ -20,6 +20,7 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -1136,11 +1137,8 @@ export default function NewInvoicePage() {
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                   <span className="text-xs text-gray-600 font-medium w-1/3">{t("discount")}</span>
                   <div className="flex gap-3 w-2/3">
-                    <Input
-                      type="number"
+                    <NumericInput
                       placeholder="0"
-                      min="0"
-                      max={overallDiscountType === "percentage" ? 100 : undefined}
                       className="flex-1 h-8 text-xs"
                       value={overallDiscount || ""}
                       onChange={(e) => handleOverallDiscountInputChange(e.target.value)}
@@ -1162,10 +1160,8 @@ export default function NewInvoicePage() {
 
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                   <span className="text-xs text-gray-600 font-medium w-1/3">{t("shippingCharges") || "Shipping / Charges"}</span>
-                  <Input
-                    type="number"
+                  <NumericInput
                     placeholder="0"
-                    min="0"
                     className="w-2/3 h-8 text-xs"
                     value={shippingCharges || ""}
                     onChange={(e) => {
@@ -1196,8 +1192,7 @@ export default function NewInvoicePage() {
                   {!isCashSale && (
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-600 font-medium w-1/3">{t("receivedAmount") || "Received Amount"}</span>
-                      <Input
-                        type="number"
+                      <NumericInput
                         value={paymentAmount === "" ? "" : paymentAmount}
                         onChange={(e) => {
                           const val = e.target.value === "" ? "" : Number(e.target.value);
@@ -1210,8 +1205,7 @@ export default function NewInvoicePage() {
                           }
                         }}
                         placeholder="0"
-                        min={0}
-                        className="w-2/3 h-8 text-xs"
+                        className="w-2/3 h-8 text-xs font-semibold"
                       />
                     </div>
                   )}

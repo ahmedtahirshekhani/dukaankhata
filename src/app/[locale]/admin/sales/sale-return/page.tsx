@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Select,
   SelectContent,
@@ -728,19 +729,15 @@ export default function SaleReturnPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
+                      <NumericInput
                         min="0"
-                        step="0.01"
                         value={item.quantity}
                         onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
                       />
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
+                      <NumericInput
                         min="0"
-                        step="0.01"
                         value={item.rate}
                         onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
                       />
@@ -801,20 +798,16 @@ export default function SaleReturnPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">{t("qty")}</Label>
-                      <Input
-                        type="number"
+                      <NumericInput
                         min="0"
-                        step="0.01"
                         value={item.quantity}
                         onChange={(e) => updateFormItem(item.id, "quantity", e.target.value)}
                       />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("rate")}</Label>
-                      <Input
-                        type="number"
+                      <NumericInput
                         min="0"
-                        step="0.01"
                         value={item.rate}
                         onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
                       />
@@ -838,13 +831,12 @@ export default function SaleReturnPage() {
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paidAmount")}</Label>
-          <Input
-            type="number"
+          <NumericInput
             min="0"
-            step="0.01"
             value={formPaidAmount}
             onChange={(e) => setFormPaidAmount(e.target.value)}
             className="h-10 text-lg font-semibold"
+            placeholder="0.00"
           />
         </div>
         <div className="space-y-1.5">
