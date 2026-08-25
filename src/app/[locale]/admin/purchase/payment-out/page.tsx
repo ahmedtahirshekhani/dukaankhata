@@ -806,7 +806,7 @@ export default function PaymentOutPage() {
               {tCommon("cancel")}
             </Button>
             <Button
-              variant="danger"
+              variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
             >

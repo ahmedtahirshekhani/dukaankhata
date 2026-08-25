@@ -1192,7 +1192,7 @@ export default function SaleReturnPage() {
             >
               {tCommon("cancel")}
             </Button>
-             <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting ? tCommon("loading") : tCommon("delete")}
             </Button>
           </DialogFooter>

@@ -172,6 +172,10 @@ const selectStyles = {
       borderColor: "#9ca3af",
     },
   }),
+  placeholder: (base: any) => ({
+    ...base,
+    color: "black",
+  }),
   option: (base: any, state: any) => ({
     ...base,
     backgroundColor: state.isSelected
@@ -628,7 +632,6 @@ export function ProductDialog({
                     value={productCategory}
                     onChange={setProductCategory}
                   />
-
                   <BranchSelector value={branch} onChange={setBranch} />
                 </div>
               </>
