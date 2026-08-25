@@ -569,7 +569,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               }`}
           >
             {/* Workspace Switcher at the very top */}
-            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} />
+            <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} onClose={() => setSidebarOpen(false)} />
 
             {/* Home */}
             <div>

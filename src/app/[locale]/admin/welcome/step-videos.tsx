@@ -30,7 +30,7 @@ const stepVideos = [
   {
     id: "3",
     title: "Items/Inventories kese Add krein | Desktop",
-    url: "https://www.youtube.com/watch?v=JJsdArda6WA&list=PLt2XPtP0TX29bzn7G_IWOPAgHlL_1JQXh&index=3",
+    url: "https://www.youtube.com/watch?v=3chh3VfpkfA&list=PLt2XPtP0TX29bzn7G_IWOPAgHlL_1JQXh&index=3",
   },
   {
     id: "4",
@@ -40,7 +40,7 @@ const stepVideos = [
   {
     id: "5",
     title: "Invoices kese Create krein | Desktop",
-    url: "https://www.youtube.com/watch?v=QuV2YyoVvGU&list=PLt2XPtP0TX29bzn7G_IWOPAgHlL_1JQXh&index=5",
+    url: "https://www.youtube.com/watch?v=3FiRE5URbn4&list=PLt2XPtP0TX29bzn7G_IWOPAgHlL_1JQXh&index=6",
   },
   {
     id: "6",
@@ -55,7 +55,7 @@ const stepVideos = [
   {
     id: "8",
     title: "Company Setting kese Update krein | Desktop",
-    url: "https://www.youtube.com/watch?v=8ckMyJ0EaO0&list=PLt2XPtP0TX29bzn7G_IWOPAgHlL_1JQXh&index=8",
+    url: "https://www.youtube.com/watch?v=wU7UjJWjDcU&list=PLt2XPtP0TX29bzn7G_IWOPAgHlL_1JQXh&index=2",
   },
   //  {
   //   id: "9",
