@@ -243,7 +243,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName, onClose
                 </span>
                 {user.workspaces.length >= 5 && (
                   <span className="text-[10px] text-amber-600 font-semibold whitespace-normal leading-tight mt-0.5">
-                    {t("maxShopsLimitReached") || "Maximum limit of 5 shops reached."}
+                    {t("maxShopsLimitReached")}
                   </span>
                 )}
               </div>
