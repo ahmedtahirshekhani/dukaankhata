@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
     Dialog,
@@ -471,10 +472,8 @@ function QuotationFormPageInner({
 
                                                     {/* Quantity - Input Field */}
                                                     <td className="p-4 text-center">
-                                                        <input
-                                                            type="number"
+                                                        <NumericInput
                                                             min="0"
-                                                            step="1"
                                                             value={item.quantity}
                                                             onChange={(e) => {
                                                                 const newQuantity = parseFloat(e.target.value) || 0;
@@ -489,16 +488,14 @@ function QuotationFormPageInner({
                                                                 );
                                                                 setQuotationItems(updatedItems);
                                                             }}
-                                                            className="w-24 px-2 py-1 border rounded text-center"
+                                                            className="w-24 h-8 px-2 py-1 border rounded text-center text-sm"
                                                         />
                                                     </td>
 
                                                     {/* Unit Price - Input Field */}
                                                     <td className="p-4 text-right">
-                                                        <input
-                                                            type="number"
+                                                        <NumericInput
                                                             min="0"
-                                                            step="any"
                                                             value={item.unit_price}
                                                             onChange={(e) => {
                                                                 const newPrice = parseFloat(e.target.value) || 0;
@@ -513,7 +510,7 @@ function QuotationFormPageInner({
                                                                 );
                                                                 setQuotationItems(updatedItems);
                                                             }}
-                                                            className="w-28 px-2 py-1 border rounded text-right"
+                                                            className="w-28 h-8 px-2 py-1 border rounded text-right text-sm"
                                                         />
                                                     </td>
 
@@ -588,8 +585,7 @@ function QuotationFormPageInner({
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-1">
                                                     <Label className="text-[10px] uppercase text-muted-foreground font-bold">{t("qty")}</Label>
-                                                    <Input
-                                                        type="number"
+                                                    <NumericInput
                                                         value={item.quantity}
                                                         onChange={(e) => {
                                                             const newQuantity = parseFloat(e.target.value) || 0;
@@ -600,8 +596,7 @@ function QuotationFormPageInner({
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[10px] uppercase text-muted-foreground font-bold">{t("price")}</Label>
-                                                    <Input
-                                                        type="number"
+                                                    <NumericInput
                                                         value={item.unit_price}
                                                         onChange={(e) => {
                                                             const newPrice = parseFloat(e.target.value) || 0;
@@ -677,8 +672,7 @@ function QuotationFormPageInner({
                                         </span>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Input
-                                            type="number"
+                                        <NumericInput
                                             value={discount}
                                             onChange={(e) => setDiscount(e.target.value)}
                                             className="h-8"
@@ -703,8 +697,7 @@ function QuotationFormPageInner({
                                         <span>{formatCurrencyString(calculations.taxValue)}</span>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Input
-                                            type="number"
+                                        <NumericInput
                                             value={tax}
                                             onChange={(e) => setTax(e.target.value)}
                                             className="h-8"
@@ -761,12 +754,10 @@ function QuotationFormPageInner({
                         </div>
                         <div className="space-y-2">
                             <Label>{t("qty")}</Label>
-                            <Input
-                                type="number"
+                            <NumericInput
                                 value={itemQuantity}
                                 onChange={(e) => setItemQuantity(e.target.value)}
                                 min="1"
-                                step="1"
                             />
                         </div>
                         {selectedProductObj && (

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import Select, { type SingleValue } from "react-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -170,6 +171,10 @@ const selectStyles = {
     "&:hover": {
       borderColor: "#9ca3af",
     },
+  }),
+  placeholder: (base: any) => ({
+    ...base,
+    color: "black",
   }),
   option: (base: any, state: any) => ({
     ...base,
@@ -493,10 +498,8 @@ export function ProductDialog({
                         <TooltipContent>{t("sellPriceTooltip")}</TooltipContent>
                       </Tooltip>
                     </div>
-                    <Input
+                    <NumericInput
                       id="sellPrice"
-                      type="text"
-                      inputMode="decimal"
                       value={sellPrice}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -520,10 +523,8 @@ export function ProductDialog({
                         <TooltipContent>{t("costPriceTooltip")}</TooltipContent>
                       </Tooltip>
                     </div>
-                    <Input
+                    <NumericInput
                       id="costPrice"
-                      type="text"
-                      inputMode="decimal"
                       value={costPrice}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -549,10 +550,8 @@ export function ProductDialog({
                         <TooltipContent>{t("quantityTooltip")}</TooltipContent>
                       </Tooltip>
                     </div>
-                    <Input
+                    <NumericInput
                       id="quantity"
-                      type="text"
-                      inputMode="decimal"
                       value={productInStock}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -580,10 +579,8 @@ export function ProductDialog({
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <Input
+                    <NumericInput
                       id="damagedQuantity"
-                      type="text"
-                      inputMode="decimal"
                       value={damagedQuantity}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -635,7 +632,6 @@ export function ProductDialog({
                     value={productCategory}
                     onChange={setProductCategory}
                   />
-
                   <BranchSelector value={branch} onChange={setBranch} />
                 </div>
               </>
@@ -656,10 +652,8 @@ export function ProductDialog({
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <Input
+                    <NumericInput
                       id="sellPrice"
-                      type="text"
-                      inputMode="decimal"
                       value={sellPrice}
                       onChange={(e) => {
                         const val = e.target.value;

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -130,9 +131,9 @@ export function PaymentDialog({
 
           <div className="space-y-1">
             <Label htmlFor="payment-amount">{t("amountLabel")}</Label>
-            <Input
+            <NumericInput
               id="payment-amount"
-              type="number"
+              min="0"
               placeholder="0"
               value={paymentAmount || ""}
               onChange={(e) => {

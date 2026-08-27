@@ -48,6 +48,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Select,
   SelectContent,
@@ -1283,9 +1284,8 @@ export default function PartiesPage() {
                     >
                       {showNewCustomerDialog ? t("openingBalance") : t("balanceLabel")}
                     </Label>
-                    <Input
+                    <NumericInput
                       id="balance"
-                      type="number"
                       value={newCustomerOpeningBalance}
                       onChange={(e) =>
                         setNewCustomerOpeningBalance(e.target.value)

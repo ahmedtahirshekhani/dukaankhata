@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Select,
   SelectContent,
@@ -627,10 +628,8 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("paymentAmount")}</Label>
-              <Input
-                type="number"
+              <NumericInput
                 min="0"
-                step="0.01"
                 placeholder="0"
                 value={formPaymentAmount}
                 onChange={(e) => setFormPaymentAmount(e.target.value)}
@@ -694,10 +693,8 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("paymentAmount")}</Label>
-              <Input
-                type="number"
+              <NumericInput
                 min="0"
-                step="0.01"
                 placeholder="0"
                 value={formPaymentAmount}
                 onChange={(e) => setFormPaymentAmount(e.target.value)}
@@ -762,7 +759,7 @@ export default function PaymentInPage() {
               {tCommon("cancel")}
             </Button>
             <Button
-              variant="danger"
+              variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
             >

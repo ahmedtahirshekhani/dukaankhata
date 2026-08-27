@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -853,27 +854,19 @@ export default function ExpensesPage() {
 
                   <div className="space-y-1">
                     <Label>{t("qty")}</Label>
-                    <Input
-                      type="number"
+                    <NumericInput
                       min="0"
-                      step="0.01"
                       value={line.qty}
-                      onChange={(event) =>
-                        updateLine(line.id, "qty", event.target.value)
-                      }
+                      onChange={(e) => updateLine(line.id, "qty", e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-1">
                     <Label>{t("rate")}</Label>
-                    <Input
-                      type="number"
+                    <NumericInput
                       min="0"
-                      step="0.01"
                       value={line.rate}
-                      onChange={(event) =>
-                        updateLine(line.id, "rate", event.target.value)
-                      }
+                      onChange={(e) => updateLine(line.id, "rate", e.target.value)}
                     />
                   </div>
 
@@ -994,22 +987,18 @@ export default function ExpensesPage() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>{t("qty")}</Label>
-                <Input
-                  type="number"
+                <NumericInput
                   min="0"
-                  step="0.01"
                   value={editQty}
-                  onChange={(event) => setEditQty(event.target.value)}
+                  onChange={(e) => setEditQty(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
                 <Label>{t("rate")}</Label>
-                <Input
-                  type="number"
+                <NumericInput
                   min="0"
-                  step="0.01"
                   value={editRate}
-                  onChange={(event) => setEditRate(event.target.value)}
+                  onChange={(e) => setEditRate(e.target.value)}
                 />
               </div>
               <div className="space-y-2">

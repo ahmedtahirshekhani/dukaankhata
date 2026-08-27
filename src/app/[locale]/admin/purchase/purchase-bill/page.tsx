@@ -21,6 +21,7 @@ import { formatCurrencyString } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -281,15 +282,15 @@ export default function PurchaseBillPage() {
                 <div className="p-3">
                   <Label className="text-xs font-semibold mb-2 block">Amount Range</Label>
                   <div className="flex gap-2">
-                    <Input
-                      type="number"
+                    <NumericInput
+                      min="0"
                       placeholder="Min"
                       value={amountRange.min}
                       onChange={(e) => setAmountRange({ ...amountRange, min: e.target.value })}
                       className="h-8 text-xs"
                     />
-                    <Input
-                      type="number"
+                    <NumericInput
+                      min="0"
                       placeholder="Max"
                       value={amountRange.max}
                       onChange={(e) => setAmountRange({ ...amountRange, max: e.target.value })}
@@ -448,14 +449,16 @@ export default function PurchaseBillPage() {
       <ConfirmDialog
         open={deleteConfirmDialog.open}
         onOpenChange={(open) => setDeleteConfirmDialog({ ...deleteConfirmDialog, open })}
-        title={t("deleteBill") || "Delete Bill"}
-        description={t("confirmDelete") || "Are you sure?"}
+        title={t("deleteBill")}
+        description={t("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        cancelLabel={tCommon("cancel")}
         onConfirm={() => {
           if (deleteConfirmDialog.billId) {
             handleDeleteBill(deleteConfirmDialog.billId);
           }
         }}
-        variant="danger"
+        variant="destructive"
       />
 
       <ErrorDialog

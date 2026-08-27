@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Select,
   SelectContent,
@@ -473,7 +474,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                           </Select>
                         </TableCell>
                         <TableCell className="flex gap-1">
-                          <Input type="number" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
+                          <NumericInput min="0" value={p.discount} onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)} className="w-20 h-8 text-sm" />
                           <Select value={p.discountType} onValueChange={(val) => handleUpdateProduct(idx, "discountType", val)}>
                             <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -564,8 +565,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                         <div className="flex flex-col">
                           <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{t("discount")}</Label>
                           <div className="flex gap-1">
-                            <Input
-                              type="number"
+                            <NumericInput
+                              min="0"
                               value={p.discount}
                               onChange={(e) => handleUpdateProduct(idx, "discount", parseFloat(e.target.value) || 0)}
                               className="h-8 text-xs flex-1"
@@ -606,7 +607,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                     </div>
                     <div className="w-24 space-y-1">
                       <Label className="text-[10px] text-muted-foreground uppercase">{t("amount")}</Label>
-                      <Input type="number" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                      <NumericInput min="0" placeholder={t("amount")} value={ch.value} onChange={(e) => handleUpdateCharge(idx, "value", parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(idx)} className="h-8 w-8 text-red-500"><XIcon className="w-4 h-4" /></Button>
                   </div>
@@ -622,7 +623,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
               <div>
                 <Label className="text-xs sm:text-sm font-semibold">{t("overallDiscount")}</Label>
                 <div className="flex gap-2">
-                  <Input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
+                  <NumericInput min="0" value={overallDiscount} onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
                   <Select value={overallDiscountType} onValueChange={(val: any) => setOverallDiscountType(val)}>
                     <SelectTrigger className="w-24 h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -634,7 +635,7 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
               </div>
               <div>
                 <Label className="text-xs sm:text-sm font-semibold">{t("shippingCharges")}</Label>
-                <Input type="number" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
+                <NumericInput min="0" value={shippingCharges} onChange={(e) => setShippingCharges(parseFloat(e.target.value) || 0)} className="h-9 text-sm" />
               </div>
             </div>
 
@@ -659,8 +660,8 @@ function EditOrderDialog({ open, onOpenChange, order, onOrderUpdated }: EditOrde
                     </div>
                     <div className="sm:col-span-1">
                       <Label className="text-xs sm:text-sm">{t("paidAmount")}</Label>
-                      <Input
-                        type="number"
+                      <NumericInput
+                        min="0"
                         value={payment.paidAmount}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;

@@ -32,9 +32,10 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 interface WorkspaceSwitcherProps {
   sidebarMinimized?: boolean;
   activeCompanyName?: string;
+  onClose?: () => void;
 }
 
-export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName, onClose }: WorkspaceSwitcherProps) {
   const t = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -163,10 +164,12 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                       return;
                     }
                     if (!isActive) {
+                      onClose?.();
                       await updateSession({ active_workspace_id: ws.id });
                       await SyncEngine.clearCacheAndResync();
                       window.location.href = `/${locale}/admin`;
                     } else if (hasModuleAccess("configuration")) {
+                      onClose?.();
                       router.push(`/${locale}/admin/configuration`);
                     }
                   }}
@@ -221,6 +224,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                   setShowOfflineAlert(true);
                   return;
                 }
+                onClose?.();
                 setIsModalOpen(true);
               }}
               disabled={(user?.workspaces?.length ?? 0) >= 5}
@@ -239,7 +243,7 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName }: Works
                 </span>
                 {user.workspaces.length >= 5 && (
                   <span className="text-[10px] text-amber-600 font-semibold whitespace-normal leading-tight mt-0.5">
-                    {t("maxShopsLimitReached") || "Maximum limit of 5 shops reached."}
+                    {t("maxShopsLimitReached")}
                   </span>
                 )}
               </div>
