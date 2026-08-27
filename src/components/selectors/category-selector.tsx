@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Info, PlusCircle, SearchIcon, X, Loader2Icon } from "lucide-react";
+import { Info, PlusCircle, SearchIcon, X, Loader2Icon, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useOfflineCategories } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 interface CategorySelectorProps {
   value: string;
@@ -51,6 +52,9 @@ export function CategorySelector({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     try {
@@ -69,6 +73,35 @@ export function CategorySelector({
       console.error("Error saving category:", error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteCategory = async (e: React.MouseEvent, cat: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const catName = cat.name || cat.category_name;
+    const catId = cat.id || cat._id;
+    
+    // Check if category is used in products
+    const productsUsingCategory = await db.products
+      .filter((p) => p.category === catName && p.is_delete !== 1)
+      .toArray();
+
+    if (productsUsingCategory.length > 0) {
+      setErrorMessage(t("categoryInUseError"));
+      setErrorDialogOpen(true);
+      return;
+    }
+
+    try {
+      await db.categories.delete(catId);
+      await SyncEngine.queueOperation("categories", "DELETE", `/api/categories/${catId}`, null, catId);
+      if (value === catName) {
+        onChange("");
+      }
+    } catch (error) {
+      console.error("Error deleting category:", error);
     }
   };
 
@@ -128,9 +161,19 @@ export function CategorySelector({
             {categories.map((cat: any) => {
               const catName = cat.name || cat.category_name;
               return (
-                <SelectItem key={cat.id || catName} value={catName}>
-                  {catName}
-                </SelectItem>
+                <div key={cat.id || catName} className="flex items-center justify-between group relative">
+                  <SelectItem value={catName} className="flex-1 pr-10 cursor-pointer">
+                    {catName}
+                  </SelectItem>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteCategory(e, cat)}
+                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all z-20 cursor-pointer"
+                    title={t("delete")}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -178,6 +221,12 @@ export function CategorySelector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <ErrorDialog 
+        open={errorDialogOpen} 
+        onOpenChange={setErrorDialogOpen} 
+        message={errorMessage} 
+      />
     </div>
   );
 }
