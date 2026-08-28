@@ -466,7 +466,8 @@
     "editImportData": "Edit the data below before confirming the import",
     "totalRows": "Total rows",
     "categoryInUseError": "This category is in use by one or more products. Please remove it from products before deleting.",
-    "deleteCategoryConfirm": "Are you sure you want to delete this category?"
+    "deleteCategoryConfirm": "Are you sure you want to delete this category?",
+    "branchInUseError": "This branch is in use by one or more products. Please remove it from products before deleting."
   },
   "paymentIn": {
     "title": "Payment In",

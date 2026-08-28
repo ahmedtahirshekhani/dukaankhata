@@ -111,6 +111,47 @@ export function ProductFilters({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Branch Filter */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 h-9 text-xs flex-shrink-0"
+          >
+            <span className="text-muted-foreground hidden sm:inline">
+              {branchLabel}:
+            </span>
+            <span className="truncate max-w-[80px] sm:max-w-none">
+              {filters.branch === "all" ? allLabel : filters.branch}
+            </span>
+            <ChevronDownIcon className="w-3 h-3 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-40 max-h-64 overflow-y-auto"
+        >
+          <DropdownMenuLabel>{branchLabel}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuCheckboxItem
+            checked={filters.branch === "all"}
+            onCheckedChange={() => onFilterChange("branch", "all")}
+          >
+            {allLabel}
+          </DropdownMenuCheckboxItem>
+          {branches.map((branch) => (
+            <DropdownMenuCheckboxItem
+              key={branch}
+              checked={filters.branch === branch}
+              onCheckedChange={() => onFilterChange("branch", branch)}
+            >
+              {capitalizeFirstLetter(branch)}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       {/* Price Range Filters */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
