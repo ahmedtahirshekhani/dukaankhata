@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportStockReportToExcel } from "@/lib/excel";
+import { useCategories, useBranches } from "@/components/products/use-products-data";
 
 interface StockProduct {
   id: string;
@@ -112,28 +113,8 @@ export default function StockReportPage() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // States for dynamic Categories & Branches loaded from active products in stock
-  const [availableCategories, setAvailableCategories] = useState<string[]>(["General"]);
-  const [availableBranches, setAvailableBranches] = useState<string[]>(["Main"]);
-
-  const DEFAULT_ITEM_CATEGORIES = useMemo(() => [
-    "General",
-    "Electronics",
-    "Clothing",
-    "Books",
-    "Home",
-    "Consulting",
-    "Maintenance",
-    "Delivery",
-    "Installation",
-  ], []);
-
-  const categoryOptions = useMemo(() => {
-    const merged = new Set([
-      ...DEFAULT_ITEM_CATEGORIES,
-      ...availableCategories,
-    ]);
-    return Array.from(merged).filter(Boolean).sort();
-  }, [DEFAULT_ITEM_CATEGORIES, availableCategories]);
+  const { categories: categoryOptions } = useCategories();
+  const { branches: availableBranches } = useBranches();
 
   // Branding for PDF Export
   const [branding, setBranding] = useState({
@@ -216,10 +197,6 @@ export default function StockReportPage() {
         setSummary(data.summary || {});
         setTotalCount(data.pagination?.totalCount || 0);
         setTotalPages(data.pagination?.totalPages || 1);
-        
-        // Dynamically set available categories & branches from active products in stock
-        if (data.categories) setAvailableCategories(data.categories);
-        if (data.branches) setAvailableBranches(data.branches);
       }
     } catch (err: any) {
       if (err.name !== "AbortError") {

@@ -273,7 +273,7 @@ export function ItemSelectTable({
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground mb-0.5">
-                    {t("qty")} / {t("uom")}
+                    {t("qty")}
                   </p>
                   <div className="flex gap-1">
                     <NumericInput
