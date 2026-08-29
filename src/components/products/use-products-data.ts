@@ -83,29 +83,17 @@ export function useProductsData({
   };
 }
 
-const defaultCategories = [
-  "General",
-  "Electronics",
-  "Clothing",
-  "Books",
-  "Home",
-  "Consulting",
-  "Maintenance",
-  "Delivery",
-  "Installation",
-];
-
 export function useCategories() {
   const cats = useLiveQuery(() => db.categories.toArray());
   const categories = cats 
-    ? Array.from(new Set([...defaultCategories, ...cats.map(c => c.name)]))
-    : defaultCategories;
+    ? Array.from(new Set(cats.map(c => c.name)))
+    : [];
   return { categories };
 }
 
 export function useBranches() {
   const br = useLiveQuery(() => db.branches.toArray());
-  const branches = br ? ["Main", ...br.map(b => b.name).filter(n => n !== "Main")] : ["Main"];
+  const branches = br ? Array.from(new Set(br.map(b => b.name))) : [];
   return { branches };
 }
 

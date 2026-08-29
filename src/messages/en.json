@@ -368,7 +368,7 @@
     "resetFilters": "Reset Filters",
     "applyFilters": "Apply Filters",
     "filterProductsDescription": "Filter products by type, category, branch, and price ranges.",
-    "price": "Price/Unit",
+    "price": "Sale Price",
     "costPrice": "Cost Price",
     "uom": "Unit",
     "name": "Name",
@@ -464,7 +464,10 @@
     "createBranch": "Create Branch",
     "importPreview": "Import Preview",
     "editImportData": "Edit the data below before confirming the import",
-    "totalRows": "Total rows"
+    "totalRows": "Total rows",
+    "categoryInUseError": "This category is in use by one or more products. Please remove it from products before deleting.",
+    "deleteCategoryConfirm": "Are you sure you want to delete this category?",
+    "branchInUseError": "This branch is in use by one or more products. Please remove it from products before deleting."
   },
   "paymentIn": {
     "title": "Payment In",
@@ -553,7 +556,7 @@
     "productName": "Product Name",
     "quantity": "Quantity",
     "costPrice": "Cost Price",
-    "sellPrice": "Price/Unit",
+    "sellPrice": "Sale Price",
     "totalCostValuation": "Total Cost Valuation",
     "totalRetailValuation": "Total Retail Valuation",
     "lowStockWarning": "Quantity is low! Please restock soon.",
@@ -790,7 +793,7 @@
     "allStatuses": "All Statuses",
     "invoiceNo": "Invoice No",
     "customer": "Party",
-    "paid": "Paid",
+    "paid": "Received",
     "balance": "Balance",
     "date": "Date",
     "actions": "Actions",

@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Info, PlusCircle, SearchIcon, X, Loader2Icon } from "lucide-react";
+import { Info, PlusCircle, SearchIcon, X, Loader2Icon, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useOfflineBranches } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { ErrorDialog } from "@/components/dialogs/error-dialog";
 
 interface BranchSelectorProps {
   value: string;
@@ -51,6 +52,9 @@ export function BranchSelector({
   const [newBranchName, setNewBranchName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   const handleAddBranch = async () => {
     if (!newBranchName.trim()) return;
     try {
@@ -69,6 +73,35 @@ export function BranchSelector({
       console.error("Error saving branch:", error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteBranch = async (e: React.MouseEvent, branch: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const branchName = branch.name;
+    const branchId = branch.id || branch._id;
+    
+    // Check if branch is used in products
+    const productsUsingBranch = await db.products
+      .filter((p) => p.branch === branchName && p.is_delete !== 1)
+      .toArray();
+
+    if (productsUsingBranch.length > 0) {
+      setErrorMessage(t("branchInUseError"));
+      setErrorDialogOpen(true);
+      return;
+    }
+
+    try {
+      await db.branches.delete(branchId);
+      await SyncEngine.queueOperation("branches", "DELETE", `/api/branches/${branchId}`, null, branchId);
+      if (value === branchName) {
+        onChange("");
+      }
+    } catch (error) {
+      console.error("Error deleting branch:", error);
     }
   };
 
@@ -126,9 +159,19 @@ export function BranchSelector({
               </div>
             )}
             {branches.map((b: any) => (
-              <SelectItem key={b.id || b.name} value={b.name}>
-                {b.name}
-              </SelectItem>
+              <div key={b.id || b.name} className="flex items-center justify-between group relative">
+                <SelectItem value={b.name} className="flex-1 pr-16 cursor-pointer">
+                  {b.name}
+                </SelectItem>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteBranch(e, b)}
+                  className="absolute right-8 p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded transition-all z-20 cursor-pointer"
+                  title={t("delete")}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ))}
           </div>
           
@@ -175,6 +218,12 @@ export function BranchSelector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ErrorDialog 
+        open={errorDialogOpen} 
+        onOpenChange={setErrorDialogOpen} 
+        message={errorMessage} 
+      />
     </div>
   );
 }

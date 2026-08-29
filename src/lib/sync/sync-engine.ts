@@ -58,7 +58,7 @@ export class SyncEngine {
       await db.transaction('rw', 
         [db.products, db.parties, db.orders, 
         db.party_transactions, db.party_ledger_entries, db.party_balance_state,
-        db.purchase_bills, db.expenses, db.quotations, db.categories, db.payment_methods,
+        db.purchase_bills, db.expenses, db.quotations, db.categories, db.branches, db.payment_methods,
         db.vendor_transactions, db.sale_return_transactions,
         db.transactions, db.subscriptions, db.configurations,
         db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
@@ -74,6 +74,7 @@ export class SyncEngine {
           if (data.expenses?.length) promises.push(db.expenses.bulkPut(data.expenses));
           if (data.quotations?.length) promises.push(db.quotations.bulkPut(data.quotations));
           if (data.categories?.length) promises.push(db.categories.bulkPut(data.categories));
+          if (data.branches?.length) promises.push(db.branches.bulkPut(data.branches));
           if (data.vendor_transactions?.length) promises.push(db.vendor_transactions.bulkPut(data.vendor_transactions));
           if (data.sale_return_transactions?.length) promises.push(db.sale_return_transactions.bulkPut(data.sale_return_transactions));
           if (data.transactions?.length) promises.push(db.transactions.bulkPut(data.transactions));
