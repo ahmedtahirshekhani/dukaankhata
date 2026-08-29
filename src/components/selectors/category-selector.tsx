@@ -162,13 +162,13 @@ export function CategorySelector({
               const catName = cat.name || cat.category_name;
               return (
                 <div key={cat.id || catName} className="flex items-center justify-between group relative">
-                  <SelectItem value={catName} className="flex-1 pr-10 cursor-pointer">
+                  <SelectItem value={catName} className="flex-1 pr-16 cursor-pointer">
                     {catName}
                   </SelectItem>
                   <button
                     type="button"
                     onClick={(e) => handleDeleteCategory(e, cat)}
-                    className="absolute right-2 p-1.5 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all z-20 cursor-pointer"
+                    className="absolute right-8 p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded transition-all z-20 cursor-pointer"
                     title={t("delete")}
                   >
                     <Trash2 className="w-4 h-4" />
