@@ -145,7 +145,6 @@ export function InvoicePreviewDialog({
   const [isDownloading, setIsDownloading] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(0.65);
 
-  
   useEffect(() => {
     const updateZoom = () => {
       if (typeof window !== "undefined") {
