@@ -112,7 +112,7 @@ export default function PartiesPage() {
   // Feed processed data to useTableState for pagination
   useEffect(() => {
     tableState.setRawData(processedCustomers);
-  }, [processedCustomers]);
+  }, [processedCustomers, tableState]);
 
   // Sync state initialization
   const [isSyncReady, setIsSyncReady] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem('last_sync_timestamp'));
