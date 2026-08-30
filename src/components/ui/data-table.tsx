@@ -19,6 +19,7 @@ import { Loader2Icon, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export interface ColumnDef<TData> {
   id?: string;
@@ -74,12 +75,12 @@ export function DataTable<TData>({
   const tCommon = useTranslations("common");
 
   return (
-    <Card className="flex flex-col w-full h-full border-none sm:border-solid shadow-none sm:shadow-sm">
+    <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
       {(onSearchChange || toolbarActions) && (
-        <CardHeader className="p-0 sm:p-6 pb-4 sm:pb-4 border-b-0 sm:border-b mb-2 sm:mb-0">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardHeader className="p-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full">
             {onSearchChange && (
-              <div className="relative flex-1">
+              <div className="relative w-full sm:w-64 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={searchPlaceholder || tCommon("search") || "Search..."}
@@ -90,7 +91,7 @@ export function DataTable<TData>({
               </div>
             )}
             {toolbarActions && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
+              <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
                 {toolbarActions}
               </div>
             )}
@@ -98,7 +99,7 @@ export function DataTable<TData>({
         </CardHeader>
       )}
 
-      <CardContent className="p-0 flex flex-col flex-1">
+      <CardContent className="p-0 relative flex flex-col flex-1">
         {/* Desktop View */}
         <div className="hidden md:block w-full overflow-x-auto">
           <Table className="w-full">
@@ -131,11 +132,11 @@ export function DataTable<TData>({
                   <TableRow
                     key={keyExtractor(row, rowIndex)}
                     onClick={() => onRowClick?.(row)}
-                    className={`${onRowClick ? "cursor-pointer hover:bg-muted/50" : ""} ${rowClassName?.(row) || ""}`}
+                    className={cn(onRowClick ? "cursor-pointer hover:bg-muted/50" : "", rowClassName?.(row) || "")}
                   >
                     {columns.map((col, colIndex) => (
                       <TableCell key={col.id || colIndex.toString()} className={col.className}>
-                        {col.cell ? col.cell(row, rowIndex) : null}
+                        {col.cell ? col.cell(row, rowIndex) : col.accessorKey ? String((row as any)[col.accessorKey] || "") : null}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -146,7 +147,7 @@ export function DataTable<TData>({
         </div>
 
         {/* Mobile View */}
-        <div className="md:hidden space-y-3 w-full p-4 pt-0 sm:p-0">
+        <div className="md:hidden space-y-3 w-full">
           {isLoading && data.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-muted-foreground border rounded-lg bg-card shadow-sm">
               <Loader2Icon className="h-8 w-8 animate-spin" />
@@ -171,7 +172,7 @@ export function DataTable<TData>({
                           {col.header}
                         </div>
                         <div className="text-sm text-right flex items-center justify-end">
-                          {col.cell ? col.cell(row, rowIndex) : null}
+                          {col.cell ? col.cell(row, rowIndex) : col.accessorKey ? String((row as any)[col.accessorKey] || "") : null}
                         </div>
                       </div>
                     ))}
@@ -184,7 +185,7 @@ export function DataTable<TData>({
 
         {/* Pagination */}
         {(onPageChange || onPageSizeChange) && (
-          <div className="flex flex-col md:flex-row justify-between items-center px-4 sm:px-6 py-4 border-t gap-4 bg-card sm:rounded-b-xl mt-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center pt-4 sm:pt-6 mt-4 border-t gap-4">
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
               <div className="text-sm text-muted-foreground whitespace-nowrap text-center sm:text-left">
                 Showing {data.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries

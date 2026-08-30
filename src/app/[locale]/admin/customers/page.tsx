@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -17,13 +17,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Loader2Icon, 
-  SearchIcon, 
-  PlusCircle, 
-  FileDown, 
-  Upload, 
-  MoreVertical, 
+import {
+  Loader2Icon,
+  SearchIcon,
+  PlusCircle,
+  FileDown,
+  Upload,
+  MoreVertical,
   Receipt,
   Eye
 } from "lucide-react";
@@ -73,10 +73,10 @@ export default function PartiesPage() {
   // Modals State
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
-  
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [customerToView, setCustomerToView] = useState<Customer | null>(null);
-  
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -102,10 +102,10 @@ export default function PartiesPage() {
     let list = [...allOfflineCustomers];
     if (balanceFilter === "receive") list = list.filter(c => (c.balance ?? 0) > 0);
     else if (balanceFilter === "pay") list = list.filter(c => (c.balance ?? 0) < 0);
-    
+
     if (balanceSort === "asc") list.sort((a, b) => (a.balance ?? 0) - (b.balance ?? 0));
     else if (balanceSort === "desc") list.sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
-    
+
     return list;
   }, [allOfflineCustomers, balanceFilter, balanceSort]);
 
@@ -127,12 +127,12 @@ export default function PartiesPage() {
     const cleanPhone = (customer.phone || "").replace(/\D/g, "");
     if (!cleanPhone || cleanPhone.length < 5) {
       const baseMsg = tInvoice("whatsappNumberUnavailable") || "No WhatsApp number available for this customer.";
-      const instructMsg = locale === "ur" 
-        ? "\n\nÃ˜Â¨Ã˜Â±Ã˜Â§Ã›Â ÃšÂ©Ã˜Â±Ã™â€¦ Ã˜Â§Ã˜Â³ ÃšÂ¯Ã˜Â§Ã›ÂÃšÂ© ÃšÂ©Ã˜Â§ Ã™ÂÃ™Ë†Ã™â€  Ã™â€ Ã™â€¦Ã˜Â¨Ã˜Â± Ã˜Â¯Ã˜Â±Ã˜Â¬ ÃšÂ©Ã˜Â±Ã›Å’ÃšÂºÃ›â€ Ã˜Â¢Ã™Â¾ 'Ã˜ÂªÃ˜Â¨Ã˜Â¯Ã›Å’Ã™â€ž ÃšÂ©Ã˜Â±Ã›Å’ÃšÂº' (Edit) Ã˜Â¨Ã™Â¹Ã™â€  Ã™Â¾Ã˜Â± ÃšÂ©Ã™â€žÃšÂ© ÃšÂ©Ã˜Â± ÃšÂ©Ã›â€™ Ã™â€ Ã™â€¦Ã˜Â¨Ã˜Â± Ã˜Â´Ã˜Â§Ã™â€¦Ã™â€ž ÃšÂ©Ã˜Â± Ã˜Â³ÃšÂ©Ã˜ÂªÃ›â€™ Ã›ÂÃ›Å’ÃšÂºÃ›â€"
+      const instructMsg = locale === "ur"
+        ? "\n\nÃƒËœÃ‚Â¨ÃƒËœÃ‚Â±ÃƒËœÃ‚Â§Ãƒâ€ºÃ‚Â ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â±Ãƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â§ÃƒËœÃ‚Â³ ÃƒÅ¡Ã‚Â¯ÃƒËœÃ‚Â§Ãƒâ€ºÃ‚ÂÃƒÅ¡Ã‚Â© ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â§ Ãƒâ„¢Ã‚ÂÃƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Â  Ãƒâ„¢Ã¢â‚¬Â Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â± ÃƒËœÃ‚Â¯ÃƒËœÃ‚Â±ÃƒËœÃ‚Â¬ ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â±Ãƒâ€ºÃ…â€™ÃƒÅ¡Ã‚ÂºÃƒâ€ºÃ¢â‚¬Â ÃƒËœÃ‚Â¢Ãƒâ„¢Ã‚Â¾ 'ÃƒËœÃ‚ÂªÃƒËœÃ‚Â¨ÃƒËœÃ‚Â¯Ãƒâ€ºÃ…â€™Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â±Ãƒâ€ºÃ…â€™ÃƒÅ¡Ã‚Âº' (Edit) ÃƒËœÃ‚Â¨Ãƒâ„¢Ã‚Â¹Ãƒâ„¢Ã¢â‚¬Â  Ãƒâ„¢Ã‚Â¾ÃƒËœÃ‚Â± ÃƒÅ¡Ã‚Â©Ãƒâ„¢Ã¢â‚¬Å¾ÃƒÅ¡Ã‚Â© ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â± ÃƒÅ¡Ã‚Â©Ãƒâ€ºÃ¢â‚¬â„¢ Ãƒâ„¢Ã¢â‚¬Â Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â± ÃƒËœÃ‚Â´ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â¦Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â± ÃƒËœÃ‚Â³ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚ÂªÃƒâ€ºÃ¢â‚¬â„¢ Ãƒâ€ºÃ‚ÂÃƒâ€ºÃ…â€™ÃƒÅ¡Ã‚ÂºÃƒâ€ºÃ¢â‚¬Â"
         : locale === "ru"
-        ? "\n\nIs customer ka phone number add karain. Aap Edit button par click kar ke number add kar sakte hain."
-        : "\n\nPlease add a phone number for this customer. You can click the Edit button to add their number.";
-      
+          ? "\n\nIs customer ka phone number add karain. Aap Edit button par click kar ke number add kar sakte hain."
+          : "\n\nPlease add a phone number for this customer. You can click the Edit button to add their number.";
+
       toast.error(baseMsg + instructMsg, { duration: 5000 });
       return;
     }
@@ -143,9 +143,9 @@ export default function PartiesPage() {
 
     const currency = t("currencySymbol") || "Rs.";
     const roundedBalance = Math.round(customer.balance || 0);
-    
+
     let message = "";
-    if (locale === "ur") message = `Ã˜Â§Ã™â€žÃ˜Â³Ã™â€žÃ˜Â§Ã™â€¦ Ã˜Â¹Ã™â€žÃ›Å’ÃšÂ©Ã™â€¦ ${customer.name}Ã˜Å’\n\nÃ˜Â¨Ã˜Â±Ã˜Â§Ã›Â ÃšÂ©Ã˜Â±Ã™â€¦ Ã˜Â§Ã™Â¾Ã™â€ Ã˜Â§ Ã˜Â¨Ã™â€šÃ˜Â§Ã›Å’Ã˜Â§ Ã˜Â¨Ã›Å’Ã™â€žÃ™â€ Ã˜Â³ ${currency} ${roundedBalance} Ã˜Â¨ÃšÂ¾Ã›Å’Ã˜Â¬ Ã˜Â¯Ã›Å’ÃšÂºÃ›â€\n\nÃ˜Â´ÃšÂ©Ã˜Â±Ã›Å’Ã›Â!`;
+    if (locale === "ur") message = `ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â³Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â¹Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ€ºÃ…â€™ÃƒÅ¡Ã‚Â©Ãƒâ„¢Ã¢â‚¬Â¦ ${customer.name}ÃƒËœÃ…â€™\n\nÃƒËœÃ‚Â¨ÃƒËœÃ‚Â±ÃƒËœÃ‚Â§Ãƒâ€ºÃ‚Â ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â±Ãƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â§Ãƒâ„¢Ã‚Â¾Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â§ ÃƒËœÃ‚Â¨Ãƒâ„¢Ã¢â‚¬Å¡ÃƒËœÃ‚Â§Ãƒâ€ºÃ…â€™ÃƒËœÃ‚Â§ ÃƒËœÃ‚Â¨Ãƒâ€ºÃ…â€™Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â³ ${currency} ${roundedBalance} ÃƒËœÃ‚Â¨ÃƒÅ¡Ã‚Â¾Ãƒâ€ºÃ…â€™ÃƒËœÃ‚Â¬ ÃƒËœÃ‚Â¯Ãƒâ€ºÃ…â€™ÃƒÅ¡Ã‚ÂºÃƒâ€ºÃ¢â‚¬Â\n\nÃƒËœÃ‚Â´ÃƒÅ¡Ã‚Â©ÃƒËœÃ‚Â±Ãƒâ€ºÃ…â€™Ãƒâ€ºÃ‚Â!`;
     else if (locale === "ru") message = `Assalam o Alaikum ${customer.name},\n\nFriendly reminder: Please clear your outstanding balance of ${currency} ${roundedBalance}.\n\nShukriya!`;
     else message = `Dear ${customer.name},\n\nThis is a friendly reminder to please clear your outstanding balance of ${currency} ${roundedBalance}.\n\nThank you!`;
 
@@ -270,7 +270,7 @@ export default function PartiesPage() {
       className: "text-right",
       cell: (row) => {
         const extraActions = [];
-        
+
         if (canView) {
           extraActions.push({
             label: tDash("viewTransactions") || "View Transactions",
@@ -323,46 +323,47 @@ export default function PartiesPage() {
 
   return (
     <div className="flex-1 space-y-4 w-full mx-auto animate-in fade-in duration-300">
-      <PageHeader 
+      <PageHeader
         title={t("title")}
         description={t("pageDescription")}
+        mobileActionsRows={1}
         actions={
           <>
-            {canCreate && (
-              <Button onClick={() => { setCustomerToEdit(null); setIsFormModalOpen(true); }} className="flex items-center gap-2 w-full sm:w-auto">
-                <PlusCircle className="h-4 w-4" />
-                <span className="whitespace-nowrap">{t("addCustomer")}</span>
-              </Button>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
-                  <MoreVertical className="h-4 w-4" />
+              {canCreate && (
+                <Button onClick={() => { setCustomerToEdit(null); setIsFormModalOpen(true); }} className="flex items-center gap-2 w-full sm:w-auto">
+                  <PlusCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">{t("addCustomer")}</span>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>Import / Export</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDownloadExcel} disabled={isDownloading}>
-                  {isDownloading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                  {t("downloadExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDownloadTemplate}>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  {t("downloadTemplate")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-                  {isImporting ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                  {t("import")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} />
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Import / Export</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleDownloadExcel} disabled={isDownloading}>
+                    {isDownloading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                    {t("downloadExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadTemplate}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {t("downloadTemplate")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                    {isImporting ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                    {t("import")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} />
           </>
         }
       />
 
-      <div className="h-[calc(100vh-220px)] sm:h-[calc(100vh-200px)] flex flex-col">
+      <div className="w-full flex flex-col">
         <DataTable
           columns={columns}
           data={tableState.paginatedData}
@@ -390,10 +391,10 @@ export default function PartiesPage() {
                   className={cn(
                     "px-3 h-full transition-colors flex-1 whitespace-nowrap flex items-center justify-center gap-1.5",
                     balanceFilter === f
-                      ? f === "receive" 
-                        ? "bg-green-500 text-white" 
-                        : f === "pay" 
-                          ? "bg-red-500 text-white" 
+                      ? f === "receive"
+                        ? "bg-green-500 text-white"
+                        : f === "pay"
+                          ? "bg-red-500 text-white"
                           : "bg-primary text-primary-foreground"
                       : "hover:bg-muted text-muted-foreground"
                   )}
@@ -420,7 +421,7 @@ export default function PartiesPage() {
           renderMobileCard={(customer) => (
             <Card
               className={cn(
-                "p-4 border shadow-sm",
+                "py-4 px-2 border shadow-sm",
                 customer.balance !== undefined && customer.balance < 0 ? "bg-red-100/70 dark:bg-red-950/50 border-red-200 dark:border-red-800" :
                   customer.balance !== undefined && customer.balance > 0 ? "bg-green-100/70 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
                     "bg-card border-border"
@@ -447,8 +448,8 @@ export default function PartiesPage() {
                     <p className={cn(
                       "font-semibold",
                       customer.balance && customer.balance < 0 ? "text-red-600 dark:text-red-400" :
-                      customer.balance && customer.balance > 0 ? "text-green-600 dark:text-green-400" :
-                      ""
+                        customer.balance && customer.balance > 0 ? "text-green-600 dark:text-green-400" :
+                          ""
                     )}>
                       {t("currencySymbol") || "Rs."} {customer.balance ? Math.round(customer.balance) : "0"}
                     </p>
@@ -469,7 +470,7 @@ export default function PartiesPage() {
         allOfflineCustomers={allOfflineCustomers}
         onSuccess={() => tableState.setCurrentPage(1)}
       />
-      
+
       <CustomerViewModal
         open={isViewModalOpen}
         onOpenChange={setIsViewModalOpen}
@@ -496,4 +497,6 @@ export default function PartiesPage() {
     </div>
   );
 }
+
+
 
