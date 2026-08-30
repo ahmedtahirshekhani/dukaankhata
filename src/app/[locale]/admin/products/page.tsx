@@ -711,6 +711,27 @@ export default function Products() {
               </Select>
             </div>
             
+            {/* Branch Filter */}
+            <div>
+              <Label className="text-xs font-semibold mb-2 block">{t("branch")}</Label>
+              <Select
+                value={mobileFilters.branch}
+                onValueChange={(val) => handleMobileFilterChange("branch", val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("branch")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all")}</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch} value={branch}>
+                      {capitalizeFirstLetter(branch)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Sell Price Range */}
             <div>
               <Label className="text-xs font-semibold mb-2 block">

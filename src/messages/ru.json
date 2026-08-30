@@ -464,7 +464,10 @@
     "createBranch": "Branch banayen",
     "importPreview": "Import ka Preview",
     "editImportData": "Import ki tasdeeq se pehle neeche diye gaye data mein tarmeem karain",
-    "totalRows": "Kul rows"
+    "totalRows": "Kul rows",
+    "categoryInUseError": "Yeh category ek ya zyada products mein istemal ho rahi hai. Delete karne se pehle isay products se hatayen.",
+    "deleteCategoryConfirm": "Kya aap waqai is category ko delete karna chahte hain?",
+    "branchInUseError": "Yeh branch ek ya zyada products mein istemal ho rahi hai. Delete karne se pehle isay products se hatayen."
   },
   "paymentIn": {
     "title": "Payment In",

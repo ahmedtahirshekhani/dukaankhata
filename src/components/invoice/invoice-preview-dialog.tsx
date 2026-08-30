@@ -139,7 +139,7 @@ export function InvoicePreviewDialog({
   const [requestCustomerSignature, setRequestCustomerSignature] =
     useState(false);
   const [printFormat, setPrintFormat] = useState<"a4" | "thermal" | "letter">(
-    "a4",
+    "thermal",
   );
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
