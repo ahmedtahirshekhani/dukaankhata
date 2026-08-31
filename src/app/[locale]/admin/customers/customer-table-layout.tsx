@@ -40,7 +40,7 @@ export function useCustomerTableLayout({
   handleWhatsAppClick
 }: UseCustomerTableLayoutProps) {
   
-  const columns: ColumnDef<Customer>[] = [
+  const columns = React.useMemo<ColumnDef<Customer>[]>(() => [
     {
       id: "name",
       header: t("nameLabel"),
@@ -115,9 +115,9 @@ export function useCustomerTableLayout({
         );
       }
     }
-  ];
+  ], [t, tCommon, tDash, tInvoice, locale, router, canView, canEdit, canDelete, setCustomerToView, setIsViewModalOpen, setCustomerToEdit, setIsFormModalOpen, setCustomerToDelete, setIsDeleteDialogOpen, handleWhatsAppClick]);
 
-  const renderMobileCard = (customer: Customer) => (
+  const renderMobileCard = React.useCallback((customer: Customer) => (
     <Card
       className={cn(
         "py-4 pr-3 pl-11 border shadow-sm",
@@ -138,21 +138,14 @@ export function useCustomerTableLayout({
         </div>
 
         <div className="flex justify-between items-center text-xs">
-          <span className="text-muted-foreground">{t("companyName")}</span>
-          <span className="font-medium">{customer.company_name || "-"}</span>
-        </div>
-        <div className="flex justify-between items-center text-xs">
-          <span className="text-muted-foreground">{t("balance")}</span>
-          <span className={cn(
-            "font-medium",
-            customer.balance && customer.balance < 0 ? "text-red-600" : customer.balance && customer.balance > 0 ? "text-green-600" : ""
-          )}>
-            Rs. {customer.balance ? Math.round(customer.balance) : "0"}
+          <span className="text-muted-foreground">{t("companyNameLabel")}: {customer.company_name || "-"}</span>
+          <span className="font-medium text-sm flex gap-2">
+            {customer.balance ? Math.round(customer.balance) : 0} <span className="text-muted-foreground">{t("currencySymbol") || "Rs."}</span>
           </span>
         </div>
       </div>
     </Card>
-  );
+  ), [columns, t]);
 
   return { columns, renderMobileCard };
 }

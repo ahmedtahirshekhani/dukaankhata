@@ -25,7 +25,9 @@ import {
   Upload,
   MoreVertical,
   Receipt,
-  Eye
+  Eye,
+  MessageCircle,
+  Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportCustomersToExcel, exportCustomersTemplate } from "@/lib/excel";
@@ -75,6 +77,9 @@ export default function PartiesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Import / Export State
   const [isDownloading, setIsDownloading] = useState(false);
@@ -142,6 +147,92 @@ export default function PartiesPage() {
     const message = t("whatsappReminder", { name: customer.name, currency, balance: roundedBalance });
 
     window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleBulkWhatsApp = async () => {
+    const selectedIds = tableState.selectedRowIds;
+    if (selectedIds.length === 0) return;
+
+    let sentCount = 0;
+    let missingPhoneCount = 0;
+
+    for (let i = 0; i < selectedIds.length; i++) {
+      const idStr = selectedIds[i];
+      const id = String(idStr);
+      const customer = tableState.rawData.find(c => c.id === id);
+      if (!customer) continue;
+
+      const cleanPhone = (customer.phone || "").replace(/\D/g, "");
+      if (!cleanPhone || cleanPhone.length < 5) {
+        missingPhoneCount++;
+        continue;
+      }
+
+      let whatsappPhone = cleanPhone;
+      if (cleanPhone.startsWith("0")) whatsappPhone = `92${cleanPhone.slice(1)}`;
+      else if (cleanPhone.length === 10) whatsappPhone = `92${cleanPhone}`;
+
+      const currency = t("currencySymbol") || "Rs.";
+      const roundedBalance = Math.round(customer.balance || 0);
+
+      const message = t("whatsappReminder", { name: customer.name, currency, balance: roundedBalance });
+      const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+      
+      // Delay opening to prevent popup blocking for too many at once
+      setTimeout(() => {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }, sentCount * 800);
+
+      sentCount++;
+    }
+
+    if (sentCount > 0) {
+      toast.success(tInvoice("sendOnWhatsApp") || `Opening WhatsApp for ${sentCount} parties...`);
+    }
+    if (missingPhoneCount > 0) {
+      toast.error(`${missingPhoneCount} parties skipped due to missing phone numbers.`);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedIds = tableState.selectedRowIds;
+    if (selectedIds.length === 0) return;
+
+    setIsBulkDeleting(true);
+    try {
+      let deletedCount = 0;
+      let skippedCount = 0;
+
+      for (const idStr of selectedIds) {
+        const id = String(idStr);
+        const customer = tableState.rawData.find(c => c.id === id) || await db.parties.get(id);
+        if (!customer) continue;
+
+        if (customer.is_default || customer.type === "cash" || customer.name.toLowerCase() === "cash sale" || (customer.balance !== 0 && customer.balance !== undefined && customer.balance !== null)) {
+          skippedCount++;
+          continue;
+        }
+
+        await db.parties.delete(id);
+        await SyncEngine.queueOperation("parties", "DELETE", `/api/customers/${id}`, {});
+        deletedCount++;
+      }
+
+      setIsBulkDeleteDialogOpen(false);
+      tableState.clearSelection();
+      
+      if (deletedCount > 0) {
+        toast.success(t("customerDeletedSuccess") || `Successfully deleted ${deletedCount} parties.`);
+      }
+      if (skippedCount > 0) {
+        toast.error(`${skippedCount} parties were skipped (non-zero balance or default cash party).`);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to perform bulk delete");
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   const handleBulkExport = async () => {
@@ -311,12 +402,17 @@ export default function PartiesPage() {
           onSelectAll={tableState.onSelectAll}
           bulkActions={
             <>
+              <Button variant="outline" size="sm" onClick={handleBulkWhatsApp}>
+                <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
+                {tInvoice("sendOnWhatsApp") || "WhatsApp"}
+              </Button>
               <Button variant="outline" size="sm" onClick={handleBulkExport} disabled={isDownloading}>
                 <FileDown className="mr-2 h-4 w-4" />
-                {tCommon("export") || "Export Selected"}
+                {tCommon("export") || "Export"}
               </Button>
-              <Button variant="destructive" size="sm" >
-                {tCommon("bulkDelete") || "Bulk Delete"}
+              <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteDialogOpen(true)} disabled={!canDelete}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {tCommon("bulkDelete") || "Delete"}
               </Button>
             </>
           }
@@ -400,6 +496,18 @@ export default function PartiesPage() {
         isLoading={isDeleting}
         confirmLabel={t("delete")}
         cancelLabel={t("cancel")}
+      />
+
+      <ConfirmDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        title={tCommon("bulkDelete") || "Bulk Delete"}
+        description={`${t("confirmDeleteMessage")} (${tableState.selectedRowIds.length} selected)`}
+        onConfirm={handleBulkDelete}
+        isLoading={isBulkDeleting}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        variant="destructive"
       />
 
       <ErrorDialog
