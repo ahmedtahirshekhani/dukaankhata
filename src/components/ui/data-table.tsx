@@ -139,7 +139,7 @@ export function DataTable<T>({
                 {columns.map((col, i) => (
                   <TableHead 
                     key={col.id || i.toString()} 
-                    className={cn(col.className, col.sortable && col.accessorKey ? "cursor-pointer select-none hover:text-foreground" : "")}
+                    className={cn(col.className, col.sortable && col.accessorKey ? "cursor-pointer select-none hover:text-foreground group" : "")}
                     onClick={() => {
                       if (col.sortable && col.accessorKey && onSort) {
                         onSort(col.accessorKey);
@@ -151,9 +151,9 @@ export function DataTable<T>({
                       {col.sortable && col.accessorKey && (
                         <div className="w-4">
                           {sortConfig?.key === col.accessorKey ? (
-                            sortConfig.direction === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            sortConfig.direction === "asc" ? <ArrowUp className="h-3.5 w-3.5 text-foreground" /> : <ArrowDown className="h-3.5 w-3.5 text-foreground" />
                           ) : (
-                            <ArrowUpDown className="h-3 w-3 opacity-20" />
+                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground/80 transition-all" />
                           )}
                         </div>
                       )}
