@@ -90,7 +90,9 @@
     "clear": "Clear",
     "close": "Close",
     "management": "Management",
-    "maxShopsLimitReached": "Limit max 5 shops. Mazeed shops add nahi kar sakte."
+    "maxShopsLimitReached": "Limit max 5 shops. Mazeed shops add nahi kar sakte.",
+    "export": "Selected Export Karain",
+    "bulkDelete": "Bulk Delete"
   },
   "welcome": {
     "title": "Dukaan Khata mein khush amdeed",
@@ -764,7 +766,9 @@
     "legend": "Legend",
     "legendReceive": "Aap Wasool Karain Gey (+ve)",
     "legendPay": "Aap Ada Karain Gey (-ve)",
-    "filterAll": "Sab"
+    "filterAll": "Sab",
+    "whatsappReminder": "Assalam o Alaikum {name},\n\nFriendly reminder: Please clear your outstanding balance of {currency} {balance}.\n\nShukriya!",
+    "missingPhoneForWhatsapp": "Is customer ka phone number add karain. Aap Edit button par click kar ke number add kar sakte hain."
   },
   "orders": {
     "title": "Orders",
