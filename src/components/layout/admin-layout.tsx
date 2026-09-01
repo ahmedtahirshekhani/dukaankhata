@@ -56,6 +56,8 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
 import { QuickActions } from "@/components/layout/quick-actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // useSearchParams() opts the whole route out of static prerendering unless
 // isolated behind its own Suspense boundary — without this, every page that
@@ -82,7 +84,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
   const { user, updateSession } = useUserProfile();
-  const { hasModuleAccess, can } = usePermissions();
+  const { hasModuleAccess, can, isLoading: isPermissionsLoading } = usePermissions();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const showSidebarSkeleton = !isMounted || isPermissionsLoading || isInitialSyncing || !user;
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [highlightHamburger, setHighlightHamburger] = useState(false);
 
@@ -571,6 +581,20 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Workspace Switcher at the very top */}
             <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} onClose={() => setSidebarOpen(false)} />
 
+            {showSidebarSkeleton ? (
+              <div className="space-y-2 py-2 px-1">
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <Skeleton
+                    key={i}
+                    className={cn(
+                      "h-7 rounded-lg",
+                      sidebarMinimized ? "w-7 mx-auto" : "w-full"
+                    )}
+                  />
+                ))}
+              </div>
+            ) : (
+              <>
             {/* Home */}
             <div>
               <Link
@@ -1039,6 +1063,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   </span>
                 </Link>
               </div>
+            )}
+              </>
             )}
           </nav>
         </aside>

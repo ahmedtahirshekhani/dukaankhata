@@ -1,5 +1,6 @@
 {
   "common": {
+    "noData": "No data available",
     "appName": "DukaanKhata",
     "addNewShop": "Add New Shop",
     "addNewShopDescription": "Create a new workspace for another business. You will be the owner of this new shop.",

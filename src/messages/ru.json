@@ -1,5 +1,6 @@
 {
   "common": {
+    "noData": "Koi data maujood nahi hai",
     "appName": "DukaanKhata",
     "addNewShop": "Nayi Dukan Add Karein",
     "addNewShopDescription": "Ek aur karobar ke liye naya workspace banayein. Aap is nayi dukan ke owner honge.",
