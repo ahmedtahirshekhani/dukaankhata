@@ -401,20 +401,20 @@ export default function PartiesPage() {
           onSelectRow={tableState.onSelectRow}
           onSelectAll={tableState.onSelectAll}
           bulkActions={
-            <>
-              <Button variant="outline" size="sm" onClick={handleBulkWhatsApp}>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* <Button variant="outline" size="sm" onClick={handleBulkWhatsApp}>
                 <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
-                {tInvoice("sendOnWhatsApp") || "WhatsApp"}
-              </Button>
+                {tInvoice("sendOnWhatsApp")}
+              </Button> */}
               <Button variant="outline" size="sm" onClick={handleBulkExport} disabled={isDownloading}>
                 <FileDown className="mr-2 h-4 w-4" />
-                {tCommon("export") || "Export"}
+                {tCommon("export")}
               </Button>
               <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteDialogOpen(true)} disabled={!canDelete}>
                 <Trash2 className="mr-2 h-4 w-4" />
-                {tCommon("bulkDelete") || "Delete"}
+                {tCommon("bulkDelete")}
               </Button>
-            </>
+            </div>
           }
           columns={columns}
           data={tableState.paginatedData}

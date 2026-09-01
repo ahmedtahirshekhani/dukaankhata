@@ -40,6 +40,19 @@ export function TableRowActions({
 
   return (
     <div className="flex items-center gap-1 justify-end">
+      {canEdit && onEdit && (
+        <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-primary hover:bg-primary/10" onClick={onEdit} title={t("edit") || "Edit"}>
+          <FilePenIcon className="w-4 h-4" />
+          <span className="sr-only">{t("edit") || "Edit"}</span>
+        </Button>
+      )}
+
+      {canDelete && onDelete && (
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={onDelete} title={t("delete") || "Delete"}>
+          <Trash2 className="w-4 h-4" />
+          <span className="sr-only">{t("delete") || "Delete"}</span>
+        </Button>
+      )}
       {visibleExtraActions.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -57,20 +70,6 @@ export function TableRowActions({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
-
-      {canEdit && onEdit && (
-        <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-primary hover:bg-primary/10" onClick={onEdit} title={t("edit") || "Edit"}>
-          <FilePenIcon className="w-4 h-4" />
-          <span className="sr-only">{t("edit") || "Edit"}</span>
-        </Button>
-      )}
-
-      {canDelete && onDelete && (
-        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={onDelete} title={t("delete") || "Delete"}>
-          <Trash2 className="w-4 h-4" />
-          <span className="sr-only">{t("delete") || "Delete"}</span>
-        </Button>
       )}
     </div>
   );
