@@ -1100,7 +1100,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       <span className="font-medium capitalize">{blockedSubscriptionData.plan || 'N/A'}</span>
                       
                       <span className="text-muted-foreground">Status</span>
-                      <span className="font-medium capitalize text-red-500 font-bold">{blockedSubscriptionData.status?.replace('_', ' ') || 'N/A'}</span>
+                      <span className="font-medium capitalize text-red-500">{blockedSubscriptionData.status?.replace('_', ' ') || 'N/A'}</span>
                       
                       {blockedSubscriptionData.expiryDate && (
                         <>
