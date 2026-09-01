@@ -90,7 +90,9 @@
     "close": "بند کریں",
     "clear": "صاف کریں",
     "management": "انتظام",
-    "maxShopsLimitReached": "زیادہ سے زیادہ 5 دکانوں کی حد پوری ہو گئی ہے۔"
+    "maxShopsLimitReached": "زیادہ سے زیادہ 5 دکانوں کی حد پوری ہو گئی ہے۔",
+    "export": "منتخب کردہ ایکسپورٹ کریں",
+    "bulkDelete": "اکٹھے ڈیلیٹ کریں"
   },
   "welcome": {
     "title": "دکان خاتہ میں خوش آمدید",
@@ -764,7 +766,9 @@
     "legend": "وضاحت (Legend)",
     "legendReceive": "آپ وصول کریں گے (+ve)",
     "legendPay": "آپ ادا کریں گے (-ve)",
-    "filterAll": "سب"
+    "filterAll": "سب",
+    "whatsappReminder": "السلام علیکم {name}،\n\nبراہ کرم اپنا بقایا بیلنس {currency} {balance} بھیج دیں۔\n\nشکریہ!",
+    "missingPhoneForWhatsapp": "براہ کرم اس گاہک کا فون نمبر درج کریں۔ آپ ترمیم بٹن پر کلک کر کے نمبر شامل کر سکتے ہیں۔"
   },
   "orders": {
     "title": "آرڈرز",
