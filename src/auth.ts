@@ -100,7 +100,9 @@ export const authOptions = {
         }
       }
 
-      if (token?.real_user_id) {
+      // Only query database if this is a login, an explicit update trigger, or if cached token fields are missing
+      const shouldRefreshFromDb = !!user || trigger === "update" || !token.workspaces || !token.role || !token.id;
+      if (token?.real_user_id && shouldRefreshFromDb) {
         try {
           const usersCollection = await getCollection(COLLECTIONS.USERS);
           const dbUser = await usersCollection.findOne({ _id: toObjectId(token.real_user_id as string) });

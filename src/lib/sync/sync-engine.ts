@@ -179,7 +179,7 @@ export class SyncEngine {
         await db.syncQueue.update(op.id!, { status: 'processing' });
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for cloud DB operations
 
         const response = await fetch(op.url, {
           method: op.method,
@@ -272,7 +272,7 @@ export class SyncEngine {
           // Show success toast for data addition if we're in the browser
           if (typeof window !== 'undefined' && op.method === 'POST') {
             const { toast } = await import('sonner');
-            toast.success('Data successfully synced to server');
+            // toast.success('Data successfully synced to server');
           }
         } else {
           const errorText = await response.text();

@@ -185,12 +185,18 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   }, []);
 
   // Auto-sync pending operations when connection is restored
+  const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
-    if (isOnline) {
+    // Only trigger autoSync when transitioning from offline (false) to online (true)
+    const wasOffline = !prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+
+    if (isOnline && wasOffline) {
       const autoSync = async () => {
-        // Revert any failed operations back to pending so SyncEngine can retry them
-        await db.syncQueue.where('status').equals('failed').modify({ status: 'pending' });
-        await SyncEngine.pushQueue();
+        const pendingCount = await db.syncQueue.where('status').equals('pending').count();
+        if (pendingCount > 0) {
+          await SyncEngine.pushQueue();
+        }
       };
       autoSync();
     }
