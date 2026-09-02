@@ -164,10 +164,14 @@ export class SyncEngine {
     
     this.isSyncing = true;
     try {
+      // Reset any orphaned 'processing' ops from previous interrupted sessions to 'pending'
+      await db.syncQueue.where('status').equals('processing').modify({ status: 'pending' });
+
       let successCount = 0;
       
       while (true) {
-        const pendingOps = await db.syncQueue.where('status').anyOf('pending', 'processing').toArray();
+        // Query ONLY pending operations to prevent concurrent duplicate processing
+        const pendingOps = await db.syncQueue.where('status').equals('pending').toArray();
         if (pendingOps.length === 0) break;
         
         for (const originalOp of pendingOps) {
@@ -290,17 +294,11 @@ export class SyncEngine {
           }
         }
       } catch (error: any) {
-        if (error.name === 'AbortError' || error.message.includes('fetch')) {
-           if (typeof window !== 'undefined') window.dispatchEvent(new Event('offline'));
-        } else {
-           if (typeof window !== 'undefined') {
-             const { toast } = await import('sonner');
-             toast.error(`Sync error: ${error.message}`);
-           }
+        console.error(`Sync error on ${originalOp.collection}:`, error);
+        if (typeof window !== 'undefined' && error.name !== 'AbortError') {
+          const { toast } = await import('sonner');
+          toast.error(`Sync error: ${error.message}`);
         }
-        // Change status back to pending if it's just a network error, so it automatically retries later
-        // or keep as failed so user sees it. Let's keep it 'failed' and provide a way to retry, or change to pending so pushQueue retries.
-        // Actually, if we mark it pending it will loop endlessly if called. So failed is fine.
         await db.syncQueue.update(originalOp.id!, { status: 'failed', error: error.message });
       }
     }

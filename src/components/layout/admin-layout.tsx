@@ -138,10 +138,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [isOnline, setIsOnlineState] = useState(true);
 
   const setIsOnline = (value: boolean) => {
-    setIsOnlineState(value);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('appNetworkStatus', { detail: { isOnline: value } }));
-    }
+    setIsOnlineState((prev) => {
+      if (prev === value) return prev;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appNetworkStatus', { detail: { isOnline: value } }));
+      }
+      return value;
+    });
   };
 
   useEffect(() => {
@@ -173,8 +176,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
       }
     };
 
-    // Ping every 5 seconds for faster offline detection
-    const interval = setInterval(pingInternet, 5000);
+    // Ping every 15 seconds to prevent server log flood while reliably detecting connectivity
+    const interval = setInterval(pingInternet, 15000);
     pingInternet(); // Run once immediately
 
     return () => {

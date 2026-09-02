@@ -145,6 +145,30 @@ export async function POST(request: Request) {
     );
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+
+    // Idempotency check: prevent duplicate order creation for the same invoice_no
+    if (invoiceNo && typeof invoiceNo === "string") {
+      const existingOrder = await ordersCollection.findOne({
+        user_id: toObjectId(user.id),
+        invoice_no: invoiceNo,
+      });
+      if (existingOrder) {
+        const customer = await customersCollection.findOne(
+          { _id: existingOrder.customer_id },
+          { projection: { name: 1 } },
+        );
+        await updateUserLastActivity(user.id);
+        return NextResponse.json({
+          id: existingOrder._id.toString(),
+          customer_id: existingOrder.customer_id.toString(),
+          total_amount: existingOrder.total_amount,
+          user_id: existingOrder.user_id.toString(),
+          status: existingOrder.status,
+          created_at: existingOrder.created_at,
+          customer: customer ? { name: customer.name } : null,
+        });
+      }
+    }
     
     const resolvePaymentMethodId = async (
       rawValue: unknown,
