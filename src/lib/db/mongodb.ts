@@ -34,9 +34,25 @@ export default clientPromise;
 // Database name
 const DB_NAME = process.env.MONGODB_DB_NAME || "dukaankhata";
 
+declare global {
+  var _mongoClientPromise: Promise<MongoClient> | undefined;
+  var _mongoIndexesCreated: boolean | undefined;
+}
+
+export async function ensureIndexes() {
+  if (global._mongoIndexesCreated) return;
+  global._mongoIndexesCreated = true;
+  createIndexes().catch(err => {
+    console.error("Failed to create DB indexes:", err);
+  });
+}
+
 // Helper function to get database
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise;
+  if (!global._mongoIndexesCreated) {
+    ensureIndexes();
+  }
   return client.db(DB_NAME);
 }
 
@@ -143,14 +159,17 @@ export async function setLastUpdated<T extends Document>(
  * Use this for INSERT and DELETE operations where you want to track user activity
  * Also used internally by setLastUpdated
  */
-export async function updateUserLastActivity() {
+export async function updateUserLastActivity(userId?: string) {
   try {
-    const user = await getCurrentUser();
-    // console.log("Current user in updateUserLastActivity:", user);
-    if (user?.id) {
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const user = await getCurrentUser();
+      targetUserId = user?.id;
+    }
+    if (targetUserId) {
       const usersCollection = await getCollection(COLLECTIONS.USERS);
       await usersCollection.updateOne(
-        { _id: toObjectId(user.id) },
+        { _id: toObjectId(targetUserId) },
         { $set: { user_last_updated_at: new Date() } }
       );
       return true;
@@ -166,156 +185,109 @@ export async function updateUserLastActivity() {
 export async function createIndexes() {
   const db = await getDatabase();
 
+  const safeIndex = async (collectionName: string, keys: Record<string, 1 | -1>, options?: any) => {
+    try {
+      await db.collection(collectionName).createIndex(keys, options);
+    } catch (e: any) {
+      console.warn(`Warning creating index on ${collectionName}:`, e?.message || e);
+    }
+  };
+
   try {
     // Users collection indexes
-    await db
-      .collection(COLLECTIONS.USERS)
-      .createIndex({ email: 1 }, { unique: true });
+    await safeIndex(COLLECTIONS.USERS, { email: 1 }, { unique: true });
 
     // Products collection indexes
-    await db.collection(COLLECTIONS.PRODUCTS).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.PRODUCTS).createIndex({ category: 1 });
+    await safeIndex(COLLECTIONS.PRODUCTS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.PRODUCTS, { category: 1 });
 
     // Parties collection indexes
-    await db.collection(COLLECTIONS.PARTIES).createIndex({ user_id: 1 });
-    await db
-      .collection(COLLECTIONS.PARTIES)
-      .createIndex({ user_id: 1, name: 1 });
+    await safeIndex(COLLECTIONS.PARTIES, { user_id: 1 });
+    await safeIndex(COLLECTIONS.PARTIES, { user_id: 1, name: 1 });
 
     // Orders collection indexes
-    await db.collection(COLLECTIONS.ORDERS).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.ORDERS).createIndex({ party_id: 1 });
-    await db.collection(COLLECTIONS.ORDERS).createIndex({ created_at: -1 });
+    await safeIndex(COLLECTIONS.ORDERS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.ORDERS, { party_id: 1 });
+    await safeIndex(COLLECTIONS.ORDERS, { created_at: -1 });
+    await safeIndex(COLLECTIONS.ORDERS, { user_id: 1, invoice_no: 1 });
 
     // Order items collection indexes
-    await db.collection(COLLECTIONS.ORDER_ITEMS).createIndex({ order_id: 1 });
-    await db.collection(COLLECTIONS.ORDER_ITEMS).createIndex({ product_id: 1 });
+    await safeIndex(COLLECTIONS.ORDER_ITEMS, { order_id: 1 });
+    await safeIndex(COLLECTIONS.ORDER_ITEMS, { product_id: 1 });
 
-    // Payment methods collection indexes
-    await db
-      .collection(COLLECTIONS.PAYMENT_METHODS)
-      .createIndex({ name: 1 }, { unique: true });
+    // Payment methods collection indexes (sparse index to avoid null name unique crashes)
+    await safeIndex(COLLECTIONS.PAYMENT_METHODS, { user_id: 1, bank_name: 1 }, { sparse: true });
 
     // Party transactions (payment in) collection indexes
-    await db
-      .collection(COLLECTIONS.PARTY_TRANSACTIONS)
-      .createIndex({ user_id: 1 });
-    await db
-      .collection(COLLECTIONS.PARTY_TRANSACTIONS)
-      .createIndex({ party_id: 1 });
-    await db
-      .collection(COLLECTIONS.PARTY_TRANSACTIONS)
-      .createIndex({ date: -1 });
+    await safeIndex(COLLECTIONS.PARTY_TRANSACTIONS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.PARTY_TRANSACTIONS, { party_id: 1 });
+    await safeIndex(COLLECTIONS.PARTY_TRANSACTIONS, { date: -1 });
 
     // Sale return transactions collection indexes
-    await db
-      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
-      .createIndex({ user_id: 1 });
-    await db
-      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
-      .createIndex({ party_id: 1 });
-    await db
-      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
-      .createIndex({ date: -1 });
-    await db
-      .collection(COLLECTIONS.SALE_RETURN_TRANSACTIONS)
-      .createIndex({ user_id: 1, return_number: 1 });
+    await safeIndex(COLLECTIONS.SALE_RETURN_TRANSACTIONS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.SALE_RETURN_TRANSACTIONS, { party_id: 1 });
+    await safeIndex(COLLECTIONS.SALE_RETURN_TRANSACTIONS, { date: -1 });
+    await safeIndex(COLLECTIONS.SALE_RETURN_TRANSACTIONS, { user_id: 1, return_number: 1 });
 
     // Party ledger collections indexes
-    await db
-      .collection(COLLECTIONS.PARTY_LEDGER_ENTRIES)
-      .createIndex({ user_id: 1, party_id: 1, effective_at: -1 });
-    await db
-      .collection(COLLECTIONS.PARTY_LEDGER_ENTRIES)
-      .createIndex({ user_id: 1, party_id: 1, created_at: -1 });
-    await db
-      .collection(COLLECTIONS.PARTY_LEDGER_ENTRIES)
-      .createIndex({ user_id: 1, party_id: 1, event_key: 1 }, { unique: true });
-    await db
-      .collection(COLLECTIONS.PARTY_BALANCE_STATE)
-      .createIndex({ user_id: 1, party_id: 1 }, { unique: true });
+    await safeIndex(COLLECTIONS.PARTY_LEDGER_ENTRIES, { user_id: 1, party_id: 1, effective_at: -1 });
+    await safeIndex(COLLECTIONS.PARTY_LEDGER_ENTRIES, { user_id: 1, party_id: 1, created_at: -1 });
+    await safeIndex(COLLECTIONS.PARTY_LEDGER_ENTRIES, { user_id: 1, party_id: 1, event_key: 1 }, { unique: true, sparse: true });
+    await safeIndex(COLLECTIONS.PARTY_LEDGER_ENTRIES, { user_id: 1, event_source_id: 1 });
+    await safeIndex(COLLECTIONS.PARTY_BALANCE_STATE, { user_id: 1, party_id: 1 }, { unique: true, sparse: true });
 
     // Purchase bills collection indexes
-    await db.collection(COLLECTIONS.PURCHASE_BILLS).createIndex({ user_id: 1 });
-    await db
-      .collection(COLLECTIONS.PURCHASE_BILLS)
-      .createIndex({ user_id: 1, party_id: 1 });
-    await db
-      .collection(COLLECTIONS.PURCHASE_BILLS)
-      .createIndex({ created_at: -1 });
-    await db
-      .collection(COLLECTIONS.PURCHASE_BILLS)
-      .createIndex({ user_id: 1, created_at: -1 });
+    await safeIndex(COLLECTIONS.PURCHASE_BILLS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.PURCHASE_BILLS, { user_id: 1, party_id: 1 });
+    await safeIndex(COLLECTIONS.PURCHASE_BILLS, { created_at: -1 });
+    await safeIndex(COLLECTIONS.PURCHASE_BILLS, { user_id: 1, created_at: -1 });
 
     // Expenses collection indexes
-    await db.collection(COLLECTIONS.EXPENSES).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.EXPENSES).createIndex({ date: -1 });
-    await db.collection(COLLECTIONS.EXPENSES).createIndex({ expense_number: 1 });
-    await db.collection(COLLECTIONS.EXPENSES).createIndex({ category: 1 });
-    await db.collection(COLLECTIONS.EXPENSES).createIndex({ item_name: 1 });
+    await safeIndex(COLLECTIONS.EXPENSES, { user_id: 1 });
+    await safeIndex(COLLECTIONS.EXPENSES, { date: -1 });
+    await safeIndex(COLLECTIONS.EXPENSES, { expense_number: 1 });
+    await safeIndex(COLLECTIONS.EXPENSES, { category: 1 });
+    await safeIndex(COLLECTIONS.EXPENSES, { item_name: 1 });
 
     // Transactions collection indexes
-    await db.collection(COLLECTIONS.TRANSACTIONS).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.TRANSACTIONS).createIndex({ order_id: 1 });
-    await db
-      .collection(COLLECTIONS.TRANSACTIONS)
-      .createIndex({ created_at: -1 });
-    await db.collection(COLLECTIONS.TRANSACTIONS).createIndex({ type: 1 });
+    await safeIndex(COLLECTIONS.TRANSACTIONS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.TRANSACTIONS, { order_id: 1 });
+    await safeIndex(COLLECTIONS.TRANSACTIONS, { created_at: -1 });
+    await safeIndex(COLLECTIONS.TRANSACTIONS, { type: 1 });
 
     // Password resets collection indexes
-    await db
-      .collection(COLLECTIONS.PASSWORD_RESETS)
-      .createIndex({ token: 1 }, { unique: true });
-    await db.collection(COLLECTIONS.PASSWORD_RESETS).createIndex({ email: 1 });
-    await db
-      .collection(COLLECTIONS.PASSWORD_RESETS)
-      .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+    await safeIndex(COLLECTIONS.PASSWORD_RESETS, { token: 1 }, { unique: true });
+    await safeIndex(COLLECTIONS.PASSWORD_RESETS, { email: 1 });
+    await safeIndex(COLLECTIONS.PASSWORD_RESETS, { expires_at: 1 }, { expireAfterSeconds: 0 });
 
     // Email verification codes collection indexes
-    await db
-      .collection(COLLECTIONS.EMAIL_VERIFICATION_CODES)
-      .createIndex({ email: 1 });
-    await db
-      .collection(COLLECTIONS.EMAIL_VERIFICATION_CODES)
-      .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
-
+    await safeIndex(COLLECTIONS.EMAIL_VERIFICATION_CODES, { email: 1 });
+    await safeIndex(COLLECTIONS.EMAIL_VERIFICATION_CODES, { expires_at: 1 }, { expireAfterSeconds: 0 });
 
     // Quotations collection indexes
-    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ party_id: 1 });
-    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ created_at: -1 });
-    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ user_id: 1, party_id: 1 });
-    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ status: 1 });
-    await db.collection(COLLECTIONS.QUOTATIONS).createIndex({ validity_date: 1 });
+    await safeIndex(COLLECTIONS.QUOTATIONS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.QUOTATIONS, { party_id: 1 });
+    await safeIndex(COLLECTIONS.QUOTATIONS, { created_at: -1 });
+    await safeIndex(COLLECTIONS.QUOTATIONS, { user_id: 1, party_id: 1 });
+    await safeIndex(COLLECTIONS.QUOTATIONS, { status: 1 });
+    await safeIndex(COLLECTIONS.QUOTATIONS, { validity_date: 1 });
 
     // Waitlist collection indexes
-    await db
-      .collection(COLLECTIONS.WAITLIST)
-      .createIndex({ whatsapp_number: 1 });
-    await db.collection(COLLECTIONS.WAITLIST).createIndex({ created_at: -1 });
+    await safeIndex(COLLECTIONS.WAITLIST, { whatsapp_number: 1 });
+    await safeIndex(COLLECTIONS.WAITLIST, { created_at: -1 });
 
     // Subscriptions collection indexes
-    await db.collection(COLLECTIONS.SUBSCRIPTIONS).createIndex({ user_id: 1 });
-    await db.collection(COLLECTIONS.SUBSCRIPTIONS).createIndex({ email: 1 });
-    await db
-      .collection(COLLECTIONS.SUBSCRIPTIONS)
-      .createIndex({ status: 1 });
-    await db
-      .collection(COLLECTIONS.SUBSCRIPTIONS)
-      .createIndex({ expiry_date: 1 });
-    await db
-      .collection(COLLECTIONS.SUBSCRIPTIONS)
-      .createIndex({ created_at: -1 });
+    await safeIndex(COLLECTIONS.SUBSCRIPTIONS, { user_id: 1 });
+    await safeIndex(COLLECTIONS.SUBSCRIPTIONS, { email: 1 });
+    await safeIndex(COLLECTIONS.SUBSCRIPTIONS, { status: 1 });
+    await safeIndex(COLLECTIONS.SUBSCRIPTIONS, { expiry_date: 1 });
+    await safeIndex(COLLECTIONS.SUBSCRIPTIONS, { created_at: -1 });
 
     // WhatsApp verification codes collection indexes
-    await db
-      .collection(COLLECTIONS.WHATSAPP_VERIFICATION_CODES)
-      .createIndex({ user_id: 1, whatsapp_number: 1 });
-    await db
-      .collection(COLLECTIONS.WHATSAPP_VERIFICATION_CODES)
-      .createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+    await safeIndex(COLLECTIONS.WHATSAPP_VERIFICATION_CODES, { user_id: 1, whatsapp_number: 1 });
+    await safeIndex(COLLECTIONS.WHATSAPP_VERIFICATION_CODES, { expires_at: 1 }, { expireAfterSeconds: 0 });
 
-    console.log("MongoDB indexes created successfully");
+    console.log("MongoDB indexes processed successfully");
   } catch (error) {
     console.error("Error creating MongoDB indexes:", error);
   }
