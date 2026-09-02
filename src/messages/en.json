@@ -89,7 +89,9 @@
     "close": "Close",
     "management": "Management",
     "clear": "Clear",
-    "maxShopsLimitReached": "Maximum limit of 5 shops reached."
+    "maxShopsLimitReached": "Maximum limit of 5 shops reached.",
+    "export": "Export Selected",
+    "bulkDelete": "Bulk Delete"
   },
   "welcome": {
     "title": "Welcome to Dukaan Khata",
@@ -764,7 +766,9 @@
     "legend": "Legend",
     "legendReceive": "You'll Receive (+ve)",
     "legendPay": "You'll Pay (-ve)",
-    "filterAll": "All"
+    "filterAll": "All",
+    "whatsappReminder": "Dear {name},\n\nThis is a friendly reminder to please clear your outstanding balance of {currency} {balance}.\n\nThank you!",
+    "missingPhoneForWhatsapp": "Please add a phone number for this customer. You can click the Edit button to add their number."
   },
   "orders": {
     "title": "Orders",

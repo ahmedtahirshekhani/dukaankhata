@@ -67,6 +67,29 @@ export async function POST(request: Request) {
       }
     );
 
+    // Cancel all active/pending subscriptions for this deleted user
+    try {
+      const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
+      const userObjId = toObjectId(user._id);
+      await subscriptionsCollection.updateMany(
+        {
+          $or: [
+            { user_id: userObjId },
+            { user_id: user._id.toString() }
+          ],
+          status: { $ne: "cancelled" }
+        },
+        {
+          $set: {
+            status: "cancelled",
+            updated_at: new Date(),
+          }
+        }
+      );
+    } catch (subErr) {
+      console.error("Failed to cancel subscriptions on user deletion", subErr);
+    }
+
     return Response.json({
       success: true,
       message: "Account deleted successfully",

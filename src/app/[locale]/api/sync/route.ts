@@ -56,48 +56,48 @@ export async function GET(request: Request) {
 
     const result: Record<string, any[]> = {};
     
-    // Fetch sequentially to prevent overwhelming the connection pool
-    for (const col of collectionsToFetch) {
-      const dbCol = await getCollection(col.key);
-      
-      let currentQuery: any = { ...query };
-      if (col.scope === 'global') {
-        currentQuery = {};
-      } else if (col.scope === 'global_active') {
-        currentQuery = { isActive: true };
-      } else if (col.scope === 'owner_id') {
-        currentQuery = { owner_id: toObjectId(user.id) };
-      } else if (col.scope === 'none') {
-        currentQuery = { _id: toObjectId(user.id) };
-      } else if (col.scope === 'users_and_staff') {
-        const rolesColl = await getCollection(COLLECTIONS.ROLES);
-        const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
-        const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
-        const shopRoleIds = shopRoles.map((r: any) => r._id);
-        const shopUserRoles = await userRolesColl.find({ role_id: { $in: shopRoleIds } }).toArray();
-        const staffIds = shopUserRoles.map((ur: any) => ur.user_id);
-        
-        currentQuery = {
-          $or: [
-            { _id: toObjectId(user.id) },
-            { _id: { $in: staffIds } },
-            { owner_id: toObjectId(user.id), role: "staff" }
-          ]
-        };
-      } else if (col.scope === 'shop_roles') {
-        const rolesColl = await getCollection(COLLECTIONS.ROLES);
-        const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
-        const shopRoleIds = shopRoles.map((r: any) => r._id);
-        currentQuery = { role_id: { $in: shopRoleIds } };
-      }
-      
-      if (query.updated_at && col.scope !== 'global' && col.key !== COLLECTIONS.USER_ROLES && col.key !== COLLECTIONS.ROLE_PERMISSIONS) {
-        currentQuery.updated_at = query.updated_at;
-      }
+    // Pre-fetch shop roles & staff IDs once for efficiency
+    const rolesColl = await getCollection(COLLECTIONS.ROLES);
+    const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
+    const shopRoles = await rolesColl.find({ owner_id: toObjectId(user.id) }).toArray();
+    const shopRoleIds = shopRoles.map((r: any) => r._id);
+    const shopUserRoles = shopRoleIds.length ? await userRolesColl.find({ role_id: { $in: shopRoleIds } }).toArray() : [];
+    const staffIds = shopUserRoles.map((ur: any) => ur.user_id);
 
-      const docs = await dbCol.find(currentQuery).toArray();
-      result[col.name] = mapData(docs);
-    }
+    // Fetch all collections in parallel via Promise.all
+    await Promise.all(
+      collectionsToFetch.map(async (col) => {
+        const dbCol = await getCollection(col.key);
+        
+        let currentQuery: any = { ...query };
+        if (col.scope === 'global') {
+          currentQuery = {};
+        } else if (col.scope === 'global_active') {
+          currentQuery = { isActive: true };
+        } else if (col.scope === 'owner_id') {
+          currentQuery = { owner_id: toObjectId(user.id) };
+        } else if (col.scope === 'none') {
+          currentQuery = { _id: toObjectId(user.id) };
+        } else if (col.scope === 'users_and_staff') {
+          currentQuery = {
+            $or: [
+              { _id: toObjectId(user.id) },
+              { _id: { $in: staffIds } },
+              { owner_id: toObjectId(user.id), role: "staff" }
+            ]
+          };
+        } else if (col.scope === 'shop_roles') {
+          currentQuery = { role_id: { $in: shopRoleIds } };
+        }
+        
+        if (query.updated_at && col.scope !== 'global' && col.key !== COLLECTIONS.USER_ROLES && col.key !== COLLECTIONS.ROLE_PERMISSIONS) {
+          currentQuery.updated_at = query.updated_at;
+        }
+
+        const docs = await dbCol.find(currentQuery).toArray();
+        result[col.name] = mapData(docs);
+      })
+    );
 
     console.log('SYNC RESULT:', {
       payment_methods: result.payment_methods?.length,

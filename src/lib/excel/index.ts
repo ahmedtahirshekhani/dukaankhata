@@ -265,6 +265,8 @@ interface Customer {
   email: string;
   phone: string;
   status?: "active" | "inactive";
+  company_name?: string;
+  balance?: number;
 }
 
 /**
@@ -278,10 +280,10 @@ export function exportCustomersToExcel(
 ): void {
   // Prepare data for Excel
   const excelData = customers.map((customer) => ({
-    Name: customer.name || "-",
-    Email: customer.email || "-",
-    Phone: customer.phone || "-",
-    Status: customer.status ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1) : "Active",
+    "Name": customer.name || "-",
+    "Phone": customer.phone || "-",
+    "Company Name": customer.company_name || "-",
+    "Balance (Rs.)": customer.balance ? Math.round(customer.balance) : 0,
   }));
 
   // Create a new workbook
@@ -293,9 +295,9 @@ export function exportCustomersToExcel(
   // Set column widths for better readability
   const columnWidths = [
     { wch: 25 }, // Name
-    { wch: 30 }, // Email
     { wch: 20 }, // Phone
-    { wch: 12 }, // Status
+    { wch: 25 }, // Company Name
+    { wch: 20 }, // Balance
   ];
   worksheet["!cols"] = columnWidths;
 
