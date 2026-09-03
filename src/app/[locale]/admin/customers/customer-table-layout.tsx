@@ -29,6 +29,7 @@ export interface UseCustomerTableLayoutProps {
   setCustomerToDelete: (c: Customer) => void;
   setIsDeleteDialogOpen: (b: boolean) => void;
   handleWhatsAppClick: (c: Customer) => void;
+  setErrorDialog?: (dialog: { open: boolean; title?: string; message: string }) => void;
 }
 
 export function useCustomerTableLayout({
@@ -37,7 +38,8 @@ export function useCustomerTableLayout({
   setCustomerToView, setIsViewModalOpen,
   setCustomerToEdit, setIsFormModalOpen,
   setCustomerToDelete, setIsDeleteDialogOpen,
-  handleWhatsAppClick
+  handleWhatsAppClick,
+  setErrorDialog
 }: UseCustomerTableLayoutProps) {
   
   const columns = React.useMemo<ColumnDef<Customer>[]>(() => [
@@ -98,15 +100,32 @@ export function useCustomerTableLayout({
           });
         }
 
+        const isDefaultParty = Boolean(
+          row.is_default ||
+          row.type === "cash" ||
+          row.name?.toLowerCase() === "cash sale" ||
+          row.name?.toLowerCase() === "cash party"
+        );
+
         return (
           <TableRowActions
             canEdit={canEdit}
-            canDelete={canDelete}
+            canDelete={canDelete && !isDefaultParty}
             onEdit={() => {
               setCustomerToEdit(row);
               setIsFormModalOpen(true);
             }}
             onDelete={() => {
+              if (isDefaultParty) {
+                if (setErrorDialog) {
+                  setErrorDialog({
+                    open: true,
+                    title: t("cannotDelete") || "Cannot Delete",
+                    message: t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.",
+                  });
+                }
+                return;
+              }
               setCustomerToDelete(row);
               setIsDeleteDialogOpen(true);
             }}
@@ -115,7 +134,7 @@ export function useCustomerTableLayout({
         );
       }
     }
-  ], [t, tCommon, tDash, tInvoice, locale, router, canView, canEdit, canDelete, setCustomerToView, setIsViewModalOpen, setCustomerToEdit, setIsFormModalOpen, setCustomerToDelete, setIsDeleteDialogOpen, handleWhatsAppClick]);
+  ], [t, tCommon, tDash, tInvoice, locale, router, canView, canEdit, canDelete, setCustomerToView, setIsViewModalOpen, setCustomerToEdit, setIsFormModalOpen, setCustomerToDelete, setIsDeleteDialogOpen, handleWhatsAppClick, setErrorDialog]);
 
   const renderMobileCard = React.useCallback((customer: Customer) => (
     <Card
