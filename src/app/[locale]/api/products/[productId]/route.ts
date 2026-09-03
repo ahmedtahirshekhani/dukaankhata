@@ -72,13 +72,27 @@ export async function PUT(
   }
 
   try {
+    delete updatedProduct.id;
+    delete updatedProduct._id;
+    delete updatedProduct.user_id;
+    delete updatedProduct.created_at;
+    delete updatedProduct.updated_at;
+
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
     const filter = { 
       _id: toObjectId(productId),
-      user_id: toObjectId(user.id)
+      $or: [
+        { user_id: toObjectId(user.id) },
+        { user_id: user.id }
+      ]
     };
 
-    const updateResult = await productsCollection.updateOne(filter, { $set: updatedProduct });
+    const updateResult = await productsCollection.updateOne(filter, { 
+      $set: {
+        ...updatedProduct,
+        updated_at: new Date()
+      }
+    });
 
     if (updateResult.matchedCount === 0) {
       console.warn('[PUT /api/products/:productId] Product not found or not authorized', {
@@ -90,7 +104,7 @@ export async function PUT(
     }
 
     // Fetch updated document
-    const updatedDoc = await productsCollection.findOne(filter);
+    const updatedDoc = await productsCollection.findOne({ _id: toObjectId(productId) });
     if (!updatedDoc) {
       return NextResponse.json({ error: 'Product not found after update' }, { status: 404 })
     }

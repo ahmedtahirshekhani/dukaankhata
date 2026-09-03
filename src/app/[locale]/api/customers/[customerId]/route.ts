@@ -1,4 +1,3 @@
-
 //src/app/[locale]/api/customers/[customerId]/route.ts
 import {
   getCollection,
@@ -28,7 +27,10 @@ export async function GET(
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
   const customer = await customersCollection.findOne({
     _id: toObjectId(customerId),
-    user_id: toObjectId(user.id),
+    $or: [
+      { user_id: toObjectId(user.id) },
+      { user_id: user.id }
+    ]
   });
 
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
@@ -65,12 +67,20 @@ export async function PUT(
     updatedCustomer.opening_balance = updatedCustomer.balance;
   }
 
+  // Clean system / immutable keys from payload to avoid mutating _id or user_id
   delete updatedCustomer.id;
+  delete updatedCustomer._id;
+  delete updatedCustomer.user_id;
+  delete updatedCustomer.created_at;
+  delete updatedCustomer.updated_at;
 
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
-  const filter = {
+  const filter: any = {
     _id: toObjectId(customerId),
-    user_id: toObjectId(user.id),
+    $or: [
+      { user_id: toObjectId(user.id) },
+      { user_id: user.id }
+    ]
   };
 
   // Update using setLastUpdated helper
@@ -87,8 +97,8 @@ export async function PUT(
     );
   }
 
-  // Fetch updated document
-  const resultDoc = await customersCollection.findOne(filter);
+  // Fetch updated document reliably
+  const resultDoc = await customersCollection.findOne({ _id: toObjectId(customerId) });
 
   if (!resultDoc) {
     return NextResponse.json(
@@ -133,7 +143,6 @@ export async function DELETE(
   { params }: { params: { customerId: string } },
 ) {
   const user = (await getCurrentUser()) as { id: string } | null;
-
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -141,25 +150,38 @@ export async function DELETE(
   if (!authCheck.allowed) return authCheck.response!;
 
   const customerId = params.customerId;
-
   if (!isValidObjectId(customerId)) {
     return NextResponse.json({ error: "Invalid customer ID" }, { status: 400 });
   }
 
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
-  const result = await customersCollection.deleteOne({
-    _id: toObjectId(customerId),
-    user_id: toObjectId(user.id),
-  });
 
-  if (result.deletedCount === 0) {
+  // Soft delete: update status to inactive and is_delete to 1
+  const updateResult = await customersCollection.updateOne(
+    {
+      _id: toObjectId(customerId),
+      $or: [
+        { user_id: toObjectId(user.id) },
+        { user_id: user.id }
+      ]
+    },
+    {
+      $set: {
+        status: "inactive",
+        is_delete: 1,
+        updated_at: new Date(),
+      },
+    },
+  );
+
+  if (updateResult.matchedCount === 0) {
     return NextResponse.json(
       { error: "Customer not found or not authorized" },
       { status: 404 },
     );
   }
 
-  // Update user's last activity after deletion
+  // Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
