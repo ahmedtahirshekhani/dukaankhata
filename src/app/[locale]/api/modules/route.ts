@@ -13,21 +13,29 @@ export async function GET(req: Request) {
     const modulesCollection = await getCollection(COLLECTIONS.MODULES);
     const permsColl = await getCollection(COLLECTIONS.PERMISSIONS);
 
-    const modules = await modulesCollection.find({ isActive: true }).toArray();
-    const allPerms = await permsColl.find({ isActive: true }).toArray();
+    const [modules, allPerms] = await Promise.all([
+      modulesCollection.find({ isActive: true }, { projection: { code: 1, name: 1, description: 1 } }).toArray(),
+      permsColl.find({ isActive: true }, { projection: { module_code: 1, action: 1 } }).toArray()
+    ]);
 
-    const modulesWithActions = modules.map(mod => {
-      const actions = allPerms
-        .filter(p => p.module_code === mod.code)
-        .map(p => p.action);
-        
-      return {
-        ...mod,
-        actions
-      };
+    const actionsByModule = new Map<string, string[]>();
+    for (const p of allPerms) {
+      if (!actionsByModule.has(p.module_code)) {
+        actionsByModule.set(p.module_code, []);
+      }
+      actionsByModule.get(p.module_code)!.push(p.action);
+    }
+
+    const modulesWithActions = modules.map(mod => ({
+      ...mod,
+      actions: actionsByModule.get(mod.code) || []
+    }));
+
+    return NextResponse.json(modulesWithActions, {
+      headers: {
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=600"
+      }
     });
-
-    return NextResponse.json(modulesWithActions);
   } catch (error) {
     console.error("Error fetching modules:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

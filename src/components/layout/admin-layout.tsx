@@ -107,6 +107,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
+  const [showOfflineStaffAlert, setShowOfflineStaffAlert] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [blockedSubscriptionData, setBlockedSubscriptionData] = useState<any>(null);
   const [showBlockedCard, setShowBlockedCard] = useState(false);
@@ -1036,16 +1037,43 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {hasModuleAccess("staff") && (
               <div>
                 <Link
-                  href={`/${locale}/admin/staff`}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} ${pathWithoutLocale === "/admin/staff" ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? "Staff" : ""}
+                  href={isOnline ? `/${locale}/admin/staff` : "#"}
+                  prefetch={false}
+                  onClick={(e) => {
+                    if (!isOnline) {
+                      e.preventDefault();
+                      setShowOfflineStaffAlert(true);
+                      return;
+                    }
+                    setSidebarOpen(false);
+                  }}
+                  className={`${navItemBase} ${
+                    !isOnline
+                      ? "opacity-50 cursor-not-allowed select-none text-foreground/50 hover:bg-transparent"
+                      : pathWithoutLocale === "/admin/staff"
+                      ? navItemActive
+                      : navItemInactive
+                  } ${navItemCompact}`}
+                  title={
+                    sidebarMinimized
+                      ? !isOnline
+                        ? `${tNav("staffManagement") || "Staff"} (${tCommon("offline")})`
+                        : (tNav("staffManagement") || "Staff")
+                      : !isOnline
+                      ? tCommon("offlineTooltip")
+                      : ""
+                  }
+                  aria-disabled={!isOnline}
                 >
                   <Users className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("staffManagement")}
                   </span>
+                  {!isOnline && !sidebarMinimized && (
+                    <span className="ml-auto flex-shrink-0">
+                      <WifiOff className="h-3 w-3 text-muted-foreground opacity-70" />
+                    </span>
+                  )}
                 </Link>
               </div>
             )}
@@ -1173,6 +1201,16 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           }
         }}
         variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={showOfflineStaffAlert}
+        onOpenChange={setShowOfflineStaffAlert}
+        title={tCommon("offlineWorkspaceSwitchErrorTitle")}
+        description={tCommon("offlineWorkspaceSwitchErrorDesc")}
+        confirmLabel={tCommon("understood")}
+        onConfirm={() => setShowOfflineStaffAlert(false)}
+        variant="warning"
       />
     </div>
   );
