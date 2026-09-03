@@ -148,10 +148,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [isOnline, setIsOnlineState] = useState(true);
 
   const setIsOnline = (value: boolean) => {
-    setIsOnlineState(value);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('appNetworkStatus', { detail: { isOnline: value } }));
-    }
+    setIsOnlineState((prev) => {
+      if (prev === value) return prev;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appNetworkStatus', { detail: { isOnline: value } }));
+      }
+      return value;
+    });
   };
 
   useEffect(() => {
@@ -183,8 +186,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
       }
     };
 
-    // Ping every 5 seconds for faster offline detection
-    const interval = setInterval(pingInternet, 5000);
+    // Ping every 15 seconds to prevent server log flood while reliably detecting connectivity
+    const interval = setInterval(pingInternet, 15000);
     pingInternet(); // Run once immediately
 
     return () => {
@@ -195,12 +198,18 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   }, []);
 
   // Auto-sync pending operations when connection is restored
+  const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
-    if (isOnline) {
+    // Only trigger autoSync when transitioning from offline (false) to online (true)
+    const wasOffline = !prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+
+    if (isOnline && wasOffline) {
       const autoSync = async () => {
-        // Revert any failed operations back to pending so SyncEngine can retry them
-        await db.syncQueue.where('status').equals('failed').modify({ status: 'pending' });
-        await SyncEngine.pushQueue();
+        const pendingCount = await db.syncQueue.where('status').equals('pending').count();
+        if (pendingCount > 0) {
+          await SyncEngine.pushQueue();
+        }
       };
       autoSync();
     }

@@ -145,6 +145,30 @@ export async function POST(request: Request) {
     );
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+
+    // Idempotency check: prevent duplicate order creation for the same invoice_no
+    if (invoiceNo && typeof invoiceNo === "string") {
+      const existingOrder = await ordersCollection.findOne({
+        user_id: toObjectId(user.id),
+        invoice_no: invoiceNo,
+      });
+      if (existingOrder) {
+        const customer = await customersCollection.findOne(
+          { _id: existingOrder.customer_id },
+          { projection: { name: 1 } },
+        );
+        await updateUserLastActivity(user.id);
+        return NextResponse.json({
+          id: existingOrder._id.toString(),
+          customer_id: existingOrder.customer_id.toString(),
+          total_amount: existingOrder.total_amount,
+          user_id: existingOrder.user_id.toString(),
+          status: existingOrder.status,
+          created_at: existingOrder.created_at,
+          customer: customer ? { name: customer.name } : null,
+        });
+      }
+    }
     
     const resolvePaymentMethodId = async (
       rawValue: unknown,
@@ -485,62 +509,65 @@ export async function DELETE(request: Request) {
 
     // 1. Revert stock deduction
     if (order.items && Array.isArray(order.items)) {
-      for (const item of order.items) {
-        if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
-          continue;
-        }
+      await Promise.all(
+        order.items.map(async (item: any) => {
+          if (!item.product_id || !isValidObjectId(item.product_id.toString())) {
+            return;
+          }
 
-        const productDoc = await productsCollection.findOne(
-          { _id: toObjectId(item.product_id.toString()) },
-          { projection: { type: 1, quantity: 1, in_stock: 1, damaged_quantity: 1 } }
-        );
+          const productDoc = await productsCollection.findOne(
+            { _id: toObjectId(item.product_id.toString()) },
+            { projection: { type: 1, quantity: 1, in_stock: 1, damaged_quantity: 1 } }
+          );
 
-        if (!productDoc) continue;
+          if (!productDoc) return;
 
-        const productType = (productDoc as { type?: string }).type;
-        const isGoods = !productType || productType === "goods" || productType === "good";
-        if (!isGoods) continue;
+          const productType = (productDoc as { type?: string }).type;
+          const isGoods = !productType || productType === "goods" || productType === "good";
+          if (!isGoods) return;
 
-        const orderQty = item.quantity || 0;
-        if (orderQty <= 0) continue;
+          const orderQty = item.quantity || 0;
+          if (orderQty <= 0) return;
 
-        const quantityType = item.quantityType || "prime";
-        const isDamaged = quantityType === "damaged";
+          const quantityType = (item as { quantityType?: string }).quantityType || "prime";
+          const isDamaged = quantityType === "damaged";
 
-        let stockField: string;
-        if (isDamaged) {
-          stockField = "damaged_quantity";
-        } else {
-          const productQuantity = (productDoc as { quantity?: number }).quantity;
-          const productInStock = (productDoc as { in_stock?: number }).in_stock;
-          stockField = productQuantity !== undefined && productQuantity !== null
-            ? "quantity"
-            : productInStock !== undefined && productInStock !== null
-              ? "in_stock"
-              : "quantity";
-        }
+          let stockField: string;
+          if (isDamaged) {
+            stockField = "damaged_quantity";
+          } else {
+            const productQuantity = (productDoc as { quantity?: number }).quantity;
+            const productInStock = (productDoc as { in_stock?: number }).in_stock;
+            stockField = productQuantity !== undefined && productQuantity !== null
+              ? "quantity"
+              : productInStock !== undefined && productInStock !== null
+                ? "in_stock"
+                : "quantity";
+          }
 
-        // Increment stock back
-        await productsCollection.updateOne(
-          { _id: toObjectId(item.product_id.toString()) },
-          { $inc: { [stockField]: orderQty } }
-        );
-      }
+          // Increment stock back
+          await productsCollection.updateOne(
+            { _id: toObjectId(item.product_id.toString()) },
+            { $inc: { [stockField]: orderQty } }
+          );
+        })
+      );
     }
 
     // 2. Remove associated ledger entries and update balance
     const ledgerCollection = await getCollection(COLLECTIONS.CUSTOMER_LEDGER_ENTRIES);
-    const ledgerEntries = await ledgerCollection.find({
+    const eventSourceObjId = isValidObjectId(id) ? toObjectId(id) : null;
+    const ledgerQuery = {
       user_id: toObjectId(user.id),
-      event_source_id: isValidObjectId(id) ? toObjectId(id) : id,
-    }).toArray();
+      $or: eventSourceObjId
+        ? [{ event_source_id: eventSourceObjId }, { event_source_id: id }]
+        : [{ event_source_id: id }]
+    };
+    const ledgerEntries = await ledgerCollection.find(ledgerQuery).toArray();
 
     const totalDelta = ledgerEntries.reduce((sum, entry) => sum + (entry.amount_delta || 0), 0);
 
-    await ledgerCollection.deleteMany({
-      user_id: toObjectId(user.id),
-      event_source_id: isValidObjectId(id) ? toObjectId(id) : id,
-    });
+    await ledgerCollection.deleteMany(ledgerQuery);
 
     if (totalDelta !== 0 && order.customer_id) {
       const balanceStateCollection = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
@@ -561,7 +588,9 @@ export async function DELETE(request: Request) {
     const transactionsCollection = await getCollection(COLLECTIONS.TRANSACTIONS);
     await transactionsCollection.deleteMany({
       user_id: toObjectId(user.id),
-      order_id: orderId,
+      $or: eventSourceObjId
+        ? [{ order_id: eventSourceObjId }, { order_id: id }]
+        : [{ order_id: id }]
     });
 
     // 4. Delete the order itself
