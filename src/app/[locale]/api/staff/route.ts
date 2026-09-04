@@ -59,7 +59,31 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json(staffWithRoles);
+    // Fetch pending invitations for this shop
+    const invColl = await getCollection(COLLECTIONS.INVITATIONS);
+    const pendingInvites = await invColl.find({
+      owner_id: toObjectId(ownerId),
+      status: "pending"
+    }).toArray();
+
+    const pendingStaff = pendingInvites.map(inv => {
+      const roleObj = inv.role_id ? shopRoles.find(r => r._id.toString() === inv.role_id.toString()) : null;
+      const invId = `inv-${inv._id.toString()}`;
+      return {
+        _id: invId,
+        id: invId,
+        name: "Pending Invite",
+        email: inv.email,
+        role: "staff",
+        is_pending: true,
+        role_id: inv.role_id || null,
+        role_name: roleObj?.name || null,
+        roles: roleObj?.name ? [roleObj.name] : [],
+        created_at: inv.created_at || new Date()
+      };
+    });
+
+    return NextResponse.json([...staffWithRoles, ...pendingStaff]);
   } catch (error) {
     console.error("Error fetching staff:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

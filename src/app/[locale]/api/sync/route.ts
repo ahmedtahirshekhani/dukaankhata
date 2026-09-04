@@ -99,10 +99,44 @@ export async function GET(request: Request) {
       })
     );
 
+    // Fetch pending invitations for this shop owner and synthesize as pending users and user_roles
+    const invColl = await getCollection(COLLECTIONS.INVITATIONS);
+    const pendingInvites = await invColl.find({
+      owner_id: toObjectId(user.id),
+      status: "pending"
+    }).toArray();
+
+    const pendingUserDocs: any[] = [];
+    const pendingUserRoleDocs: any[] = [];
+
+    pendingInvites.forEach(inv => {
+      const invId = `inv-${inv._id.toString()}`;
+      pendingUserDocs.push({
+        id: invId,
+        name: "Pending Invite",
+        email: inv.email,
+        role: "staff",
+        is_pending: true,
+        created_at: inv.created_at || new Date(),
+        updated_at: inv.last_sent_at || inv.created_at || new Date()
+      });
+
+      pendingUserRoleDocs.push({
+        id: `ur-${invId}`,
+        user_id: invId,
+        role_id: inv.role_id ? inv.role_id.toString() : null
+      });
+    });
+
+    result.users = [...(result.users || []), ...pendingUserDocs];
+    result.user_roles = [...(result.user_roles || []), ...pendingUserRoleDocs];
+
     console.log('SYNC RESULT:', {
       payment_methods: result.payment_methods?.length,
       permissions: result.permissions?.length,
       modules: result.modules?.length,
+      users: result.users?.length,
+      pending_invites: pendingInvites.length,
     });
 
     return NextResponse.json({
