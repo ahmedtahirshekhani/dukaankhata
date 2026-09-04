@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { getAppUrl } from "@/lib/utils";
 
 // Assumptions:
 // - You have a users collection in MongoDB. We'll query by email to check existence.
@@ -99,7 +100,8 @@ export async function POST(req: Request) {
 
     if (userExists) {
       const token = buildResetToken(email);
-      const resetLink = `${APP_URL}/en/reset-password?token=${token}`;
+      const baseUrl = getAppUrl(req);
+      const resetLink = `${baseUrl}/en/reset-password?token=${token}`;
 
       const html = `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
