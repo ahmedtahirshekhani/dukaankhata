@@ -183,10 +183,19 @@ export function useOfflineOrders(
 
     const withCustomers = await Promise.all(
       filtered.map(async (o) => {
-        const customer = await db.parties.get(o.customer_id);
+        const customer = o.customer_id ? await db.parties.get(o.customer_id.toString()) : null;
         return {
           ...o,
-          customer: customer ? { name: customer.name } : null,
+          customer: customer
+            ? {
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                company_name: customer.company_name,
+                company_address: customer.company_address,
+              }
+            : (o.customer || null),
         };
       }),
     );
