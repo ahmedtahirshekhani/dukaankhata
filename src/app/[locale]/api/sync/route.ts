@@ -82,8 +82,8 @@ export async function GET(request: Request) {
           currentQuery = {
             $or: [
               { _id: toObjectId(user.id) },
-              { _id: { $in: staffIds } },
-              { owner_id: toObjectId(user.id), role: "staff" }
+              ...(staffIds.length > 0 ? [{ _id: { $in: staffIds } }] : []),
+              { owner_id: toObjectId(user.id) }
             ]
           };
         } else if (col.scope === 'shop_roles') {
