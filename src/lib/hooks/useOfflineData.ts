@@ -183,10 +183,19 @@ export function useOfflineOrders(
 
     const withCustomers = await Promise.all(
       filtered.map(async (o) => {
-        const customer = await db.parties.get(o.customer_id);
+        const customer = o.customer_id ? await db.parties.get(o.customer_id.toString()) : null;
         return {
           ...o,
-          customer: customer ? { name: customer.name } : null,
+          customer: customer
+            ? {
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                company_name: customer.company_name,
+                company_address: customer.company_address,
+              }
+            : (o.customer || null),
         };
       }),
     );
@@ -272,6 +281,7 @@ export function useOfflineCustomerTransactions(
         const paymentMethodId = (
           t.paymentMethodId || t.payment_method_id
         )?.toString();
+        const paymentNumber = (t.paymentNumber || t.payment_number || t.paymentNo || t.payment_no || "")?.toString();
         const paymentAmount = t.paymentAmount ?? t.payment_amount ?? 0;
         let formattedDate = t.date;
         if (
@@ -285,6 +295,7 @@ export function useOfflineCustomerTransactions(
         return {
           ...t,
           id: t.id,
+          paymentNumber,
           customerId,
           paymentMethodId,
           paymentAmount,
@@ -317,6 +328,8 @@ export function useOfflineCustomerTransactions(
             matches &&
             ((t.customerName &&
               t.customerName.toLowerCase().includes(lowerSearch)) ||
+              (t.paymentNumber &&
+                t.paymentNumber.toLowerCase().includes(lowerSearch)) ||
               (t.paymentMethodName &&
                 t.paymentMethodName.toLowerCase().includes(lowerSearch)) ||
               (t.paymentAmount &&

@@ -1120,7 +1120,7 @@ export default function OrdersPage() {
           <div className="md:hidden space-y-3">
             {filteredOrders.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {t("noOrdersFound") || "No orders found"}
+                {t("noOrdersFound") || "No invoices found"}
               </div>
             ) : (
               filteredOrders.map((order) => (

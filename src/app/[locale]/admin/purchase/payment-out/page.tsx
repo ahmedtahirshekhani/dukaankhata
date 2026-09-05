@@ -59,6 +59,7 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
+import { generateReferenceNumber, maskPaymentNo } from "@/lib/utils";
 
 type Party = {
   id: string;
@@ -75,6 +76,7 @@ type PaymentMethod = {
 
 type PartyTransaction = {
   id: string;
+  paymentNumber?: string;
   customerId: string;
   customerName: string;
   paymentAmount: number;
@@ -116,6 +118,7 @@ export default function PaymentOutPage() {
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
+  const [formPaymentNumber, setFormPaymentNumber] = useState(() => generateReferenceNumber("PAY-OUT"));
   const [formPartyId, setFormPartyId] = useState("");
   const [formPaymentAmount, setFormPaymentAmount] = useState("");
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
@@ -172,6 +175,7 @@ export default function PaymentOutPage() {
     setFormPartyId("");
     setFormPaymentAmount("");
     setFormPaymentMethodId("");
+    setFormPaymentNumber(generateReferenceNumber("PAY-OUT"));
     setFormDate(new Date().toISOString().split("T")[0]);
     setSelectedId(null);
   }, []);
@@ -191,8 +195,11 @@ export default function PaymentOutPage() {
     try {
       const party = parties.find(c => c.id === formPartyId || c._id === formPartyId);
       const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
+      const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-OUT");
 
       const payload = {
+        paymentNumber: paymentNo,
+        payment_number: paymentNo,
         customerId: formPartyId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
@@ -223,7 +230,7 @@ export default function PaymentOutPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [formPartyId, formPaymentAmount, formPaymentMethodId, formDate, parties, paymentMethods, resetForm, t, tCommon]);
+  }, [formPartyId, formPaymentAmount, formPaymentMethodId, formPaymentNumber, formDate, parties, paymentMethods, resetForm, t, tCommon]);
 
   const handleEdit = useCallback(async () => {
     if (!selectedId) return;
@@ -240,15 +247,20 @@ export default function PaymentOutPage() {
     setIsSaving(true);
     try {
       const oldTransaction = await db.party_transactions.get(selectedId);
-      if (oldTransaction) {
-        // Revert old balance change
-        await updateOfflinePartyBalance(oldTransaction.customerId, -oldTransaction.paymentAmount);
+      const oldPartyId = (oldTransaction?.customerId || oldTransaction?.customer_id || oldTransaction?.party_id)?.toString();
+      const oldAmount = Number(oldTransaction?.paymentAmount ?? oldTransaction?.payment_amount ?? 0);
+      if (oldPartyId && !isNaN(oldAmount)) {
+        // Revert old balance change for Payment Out (reversing positive delta is negative)
+        await updateOfflinePartyBalance(oldPartyId, -oldAmount);
       }
 
       const party = parties.find(c => c.id === formPartyId || c._id === formPartyId);
       const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
+      const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-OUT");
 
       const payload = {
+        paymentNumber: paymentNo,
+        payment_number: paymentNo,
         customerId: formPartyId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
@@ -264,9 +276,22 @@ export default function PaymentOutPage() {
       };
 
       await db.party_transactions.put(localTransaction);
-      // Apply new balance change
+      // Apply new balance change: Payment Out adds to balance
       await updateOfflinePartyBalance(formPartyId, amount);
-      await SyncEngine.queueOperation("party_transactions", "PUT", `/api/customer-transactions/${selectedId}`, payload);
+
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(selectedId);
+      if (!isMongoId) {
+        const pendingPost = await db.syncQueue.where('localId').equals(selectedId).first();
+        if (pendingPost) {
+          pendingPost.data = payload;
+          pendingPost.status = 'pending';
+          await db.syncQueue.put(pendingPost);
+        } else {
+          await SyncEngine.queueOperation("party_transactions", "PUT", `/api/customer-transactions/${selectedId}`, payload);
+        }
+      } else {
+        await SyncEngine.queueOperation("party_transactions", "PUT", `/api/customer-transactions/${selectedId}`, payload);
+      }
 
       setShowEditDialog(false);
       resetForm();
@@ -277,20 +302,31 @@ export default function PaymentOutPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedId, formPartyId, formPaymentAmount, formPaymentMethodId, formDate, parties, paymentMethods, resetForm, t, tCommon]);
+  }, [selectedId, formPartyId, formPaymentAmount, formPaymentMethodId, formPaymentNumber, formDate, parties, paymentMethods, resetForm, t, tCommon]);
 
   const handleDelete = useCallback(async () => {
     if (!transactionToDelete) return;
     setIsDeleting(true);
     try {
       const oldTransaction = await db.party_transactions.get(transactionToDelete.id);
-      if (oldTransaction) {
-        // Revert balance change
-        await updateOfflinePartyBalance(oldTransaction.customerId, -oldTransaction.paymentAmount);
+      const targetPartyId = (oldTransaction?.customerId || oldTransaction?.customer_id || oldTransaction?.party_id || transactionToDelete.customerId)?.toString();
+      const targetAmount = Number(oldTransaction?.paymentAmount ?? oldTransaction?.payment_amount ?? transactionToDelete.paymentAmount ?? 0);
+      if (targetPartyId && !isNaN(targetAmount)) {
+        // Revert balance change: Payment Out added to payable balance, so deleting subtracts it
+        await updateOfflinePartyBalance(targetPartyId, -targetAmount);
       }
       
       await db.party_transactions.delete(transactionToDelete.id);
-      await SyncEngine.queueOperation("party_transactions", "DELETE", `/api/customer-transactions/${transactionToDelete.id}`, null);
+
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(transactionToDelete.id);
+      if (!isMongoId) {
+        const pendingOps = await db.syncQueue.where('localId').equals(transactionToDelete.id).toArray();
+        for (const op of pendingOps) {
+          if (op.id) await db.syncQueue.delete(op.id);
+        }
+      } else {
+        await SyncEngine.queueOperation("party_transactions", "DELETE", `/api/customer-transactions/${transactionToDelete.id}`, null);
+      }
 
       setShowDeleteDialog(false);
       setTransactionToDelete(null);
@@ -305,6 +341,7 @@ export default function PaymentOutPage() {
 
   const openAddDialog = () => {
     resetForm();
+    setFormPaymentNumber(generateReferenceNumber("PAY-OUT"));
     setFormDate(new Date().toISOString().split("T")[0]);
     setShowAddDialog(true);
   };
@@ -319,6 +356,7 @@ export default function PaymentOutPage() {
 
   const openEditDialog = (item: PartyTransaction) => {
     setSelectedId(item.id);
+    setFormPaymentNumber(item.paymentNumber || generateReferenceNumber("PAY-OUT"));
     setFormPartyId(item.customerId);
     setFormPaymentAmount(item.paymentAmount.toString());
     setFormPaymentMethodId(item.paymentMethodId);
@@ -469,6 +507,7 @@ export default function PaymentOutPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>{t("paymentNo") || "Payment No"}</TableHead>
                   <TableHead>{t("party")}</TableHead>
                   <TableHead>{t("paymentAmount")}</TableHead>
                   <TableHead>{t("paymentMethod")}</TableHead>
@@ -480,7 +519,7 @@ export default function PaymentOutPage() {
                 {loading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center py-8"
                     >
                       <Loader2Icon className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
@@ -489,7 +528,7 @@ export default function PaymentOutPage() {
                 ) : filteredTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center text-muted-foreground py-8"
                     >
                       {t("noRecords")}
@@ -498,6 +537,20 @@ export default function PaymentOutPage() {
                 ) : (
                   filteredTransactions.map((item) => (
                     <TableRow key={item.id}>
+                      <TableCell>
+                        {item.paymentNumber ? (
+                          <div className="flex flex-col items-start gap-0.5">
+                            <span className="font-mono text-xs font-medium text-foreground">
+                              {maskPaymentNo(item.paymentNumber)}
+                            </span>
+                            <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                              {item.paymentNumber}
+                            </span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
                       <TableCell>{item.customerName || "-"}</TableCell>
                       <TableCell>
                         Rs. {Math.round(item.paymentAmount).toLocaleString()}
@@ -616,6 +669,15 @@ export default function PaymentOutPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>{t("paymentNo") || "Payment No"}</Label>
+              <Input
+                type="text"
+                value={formPaymentNumber}
+                onChange={(e) => setFormPaymentNumber(e.target.value)}
+                placeholder="PAY-OUT-001"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>{t("party")}</Label>
               <PartyDropdown
                 value={formPartyId}
@@ -635,35 +697,6 @@ export default function PaymentOutPage() {
               />
             </div>
             <div className="space-y-2">
-              {/* <Label>{t("paymentMethod")}</Label>
-              <Select
-                value={formPaymentMethodId}
-                onValueChange={setFormPaymentMethodId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectPaymentMethod")} />
-                </SelectTrigger>
-
-                <SelectContent className="min-w-[20rem] max-w-[90vw]">
-                  {paymentMethods.map((pm) => (
-                    <SelectItem
-                      key={pm.id}
-                      value={pm.id}
-                      className="text-left group"
-                    >
-                      <div className="flex flex-col items-start text-left gap-0.5 py-0.5 w-full">
-                        <span className="font-medium w-full">{pm.name}</span>
-
-                        {pm.bankDetails && (
-                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap w-full group-data-[highlighted]:text-white">
-                            {pm.bankDetails}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select> */}
               <Label>{t("paymentMethod")}</Label>
               <PaymentMethodDropdown
                 value={formPaymentMethodId}
@@ -708,6 +741,15 @@ export default function PaymentOutPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>{t("paymentNo") || "Payment No"}</Label>
+              <Input
+                type="text"
+                value={formPaymentNumber}
+                onChange={(e) => setFormPaymentNumber(e.target.value)}
+                placeholder="PAY-OUT-001"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>{t("party")}</Label>
               <PartyDropdown
                 value={formPartyId}
@@ -727,29 +769,6 @@ export default function PaymentOutPage() {
               />
             </div>
             <div className="space-y-2">
-              {/* <Label>{t("paymentMethod")}</Label>
-              <Select
-                value={formPaymentMethodId}
-                onValueChange={setFormPaymentMethodId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectPaymentMethod")} />
-                </SelectTrigger>
-                <SelectContent className="min-w-[20rem] max-w-[90vw]">
-                  {paymentMethods.map((pm) => (
-                    <SelectItem key={pm.id} value={pm.id}>
-                      <div className="flex flex-col gap-0.5 py-0.5">
-                        <span className="font-medium">{pm.name}</span>
-                        {pm.bankDetails && (
-                          <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
-                            {pm.bankDetails}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select> */}
               <Label>{t("paymentMethod")}</Label>
               <PaymentMethodDropdown
                 value={formPaymentMethodId}
@@ -855,9 +874,21 @@ function PaymentOutCard({
   return (
     <div className="bg-card border rounded-lg p-3.5 shadow-sm">
       <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
-        <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[65%]">
-          {transaction.customerName || "-"}
-        </h3>
+        <div>
+          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[200px]">
+            {transaction.customerName || "-"}
+          </h3>
+          {transaction.paymentNumber && (
+            <div className="flex flex-col items-start gap-0.5 mt-0.5">
+              <span className="font-mono text-xs font-medium text-foreground">
+                {maskPaymentNo(transaction.paymentNumber)}
+              </span>
+              <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                {transaction.paymentNumber}
+              </span>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           {onEdit && (
             <Button
