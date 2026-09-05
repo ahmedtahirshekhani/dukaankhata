@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
 import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       COLLECTIONS.TRANSACTIONS,
       COLLECTIONS.QUOTATIONS,
       COLLECTIONS.CATEGORIES,
+      COLLECTIONS.BRANCHES,
       COLLECTIONS.PAYMENT_METHODS,
     ];
 
@@ -118,6 +119,10 @@ export async function POST(request: Request) {
     console.log(`[DELETE_ALL_DATA] Deletion Complete. Total records deleted: ${totalDeleted}`);
     console.log(`========================================\n`);
     
+    // Update user's last updated timestamp and activity
+    await setLastUpdated(usersCollection, { _id: user._id });
+    await updateUserLastActivity();
+
     // We deleted payment_methods, which included "Cash in Hand" etc.
     return Response.json({ success: true, message: "All workspace data deleted successfully" });
   } catch (error) {
