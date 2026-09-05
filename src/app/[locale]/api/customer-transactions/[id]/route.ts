@@ -18,6 +18,7 @@ interface CustomerTransactionDoc {
   _id: ObjectId;
   user_id: ObjectId;
   customer_id: ObjectId;
+  payment_number?: string;
   payment_amount: number;
   payment_method_id: ObjectId | string;
   date: Date;
@@ -61,6 +62,7 @@ export async function GET(
     await updateUserLastActivity();
     return NextResponse.json({
       id: item._id.toString(),
+      paymentNumber: item.payment_number ?? '',
       customerId: item.customer_id.toString(),
       paymentAmount: item.payment_amount,
       paymentMethodId: typeof pmId === 'string' ? pmId : pmId.toString(),
@@ -91,7 +93,7 @@ export async function PUT(
 
     const id = params.id;
     if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const body = await req.json();
@@ -100,6 +102,7 @@ export async function PUT(
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
     const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
     const type = body?.type ?? 'payment-in';
+    const paymentNumber = body?.paymentNumber ?? body?.payment_number;
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json({ error: 'Valid customer is required' }, { status: 400 });
@@ -162,6 +165,7 @@ export async function PUT(
           reason: 'payment_update_apply',
           transaction_id: id,
           new_type: type,
+          payment_number: paymentNumber ?? existing.payment_number,
         },
       });
     }
@@ -174,6 +178,9 @@ export async function PUT(
       date,
       type,
     };
+    if (paymentNumber !== undefined) {
+      updateData.payment_number = paymentNumber;
+    }
 
     const updateResult = await setLastUpdated(
       collection,
@@ -199,6 +206,7 @@ export async function PUT(
     await updateUserLastActivity();
     return NextResponse.json({
       id: updatedDoc._id.toString(),
+      paymentNumber: updatedDoc.payment_number ?? '',
       customerId: updatedDoc.customer_id.toString(),
       paymentAmount: updatedDoc.payment_amount,
       paymentMethodId: typeof pmId === 'string' ? pmId : pmId.toString(),
@@ -229,7 +237,7 @@ export async function DELETE(
 
     const id = params.id;
     if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+      return NextResponse.json({ success: true, message: 'Local transaction deleted' });
     }
 
     const collection = await getCollection<CustomerTransactionDoc>(COLLECTIONS.CUSTOMER_TRANSACTIONS);

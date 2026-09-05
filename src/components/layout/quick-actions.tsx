@@ -30,7 +30,7 @@ export function QuickActions() {
         <Link href={`/${locale}/admin/sales/invoice/new`}>
           <Button size="sm" className="bg-primary hover:bg-secondary/80 text-white hover:text-secondary-foreground border border-primary rounded-full px-4 h-8 text-xs font-semibold shadow-sm">
             <PlusCircle className="w-3.5 h-3.5 mr-1" />
-            {tNav("addSale") || "Add Sale"}
+            {tNav("addInvoice") || "Add Invoice"}
           </Button>
         </Link>
       )}

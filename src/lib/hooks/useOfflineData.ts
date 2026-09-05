@@ -281,6 +281,7 @@ export function useOfflineCustomerTransactions(
         const paymentMethodId = (
           t.paymentMethodId || t.payment_method_id
         )?.toString();
+        const paymentNumber = (t.paymentNumber || t.payment_number || t.paymentNo || t.payment_no || "")?.toString();
         const paymentAmount = t.paymentAmount ?? t.payment_amount ?? 0;
         let formattedDate = t.date;
         if (
@@ -294,6 +295,7 @@ export function useOfflineCustomerTransactions(
         return {
           ...t,
           id: t.id,
+          paymentNumber,
           customerId,
           paymentMethodId,
           paymentAmount,
@@ -326,6 +328,8 @@ export function useOfflineCustomerTransactions(
             matches &&
             ((t.customerName &&
               t.customerName.toLowerCase().includes(lowerSearch)) ||
+              (t.paymentNumber &&
+                t.paymentNumber.toLowerCase().includes(lowerSearch)) ||
               (t.paymentMethodName &&
                 t.paymentMethodName.toLowerCase().includes(lowerSearch)) ||
               (t.paymentAmount &&
