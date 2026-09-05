@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
     const totalPages = Math.ceil(totalRecords / limit);
 
     // Get paginated results
-    pipeline.push({ $sort: { date: -1, created_at: -1 } });
+    pipeline.push({ $sort: { created_at: -1, date: -1, _id: -1 } });
     pipeline.push({ $skip: skip });
     pipeline.push({ $limit: limit });
 
