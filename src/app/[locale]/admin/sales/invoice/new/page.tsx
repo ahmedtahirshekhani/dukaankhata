@@ -52,6 +52,7 @@ import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-drop
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
+import { generateReferenceNumber } from "@/lib/utils";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -197,9 +198,7 @@ export default function NewInvoicePage() {
           const order = await db.orders.get(editOrderId);
           if (order) {
             if (!order.invoice_no) {
-              const timestamp = Date.now();
-              const random = Math.floor(Math.random() * 1000);
-              setInvoiceNo(`INV-${timestamp}-${random}`);
+              setInvoiceNo(generateReferenceNumber("INV"));
             } else {
               setInvoiceNo(order.invoice_no);
             }
@@ -272,9 +271,7 @@ export default function NewInvoicePage() {
   }, [t]);
 
   const generateInvoiceNo = () => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000);
-    setInvoiceNo(`INV-${timestamp}-${random}`);
+    setInvoiceNo(generateReferenceNumber("INV"));
   };
 
   const handleClear = () => {
