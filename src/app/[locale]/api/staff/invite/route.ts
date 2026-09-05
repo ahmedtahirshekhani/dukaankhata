@@ -3,10 +3,10 @@ import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 import { toObjectId } from "@/lib/db/mongodb";
+import { getAppUrl } from "@/lib/utils";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 
-const APP_URL = process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const MAIL_FROM = process.env.MAIL_FROM || process.env.MAIL_USER || "no-reply@example.com";
 const MAIL_HOST = process.env.MAIL_HOST || "smtp.gmail.com";
 const MAIL_PORT = Number(process.env.MAIL_PORT || 465);
@@ -136,7 +136,8 @@ export async function POST(req: Request) {
     // Send email
     const reqUrl = new URL(req.url);
     const locale = reqUrl.pathname.split('/')[1] || 'en';
-    const inviteLink = `${APP_URL}/${locale}/invite?token=${token}`;
+    const baseUrl = getAppUrl(req);
+    const inviteLink = `${baseUrl}/${locale}/invite?token=${token}`;
     const shopName = user.company || "A shop";
 
     const mailOptions = {

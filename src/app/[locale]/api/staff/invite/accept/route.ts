@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
-import { getCurrentUser } from "@/lib/auth/utils";
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from "@/lib/db/mongodb";
+import { getCurrentSession } from "@/lib/auth/utils";
 import bcrypt from "bcryptjs";
-import { toObjectId } from "@/lib/db/mongodb";
 
 export async function GET(req: Request) {
   try {
@@ -28,18 +27,22 @@ export async function GET(req: Request) {
     if (invite.owner_id) {
       const shopsColl = await getCollection(COLLECTIONS.SHOPS);
       // Fallback logic: check shops collection first, if not found (legacy invite), check users collection
-      let shop = await shopsColl.findOne({ _id: invite.owner_id });
+      const ownerIdObj = typeof invite.owner_id === "string" && isValidObjectId(invite.owner_id)
+        ? toObjectId(invite.owner_id)
+        : invite.owner_id;
+      let shop = await shopsColl.findOne({ _id: ownerIdObj });
       if (shop?.name) {
         shopName = shop.name;
       } else {
-        const owner = await usersColl.findOne({ _id: invite.owner_id });
+        const owner = await usersColl.findOne({ _id: ownerIdObj });
         if (owner?.company_name) {
           shopName = owner.company_name;
         }
       }
     }
 
-    const sessionUser = await getCurrentUser();
+    const session = await getCurrentSession();
+    const sessionUser = session?.user;
     const isLoggedInAsInvitedUser = sessionUser?.email === invite.email;
 
     return NextResponse.json({
@@ -49,6 +52,7 @@ export async function GET(req: Request) {
       isLoggedInAsInvitedUser
     });
   } catch (error) {
+    console.error("STAFF INVITE ACCEPT FAILED", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -77,7 +81,8 @@ export async function POST(req: Request) {
 
     if (existingUser) {
       // User must be logged in as this user to accept
-      const sessionUser = await getCurrentUser();
+      const session = await getCurrentSession();
+      const sessionUser = session?.user;
       if (!sessionUser || sessionUser.email !== invite.email) {
         return NextResponse.json({ error: "You must be logged in as the invited user to accept this invitation." }, { status: 401 });
       }
@@ -115,6 +120,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: "Invitation accepted successfully." });
   } catch (error: any) {
+    console.error("STAFF INVITE ACCEPT FAILED", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
+

@@ -207,3 +207,32 @@ export function maskInvoiceNo(invoiceNo: string): string {
 
 export const maskPaymentNo = maskInvoiceNo;
 export const maskReferenceNo = maskInvoiceNo;
+/**
+ * Helper to get the canonical App base URL for generated email links.
+ * Prefers custom domain (e.g. dukaankhata.app) from incoming request headers
+ * or explicit process.env.APP_URL / process.env.NEXT_PUBLIC_APP_URL.
+ */
+export function getAppUrl(req?: Request): string {
+  const envUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl && !envUrl.includes("vercel.app")) {
+    return envUrl.replace(/\/$/, "");
+  }
+
+  if (req) {
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const proto = req.headers.get("x-forwarded-proto") || (host && !host.includes("localhost") ? "https" : "http");
+    if (host && !host.includes("vercel.app")) {
+      return `${proto}://${host}`;
+    }
+    if (host) {
+      return `${proto}://${host}`;
+    }
+  }
+
+  if (envUrl) return envUrl.replace(/\/$/, "");
+  if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes("vercel.app")) {
+    return process.env.NEXTAUTH_URL.replace(/\/$/, "");
+  }
+
+  return "https://www.dukaankhata.app";
+}

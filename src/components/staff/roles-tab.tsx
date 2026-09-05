@@ -68,11 +68,11 @@ export function RolesTab() {
       if (savedWa) setEnableWhatsApp(savedWa === "true");
     }
 
-    // Force a sync if modules are empty (meaning old cache or first time)
+    // Automatically fetch roles from server if local cache is empty
     const checkAndSync = async () => {
-      const count = await db.modules.count();
+      const count = await db.roles.count();
       if (count === 0) {
-        SyncEngine.pullInitialData();
+        SyncEngine.pullInitialData(true);
       }
     };
     checkAndSync();

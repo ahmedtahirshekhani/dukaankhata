@@ -64,11 +64,12 @@ export function StaffTab() {
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   useEffect(() => {
-    // Force a sync if modules are empty (meaning old cache or first time)
+    // Automatically fetch staff & roles from server if local cache is empty or only has owner
     const checkAndSync = async () => {
-      const count = await db.modules.count();
-      if (count === 0) {
-        SyncEngine.pullInitialData();
+      const usersCount = await db.users.count();
+      const rolesCount = await db.roles.count();
+      if (usersCount <= 1 || rolesCount === 0) {
+        SyncEngine.pullInitialData(true);
       }
     };
     checkAndSync();
