@@ -78,6 +78,30 @@ export function formatCurrencyString(amount: number): string {
   return `${Math.floor(amount)}`;
 }
 
+/**
+ * Formats a currency amount with Pakistani numbering format and currency prefix
+ * Example: formatCurrency(125000) => "Rs. 125,000"
+ */
+export function formatCurrency(amount: number | string | undefined | null): string {
+  if (amount === undefined || amount === null || amount === "") return "Rs. 0";
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (isNaN(num)) return "Rs. 0";
+  return `Rs. ${Math.round(num).toLocaleString()}`;
+}
+
+/**
+ * Generate a random/unique reference or payment number with a specified prefix.
+ * Example: generateReferenceNumber("PAY-IN") => "PAY-IN-1725519400000-482"
+ * Example: generateReferenceNumber("INV") => "INV-1725519400000-123"
+ */
+export function generateReferenceNumber(prefix: string = "REF"): string {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return `${prefix}-${timestamp}-${random}`;
+}
+
+export const generatePaymentNumber = generateReferenceNumber;
+
 export function formatCurrencyWithSuper(amount: number): { whole: string; decimal: string } {
   return {
     whole: `Rs. ${Math.floor(amount)}`,
@@ -159,16 +183,27 @@ export function setDateToCurrentTime(date: Date | string): Date {
 }
 
 /**
- * Mask an invoice number (e.g. INV-17182839210-456 -> INV-***-456)
+ * Mask an invoice or payment reference number (e.g. INV-17182839210-456 -> INV-***-456, PAY-IN-17182839210-456 -> PAY-IN-***-456)
  */
 export function maskInvoiceNo(invoiceNo: string): string {
   if (!invoiceNo) return "";
   const parts = invoiceNo.split('-');
-  if (parts.length === 3) {
-    return `${parts[0]}-***-${parts[2]}`;
+  if (parts.length >= 3) {
+    const middlePart = parts[parts.length - 2];
+    if (/^\d{8,}$/.test(middlePart)) {
+      const prefix = parts.slice(0, -2).join('-');
+      const suffix = parts[parts.length - 1];
+      return `${prefix}-***-${suffix}`;
+    }
+    const prefix = parts.slice(0, -2).join('-') || parts[0];
+    const suffix = parts[parts.length - 1];
+    return `${prefix}-***-${suffix}`;
   }
   if (invoiceNo.length > 8) {
     return invoiceNo.slice(0, 4) + "***" + invoiceNo.slice(-4);
   }
   return invoiceNo;
 }
+
+export const maskPaymentNo = maskInvoiceNo;
+export const maskReferenceNo = maskInvoiceNo;

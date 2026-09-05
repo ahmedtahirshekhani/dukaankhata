@@ -25,12 +25,12 @@ export function QuickActions() {
   const canCreatePaymentIn = can("sales", "create_payment_in");
 
   return (
-    <div className="flex items-center gap-2 hidden lg:flex">
+    <div className="flex items-center gap-2 lg:flex">
       {canCreateSale && (
         <Link href={`/${locale}/admin/sales/invoice/new`}>
           <Button size="sm" className="bg-primary hover:bg-secondary/80 text-white hover:text-secondary-foreground border border-primary rounded-full px-4 h-8 text-xs font-semibold shadow-sm">
             <PlusCircle className="w-3.5 h-3.5 mr-1" />
-            {tNav("addSale") || "Add Sale"}
+            {tNav("addInvoice") || "Add Invoice"}
           </Button>
         </Link>
       )}
