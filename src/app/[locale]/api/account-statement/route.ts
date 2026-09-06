@@ -784,7 +784,7 @@ export async function GET(request: NextRequest) {
         grandTotal: totalOrders + totalPurchaseBills,
       },
       reportMeta: {
-        title: "Account Ledger",
+        title: "Party Statement",
         fromDate,
         toDate,
         reportDate: reportNow.toISOString().split("T")[0],

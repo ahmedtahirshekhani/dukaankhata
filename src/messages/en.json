@@ -127,7 +127,7 @@
     "ordersDescription": "Track & manage orders",
     "counterSale": "Counter Sale",
     "counterSaleDescription": "Quick counter sales",
-    "accountStatement": "Account Statement",
+    "accountStatement": "Party Statement",
     "accountStatementDescription": "Party account statements",
     "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI business insights",
@@ -1140,7 +1140,7 @@
     "notePrintMessage": "This note will be printed on the invoice"
   },
   "accountStatement": {
-    "title": "Account Statement",
+    "title": "Party Statement",
     "modalDescription": "Generate party statement for date range",
     "selectCustomer": "Party",
     "searchCustomer": "Search Party",

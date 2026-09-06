@@ -365,7 +365,7 @@ export default function AccountStatementPage() {
       {/* Page Header */}
       <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          {t("title") || "Account Statement"}
+          {t("title") || "Party Statement"}
         </h1>
         <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
           {t("modalDescription") || "Generate party statement for date range"}
@@ -813,7 +813,7 @@ export default function AccountStatementPage() {
                       </td>
                       <td style={{ width: "60%", textAlign: "right", verticalAlign: "top" }}>
                         <div style={{ fontWeight: 900, fontSize: "22px", color: "#0f172a", textTransform: "uppercase" }}>
-                          {t("title") || "ACCOUNT STATEMENT"}
+                          {t("title") || "PARTY STATEMENT"}
                         </div>
                       </td>
                     </tr>
