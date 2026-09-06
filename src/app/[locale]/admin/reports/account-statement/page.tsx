@@ -335,7 +335,7 @@ export default function AccountStatementPage() {
     },
     {
       title: t("netOrders"),
-      value: summary.totalOrders,
+      value: (summary.totalOrders || 0) - (summary.totalPurchaseBills || 0),
       color: "orange",
       icon: Receipt,
       bgClass: "bg-orange-50",

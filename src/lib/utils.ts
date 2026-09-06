@@ -207,3 +207,4 @@ export function maskInvoiceNo(invoiceNo: string): string {
 
 export const maskPaymentNo = maskInvoiceNo;
 export const maskReferenceNo = maskInvoiceNo;
+export const maskPurchaseNo = maskInvoiceNo;
