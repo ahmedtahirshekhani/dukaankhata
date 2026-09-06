@@ -152,6 +152,13 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["@whiskeysockets/baileys", "ws", "bufferutil", "utf-8-validate"],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push("bufferutil", "utf-8-validate");
+    }
+    return config;
+  },
   async headers() {
     return [
       {

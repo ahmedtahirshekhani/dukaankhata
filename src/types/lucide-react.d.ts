@@ -132,6 +132,7 @@ declare module 'lucide-react' {
   export const PhoneIcon: Icon;
   export const Lock: Icon;
   export const LockIcon: Icon;
+  export const ShieldCheck: Icon;
   export const Unlock: Icon;
   export const Key: Icon;
   export const KeyIcon: Icon;

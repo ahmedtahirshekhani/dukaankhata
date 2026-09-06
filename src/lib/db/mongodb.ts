@@ -100,6 +100,8 @@ export const COLLECTIONS = {
   CONFIGURATIONS: "configurations",
   ORDER_ITEMS: "order_items",
   WAITLIST: "waitlist",
+  WHATSAPP_SESSIONS: "whatsapp_sessions",
+  WHATSAPP_REMINDER_LOGS: "whatsapp_reminder_logs",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
