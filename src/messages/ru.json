@@ -128,7 +128,7 @@
     "ordersDescription": "Track & manage orders",
     "counterSale": "Counter Sale",
     "counterSaleDescription": "Quick counter sales",
-    "accountStatement": "Account Statement",
+    "accountStatement": "Party Statement",
     "accountStatementDescription": "Party account statement",
     "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI business insights",
@@ -1137,7 +1137,7 @@
     "notePrintMessage": "Yeh note invoice par print hoga"
   },
   "accountStatement": {
-    "title": "Account Statement",
+    "title": "Party Statement",
     "modalDescription": "Generate party statement for date range",
     "selectCustomer": "Party",
     "searchCustomer": "Search Party",
@@ -1328,6 +1328,9 @@
     "selectProduct": "Product Muntakhab Karain",
     "billNumber": "Bill Number",
     "billNumberPlaceholder": "Bill Number Dakhil Karein",
+    "purchaseNo": "Purchase No",
+    "purchaseNumber": "Purchase No",
+    "purchaseNoPlaceholder": "maslan PUR-001",
     "searchProduct": "Product Search Karein",
     "product": "Product",
     "quantity": "Miqdar",

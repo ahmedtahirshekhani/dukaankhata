@@ -207,6 +207,8 @@ export function maskInvoiceNo(invoiceNo: string): string {
 
 export const maskPaymentNo = maskInvoiceNo;
 export const maskReferenceNo = maskInvoiceNo;
+export const maskPurchaseNo = maskInvoiceNo;
+
 /**
  * Helper to get the canonical App base URL for generated email links.
  * Prefers custom domain (e.g. dukaankhata.app) from incoming request headers
