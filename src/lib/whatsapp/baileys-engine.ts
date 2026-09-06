@@ -12,6 +12,7 @@ import makeWASocket, {
 import QRCode from "qrcode";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
 
 interface ActiveSession {
@@ -25,7 +26,9 @@ class BaileysEngineManager {
   private isInitializing: Map<string, boolean> = new Map();
 
   private getSessionsDir(): string {
-    const dir = path.join(process.cwd(), "whatsapp-sessions");
+    const isVercel = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const baseDir = isVercel ? os.tmpdir() : process.cwd();
+    const dir = path.join(baseDir, "whatsapp-sessions");
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -87,6 +90,13 @@ class BaileysEngineManager {
         auth: state,
         printQRInTerminal: false,
         browser: ["DukaanKhata Web", "Chrome", "1.0.0"],
+        markOnlineOnConnect: false,
+        syncFullHistory: false,
+        fireInitQueries: false,
+        connectTimeoutMs: 15000,
+        defaultQueryTimeoutMs: 15000,
+        keepAliveIntervalMs: 25000,
+        getMessage: async () => undefined,
       });
 
       this.activeSockets.set(shopId, sock);
