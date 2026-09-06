@@ -465,7 +465,7 @@ export default function WhatsappIntegrationPage() {
                     <div>
                       <h4 className="text-md font-semibold">No Device Linked</h4>
                       <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                        Click below to generate a QR code and connect your store's WhatsApp account.
+                        Click below to generate a QR code and connect your store&apos;s WhatsApp account.
                       </p>
                     </div>
                     <Button 

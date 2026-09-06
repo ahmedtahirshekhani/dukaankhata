@@ -4,7 +4,7 @@ if (typeof process !== "undefined") {
 }
 
 import makeWASocket, {
-  useMultiFileAuthState,
+  useMultiFileAuthState as baileysMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
   WASocket,
@@ -58,10 +58,10 @@ class BaileysEngineManager {
 
     // 2. If forceRefreshQr requested and we have active socket, end existing socket to avoid conflict
     if (forceRefreshQr && existingSocket) {
-      try {
-        existingSocket.end(undefined);
-      } catch (e) {}
       this.activeSockets.delete(shopId);
+      try {
+        await existingSocket.logout().catch(() => {});
+      } catch (e) {}
     }
 
     // 3. Check initialization lock
@@ -78,7 +78,8 @@ class BaileysEngineManager {
 
     try {
       const sessionPath = path.join(this.getSessionsDir(), instanceName);
-      const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const { state, saveCreds } = await baileysMultiFileAuthState(sessionPath);
       const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307] as any }));
 
       const sock = makeWASocket({
