@@ -99,6 +99,10 @@ class BaileysEngineManager {
         getMessage: async () => undefined,
       });
 
+      if (state.creds?.me) {
+        (sock as any).user = state.creds.me;
+      }
+
       this.activeSockets.set(shopId, sock);
 
       // Check if credentials on disk are already authenticated
@@ -258,6 +262,17 @@ class BaileysEngineManager {
 
       if (!sock) {
         return { success: false, error: "WhatsApp session is not connected for this shop. Please scan the QR code first." };
+      }
+
+      // Wait briefly for sock.user to be set if socket is initializing
+      let attempts = 0;
+      while (!sock.user && attempts < 10) {
+        await new Promise((r) => setTimeout(r, 300));
+        attempts++;
+      }
+
+      if (!sock.user) {
+        return { success: false, error: "WhatsApp session is initializing. Please try sending again in a few seconds." };
       }
 
       // Format customer phone to JID (e.g. 923001234567@s.whatsapp.net)
