@@ -4,10 +4,12 @@ if (typeof process !== "undefined") {
 }
 
 import makeWASocket, {
-  useMultiFileAuthState as baileysMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
   WASocket,
+  AuthenticationState,
+  BufferJSON,
+  initAuthCreds,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import path from "path";
@@ -19,6 +21,112 @@ interface ActiveSession {
   socket: WASocket;
   shopId: string;
   connectedPhone?: string;
+}
+
+/**
+ * MongoDB-backed Baileys Auth State Store
+ * Persists credentials & keys directly to MongoDB (whatsapp_auth_keys collection)
+ * so WhatsApp connections stay 100% active across Vercel redeployments & server restarts.
+ */
+async function getMongoDBAuthState(shopId: string): Promise<{ state: AuthenticationState; saveCreds: () => Promise<void> }> {
+  const shopObjId = toObjectId(shopId);
+  const keysCol = await getCollection(COLLECTIONS.WHATSAPP_AUTH_KEYS);
+
+  // 1. Read creds document
+  const credsDoc = await keysCol.findOne({ shop_id: shopObjId, key_id: "creds" });
+  let creds: any;
+  if (credsDoc?.data) {
+    try {
+      creds = JSON.parse(credsDoc.data, BufferJSON.reviver);
+    } catch (e) {
+      creds = initAuthCreds();
+    }
+  } else {
+    creds = initAuthCreds();
+  }
+
+  // 2. Function to save creds
+  const saveCreds = async () => {
+    const serialized = JSON.stringify(creds, BufferJSON.replacer);
+    await keysCol.updateOne(
+      { shop_id: shopObjId, key_id: "creds" },
+      {
+        $set: {
+          shop_id: shopObjId,
+          key_id: "creds",
+          data: serialized,
+          updated_at: new Date()
+        }
+      },
+      { upsert: true }
+    );
+  };
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data: { [key: string]: any } = {};
+          const keyIds = ids.map(id => `${type}-${id}`);
+          const docs = await keysCol.find({
+            shop_id: shopObjId,
+            key_id: { $in: keyIds }
+          }).toArray();
+
+          for (const doc of docs) {
+            if (doc.data) {
+              try {
+                const value = JSON.parse(doc.data, BufferJSON.reviver);
+                const actualId = doc.key_id.substring(type.length + 1);
+                data[actualId] = value;
+              } catch (e) {}
+            }
+          }
+          return data;
+        },
+        set: async (data: any) => {
+          const bulkOps: any[] = [];
+          for (const category in data) {
+            const categoryObj = data[category];
+            if (categoryObj && typeof categoryObj === "object") {
+              for (const id in categoryObj) {
+                const value = categoryObj[id];
+                const keyId = `${category}-${id}`;
+                if (value) {
+                  const serialized = JSON.stringify(value, BufferJSON.replacer);
+                  bulkOps.push({
+                    updateOne: {
+                      filter: { shop_id: shopObjId, key_id: keyId },
+                      update: {
+                        $set: {
+                          shop_id: shopObjId,
+                          key_id: keyId,
+                          data: serialized,
+                          updated_at: new Date()
+                        }
+                      },
+                      upsert: true
+                    }
+                  });
+                } else {
+                  bulkOps.push({
+                    deleteOne: {
+                      filter: { shop_id: shopObjId, key_id: keyId }
+                    }
+                  });
+                }
+              }
+            }
+          }
+          if (bulkOps.length > 0) {
+            await keysCol.bulkWrite(bulkOps);
+          }
+        }
+      }
+    },
+    saveCreds
+  };
 }
 
 class BaileysEngineManager {
@@ -80,9 +188,8 @@ class BaileysEngineManager {
     this.isInitializing.set(shopId, true);
 
     try {
-      const sessionPath = path.join(this.getSessionsDir(), instanceName);
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const { state, saveCreds } = await baileysMultiFileAuthState(sessionPath);
+      // Use MongoDB-backed Auth State Store for permanent multi-tenant persistence
+      const { state, saveCreds } = await getMongoDBAuthState(shopId);
       const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307] as any }));
 
       const sock = makeWASocket({
@@ -105,7 +212,7 @@ class BaileysEngineManager {
 
       this.activeSockets.set(shopId, sock);
 
-      // Check if credentials on disk are already authenticated
+      // Check if credentials in MongoDB are already authenticated
       if (state.creds?.me?.id) {
         const userJid = state.creds.me.id;
         const phone = userJid.split(":")[0].replace(/\D/g, "");
@@ -188,15 +295,20 @@ class BaileysEngineManager {
 
           if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
             this.activeSockets.delete(shopId);
-            if (fs.existsSync(sessionPath)) {
-              fs.rmSync(sessionPath, { recursive: true, force: true });
-            }
+            const keysCol = await getCollection(COLLECTIONS.WHATSAPP_AUTH_KEYS);
+            await keysCol.deleteMany({ shop_id: toObjectId(shopId) });
+
             await sessionsCol.updateOne(
               { shop_id: toObjectId(shopId) },
               { $set: { status: "disconnected", connected_phone: null, qrcode: null, updated_at: new Date() } }
             );
+          } else if (statusCode === 515 || statusCode === DisconnectReason.restartRequired) {
+            // Immediate reconnect after initial QR pairing code 515
+            this.activeSockets.delete(shopId);
+            this.getOrStartShopSession(shopId);
           } else if (shouldReconnect) {
-            setTimeout(() => this.getOrStartShopSession(shopId), 5000);
+            this.activeSockets.delete(shopId);
+            setTimeout(() => this.getOrStartShopSession(shopId), 2000);
           }
         }
       });
@@ -228,11 +340,8 @@ class BaileysEngineManager {
         this.activeSockets.delete(shopId);
       }
 
-      const instanceName = `shop_${shopId}`;
-      const sessionPath = path.join(this.getSessionsDir(), instanceName);
-      if (fs.existsSync(sessionPath)) {
-        fs.rmSync(sessionPath, { recursive: true, force: true });
-      }
+      const keysCol = await getCollection(COLLECTIONS.WHATSAPP_AUTH_KEYS);
+      await keysCol.deleteMany({ shop_id: toObjectId(shopId) });
 
       const sessionsCol = await getCollection(COLLECTIONS.WHATSAPP_SESSIONS);
       await sessionsCol.updateOne(
