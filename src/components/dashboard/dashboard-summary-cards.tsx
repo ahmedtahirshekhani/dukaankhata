@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Activity, TrendingDown, TrendingUp } from "lucide-react";
+import { Activity, TrendingDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -10,21 +10,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { CounterRange } from "@/lib/hooks/useDashboardData";
+import { CounterRange, DashboardStats } from "@/lib/hooks/useDashboardData";
 
 export interface DashboardSummaryCardsProps {
-  dashboardStats: {
-    totalBalance: number;
-    totalPayable: number;
-    totalRevenue: number;
-    totalPurchases: number;
-    totalExpenses: number;
-    counterSales: number;
-    counterExpenses: number;
-    isLoading?: boolean;
-  };
+  dashboardStats: DashboardStats;
+  salesRange: CounterRange;
+  purchasesRange: CounterRange;
+  expensesRange: CounterRange;
   counterSalesRange: CounterRange;
   counterExpensesRange: CounterRange;
+  setSalesRange: (v: CounterRange) => void;
+  setPurchasesRange: (v: CounterRange) => void;
+  setExpensesRange: (v: CounterRange) => void;
   setCounterSalesRange: (v: CounterRange) => void;
   setCounterExpensesRange: (v: CounterRange) => void;
   isPrivacyMode: boolean;
@@ -39,13 +36,18 @@ export interface DashboardSummaryCardsProps {
 
 export function useDashboardSummaryCards({
   dashboardStats,
+  salesRange,
+  purchasesRange,
+  expensesRange,
   counterSalesRange,
   counterExpensesRange,
+  setSalesRange,
+  setPurchasesRange,
+  setExpensesRange,
   setCounterSalesRange,
   setCounterExpensesRange,
   isPrivacyMode,
   enableCounterSale,
-  currentMonthName,
   canViewCustomers,
   canViewSales,
   canViewPurchases,
@@ -53,6 +55,28 @@ export function useDashboardSummaryCards({
   tDash,
 }: DashboardSummaryCardsProps) {
   return useMemo(() => {
+    const renderRangeSelect = (
+      value: CounterRange,
+      onChange: (val: CounterRange) => void
+    ) => (
+      <Select value={value} onValueChange={(v) => onChange(v as CounterRange)}>
+        <SelectTrigger
+          className="w-20 sm:w-24 h-6 text-[10px] px-1.5 py-0 bg-transparent shadow-none border-border/60 hover:bg-accent/50 focus:ring-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="end" className="text-xs">
+          <SelectItem value="today">Today</SelectItem>
+          <SelectItem value="thisWeek">This Week</SelectItem>
+          <SelectItem value="lastWeek">Last Week</SelectItem>
+          <SelectItem value="thisMonth">This Month</SelectItem>
+          <SelectItem value="lastMonth">Last Month</SelectItem>
+          <SelectItem value="ytd">Year to date</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+
     const cards = [
       ...(canViewCustomers
         ? [
@@ -68,7 +92,7 @@ export function useDashboardSummaryCards({
                   icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.parties}
                 />
               ),
             },
@@ -82,7 +106,7 @@ export function useDashboardSummaryCards({
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
                   isExpense
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.parties}
                 />
               ),
             },
@@ -94,12 +118,13 @@ export function useDashboardSummaryCards({
               key: "sales",
               node: (
                 <StatCard
-                  title={`${tDash("sales") || "Sales"} (${currentMonthName})`}
+                  title={tDash("sales") || "Sales"}
                   value={dashboardStats.totalRevenue}
-                  icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  icon={renderRangeSelect(salesRange, setSalesRange)}
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.sales}
+                  noIconBg
                 />
               ),
             },
@@ -111,13 +136,14 @@ export function useDashboardSummaryCards({
               key: "purchases",
               node: (
                 <StatCard
-                  title={`${tDash("purchases")} (${currentMonthName})`}
+                  title={tDash("purchases") || "Purchases"}
                   value={dashboardStats.totalPurchases}
-                  icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  icon={renderRangeSelect(purchasesRange, setPurchasesRange)}
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
                   isExpense
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.purchases}
+                  noIconBg
                 />
               ),
             },
@@ -129,15 +155,14 @@ export function useDashboardSummaryCards({
               key: "expenses",
               node: (
                 <StatCard
-                  title={`${
-                    tDash("totalExpenses") || "Total Expense"
-                  } (${currentMonthName})`}
+                  title={tDash("totalExpenses") || "Total Expense"}
                   value={dashboardStats.totalExpenses}
-                  icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  icon={renderRangeSelect(expensesRange, setExpensesRange)}
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
                   isExpense
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.expenses}
+                  noIconBg
                 />
               ),
             },
@@ -151,29 +176,13 @@ export function useDashboardSummaryCards({
                 <StatCard
                   title={tDash("counterSales") || "Counter Sales"}
                   value={dashboardStats.counterSales}
-                  icon={
-                    <Select
-                      value={counterSalesRange}
-                      onValueChange={(v) => {
-                        setCounterSalesRange(v as CounterRange);
-                      }}
-                    >
-                      <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="thisWeek">This Week</SelectItem>
-                        <SelectItem value="lastWeek">Last Week</SelectItem>
-                        <SelectItem value="thisMonth">This Month</SelectItem>
-                        <SelectItem value="lastMonth">Last Month</SelectItem>
-                        <SelectItem value="ytd">Year to date</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  }
+                  icon={renderRangeSelect(
+                    counterSalesRange,
+                    setCounterSalesRange
+                  )}
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.counterSales}
                   noIconBg
                 />
               ),
@@ -188,30 +197,14 @@ export function useDashboardSummaryCards({
                 <StatCard
                   title={tDash("counterExpenses") || "Counter Expenses"}
                   value={dashboardStats.counterExpenses}
-                  icon={
-                    <Select
-                      value={counterExpensesRange}
-                      onValueChange={(v) => {
-                        setCounterExpensesRange(v as CounterRange);
-                      }}
-                    >
-                      <SelectTrigger className="w-20 h-6 text-[10px] bg-transparent shadow-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="thisWeek">This Week</SelectItem>
-                        <SelectItem value="lastWeek">Last Week</SelectItem>
-                        <SelectItem value="thisMonth">This Month</SelectItem>
-                        <SelectItem value="lastMonth">Last Month</SelectItem>
-                        <SelectItem value="ytd">Year to date</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  }
+                  icon={renderRangeSelect(
+                    counterExpensesRange,
+                    setCounterExpensesRange
+                  )}
                   isPrivacy={isPrivacyMode}
                   currency="PKR"
                   isExpense
-                  isLoading={dashboardStats.isLoading}
+                  isLoading={dashboardStats.loadingStates?.counterExpenses}
                   noIconBg
                 />
               ),
@@ -228,11 +221,16 @@ export function useDashboardSummaryCards({
     });
   }, [
     dashboardStats,
+    salesRange,
+    purchasesRange,
+    expensesRange,
     counterSalesRange,
     counterExpensesRange,
+    setSalesRange,
+    setPurchasesRange,
+    setExpensesRange,
     setCounterSalesRange,
     setCounterExpensesRange,
-    currentMonthName,
     isPrivacyMode,
     tDash,
     enableCounterSale,

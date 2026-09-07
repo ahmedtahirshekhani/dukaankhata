@@ -76,119 +76,175 @@ export const getRangeDates = (rangeKey: CounterRange) => {
   return { start, end };
 };
 
+export interface DashboardStats {
+  totalBalance: number;
+  totalPayable: number;
+  totalRevenue: number;
+  totalPurchases: number;
+  totalExpenses: number;
+  counterSales: number;
+  counterExpenses: number;
+  isLoading?: boolean;
+  loadingStates: {
+    parties: boolean;
+    sales: boolean;
+    purchases: boolean;
+    expenses: boolean;
+    counterSales: boolean;
+    counterExpenses: boolean;
+  };
+}
+
 export function useDashboardData(
+  salesRange: CounterRange = "thisMonth",
+  purchasesRange: CounterRange = "thisMonth",
+  expensesRange: CounterRange = "thisMonth",
   counterSalesRange: CounterRange = "today",
   counterExpensesRange: CounterRange = "today"
-) {
-  const data = useLiveQuery(
-    async () => {
-      try {
-        // 1. Calculate Parties Balances (Receivables & Payables)
-        const allParties = await db.parties.toArray();
-        let totalBalance = 0;
-        let totalPayable = 0;
+): DashboardStats {
+  const partiesData = useLiveQuery(async () => {
+    try {
+      const allParties = await db.parties.toArray();
+      let totalBalance = 0;
+      let totalPayable = 0;
 
-        for (const p of allParties) {
-          if (p.is_delete === 1 || p.status === "inactive") continue;
-          const bal = Number(p.balance || 0);
-          if (bal > 0) {
-            totalBalance += bal;
-          } else if (bal < 0) {
-            totalPayable += Math.abs(bal);
-          }
+      for (const p of allParties) {
+        if (p.is_delete === 1 || p.status === "inactive") continue;
+        const bal = Number(p.balance || 0);
+        if (bal > 0) {
+          totalBalance += bal;
+        } else if (bal < 0) {
+          totalPayable += Math.abs(bal);
         }
-
-        // 2. Current Month Start & End for Monthly Totals
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        const endOfMonth = getEndOfDay(now);
-
-        // 3. Monthly Revenue (Orders)
-        const allOrders = await db.orders.toArray();
-        let totalRevenue = 0;
-        for (const order of allOrders) {
-          const orderDate = new Date(order.created_at || order.sale_date || 0);
-          if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
-            totalRevenue += Number(order.total_amount || 0);
-          }
-        }
-
-        // 4. Monthly Purchases (Purchase Bills)
-        const allPurchases = await db.purchase_bills.toArray();
-        let totalPurchases = 0;
-        for (const purchase of allPurchases) {
-          const purchaseDate = new Date(purchase.created_at || purchase.date || 0);
-          if (purchaseDate >= startOfMonth && purchaseDate <= endOfMonth) {
-            totalPurchases += Number(purchase.total_amount || purchase.amount || 0);
-          }
-        }
-
-        // 5. Monthly Expenses & Transactions
-        const allExpenses = await db.expenses.toArray();
-        let totalExpenses = 0;
-        for (const exp of allExpenses) {
-          const expDate = new Date(exp.created_at || exp.date || 0);
-          if (expDate >= startOfMonth && expDate <= endOfMonth) {
-            totalExpenses += Number(exp.amount || 0);
-          }
-        }
-
-        // 6. Transactions for Counter Sales & Counter Expenses
-        const allTransactions = await db.transactions.toArray();
-
-        const salesRangeDates = getRangeDates(counterSalesRange);
-        let counterSales = 0;
-
-        for (const t of allTransactions) {
-          const tDate = new Date(t.created_at || t.date || t.timestamp || 0);
-          if (tDate >= salesRangeDates.start && tDate <= salesRangeDates.end) {
-            if ((t.type === "income" || t.type === "sale") && !t.order_id) {
-              counterSales += Number(t.amount || 0);
-            }
-          }
-        }
-
-        const expensesRangeDates = getRangeDates(counterExpensesRange);
-        let counterExpenses = 0;
-
-        for (const t of allTransactions) {
-          const tDate = new Date(t.created_at || t.date || t.timestamp || 0);
-          if (tDate >= expensesRangeDates.start && tDate <= expensesRangeDates.end) {
-            if (t.type === "expense") {
-              counterExpenses += Number(t.amount || 0);
-            }
-          }
-        }
-
-        return {
-          totalBalance: Math.round(totalBalance),
-          totalPayable: Math.round(totalPayable),
-          totalRevenue: Math.round(totalRevenue),
-          totalPurchases: Math.round(totalPurchases),
-          totalExpenses: Math.round(totalExpenses),
-          counterSales: Math.round(counterSales * 100) / 100,
-          counterExpenses: Math.round(counterExpenses * 100) / 100,
-          isLoading: false,
-        };
-      } catch (error) {
-        console.error("Error in useDashboardData live query:", error);
-        return null;
       }
-    },
-    [counterSalesRange, counterExpensesRange]
-  );
-
-  return (
-    data || {
-      totalBalance: 0,
-      totalPayable: 0,
-      totalRevenue: 0,
-      totalPurchases: 0,
-      totalExpenses: 0,
-      counterSales: 0,
-      counterExpenses: 0,
-      isLoading: data === undefined,
+      return {
+        totalBalance: Math.round(totalBalance),
+        totalPayable: Math.round(totalPayable),
+      };
+    } catch (err) {
+      console.error("Error calculating parties stats:", err);
+      return { totalBalance: 0, totalPayable: 0 };
     }
-  );
+  }, []);
+
+  const salesData = useLiveQuery(async () => {
+    try {
+      const allOrders = await db.orders.toArray();
+      const rangeDates = getRangeDates(salesRange);
+      let totalRevenue = 0;
+      for (const order of allOrders) {
+        const orderDate = new Date(order.created_at || order.sale_date || 0);
+        if (orderDate >= rangeDates.start && orderDate <= rangeDates.end) {
+          totalRevenue += Number(order.total_amount || 0);
+        }
+      }
+      return Math.round(totalRevenue);
+    } catch (err) {
+      console.error("Error calculating sales stats:", err);
+      return 0;
+    }
+  }, [salesRange]);
+
+  const purchasesData = useLiveQuery(async () => {
+    try {
+      const allPurchases = await db.purchase_bills.toArray();
+      const rangeDates = getRangeDates(purchasesRange);
+      let totalPurchases = 0;
+      for (const purchase of allPurchases) {
+        const purchaseDate = new Date(purchase.created_at || purchase.date || 0);
+        if (purchaseDate >= rangeDates.start && purchaseDate <= rangeDates.end) {
+          totalPurchases += Number(purchase.total_amount || purchase.amount || 0);
+        }
+      }
+      return Math.round(totalPurchases);
+    } catch (err) {
+      console.error("Error calculating purchases stats:", err);
+      return 0;
+    }
+  }, [purchasesRange]);
+
+  const expensesData = useLiveQuery(async () => {
+    try {
+      const allExpenses = await db.expenses.toArray();
+      const rangeDates = getRangeDates(expensesRange);
+      let totalExpenses = 0;
+      for (const exp of allExpenses) {
+        const expDate = new Date(exp.created_at || exp.date || 0);
+        if (expDate >= rangeDates.start && expDate <= rangeDates.end) {
+          totalExpenses += Number(exp.amount || 0);
+        }
+      }
+      return Math.round(totalExpenses);
+    } catch (err) {
+      console.error("Error calculating expenses stats:", err);
+      return 0;
+    }
+  }, [expensesRange]);
+
+  const counterSalesData = useLiveQuery(async () => {
+    try {
+      const allTransactions = await db.transactions.toArray();
+      const rangeDates = getRangeDates(counterSalesRange);
+      let counterSales = 0;
+      for (const t of allTransactions) {
+        const tDate = new Date(t.created_at || t.date || t.timestamp || 0);
+        if (tDate >= rangeDates.start && tDate <= rangeDates.end) {
+          if ((t.type === "income" || t.type === "sale") && !t.order_id) {
+            counterSales += Number(t.amount || 0);
+          }
+        }
+      }
+      return Math.round(counterSales * 100) / 100;
+    } catch (err) {
+      console.error("Error calculating counter sales stats:", err);
+      return 0;
+    }
+  }, [counterSalesRange]);
+
+  const counterExpensesData = useLiveQuery(async () => {
+    try {
+      const allTransactions = await db.transactions.toArray();
+      const rangeDates = getRangeDates(counterExpensesRange);
+      let counterExpenses = 0;
+      for (const t of allTransactions) {
+        const tDate = new Date(t.created_at || t.date || t.timestamp || 0);
+        if (tDate >= rangeDates.start && tDate <= rangeDates.end) {
+          if (t.type === "expense") {
+            counterExpenses += Number(t.amount || 0);
+          }
+        }
+      }
+      return Math.round(counterExpenses * 100) / 100;
+    } catch (err) {
+      console.error("Error calculating counter expenses stats:", err);
+      return 0;
+    }
+  }, [counterExpensesRange]);
+
+  const loadingStates = {
+    parties: partiesData === undefined,
+    sales: salesData === undefined,
+    purchases: purchasesData === undefined,
+    expenses: expensesData === undefined,
+    counterSales: counterSalesData === undefined,
+    counterExpenses: counterExpensesData === undefined,
+  };
+
+  const isInitialLoading =
+    partiesData === undefined &&
+    salesData === undefined &&
+    purchasesData === undefined;
+
+  return {
+    totalBalance: partiesData?.totalBalance ?? 0,
+    totalPayable: partiesData?.totalPayable ?? 0,
+    totalRevenue: salesData ?? 0,
+    totalPurchases: purchasesData ?? 0,
+    totalExpenses: expensesData ?? 0,
+    counterSales: counterSalesData ?? 0,
+    counterExpenses: counterExpensesData ?? 0,
+    isLoading: isInitialLoading,
+    loadingStates,
+  };
 }
 

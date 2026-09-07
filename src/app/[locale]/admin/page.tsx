@@ -54,6 +54,12 @@ export default function DashboardPage() {
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
   const [enableCounterSale, setEnableCounterSale] = useState(false);
 
+  const [salesRange, setSalesRange] =
+    useState<CounterRange>("thisMonth");
+  const [purchasesRange, setPurchasesRange] =
+    useState<CounterRange>("thisMonth");
+  const [expensesRange, setExpensesRange] =
+    useState<CounterRange>("thisMonth");
   const [counterSalesRange, setCounterSalesRange] =
     useState<CounterRange>("today");
   const [counterExpensesRange, setCounterExpensesRange] =
@@ -62,6 +68,9 @@ export default function DashboardPage() {
 
   // Offline-first Reactive Dashboard Summary Hook
   const dashboardStats = useDashboardData(
+    salesRange,
+    purchasesRange,
+    expensesRange,
     counterSalesRange,
     counterExpensesRange
   );
@@ -172,8 +181,14 @@ export default function DashboardPage() {
   // Modular Summary Cards Hook
   const summaryCards = useDashboardSummaryCards({
     dashboardStats,
+    salesRange,
+    purchasesRange,
+    expensesRange,
     counterSalesRange,
     counterExpensesRange,
+    setSalesRange,
+    setPurchasesRange,
+    setExpensesRange,
     setCounterSalesRange,
     setCounterExpensesRange,
     isPrivacyMode,
@@ -418,7 +433,7 @@ export default function DashboardPage() {
             <React.Fragment key={c.key}>{c.node}</React.Fragment>
           ))}
           itemClassName="basis-[45%] sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
-          isLoading={dashboardStats.isLoading}
+          isLoading={dashboardStats.isLoading && summaryCards.length === 0}
         />
       </div>
 
