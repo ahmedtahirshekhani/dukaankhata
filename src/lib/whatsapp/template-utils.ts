@@ -3,9 +3,6 @@ export const DEFAULT_REMINDER_TEMPLATE =
 
 Aap ki taraf *{shop_name}* ka baqaya Udhaar balance *Rs. {balance}* hai.
 
-Aap is link par click karke Online / EasyPaisa / JazzCash se pay kar sakte hain:
-{payment_link}
-
 Shukriya!
 *{shop_name}*`;
 

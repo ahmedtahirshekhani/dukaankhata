@@ -226,7 +226,13 @@ export default function WhatsappIntegrationPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Processed! Sent ${data.totalRemindersSent || 0} reminders.`);
+        if ((data.totalRemindersSent || 0) > 0) {
+          toast.success(`Processed! Sent ${data.totalRemindersSent} reminder(s).`);
+        } else if ((data.totalErrors || 0) > 0) {
+          toast.error(`Attempted dispatches but ${data.totalErrors} message(s) failed. Make sure your WhatsApp device is linked.`);
+        } else {
+          toast.info(data.message || "No overdue customers with valid phone numbers were found.");
+        }
       } else {
         toast.error(data.error || "Failed to trigger reminders");
       }
@@ -497,7 +503,7 @@ export default function WhatsappIntegrationPage() {
                   <div className="space-y-0.5">
                     <Label className="text-base font-semibold">Automated Reminders</Label>
                     <p className="text-xs text-muted-foreground">
-                      Automatically send payment links to customers with overdue balances.
+                      Automatically send payment reminders to customers with overdue balances.
                     </p>
                   </div>
                   <Switch

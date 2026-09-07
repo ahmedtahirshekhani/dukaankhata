@@ -373,10 +373,11 @@ class BaileysEngineManager {
         return { success: false, error: "WhatsApp session is not connected for this shop. Please scan the QR code first." };
       }
 
-      // Wait briefly for sock.user to be set if socket is initializing
+      // Wait for sock.user to be set if socket is restoring from MongoDB credentials
       let attempts = 0;
-      while (!sock.user && attempts < 10) {
-        await new Promise((r) => setTimeout(r, 300));
+      while (!sock?.user && attempts < 25) {
+        await new Promise((r) => setTimeout(r, 400));
+        sock = this.activeSockets.get(shopId) || sock;
         attempts++;
       }
 
@@ -388,6 +389,8 @@ class BaileysEngineManager {
       let cleanedPhone = toPhone.replace(/\D/g, "");
       if (cleanedPhone.startsWith("0") && cleanedPhone.length === 11) {
         cleanedPhone = `92${cleanedPhone.slice(1)}`;
+      } else if (cleanedPhone.length === 10 && cleanedPhone.startsWith("3")) {
+        cleanedPhone = `92${cleanedPhone}`;
       }
       const recipientJid = `${cleanedPhone}@s.whatsapp.net`;
 
