@@ -267,7 +267,15 @@ export async function GET(request: NextRequest) {
       } 
       // Sale Return Credit Folding
       else if (entry.event_type === "sale_return_credit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        const newEntry = { ...entry };
+        const totalAmt = Math.abs(Number((entry.metadata as any)?.total_amount ?? entry.amount_delta));
+        const newEntry = { 
+          ...entry,
+          amount_delta: -totalAmt,
+          metadata: { 
+            ...entry.metadata, 
+            total_amount: totalAmt 
+          } 
+        };
         srCreditOriginals.set(sourceIdStr, newEntry);
         processedEntries.push(newEntry);
       } else if (
@@ -289,17 +297,33 @@ export async function GET(request: NextRequest) {
           }
         }
       }
-      // Sale Return Debit Folding
+      // Sale Return Debit (Refund) Folding
       else if (entry.event_type === "sale_return_debit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        const newEntry = { ...entry };
-        srDebitOriginals.set(sourceIdStr, newEntry);
-        processedEntries.push(newEntry);
+        if (srCreditOriginals.has(sourceIdStr)) {
+          // Fold refund directly into the sale return entry
+          const orig = srCreditOriginals.get(sourceIdStr)!;
+          const refundAmt = Math.abs(Number((entry.metadata as any)?.paid_amount ?? entry.amount_delta));
+          orig.metadata = {
+            ...orig.metadata,
+            paid_amount: refundAmt,
+            refund_amount: refundAmt,
+            payment_method_id: (entry.metadata as any)?.payment_method_id
+          };
+          orig.amount_delta = Number(orig.amount_delta) + refundAmt;
+        } else {
+          const newEntry = { ...entry };
+          srDebitOriginals.set(sourceIdStr, newEntry);
+          processedEntries.push(newEntry);
+        }
       } else if (
         entry.event_type === "sale_return_debit" && 
         (eventKeyStr.startsWith("sale_return_update_reversal_debit") || eventKeyStr.startsWith("sale_return_update_apply_debit")) &&
         sourceIdStr
       ) {
-        if (srDebitOriginals.has(sourceIdStr)) {
+        if (srCreditOriginals.has(sourceIdStr)) {
+          const orig = srCreditOriginals.get(sourceIdStr)!;
+          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
+        } else if (srDebitOriginals.has(sourceIdStr)) {
           const orig = srDebitOriginals.get(sourceIdStr)!;
           orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
         } else {
@@ -445,6 +469,7 @@ export async function GET(request: NextRequest) {
       (e) =>
         e.event_type === "order_debit" ||
         e.event_type === "purchase_bill_debit" ||
+        e.event_type === "sale_return_credit" ||
         Math.abs(Number(e.amount_delta)) >= 0.01
     );
 
@@ -604,17 +629,18 @@ export async function GET(request: NextRequest) {
           description = "SALE RETURN (Updated)";
         } else {
           description = "SALE RETURN (Credit Note)";
-          expandedItems = saleReturnItems.map((item: any) => {
-            const qty = parseFloat(item.quantity) || 0;
-            const prc = parseFloat(item.price) || 0;
-            return {
-              name: item.itemName || item.name || "Item",
-              quantity: qty,
-              price: prc,
-              amount: qty * prc
-            };
-          });
         }
+        expandedItems = saleReturnItems.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const prc = parseFloat(item.rate ?? item.price ?? item.cost_price ?? 0);
+          const amt = parseFloat(item.amount ?? (qty * prc));
+          return {
+            name: item.itemName || item.name || item.product_name || "Item",
+            quantity: qty,
+            price: prc,
+            amount: amt
+          };
+        });
       } else if (entry.event_type === "sale_return_debit") {
         if (entry.event_key === "sale_return_debit_net") {
           description = "Refund against Sale Return (Updated)";
@@ -646,21 +672,36 @@ export async function GET(request: NextRequest) {
       let amount = Math.abs(amountDelta);
 
       if (isOrderDebit) {
-        const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceOrder?.total_amount ?? (amountDelta >= 0 ? amountDelta : 0));
-        const paidAmount = Number((entry.metadata as any)?.paid_amount ?? sourceOrder?.payment?.paid_amount ?? 0);
-        debit = totalAmount;
-        credit = paidAmount;
+        const totalAmount = Number(sourceOrder?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
+        const paidAmount = Number(sourceOrder?.payment?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
+        const balanceDue = sourceOrder?.balance_due !== undefined 
+          ? Number(sourceOrder.balance_due) 
+          : Math.max(0, totalAmount - paidAmount);
+        debit = balanceDue;
+        credit = 0;
         amount = totalAmount;
       } else if (isPurchaseBillDebit) {
-        const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourcePurchaseBill?.total_amount ?? Math.abs(amountDelta));
-        const paidAmount = Number((entry.metadata as any)?.paid_amount ?? sourcePurchaseBill?.paid_amount ?? 0);
-        debit = paidAmount;
-        credit = totalAmount;
+        const totalAmount = Number(sourcePurchaseBill?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
+        const paidAmount = Number(sourcePurchaseBill?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
+        const balanceDue = sourcePurchaseBill?.balance_due !== undefined 
+          ? Number(sourcePurchaseBill.balance_due) 
+          : Math.max(0, totalAmount - paidAmount);
+        debit = 0;
+        credit = balanceDue;
+        amount = totalAmount;
+      } else if (isSaleReturnCredit) {
+        const totalAmount = Number(sourceSaleReturn?.total_amount ?? sourceSaleReturn?.payment_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
+        const paidAmount = Number(sourceSaleReturn?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? (entry.metadata as any)?.refund_amount ?? 0);
+        const balanceDue = sourceSaleReturn?.balance_due !== undefined 
+          ? Number(sourceSaleReturn.balance_due) 
+          : Math.max(0, totalAmount - paidAmount);
+        debit = 0;
+        credit = balanceDue;
         amount = totalAmount;
       } else if (isPaymentOutDebit || isSaleReturnDebit || isPurchaseBillCredit) {
         debit = amount;
         credit = 0;
-      } else if (isPaymentCredit || isSaleReturnCredit) {
+      } else if (isPaymentCredit) {
         credit = amount;
         debit = 0;
       } else {
@@ -762,6 +803,10 @@ export async function GET(request: NextRequest) {
         }
         if (entry.event_type === "purchase_bill_debit") {
           const paidAmt = Number((entry.metadata as any)?.paid_amount ?? 0);
+          return sum + paidAmt;
+        }
+        if (entry.event_type === "sale_return_credit") {
+          const paidAmt = Number((entry.metadata as any)?.paid_amount ?? (entry.metadata as any)?.refund_amount ?? 0);
           return sum + paidAmt;
         }
         return sum;

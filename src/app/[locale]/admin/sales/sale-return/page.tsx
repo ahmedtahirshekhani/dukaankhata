@@ -18,6 +18,7 @@ import { db } from "@/lib/db/offline-db";
 import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useDebounce } from "@/hooks/use-debounce";
+import { formatCurrencyString } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -742,7 +743,7 @@ export default function SaleReturnPage() {
                         onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap text-primary">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap text-primary">{formatCurrencyString(lineTotals[index] || 0)}</TableCell>
                     <TableCell>
                       <Button
                         type="button"
@@ -815,7 +816,7 @@ export default function SaleReturnPage() {
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t text-sm font-medium">
                     <span className="text-muted-foreground">{t("amount")}:</span>
-                    <span className="text-primary font-bold text-base">Rs. {lineTotals[index]?.toFixed(2)}</span>
+                    <span className="text-primary font-bold text-base">{formatCurrencyString(lineTotals[index] || 0)}</span>
                   </div>
                 </div>
               </div>
@@ -827,7 +828,7 @@ export default function SaleReturnPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("totalAmount")}</Label>
-          <div className="text-xl font-bold text-primary">Rs. {totalAmount.toFixed(2)}</div>
+          <div className="text-xl font-bold text-primary">{formatCurrencyString(totalAmount)}</div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paidAmount")}</Label>
@@ -836,12 +837,12 @@ export default function SaleReturnPage() {
             value={formPaidAmount}
             onChange={(e) => setFormPaidAmount(e.target.value)}
             className="h-10 text-lg font-semibold"
-            placeholder="0.00"
+            placeholder="0"
           />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("balanceDue")}</Label>
-          <div className="text-xl font-bold text-orange-600">Rs. {balanceDue.toFixed(2)}</div>
+          <div className="text-xl font-bold text-orange-600">{formatCurrencyString(balanceDue)}</div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paymentRefNo")}</Label>
@@ -1023,9 +1024,9 @@ export default function SaleReturnPage() {
                       </TableCell>
                       <TableCell>{item.customerName || "-"}</TableCell>
                       <TableCell>{item.date || "-"}</TableCell>
-                      <TableCell>Rs. {item.totalAmount?.toFixed(2)}</TableCell>
-                      <TableCell>Rs. {item.paidAmount?.toFixed(2)}</TableCell>
-                      <TableCell>Rs. {item.balanceDue?.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrencyString(item.totalAmount)}</TableCell>
+                      <TableCell>{formatCurrencyString(item.paidAmount)}</TableCell>
+                      <TableCell>{formatCurrencyString(item.balanceDue)}</TableCell>
                       <TableCell className="text-right pr-4">
                         <div className="flex items-center justify-end gap-2">
                           {can("sales", "edit_sale_return") && (
