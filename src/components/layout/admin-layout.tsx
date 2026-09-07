@@ -1017,18 +1017,37 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* WhatsApp Integration */}
             {enableWhatsApp && hasModuleAccess("whatsapp") && (
               <div>
-                <Link
-                  href={`/${locale}/admin/whatsapp-integration`}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? "WhatsApp" : ""}
-                >
-                  <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
-                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                    {tNav("whatsapp")}
-                  </span>
-                </Link>
+                <div className="flex items-stretch gap-1">
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration`}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`${navItemBase} flex-1 ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
+                      } ${navItemCompact}`}
+                    title={sidebarMinimized ? "WhatsApp" : ""}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                    <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                      {tNav("whatsapp")}
+                    </span>
+                  </Link>
+                </div>
+                {!sidebarMinimized && (
+                  <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-2">
+                    <Link
+                      href={`/${locale}/admin/whatsapp-integration`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/whatsapp-integration" ? "page" : undefined}
+                      className={`block rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/whatsapp-integration"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                    >
+                      Send Reminders
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 

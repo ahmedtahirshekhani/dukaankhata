@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -22,28 +22,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, MessageCircle, CheckCircle2, Send, RefreshCw, ShieldCheck, LogOut, FileText, Calendar, Clock } from "lucide-react";
+import { Loader2, MessageCircle, CheckCircle2, Send, RefreshCw, LogOut, FileText, Calendar, Clock } from "lucide-react";
 import { DEFAULT_REMINDER_TEMPLATE } from "@/lib/whatsapp/template-utils";
 
 export default function WhatsappIntegrationPage() {
   const locale = useLocale();
 
-  // Active tab state
-  const [activeTab, setActiveTab] = useState<"session" | "otp">("session");
-
-  // Tab 1: OTP verification states
-  const [phoneNumber, setPhoneNumber] = useState("03");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [showOtp, setShowOtp] = useState(false);
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [countdown, setCountdown] = useState(0);
-  const otpTime = Number(process.env.NEXT_PUBLIC_OTP_TIME) || 30;
 
-  // Tab 2: WhatsApp Web Session & Automated Reminders states
+  // WhatsApp Web Session & Automated Reminders states
   const [sessionStatus, setSessionStatus] = useState<"disconnected" | "qrcode" | "connected">("disconnected");
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [connectedSessionPhone, setConnectedSessionPhone] = useState<string | null>(null);
@@ -64,17 +51,6 @@ export default function WhatsappIntegrationPage() {
   useEffect(() => {
     async function initData() {
       try {
-        // Fetch OTP verified number
-        const resOtp = await fetch(`/${locale}/api/users/whatsapp`);
-        if (resOtp.ok) {
-          const data = await resOtp.json();
-          if (data.whatsapp_number) {
-            setPhoneNumber(data.whatsapp_number);
-            setIsSuccess(true);
-            setShowOtp(true);
-          }
-        }
-
         // Fetch WhatsApp Session state & settings
         const resSession = await fetch(`/${locale}/api/whatsapp/session`);
         if (resSession.ok) {
@@ -125,14 +101,7 @@ export default function WhatsappIntegrationPage() {
     return () => clearInterval(interval);
   }, [sessionStatus, qrCodeData, locale]);
 
-  // Countdown timer
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
+
 
   // Fetch session status refresh
   const refreshSessionStatus = async () => {
@@ -276,62 +245,7 @@ export default function WhatsappIntegrationPage() {
     }
   };
 
-  const handleVerify = async () => {
-    if (!phoneNumber || phoneNumber.length !== 11) return;
-    setIsVerifying(true);
-    try {
-      const res = await fetch(`/${locale}/api/users/whatsapp/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ whatsapp_number: phoneNumber }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to send OTP");
-      }
-      setShowOtp(true);
-      setCountdown(otpTime);
-      toast.success("OTP has been sent to your WhatsApp!");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send OTP. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    if (value !== "" && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (otp.some((digit) => digit === "")) return;
-    const code = otp.join("");
-    setIsVerifyingOtp(true);
-    try {
-      const res = await fetch(`/${locale}/api/users/whatsapp/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ whatsapp_number: phoneNumber, otp: code }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Invalid OTP code");
-      }
-      setIsSuccess(true);
-      toast.success("Successfully Verified!");
-    } catch (e: any) {
-      toast.error(e.message || "Failed to verify OTP.");
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -361,37 +275,7 @@ export default function WhatsappIntegrationPage() {
         </div>
       </div>
 
-      {/* Custom Tab Switcher */}
-      <div className="flex justify-center my-6">
-        <div className="inline-flex p-1 bg-muted rounded-xl border">
-          <button
-            onClick={() => setActiveTab("session")}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === "session"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <MessageCircle className="w-4 h-4 text-green-600" />
-            Link Your WhatsApp (QR Scan)
-          </button>
-          <button
-            onClick={() => setActiveTab("otp")}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === "otp"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-blue-600" />
-            Verify Phone Number (OTP)
-          </button>
-        </div>
-      </div>
-
-      {/* Tab 1: QR Code Session & Automated Reminders */}
-      {activeTab === "session" && (
-        <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 max-w-4xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Card 1: Connection & QR Code */}
@@ -598,9 +482,6 @@ export default function WhatsappIntegrationPage() {
                 <Button variant="outline" size="sm" onClick={() => insertTag("{balance}")} className="text-xs font-mono py-1 h-7">
                   + {"{balance}"}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => insertTag("{payment_link}")} className="text-xs font-mono py-1 h-7">
-                  + {"{payment_link}"}
-                </Button>
               </div>
 
               <Textarea
@@ -696,128 +577,6 @@ export default function WhatsappIntegrationPage() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* Tab 2: Standard OTP Verification */}
-      {activeTab === "otp" && (
-        <div className="flex justify-center items-center">
-          <Card className="w-full max-w-md shadow-lg border-primary/10">
-            {!isSuccess && (
-              <CardHeader className="text-center space-y-2">
-                <div className="mx-auto bg-green-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-2">
-                  <MessageCircle className="w-8 h-8 text-green-600" />
-                </div>
-                <CardTitle className="text-2xl">Verify Phone Number</CardTitle>
-                <CardDescription>
-                  {!showOtp 
-                    ? "Enter your WhatsApp number to verify ownership."
-                    : "An OTP code has been sent to your WhatsApp number."}
-                </CardDescription>
-              </CardHeader>
-            )}
-            <CardContent className={isSuccess ? "pt-6" : ""}>
-              {!showOtp ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">WhatsApp Number</Label>
-                    <Input
-                      id="phone"
-                      placeholder="03XXXXXXXXX"
-                      value={phoneNumber}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/\D/g, "");
-                        if (!val.startsWith("03")) {
-                          val = "03" + val.replace(/^0?3?/, "");
-                        }
-                        if (val.length <= 11) {
-                          setPhoneNumber(val);
-                        }
-                      }}
-                      className="text-lg"
-                    />
-                  </div>
-                  <Button 
-                    className="w-full bg-green-600 hover:bg-green-700 text-white" 
-                    size="lg"
-                    onClick={handleVerify}
-                    disabled={phoneNumber.length !== 11 || isVerifying}
-                  >
-                    {isVerifying ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending OTP...
-                      </>
-                    ) : (
-                      "Send Code"
-                    )}
-                  </Button>
-                </div>
-              ) : isSuccess ? (
-                <div className="flex flex-col items-center justify-center space-y-6 py-6">
-                  <div className="bg-blue-50 p-4 rounded-full border border-blue-100">
-                    <CheckCircle2 className="w-12 h-12 text-blue-600" />
-                  </div>
-                  <p className="text-center text-lg font-medium text-foreground px-4">
-                    Your WhatsApp number has been verified.
-                  </p>
-                  <div className="bg-muted px-4 py-2 rounded-lg text-sm font-semibold tracking-wider text-muted-foreground border">
-                    {phoneNumber}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full mt-2"
-                    onClick={() => {
-                      setIsSuccess(false);
-                      setShowOtp(false);
-                      setOtp(["", "", "", "", "", ""]);
-                      setPhoneNumber("03");
-                    }}
-                  >
-                    Change Number
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="space-y-2 text-center">
-                    <Label>Enter 6-digit code</Label>
-                    <div className="flex justify-center gap-2 mt-4">
-                      {otp.map((digit, index) => (
-                        <Input
-                          key={index}
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          maxLength={1}
-                          value={digit}
-                          ref={(el) => { inputRefs.current[index] = el; }}
-                          onChange={(e) => handleOtpChange(index, e.target.value)}
-                          className="w-12 h-12 text-center text-2xl font-bold p-0 border-2"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    className="w-full bg-green-600 hover:bg-green-700 text-white" 
-                    size="lg"
-                    onClick={handleVerifyOtp}
-                    disabled={otp.some((digit) => digit === "") || isVerifyingOtp}
-                  >
-                    {isVerifyingOtp ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verifying...
-                      </>
-                    ) : (
-                      "Verify"
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
