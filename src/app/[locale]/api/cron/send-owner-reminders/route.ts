@@ -121,7 +121,7 @@ async function handleRemindersDispatch(req: NextRequest, forceSend: boolean) {
 
       // 2. Enforce scheduled PKT time arrival for automated cron runs (forceSend === false)
       if (!forceSend) {
-        const scheduledTimePkt = session.reminder_time_pkt || session.reminder_time || "10:00";
+        const scheduledTimePkt = session.reminder_time_pkt || session.reminder_time || "13:00";
         const scheduledHour = parseInt(scheduledTimePkt.split(":")[0], 10);
         if (!isNaN(scheduledHour) && currentPktHour < scheduledHour) {
           sessionDetails.push({ shopId, sent: 0, errors: 0, skippedTime: true });

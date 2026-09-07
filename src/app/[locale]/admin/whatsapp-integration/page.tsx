@@ -49,7 +49,7 @@ export default function WhatsappIntegrationPage() {
   const [connectedSessionPhone, setConnectedSessionPhone] = useState<string | null>(null);
   const [autoReminderEnabled, setAutoReminderEnabled] = useState(false);
   const [minOverdueDays, setMinOverdueDays] = useState(1);
-  const [reminderTimePkt, setReminderTimePkt] = useState("10:00");
+  const [reminderTimePkt, setReminderTimePkt] = useState("13:00");
   const [reminderFrequency, setReminderFrequency] = useState<string>("daily");
   const [reminderTemplate, setReminderTemplate] = useState(DEFAULT_REMINDER_TEMPLATE);
   const [isConnectingSession, setIsConnectingSession] = useState(false);
@@ -84,7 +84,7 @@ export default function WhatsappIntegrationPage() {
           setConnectedSessionPhone(sData.connected_phone || null);
           setAutoReminderEnabled(Boolean(sData.auto_reminder_enabled));
           setMinOverdueDays(sData.min_overdue_days || 1);
-          setReminderTimePkt(sData.reminder_time_pkt || sData.reminder_time || "10:00");
+          setReminderTimePkt(sData.reminder_time_pkt || sData.reminder_time || "13:00");
           setReminderFrequency(sData.reminder_frequency || "daily");
           setReminderTemplate(sData.reminder_template || DEFAULT_REMINDER_TEMPLATE);
         }
@@ -536,25 +536,19 @@ export default function WhatsappIntegrationPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="reminderTimePkt" className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-amber-600" />
-                      Scheduled Time
-                    </Label>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300 px-2 py-0.5 rounded">
-                      Pakistan Time (PKT - UTC+5)
-                    </span>
+                <div className="p-3.5 rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Scheduled Dispatch Time</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Automated reminders are dispatched every day at <strong className="text-foreground font-bold">1:00 PM Pakistan Time (PKT)</strong>.
+                      </p>
+                    </div>
                   </div>
-                  <Input
-                    id="reminderTimePkt"
-                    type="time"
-                    value={reminderTimePkt}
-                    onChange={(e) => {
-                      setReminderTimePkt(e.target.value);
-                      handleSaveAutomationSettings(autoReminderEnabled, minOverdueDays, e.target.value, reminderFrequency);
-                    }}
-                  />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 dark:bg-amber-950 dark:text-amber-300 px-2 py-1 rounded shrink-0 ml-2">
+                    1:00 PM PKT
+                  </span>
                 </div>
 
                 <div className="pt-2 border-t">
