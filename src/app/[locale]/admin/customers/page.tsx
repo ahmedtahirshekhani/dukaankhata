@@ -249,8 +249,19 @@ export default function PartiesPage() {
   const handleDeleteCustomer = async () => {
     if (!customerToDelete) return;
 
-    if (customerToDelete.is_default || customerToDelete.type === "cash" || customerToDelete.name.toLowerCase() === "cash sale") {
-      toast.error(t("cannotDeleteDefaultParty"));
+    const isDefaultParty = Boolean(
+      customerToDelete.is_default ||
+      customerToDelete.type === "cash" ||
+      customerToDelete.name?.toLowerCase() === "cash sale" ||
+      customerToDelete.name?.toLowerCase() === "cash party"
+    );
+
+    if (isDefaultParty) {
+      setErrorDialog({
+        open: true,
+        title: t("cannotDelete") || "Cannot Delete",
+        message: t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.",
+      });
       setIsDeleteDialogOpen(false);
       return;
     }
@@ -338,7 +349,8 @@ export default function PartiesPage() {
     setCustomerToView, setIsViewModalOpen,
     setCustomerToEdit, setIsFormModalOpen,
     setCustomerToDelete, setIsDeleteDialogOpen,
-    handleWhatsAppClick
+    handleWhatsAppClick,
+    setErrorDialog
   });
 
   return (

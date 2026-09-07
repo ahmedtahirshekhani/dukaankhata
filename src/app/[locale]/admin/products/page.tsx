@@ -73,6 +73,18 @@ const capitalizeFirstLetter = (str: string | undefined | null): string => {
   return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
+const STANDARD_IMPORT_COLUMNS = [
+  "Name",
+  "Description",
+  "Type",
+  "Sell Price (Rs.)",
+  "Cost Price (Rs.)",
+  "Quantity",
+  "Unit of Measurement",
+  "Category",
+  "Branch",
+];
+
 export default function Products() {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
@@ -309,16 +321,92 @@ export default function Products() {
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(sheet);
+        const rawData = XLSX.utils.sheet_to_json(sheet) as Record<string, any>[];
 
-        if (data.length === 0) {
+        if (rawData.length === 0) {
           throw new Error("No data found in Excel file");
         }
 
-        // Get all columns from first row
-        const columns = Object.keys(data[0] as Record<string, any>);
-        setImportColumns(columns);
-        setImportPreviewData(data as Record<string, any>[]);
+        // Map every row from Excel to our standard fields
+        const mappedData = rawData
+          .map((rawRow) => {
+            const findValue = (patterns: RegExp[]): any => {
+              for (const key of Object.keys(rawRow)) {
+                const cleanKey = key.trim().toLowerCase();
+                if (patterns.some((p) => p.test(cleanKey))) {
+                  const val = rawRow[key];
+                  if (
+                    val !== undefined &&
+                    val !== null &&
+                    String(val).trim() !== ""
+                  ) {
+                    return val;
+                  }
+                }
+              }
+              return "";
+            };
+
+            const name = String(
+              findValue([/^(name|product\s*name|item\s*name|item|product|title)$/i]) || ""
+            ).trim();
+            const description = String(
+              findValue([/^(description|desc|details?|notes?)$/i]) || ""
+            ).trim();
+
+            const rawType = String(
+              findValue([/^(type|item\s*type|product\s*type)$/i]) || ""
+            ).trim().toLowerCase();
+            let type = "Goods";
+            if (rawType === "services" || rawType === "service") {
+              type = "Services";
+            } else if (rawType) {
+              type = "Goods";
+            }
+
+            const sellPrice = findValue([
+              /^(sell\s*price.*|sale\s*price.*|selling\s*price.*|retail\s*price.*|price|rate|mrp)$/i,
+            ]);
+            const costPrice = findValue([
+              /^(cost\s*price.*|purchase\s*price.*|buy\s*price.*|cost|wholesale.*)$/i,
+            ]);
+            const quantity = findValue([
+              /^(quantity|qty|stock|in\s*stock|opening\s*stock|count)$/i,
+            ]);
+            const uom = String(
+              findValue([/^(unit\s*of\s*measurement|uom|unit|measurement)$/i]) || ""
+            ).trim();
+            const category = String(
+              findValue([/^(category|cat|category\s*name|group)$/i]) || ""
+            ).trim();
+            const branch = String(
+              findValue([/^(branch|branch\s*name|store|shop|location|warehouse)$/i]) || ""
+            ).trim();
+
+            return {
+              Name: name,
+              Description: description,
+              Type: type,
+              "Sell Price (Rs.)": sellPrice !== "" ? sellPrice : "",
+              "Cost Price (Rs.)": costPrice !== "" ? costPrice : "",
+              Quantity: quantity !== "" ? quantity : "",
+              "Unit of Measurement": uom || "Piece",
+              Category: category,
+              Branch: branch,
+            };
+          })
+          .filter(
+            (row) =>
+              row["Name"] ||
+              Object.values(row).some((v) => v !== "" && v !== undefined)
+          );
+
+        if (mappedData.length === 0) {
+          throw new Error("No valid data rows found in Excel file");
+        }
+
+        setImportColumns(STANDARD_IMPORT_COLUMNS);
+        setImportPreviewData(mappedData);
         setIsImportPreviewOpen(true);
       } catch (error) {
         console.error("Error reading Excel:", error);
@@ -337,6 +425,7 @@ export default function Products() {
   const handleConfirmImport = useCallback(
     async (editedData: Record<string, any>[]) => {
       try {
+        setIsImporting(true);
         const response = await fetch("/api/products/import", {
           method: "POST",
           headers: {
@@ -346,14 +435,44 @@ export default function Products() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || t("importError"));
         }
 
         const result = await response.json();
+
+        // 1. Immediately store products into Dexie for instant real-time reactivity!
+        if (result.products && result.products.length > 0) {
+          await db.products.bulkPut(result.products);
+        }
+
+        // 2. Immediately store all categories (including auto-created) into Dexie!
+        if (result.allCategories && result.allCategories.length > 0) {
+          await db.categories.bulkPut(result.allCategories);
+        }
+
+        // 3. Immediately store all branches (including auto-created) into Dexie!
+        if (result.allBranches && result.allBranches.length > 0) {
+          await db.branches.bulkPut(result.allBranches);
+        }
+
+        // 4. Trigger background pull sync to align timestamps
+        SyncEngine.pullInitialData(true).catch((err) =>
+          console.error("Error refreshing sync data:", err)
+        );
+
+        // 5. Construct user-friendly summary of auto-created categories & branches
+        let autoCreatedMsg = "";
+        if (result.newCategories && result.newCategories.length > 0) {
+          autoCreatedMsg += `\n\n• Auto-created ${result.newCategories.length} Categories: ${result.newCategories.map((c: any) => c.name).join(", ")}`;
+        }
+        if (result.newBranches && result.newBranches.length > 0) {
+          autoCreatedMsg += `\n\n• Auto-created ${result.newBranches.length} Branches: ${result.newBranches.map((b: any) => b.name).join(", ")}`;
+        }
+
         const message = `${t("importSuccess")}: ${t("importedCount", {
           count: result.successCount,
-        })}${
+        })}${autoCreatedMsg}${
           result.errorCount > 0
             ? `\n\n${t("errorCountOccurred", { count: result.errorCount })}`
             : ""
@@ -377,9 +496,6 @@ export default function Products() {
         setImportPreviewData([]);
         setImportColumns([]);
 
-        // Refresh products
-        await refetchData();
-
         // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -392,9 +508,11 @@ export default function Products() {
           message: error instanceof Error ? error.message : t("importError"),
         });
         throw error;
+      } finally {
+        setIsImporting(false);
       }
     },
-    [t, refetchData]
+    [t]
   );
 
   const handleImportClick = useCallback(() => {

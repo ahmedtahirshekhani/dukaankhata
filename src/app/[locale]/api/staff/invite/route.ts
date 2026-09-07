@@ -3,10 +3,10 @@ import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
 import { toObjectId } from "@/lib/db/mongodb";
+import { getAppUrl } from "@/lib/utils";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 
-const APP_URL = process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const MAIL_FROM = process.env.MAIL_FROM || process.env.MAIL_USER || "no-reply@example.com";
 const MAIL_HOST = process.env.MAIL_HOST || "smtp.gmail.com";
 const MAIL_PORT = Number(process.env.MAIL_PORT || 465);
@@ -20,9 +20,9 @@ function createTransporter(port: number) {
     port,
     secure: port === 465,
     requireTLS: port !== 465,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 8000,
     auth: {
       user: MAIL_USER,
       pass: MAIL_PASSWORD,
@@ -64,10 +64,10 @@ export async function POST(req: Request) {
     const authCheck = await requirePermission("staff.create");
     if (!authCheck.allowed) return authCheck.response!;
 
-    const owner_id = user.active_workspace_id;
+    const owner_id = user.active_workspace_id || user.id;
 
     const body = await req.json();
-    const { email, role_id } = body;
+    const { email, role_id, name } = body;
 
     if (!email || !role_id) {
       return NextResponse.json({ error: "Email and Role ID are required" }, { status: 400 });
@@ -127,16 +127,28 @@ export async function POST(req: Request) {
     const expires_at = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Insert/Update invitation
+    const updatePayload: any = {
+      email,
+      role_id: toObjectId(role_id),
+      owner_id: toObjectId(owner_id),
+      token,
+      status: "pending",
+      expires_at,
+      last_sent_at: now
+    };
+    if (name) updatePayload.name = name;
+
     await invColl.updateOne(
       { email, owner_id: toObjectId(owner_id) },
-      { $set: { email, role_id: toObjectId(role_id), owner_id: toObjectId(owner_id), token, status: "pending", expires_at, last_sent_at: now } },
+      { $set: updatePayload },
       { upsert: true }
     );
 
     // Send email
     const reqUrl = new URL(req.url);
     const locale = reqUrl.pathname.split('/')[1] || 'en';
-    const inviteLink = `${APP_URL}/${locale}/invite?token=${token}`;
+    const baseUrl = getAppUrl(req);
+    const inviteLink = `${baseUrl}/${locale}/invite?token=${token}`;
     const shopName = user.company || "A shop";
 
     const mailOptions = {
@@ -162,9 +174,27 @@ export async function POST(req: Request) {
     console.log(inviteLink);
     console.log("=================================");
 
-    await sendMailWithFallback(mailOptions);
+    let emailSent = false;
+    if (MAIL_USER && MAIL_PASSWORD) {
+      try {
+        await sendMailWithFallback(mailOptions);
+        emailSent = true;
+      } catch (mailErr: any) {
+        console.error("Failed to send invitation email (invite still saved in DB):", mailErr);
+      }
+    } else {
+      console.warn("SMTP credentials not configured. Skipping email delivery.");
+    }
 
-    return NextResponse.json({ success: true, message: "Invitation sent" });
+    return NextResponse.json({
+      success: true,
+      message: emailSent
+        ? "Invitation sent successfully!"
+        : "Staff member invited! (Email delivery failed, but invite is active in DB).",
+      inviteLink,
+      token,
+      emailSent
+    });
   } catch (error: any) {
     console.error("Invite API error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });

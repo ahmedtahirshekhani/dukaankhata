@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus,  Trash2, Lock, Loader2, SearchIcon, XIcon, PlusCircle, Edit } from "lucide-react";
+import { Plus, Trash2, Lock, Loader2, SearchIcon, XIcon, PlusCircle, Edit, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
@@ -16,10 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pagination } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { useOfflineRoles, useOfflineModules } from "@/lib/hooks/useOfflineData";
-import { SyncEngine } from "@/lib/sync/sync-engine";
-import { db } from "@/lib/db/offline-db";
 import { usePermissions } from "@/hooks/use-permissions";
+import { staffCache } from "@/lib/cache/staff-cache";
 
 export function RolesTab() {
   const t = useTranslations("staffManagement");
@@ -28,7 +26,7 @@ export function RolesTab() {
   const canCreate = can("staff", "create");
   const canEdit = can("staff", "edit");
   const canDelete = can("staff", "delete");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Search & Pagination State
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,8 +34,8 @@ export function RolesTab() {
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
-  const roles = useOfflineRoles(searchTerm) || [];
-  const rawModules = useOfflineModules() || [];
+  const [roles, setRoles] = useState<any[]>([]);
+  const [rawModules, setRawModules] = useState<any[]>([]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,6 +56,51 @@ export function RolesTab() {
   const [enableAiChat, setEnableAiChat] = useState(true);
   const [enableWhatsApp, setEnableWhatsApp] = useState(true);
 
+  // Direct DB Fetch via API with caching
+  const fetchRolesAndModules = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const cached = staffCache.getRoles();
+      if (cached) {
+        setRoles(cached.roles);
+        setRawModules(cached.modules);
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    try {
+      setIsLoading(true);
+      const [rolesRes, modulesRes] = await Promise.all([
+        fetch("/api/roles", { cache: "no-store" }),
+        fetch("/api/modules")
+      ]);
+
+      let loadedRoles: any[] = [];
+      let loadedModules: any[] = [];
+
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json();
+        loadedRoles = Array.isArray(rolesData) ? rolesData : [];
+        setRoles(loadedRoles);
+      } else {
+        toast.error("Failed to fetch roles");
+      }
+
+      if (modulesRes.ok) {
+        const modulesData = await modulesRes.json();
+        loadedModules = Array.isArray(modulesData) ? modulesData : [];
+        setRawModules(loadedModules);
+      }
+
+      staffCache.setRoles({ roles: loadedRoles, modules: loadedModules });
+    } catch (err) {
+      console.error("Error fetching roles/modules:", err);
+      toast.error("Network error while loading roles");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedCounter = localStorage.getItem("setting_counterSale");
@@ -68,15 +111,8 @@ export function RolesTab() {
       if (savedWa) setEnableWhatsApp(savedWa === "true");
     }
 
-    // Force a sync if modules are empty (meaning old cache or first time)
-    const checkAndSync = async () => {
-      const count = await db.modules.count();
-      if (count === 0) {
-        SyncEngine.pullInitialData();
-      }
-    };
-    checkAndSync();
-  }, []);
+    fetchRolesAndModules();
+  }, [fetchRolesAndModules]);
 
   const modules = useMemo(() => {
     return rawModules.filter(mod => {
@@ -97,7 +133,7 @@ export function RolesTab() {
   const handleOpenModal = (role?: any) => {
     if (role) {
       setEditingRole(role);
-      setRoleName(role.name);
+      setRoleName(role.name || "");
       setSelectedPerms(role.permissions || []);
     } else {
       setEditingRole(null);
@@ -145,67 +181,63 @@ export function RolesTab() {
       const url = roleId ? `/api/roles/${roleId}` : "/api/roles";
       const method = roleId ? "PUT" : "POST";
 
-      const localData = {
-        ...payload,
-        id: roleId || "temp-" + Date.now().toString(),
-      };
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-      await db.roles.put(localData);
-      await SyncEngine.queueOperation("roles", method, url, payload, localData.id);
-      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || t("roleSaveError"));
+      }
+
       toast.success(editingRole ? t("roleUpdatedSuccess") : t("roleCreatedSuccess"));
       setIsModalOpen(false);
-    } catch (err) {
-      toast.error(t("roleSaveError"));
+      staffCache.invalidateAll();
+      await fetchRolesAndModules(true);
+    } catch (err: any) {
+      toast.error(err.message || t("roleSaveError"));
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteClick = async (roleId: string) => {
-    try {
-      const assignedUsers = await db.user_roles.filter(ur => String(ur.role_id) === String(roleId)).toArray();
-      if (assignedUsers.length > 0) {
-        setErrorMessage(t("roleInUseError") || "This role is currently assigned to one or more staff members. You must unassign it from them before you can delete it.");
-        setErrorDialogOpen(true);
-        return;
-      }
-      setDeletingId(roleId);
-    } catch (err) {
-      console.error(err);
-      setDeletingId(roleId); // Fallback
-    }
+  const handleDeleteClick = (roleId: string) => {
+    setDeletingId(roleId);
   };
 
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      await db.roles.delete(deletingId);
+      const res = await fetch(`/api/roles/${deletingId}`, {
+        method: "DELETE"
+      });
 
-      // Clean up offline relations
-      const relatedUserRoles = await db.user_roles.filter(ur => String(ur.role_id) === String(deletingId)).toArray();
-      if (relatedUserRoles.length > 0) {
-        const urIds = relatedUserRoles.map(ur => ur.id).filter(Boolean);
-        await db.user_roles.bulkDelete(urIds);
-      }
-      
-      const relatedRolePerms = await db.role_permissions.filter(rp => String(rp.role_id) === String(deletingId)).toArray();
-      if (relatedRolePerms.length > 0) {
-        const rpIds = relatedRolePerms.map(rp => rp.id).filter(Boolean);
-        await db.role_permissions.bulkDelete(rpIds);
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || t("roleDeleteError"));
+        setErrorDialogOpen(true);
+        setDeletingId(null);
+        return;
       }
 
-      await SyncEngine.queueOperation("roles", "DELETE", `/api/roles/${deletingId}`, null, deletingId);
       toast.success(t("roleDeletedSuccess"));
       setDeletingId(null);
-    } catch (err) {
-      toast.error(t("roleDeleteError"));
+      staffCache.invalidateAll();
+      await fetchRolesAndModules(true);
+    } catch (err: any) {
+      setErrorMessage(err.message || t("roleDeleteError"));
+      setErrorDialogOpen(true);
+      setDeletingId(null);
     }
   };
 
   const filteredRoles = useMemo(() => {
-    return roles; // Already filtered by useOfflineRoles
-  }, [roles]);
+    if (!searchTerm.trim()) return roles;
+    const term = searchTerm.toLowerCase();
+    return roles.filter((role: any) => role.name?.toLowerCase().includes(term));
+  }, [roles, searchTerm]);
 
   const totalCount = filteredRoles.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -227,11 +259,23 @@ export function RolesTab() {
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">Manage custom roles and their permissions</p>
-        {canCreate && (
-          <Button onClick={() => handleOpenModal()} className="gap-2">
-            <PlusCircle className="w-4 h-4" /> {t("createRole")}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchRolesAndModules(true)}
+            className="gap-2 h-9 text-xs"
+            title="Refresh from database"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-        )}
+          {canCreate && (
+            <Button onClick={() => handleOpenModal()} className="gap-2 h-9 text-xs sm:text-sm">
+              <PlusCircle className="w-4 h-4" /> {t("createRole")}
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-6 shadow-sm border-0 sm:border">

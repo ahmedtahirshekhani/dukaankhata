@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { getCollection, COLLECTIONS } from "@/lib/db/mongodb";
+import { getAppUrl } from "@/lib/utils";
 
 const APP_NAME = "Dukaan Khata";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
@@ -140,7 +141,8 @@ export async function POST(req: Request) {
 
     const fromAddress = getMailAddress(MAIL_FROM);
 
-    const verificationLink = `${APP_URL}/en/signup`;
+    const baseUrl = getAppUrl(req);
+    const verificationLink = `${baseUrl}/en/signup`;
     const plainText = [
       `${APP_NAME} email verification code`,
       "",

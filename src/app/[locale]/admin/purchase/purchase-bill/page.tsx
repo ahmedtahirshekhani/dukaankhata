@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ChevronDownIcon } from "lucide-react";
-import { formatCurrencyString } from "@/lib/utils";
+import { formatCurrencyString, getYearsFromDates, maskPaymentNo } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,6 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import React, { useMemo } from "react";
-import { getYearsFromDates } from "@/lib/utils";
 import { usePermissions } from "@/hooks/use-permissions";
 
 interface PurchaseBillItem {
@@ -59,6 +58,9 @@ interface PurchaseBillItem {
 
 interface PurchaseBill {
   id?: string;
+  purchase_number?: string;
+  purchase_no?: string;
+  bill_number?: string;
   party_id: string;
   party_name: string;
   items: PurchaseBillItem[];
@@ -318,6 +320,7 @@ export default function PurchaseBillPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>{t("purchaseNo") || "Purchase No"}</TableHead>
                       <TableHead>{t("partyName") || "Party"}</TableHead>
                       <TableHead className="text-right">{t("totalAmount") || "Total"}</TableHead>
                       <TableHead className="text-right">{t("paidAmount") || "Paid"}</TableHead>
@@ -330,6 +333,20 @@ export default function PurchaseBillPage() {
                   <TableBody>
                     {bills.map((bill) => (
                       <TableRow key={bill.id}>
+                        <TableCell>
+                          {bill.purchase_number || bill.purchase_no || bill.bill_number ? (
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="font-mono text-xs font-medium text-foreground">
+                                {maskPaymentNo(bill.purchase_number || bill.purchase_no || bill.bill_number || "")}
+                              </span>
+                              <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                                {bill.purchase_number || bill.purchase_no || bill.bill_number}
+                              </span>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">
                           {bill.party_name}
                         </TableCell>
@@ -506,9 +523,16 @@ function PurchaseBillCard({
   return (
     <div className="bg-card border rounded-lg p-3.5 shadow-sm">
       <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
-        <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[65%]">
-          {bill.party_name || "-"}
-        </h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
+            {bill.party_name || "-"}
+          </h3>
+          {(bill.purchase_number || bill.purchase_no || bill.bill_number) && (
+            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
+              {maskPaymentNo(bill.purchase_number || bill.purchase_no || bill.bill_number || "")}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           {onEdit && (
             <Button
