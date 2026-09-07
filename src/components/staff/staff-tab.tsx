@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo, AwaitedReactNode, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Trash2, Loader2, SearchIcon, FilterIcon, XIcon, PlusCircle, Edit } from "lucide-react";
+import { Plus, Edit2, Trash2, Loader2, SearchIcon, FilterIcon, XIcon, PlusCircle, Edit, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
@@ -21,29 +21,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { useOfflineStaff, useOfflineRoles } from "@/lib/hooks/useOfflineData";
-import { SyncEngine } from "@/lib/sync/sync-engine";
-import { db } from "@/lib/db/offline-db";
 
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/hooks/use-permissions";
+import { staffCache } from "@/lib/cache/staff-cache";
 
 export function StaffTab() {
   const { data: session } = useSession();
+  const locale = useLocale();
   const t = useTranslations("staffManagement");
   const tCommon = useTranslations("common");
   const { can } = usePermissions();
   const canCreate = can("staff", "create");
   const canEdit = can("staff", "edit");
   const canDelete = can("staff", "delete");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
-  const staff = useOfflineStaff(searchTerm) || [];
-  const roles = useOfflineRoles() || [];
+  const [staff, setStaff] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,24 +62,60 @@ export function StaffTab() {
   const [pageSize, setPageSize] = useState(10);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
-  useEffect(() => {
-    // Automatically fetch staff & roles from server if local cache is empty or only has owner
-    const checkAndSync = async () => {
-      const usersCount = await db.users.count();
-      const rolesCount = await db.roles.count();
-      if (usersCount <= 1 || rolesCount === 0) {
-        SyncEngine.pullInitialData(true);
+  // Direct DB Fetch via API with caching
+  const fetchStaffAndRoles = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const cached = staffCache.getStaff();
+      if (cached) {
+        setStaff(cached.staff);
+        setRoles(cached.roles);
+        setIsLoading(false);
+        return;
       }
-    };
-    checkAndSync();
+    }
+
+    try {
+      setIsLoading(true);
+      const [staffRes, rolesRes] = await Promise.all([
+        fetch("/api/staff", { cache: "no-store" }),
+        fetch("/api/roles", { cache: "no-store" })
+      ]);
+
+      let loadedStaff: any[] = [];
+      let loadedRoles: any[] = [];
+
+      if (staffRes.ok) {
+        const staffData = await staffRes.json();
+        loadedStaff = Array.isArray(staffData) ? staffData : [];
+        setStaff(loadedStaff);
+      } else {
+        toast.error("Failed to fetch staff");
+      }
+
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json();
+        loadedRoles = Array.isArray(rolesData) ? rolesData : [];
+        setRoles(loadedRoles);
+      }
+
+      staffCache.setStaff({ staff: loadedStaff, roles: loadedRoles });
+    } catch (err) {
+      console.error("Error fetching staff/roles:", err);
+      toast.error("Network error while loading staff");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchStaffAndRoles();
+  }, [fetchStaffAndRoles]);
 
   const handleOpenModal = (staffMember?: any) => {
     if (staffMember) {
       setEditingStaff(staffMember);
-      setName(staffMember.name);
-      setEmail(staffMember.email);
+      setName(staffMember.name || "");
+      setEmail(staffMember.email || "");
       setSelectedRole(staffMember.role_id || "");
     } else {
       setEditingStaff(null);
@@ -105,73 +140,40 @@ export function StaffTab() {
       setIsSaving(true);
       
       if (!editingStaff) {
-        // Offline validation: check if email is already in staff list
-        const existingUsers = await db.users.filter(u => u.email?.toLowerCase() === email.toLowerCase()).toArray();
-        if (existingUsers.length > 0) {
-          const userRoles = await db.user_roles.filter(ur => String(ur.user_id) === String(existingUsers[0].id) || String(ur.user_id) === String(existingUsers[0]._id)).toArray();
-          if (userRoles.length > 0 || existingUsers[0].role === "staff") {
-            toast.error("User is already staff in this shop");
-            setIsSaving(false);
-            return;
-          }
-        }
+        // Direct API call to invite staff
+        const res = await fetch("/api/staff/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, role_id: selectedRole })
+        });
 
-        // Queue new invite offline
-        const payload = { email, role_id: selectedRole };
-        const tempId = `temp-inv-${Date.now()}`;
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to invite staff member");
+        }
         
-        // Insert optimistic pending user into local DB so they appear immediately
-        await db.users.put({
-          id: tempId,
-          name: "Pending Invite",
-          email: email,
-          role: "staff",
-          is_pending: true
-        });
-        
-        // Also map their role locally
-        await db.user_roles.put({
-          id: `ur-${tempId}`,
-          user_id: tempId,
-          role_id: selectedRole
-        });
-        
-        // Queue under 'users' collection to prevent sync engine crash, as 'invitations' doesn't exist locally
-        await SyncEngine.queueOperation("users", "POST", "/api/staff/invite", payload, tempId);
-        
-        toast.success("Invitation queued! It will be sent automatically.");
+        toast.success(data.message || "Invitation sent successfully!");
         setIsModalOpen(false);
+        staffCache.invalidateAll();
+        await fetchStaffAndRoles(true);
       } else {
-        // Edit existing staff
-        const payload: any = { name, email, role_id: selectedRole };
+        // Direct API call to edit existing staff
         const staffId = editingStaff.id || editingStaff._id;
-        const url = `/api/staff/${staffId}`;
+        const res = await fetch(`/api/staff/${staffId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, role_id: selectedRole })
+        });
 
-        const localData = {
-          ...payload,
-          id: staffId,
-        };
-
-        await db.users.put(localData);
-        
-        // Also update role mappings in user_roles so it shows up immediately offline
-        const tempUserRole = { id: `temp-ur-${Date.now()}`, user_id: localData.id, role_id: selectedRole };
-        
-        // Find existing to update if needed
-        const existing = await db.user_roles.filter(ur => String(ur.user_id) === String(staffId)).toArray();
-        if (existing.length > 0) {
-          const existingIds = existing.map(e => e.id).filter(Boolean);
-          if (existingIds.length > 0) {
-            await db.user_roles.bulkDelete(existingIds);
-          }
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to update staff member");
         }
-        
-        await db.user_roles.put(tempUserRole);
 
-        await SyncEngine.queueOperation("users", "PUT", url, payload, localData.id);
-        
         toast.success("Staff member updated successfully");
         setIsModalOpen(false);
+        staffCache.invalidateAll();
+        await fetchStaffAndRoles(true);
       }
     } catch (err: any) {
       toast.error(err.message || "An error occurred while saving");
@@ -183,34 +185,47 @@ export function StaffTab() {
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      await db.users.delete(deletingId);
-      
-      // Clean up user_roles offline
-      const existing = await db.user_roles.filter(ur => String(ur.user_id) === String(deletingId)).toArray();
-      const existingIds = existing.map(e => e.id).filter(Boolean);
-      if (existingIds.length > 0) {
-        await db.user_roles.bulkDelete(existingIds);
+      const res = await fetch(`/api/staff/${deletingId}`, {
+        method: "DELETE"
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to remove staff member");
       }
 
-      await SyncEngine.queueOperation("users", "DELETE", `/api/staff/${deletingId}`, null, deletingId);
       toast.success("Staff member removed successfully");
       setDeletingId(null);
-    } catch (err) {
-      toast.error("Failed to remove staff member");
+      staffCache.invalidateAll();
+      await fetchStaffAndRoles(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove staff member");
     }
   };
 
   const filteredStaff = useMemo(() => {
     return staff.filter((member: any) => {
       // Exclude the currently logged-in user
-      if (session?.user?.email && member.email === session.user.email) {
+      if (session?.user?.email && member.email?.toLowerCase() === session.user.email.toLowerCase()) {
         return false;
       }
 
+      // Filter by role
       const matchesRole = roleFilter === "all" || member.role_id === roleFilter || (member.roleData && member.roleData.some((r: any) => (r.id || r._id) === roleFilter));
-      return matchesRole;
+      if (!matchesRole) return false;
+
+      // Filter by search term
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const matchesName = member.name?.toLowerCase().includes(term);
+        const matchesEmail = member.email?.toLowerCase().includes(term);
+        const matchesRoleName = member.role_name?.toLowerCase().includes(term);
+        if (!matchesName && !matchesEmail && !matchesRoleName) return false;
+      }
+
+      return true;
     });
-  }, [staff, roleFilter, session]);
+  }, [staff, roleFilter, searchTerm, session]);
 
   const totalCount = filteredStaff.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -232,11 +247,23 @@ export function StaffTab() {
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{t("description")}</p>
-        {canCreate && (
-          <Button onClick={() => handleOpenModal()} className="gap-2">
-            <PlusCircle className="w-4 h-4" /> {t("createStaff")}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchStaffAndRoles(true)}
+            className="gap-2 h-9 text-xs"
+            title="Refresh from database"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-        )}
+          {canCreate && (
+            <Button onClick={() => handleOpenModal()} className="gap-2 h-9 text-xs sm:text-sm">
+              <PlusCircle className="w-4 h-4" /> {t("createStaff")}
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-6 shadow-sm border-0 sm:border">
@@ -322,9 +349,14 @@ export function StaffTab() {
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                            {member.name.charAt(0).toUpperCase()}
+                            {(member.name || member.email || "U").charAt(0).toUpperCase()}
                           </div>
-                          {member.name}
+                          <div>
+                            <div>{member.name}</div>
+                            {member.is_pending && (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Pending Invitation</span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{member.email}</TableCell>
@@ -336,6 +368,10 @@ export function StaffTab() {
                                 {r}
                               </span>
                             ))
+                          ) : member.role_name ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                              {member.role_name}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground text-xs italic">No roles assigned</span>
                           )}
@@ -343,8 +379,23 @@ export function StaffTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {member.is_pending && member.token && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const link = `${window.location.origin}/${locale}/invite?token=${member.token}`;
+                                navigator.clipboard.writeText(link);
+                                toast.success("Invitation link copied to clipboard!");
+                              }}
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                              title="Copy Invite Link"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </Button>
+                          )}
                           {canEdit && (
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)} className="h-8 w-8">
                               <Edit className="w-4 h-4 text-muted-foreground" />
                             </Button>
                           )}
@@ -374,15 +425,33 @@ export function StaffTab() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
                            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
-                             {member.name.charAt(0).toUpperCase()}
+                             {(member.name || member.email || "U").charAt(0).toUpperCase()}
                            </div>
                            <div className="flex-1 overflow-hidden">
                              <p className="font-semibold text-sm truncate">{member.name}</p>
                              <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                             {member.is_pending && (
+                               <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Pending Invitation</span>
+                             )}
                            </div>
                         </div>
                         
                         <div className="flex gap-1 flex-shrink-0">
+                           {member.is_pending && member.token && (
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => {
+                                 const link = `${window.location.origin}/${locale}/invite?token=${member.token}`;
+                                 navigator.clipboard.writeText(link);
+                                 toast.success("Invitation link copied to clipboard!");
+                               }}
+                               className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                               title="Copy Invite Link"
+                             >
+                               <Copy className="w-4 h-4" />
+                             </Button>
+                           )}
                            {canEdit && (
                              <Button variant="ghost" size="icon" onClick={() => handleOpenModal(member)} className="h-8 w-8">
                                <Edit className="w-4 h-4 text-muted-foreground" />
@@ -402,6 +471,10 @@ export function StaffTab() {
                                 {r}
                               </span>
                             ))
+                          ) : member.role_name ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                              {member.role_name}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground text-xs italic">No roles assigned</span>
                           )}
