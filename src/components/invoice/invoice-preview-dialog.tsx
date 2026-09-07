@@ -25,6 +25,23 @@ import {
 } from "@/components/invoice/invoice-preview";
 import { PaymentDialog } from "@/components/invoice/payment-dialog";
 import { Switch } from "../ui/switch";
+import { toast } from "sonner";
+import { db } from "@/lib/db/offline-db";
+
+export const normalizeWhatsAppNumber = (phone?: string) => {
+  if (!phone) return "";
+  let digits = phone.replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("0") && digits.length === 11) {
+    digits = `92${digits.slice(1)}`;
+  } else if (digits.length === 10 && digits.startsWith("3")) {
+    digits = `92${digits}`;
+  } else if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+  return digits;
+};
 
 type BrandingPayload = {
   companyLogo: string | null;
@@ -143,6 +160,8 @@ export function InvoicePreviewDialog({
   );
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [internalSendingWhatsApp, setInternalSendingWhatsApp] = useState(false);
+  const isSendingWhatsAppFinal = isSendingWhatsApp || internalSendingWhatsApp;
   const [zoomLevel, setZoomLevel] = useState(0.65);
 
   useEffect(() => {
@@ -377,6 +396,153 @@ export function InvoicePreviewDialog({
     }
   };
 
+  const [resolvedPhone, setResolvedPhone] = useState<string>(() => {
+    return customer?.phone || (customer as any)?.phone_number || (customer as any)?.mobile || (customer as any)?.whatsapp || "";
+  });
+
+  useEffect(() => {
+    let active = true;
+    const directPhone = customer?.phone || (customer as any)?.phone_number || (customer as any)?.mobile || (customer as any)?.whatsapp || "";
+    if (directPhone) {
+      setResolvedPhone(directPhone);
+      return;
+    }
+
+    const fetchParty = async () => {
+      try {
+        const partyId = (customer as any)?.id || (customer as any)?._id || (customer as any)?.customer_id;
+        if (partyId) {
+          const p = await db.parties.get(partyId.toString());
+          if (active && p?.phone) {
+            setResolvedPhone(p.phone);
+            return;
+          }
+        }
+        if (customer?.name) {
+          const parties = await db.parties
+            .filter((p) => Boolean(p.name && p.name.toLowerCase() === customer.name.toLowerCase() && p.is_delete !== 1))
+            .toArray();
+          if (active && parties.length > 0 && parties[0].phone) {
+            setResolvedPhone(parties[0].phone);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch party phone:", err);
+      }
+    };
+
+    fetchParty();
+
+    return () => {
+      active = false;
+    };
+  }, [customer, open]);
+
+  const targetWhatsAppPhone = normalizeWhatsAppNumber(resolvedPhone);
+
+  const handleDefaultWhatsApp = async () => {
+    if (!invoiceRef.current) return;
+
+    // 1. Resolve phone number directly and with DB fallback
+    let rawPhone = resolvedPhone || customer?.phone || (customer as any)?.phone_number || (customer as any)?.mobile || (customer as any)?.whatsapp || "";
+    let normalized = normalizeWhatsAppNumber(rawPhone);
+
+    if (!normalized) {
+      try {
+        const partyId = (customer as any)?.id || (customer as any)?._id || (customer as any)?.customer_id;
+        if (partyId) {
+          const p = await db.parties.get(partyId.toString());
+          if (p?.phone) {
+            rawPhone = p.phone;
+            normalized = normalizeWhatsAppNumber(p.phone);
+            setResolvedPhone(p.phone);
+          }
+        }
+        if (!normalized && customer?.name) {
+          const parties = await db.parties
+            .filter((p) => Boolean(p.name && p.name.toLowerCase() === customer.name.toLowerCase() && p.is_delete !== 1))
+            .toArray();
+          if (parties.length > 0 && parties[0].phone) {
+            rawPhone = parties[0].phone;
+            normalized = normalizeWhatsAppNumber(parties[0].phone);
+            setResolvedPhone(parties[0].phone);
+          }
+        }
+      } catch (err) {
+        console.error("Party phone lookup error:", err);
+      }
+    }
+
+    if (!normalized) {
+      toast.error(
+        t("whatsappMissingPartyNotice") ||
+          "Is customer ka WhatsApp number add nahi hai. Pehle Party page se WhatsApp number add karein."
+      );
+      return;
+    }
+
+    const message = t("whatsappOrderMessage", {
+      customerName: customer?.name || t("customer") || "Customer",
+      invoiceNo: invoiceNo || "",
+      currency: t("currencySymbol") || "Rs.",
+      total: Math.floor(total || 0),
+    });
+
+    const whatsappUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+
+    // Open WhatsApp chat directly
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+
+    // Generate & download PDF
+    setInternalSendingWhatsApp(true);
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+
+      let opt: any;
+      switch (printFormat) {
+        case "thermal":
+          opt = {
+            margin: 5,
+            filename: `${invoiceNo || "invoice"}_receipt.pdf`,
+            image: { type: "jpeg", quality: 0.95 },
+            html2canvas: { scale: 2, windowWidth: 320 },
+            jsPDF: { unit: "mm", format: [80, 297], orientation: "portrait" },
+          };
+          break;
+        case "letter":
+          opt = {
+            margin: 10,
+            filename: `${invoiceNo || "invoice"}_letter.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
+          };
+          break;
+        case "a4":
+        default:
+          opt = {
+            margin: 10,
+            filename: `${invoiceNo || "invoice"}_a4.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          };
+          break;
+      }
+
+      await html2pdf().set(opt).from(invoiceRef.current).save();
+
+      toast.success(
+        t("whatsappPdfNotice") ||
+          "PDF download ho gaya hai aur WhatsApp open ho gaya hai. Chat mein PDF attach karke send kar dein!"
+      );
+    } catch (err) {
+      console.error("WhatsApp PDF download failed:", err);
+    } finally {
+      setInternalSendingWhatsApp(false);
+    }
+  };
+
   const handlePrintInvoice = async () => {
     if (!invoiceRef.current || typeof window === "undefined") return;
 
@@ -537,13 +703,16 @@ export function InvoicePreviewDialog({
                   width: printFormat === 'thermal' ? '100%' : (printFormat === 'letter' ? '816px' : '794px'),
                   maxWidth: printFormat === 'thermal' ? '320px' : 'none',
                   minWidth: printFormat === 'thermal' ? '0' : (printFormat === 'letter' ? '816px' : '794px'),
-                  zoom: (isPrinting || isDownloading) ? 1 : (printFormat === 'thermal' ? 1 : zoomLevel),
+                  zoom: (isPrinting || isDownloading || internalSendingWhatsApp) ? 1 : (printFormat === 'thermal' ? 1 : zoomLevel),
                 }}
               >
                 <InvoicePreview
                   ref={invoiceRef}
                   invoiceNo={invoiceNo}
-                  customer={customer}
+                  customer={{
+                    ...customer,
+                    phone: resolvedPhone || customer?.phone,
+                  }}
                   saleDate={saleDate}
                   dueDate={dueDate}
                   products={products}
@@ -565,7 +734,7 @@ export function InvoicePreviewDialog({
                   companyEmail={companyEmail}
                   customerNotes={customerNotes}
                   printFormat={printFormat}
-                  isScreen={!(isPrinting || isDownloading)}
+                  isScreen={!(isPrinting || isDownloading || internalSendingWhatsApp)}
                 />
               </div>
             </div>
@@ -663,6 +832,29 @@ export function InvoicePreviewDialog({
                       {t("downloadInvoice")}
                     </Button>
                   </div>
+                  <Button
+                    onClick={onWhatsApp || handleDefaultWhatsApp}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-[11px] h-8 mt-2"
+                    disabled={isSendingWhatsAppFinal || disableWhatsApp}
+                  >
+                    {isSendingWhatsAppFinal ? (
+                      <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                    ) : (
+                      <span className="flex items-center">
+                        <svg className="w-3 h-3 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                        </svg>
+                        {t("sendInvoicePdfOnWhatsApp")}
+                      </span>
+                    )}
+                  </Button>
+                  {!onWhatsApp && !targetWhatsAppPhone && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 text-center font-medium leading-tight">
+                      ⚠️ {t("whatsappMissingPartyNotice") || "Is customer ka WhatsApp number add nahi hai. Pehle Party page se add karein."}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="lg:col-span-1">
@@ -778,25 +970,28 @@ export function InvoicePreviewDialog({
                           {t("downloadInvoice")}
                         </Button>
                       </div>
-                      {onWhatsApp && (
-                        <Button
-                          onClick={onWhatsApp}
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-[11px] h-8 mt-2"
-                          disabled={isSendingWhatsApp || disableWhatsApp}
-                        >
-                          {isSendingWhatsApp ? (
-                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                          ) : (
-                            <span className="flex items-center">
-                              <svg className="w-3 h-3 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                              </svg>
-                              {t("sendInvoicePdfOnWhatsApp")}
-                            </span>
-                          )}
-                        </Button>
+                      <Button
+                        onClick={onWhatsApp || handleDefaultWhatsApp}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-[11px] h-8 mt-2"
+                        disabled={isSendingWhatsAppFinal || disableWhatsApp}
+                      >
+                        {isSendingWhatsAppFinal ? (
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : (
+                          <span className="flex items-center">
+                            <svg className="w-3 h-3 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                            </svg>
+                            {t("sendInvoicePdfOnWhatsApp")}
+                          </span>
+                        )}
+                      </Button>
+                      {!onWhatsApp && !targetWhatsAppPhone && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 text-center font-medium leading-tight">
+                          ⚠️ {t("whatsappMissingPartyNotice") || "Is customer ka WhatsApp number add nahi hai. Pehle Party page se add karein."}
+                        </p>
                       )}
                     </div>
                   </div>

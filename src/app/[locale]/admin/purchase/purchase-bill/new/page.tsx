@@ -39,7 +39,7 @@ import { Edit2, Trash2, Plus, Loader2, X, ArrowLeft, Edit } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
-import { formatCurrencyString } from "@/lib/utils";
+import { formatCurrencyString, generateReferenceNumber } from "@/lib/utils";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Product } from "@/types/product";
 import { db } from "@/lib/db/offline-db";
@@ -78,6 +78,9 @@ interface PurchaseBillItem {
 
 interface PurchaseBill {
     id?: string;
+    purchase_number?: string;
+    purchase_no?: string;
+    bill_number?: string;
     party_id: string;
     party_name: string;
     items: PurchaseBillItem[];
@@ -107,6 +110,7 @@ function AddPurchaseBillPageInner() {
     const [loading, setLoading] = useState(true);
     const [editingBillId, setEditingBillId] = useState<string | null>(null);
 
+    const [purchaseNumber, setPurchaseNumber] = useState<string>(() => generateReferenceNumber("PUR"));
     const [selectedPartyId, setSelectedPartyId] = useState<string>("");
     const [selectedPartyName, setSelectedPartyName] = useState<string>("");
     const [billItems, setBillItems] = useState<PurchaseBillItem[]>([]);
@@ -149,6 +153,7 @@ function AddPurchaseBillPageInner() {
                     const bill = await db.purchase_bills.get(billIdFromUrl);
                     if (bill) {
                         setEditingBillId(bill.id || bill._id);
+                        setPurchaseNumber(bill.purchase_number || bill.purchase_no || bill.bill_number || generateReferenceNumber("PUR"));
                         setSelectedPartyId(bill.party_id || bill.partyId);
                         setSelectedPartyName(bill.party_name || bill.partyName);
                         const loadedItems = (bill.items || []).map((item: any, idx: number) => ({
@@ -366,6 +371,9 @@ function AddPurchaseBillPageInner() {
         setIsSaving(true);
         try {
             const billData: PurchaseBill = {
+                purchase_number: purchaseNumber,
+                purchase_no: purchaseNumber,
+                bill_number: purchaseNumber,
                 party_id: selectedPartyId,
                 party_name: selectedPartyName,
                 items: billItems,
@@ -449,6 +457,7 @@ function AddPurchaseBillPageInner() {
             setIsSaving(false);
         }
     }, [
+        purchaseNumber,
         selectedPartyId,
         selectedPartyName,
         billItems,
@@ -502,21 +511,35 @@ function AddPurchaseBillPageInner() {
                     <CardTitle>{t("billDetails") || "Bill Details"}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* Party Selection */}
-                    <div className="space-y-2">
-                        <Label htmlFor="party">{t("partyName") || "Party Name"} *</Label>
-                        <PartyDropdown
-                            value={selectedPartyId}
-                            onValueChange={(val, party) => {
-                                setSelectedPartyId(val);
-                                setSelectedPartyName(party?.name || "");
-                            }}
-                            placeholder={t("selectParty") || "Select a party"}
-                            className="w-full"
-                            filterActiveOnly={true}
-                            enableSearch={true}
-                            searchPlaceholder={typeof t("searchParty") === "string" && t("searchParty") ? t("searchParty") : "Search party..."}
-                        />
+                    {/* Party Selection & Purchase Number */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="party">{t("partyName") || "Party Name"} *</Label>
+                            <PartyDropdown
+                                value={selectedPartyId}
+                                onValueChange={(val, party) => {
+                                    setSelectedPartyId(val);
+                                    setSelectedPartyName(party?.name || "");
+                                }}
+                                placeholder={t("selectParty") || "Select a party"}
+                                className="w-full"
+                                filterActiveOnly={true}
+                                enableSearch={true}
+                                searchPlaceholder={typeof t("searchParty") === "string" && t("searchParty") ? t("searchParty") : "Search party..."}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="purchase-number">{t("purchaseNo") || t("billNumber") || "Purchase No"}</Label>
+                            <Input
+                                id="purchase-number"
+                                type="text"
+                                value={purchaseNumber}
+                                onChange={(e) => setPurchaseNumber(e.target.value)}
+                                placeholder={t("purchaseNoPlaceholder") || "e.g. PUR-001"}
+                                className="w-full"
+                            />
+                        </div>
                     </div>
 
                     {/* Billed Items */}

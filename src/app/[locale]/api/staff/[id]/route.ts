@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import bcrypt from "bcryptjs";
 import { requirePermission } from "@/lib/auth/rbac";
@@ -76,9 +76,24 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     const authCheck = await requirePermission("staff.delete");
     if (!authCheck.allowed) return authCheck.response!;
 
-    const usersCollection = await getCollection(COLLECTIONS.USERS);
+    const invColl = await getCollection(COLLECTIONS.INVITATIONS);
     const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
     const rolesColl = await getCollection(COLLECTIONS.ROLES);
+
+    // If deleting a pending invite (ID starts with inv- or temp-inv-)
+    if (params.id.startsWith("inv-") || params.id.startsWith("temp-inv-")) {
+      const rawId = params.id.replace(/^(inv-|temp-inv-)/, "");
+      if (isValidObjectId(rawId)) {
+        await invColl.deleteOne({ _id: toObjectId(rawId), owner_id: toObjectId(ownerId) });
+      } else {
+        await invColl.deleteOne({ email: rawId, owner_id: toObjectId(ownerId) });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (!isValidObjectId(params.id)) {
+      return NextResponse.json({ error: "Invalid staff ID" }, { status: 400 });
+    }
 
     // 1. Delete user_role mappings for this shop
     const shopRoles = await rolesColl.find({ owner_id: toObjectId(ownerId) }).toArray();

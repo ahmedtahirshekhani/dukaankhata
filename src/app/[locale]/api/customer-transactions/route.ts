@@ -8,7 +8,7 @@ import {
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime } from '@/lib/utils';
+import { setDateToCurrentTime, generateReferenceNumber } from '@/lib/utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(req: NextRequest) {
@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
 
     const list = items.map((item) => ({
       id: (item._id as { toString: () => string }).toString(),
+      paymentNumber: item.payment_number ?? item.paymentNumber ?? '',
       customerId: item.customer_id?.toString() ?? '',
       customerName: item.customer_id ? customerMap[item.customer_id.toString()] ?? '' : '',
       paymentAmount: item.payment_amount ?? 0,
@@ -114,11 +115,13 @@ export async function POST(req: NextRequest) {
     if (!authCheck.allowed) return authCheck.response!;
 
     const body = await req.json();
+    const type = body?.type ?? 'payment-in';
+    const isPaymentIn = type === 'payment-in';
+    const paymentNumber = body?.paymentNumber ?? body?.payment_number ?? generateReferenceNumber(isPaymentIn ? 'PAY-IN' : 'PAY-OUT');
     const customerId = body?.customerId ?? body?.customer_id ?? '';
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
     const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
-    const type = body?.type ?? 'payment-in';
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json({ error: 'Valid customer is required' }, { status: 400 });
@@ -138,6 +141,7 @@ export async function POST(req: NextRequest) {
     const result = await collection.insertOne({
       user_id: toObjectId(user.id),
       customer_id: toObjectId(customerId),
+      payment_number: paymentNumber,
       payment_amount: paymentAmount,
       payment_method_id: isHardcodedMethod ? paymentMethodId : toObjectId(paymentMethodId),
       date,
@@ -151,7 +155,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create record' }, { status: 500 });
     }
 
-    const isPaymentIn = type === 'payment-in';
     await appendCustomerLedgerEntry({
       userId: user.id,
       customerId,
@@ -164,12 +167,14 @@ export async function POST(req: NextRequest) {
       metadata: {
         payment_method_id: paymentMethodId,
         transaction_type: type,
+        payment_number: paymentNumber,
       },
     });
 
     await updateUserLastActivity();
     return NextResponse.json({
       id: (insertedId as { toString: () => string }).toString(),
+      paymentNumber,
       customerId,
       paymentAmount,
       paymentMethodId,
