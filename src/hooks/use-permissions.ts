@@ -1,7 +1,8 @@
 import { useSession } from "next-auth/react";
 
 export function usePermissions() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const isLoading = status === "loading";
   
   const can = (module: string, action: string) => {
     if (!session?.user) return false;
@@ -38,5 +39,5 @@ export function usePermissions() {
     return permissions.some((p: string) => p.startsWith(`${module}.`));
   };
 
-  return { can, hasModuleAccess };
+  return { can, hasModuleAccess, isLoading };
 }

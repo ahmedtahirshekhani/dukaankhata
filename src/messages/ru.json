@@ -1,5 +1,6 @@
 {
   "common": {
+    "noData": "Koi data maujood nahi hai",
     "appName": "DukaanKhata",
     "addNewShop": "Nayi Dukan Add Karein",
     "addNewShopDescription": "Ek aur karobar ke liye naya workspace banayein. Aap is nayi dukan ke owner honge.",
@@ -693,6 +694,7 @@
   },
   "customers": {
     "cannotDeleteDefaultParty": "Yeh default Cash Sale party hai aur isay delete nahi kiya ja sakta.",
+    "cannotEditDefaultParty": "Yeh default Cash Sale party hai aur isay edit nahi kiya ja sakta.",
     "title": "Party",
     "pageDescription": "Apne gahak database ka intezaam karain",
     "customerName": "Party ka Naam",
@@ -789,7 +791,7 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "discount": "Discount",
-    "searchPlaceholder": "Invoices talash karain...",
+    "searchPlaceholder": "Invoices, party ka naam ya phone search karein...",
     "filters": "Filters",
     "sort": "Sort",
     "sortBy": "Sort By",
