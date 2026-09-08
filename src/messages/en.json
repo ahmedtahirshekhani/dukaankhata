@@ -791,7 +791,7 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "discount": "Discount",
-    "searchPlaceholder": "Search invoices...",
+    "searchPlaceholder": "Search invoices, party name or phone...",
     "filters": "Filters",
     "sort": "Sort",
     "sortBy": "Sort By",
