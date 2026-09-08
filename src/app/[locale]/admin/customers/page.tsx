@@ -250,19 +250,19 @@ export default function PartiesPage() {
     if (!customerToDelete) return;
 
     const isDefaultParty = Boolean(
-      customerToDelete.is_default ||
+      customerToDelete.is_default === true ||
+      (customerToDelete as any).is_default === 1 ||
+      String(customerToDelete.is_default).toLowerCase() === "true" ||
       customerToDelete.type === "cash" ||
-      customerToDelete.name?.toLowerCase() === "cash sale" ||
-      customerToDelete.name?.toLowerCase() === "cash party"
+      customerToDelete.name?.trim().toLowerCase() === "cash sale" ||
+      customerToDelete.name?.trim().toLowerCase() === "cash party" ||
+      customerToDelete.name?.trim().toLowerCase() === "cash customer"
     );
 
     if (isDefaultParty) {
-      setErrorDialog({
-        open: true,
-        title: t("cannotDelete") || "Cannot Delete",
-        message: t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.",
-      });
       setIsDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+      toast.error(t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.");
       return;
     }
 

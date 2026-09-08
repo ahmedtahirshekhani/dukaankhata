@@ -694,6 +694,7 @@
   },
   "customers": {
     "cannotDeleteDefaultParty": "This is a default Cash Sale party and cannot be deleted.",
+    "cannotEditDefaultParty": "This is a default Cash Sale party and cannot be edited.",
     "title": "Parties",
     "pageDescription": "Manage your parties database",
     "customerName": "Party Name",
