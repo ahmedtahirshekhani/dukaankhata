@@ -1,5 +1,6 @@
 {
   "common": {
+    "noData": "Koi data maujood nahi hai",
     "appName": "DukaanKhata",
     "addNewShop": "Nayi Dukan Add Karein",
     "addNewShopDescription": "Ek aur karobar ke liye naya workspace banayein. Aap is nayi dukan ke owner honge.",
@@ -128,7 +129,7 @@
     "ordersDescription": "Track & manage orders",
     "counterSale": "Counter Sale",
     "counterSaleDescription": "Quick counter sales",
-    "accountStatement": "Account Statement",
+    "accountStatement": "Party Statement",
     "accountStatementDescription": "Party account statement",
     "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI business insights",
@@ -693,6 +694,7 @@
   },
   "customers": {
     "cannotDeleteDefaultParty": "Yeh default Cash Sale party hai aur isay delete nahi kiya ja sakta.",
+    "cannotEditDefaultParty": "Yeh default Cash Sale party hai aur isay edit nahi kiya ja sakta.",
     "title": "Party",
     "pageDescription": "Apne gahak database ka intezaam karain",
     "customerName": "Party ka Naam",
@@ -789,7 +791,7 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "discount": "Discount",
-    "searchPlaceholder": "Invoices talash karain...",
+    "searchPlaceholder": "Invoices, party ka naam ya phone search karein...",
     "filters": "Filters",
     "sort": "Sort",
     "sortBy": "Sort By",
@@ -1137,7 +1139,7 @@
     "notePrintMessage": "Yeh note invoice par print hoga"
   },
   "accountStatement": {
-    "title": "Account Statement",
+    "title": "Party Statement",
     "modalDescription": "Generate party statement for date range",
     "selectCustomer": "Party",
     "searchCustomer": "Search Party",
@@ -1328,6 +1330,9 @@
     "selectProduct": "Product Muntakhab Karain",
     "billNumber": "Bill Number",
     "billNumberPlaceholder": "Bill Number Dakhil Karein",
+    "purchaseNo": "Purchase No",
+    "purchaseNumber": "Purchase No",
+    "purchaseNoPlaceholder": "maslan PUR-001",
     "searchProduct": "Product Search Karein",
     "product": "Product",
     "quantity": "Miqdar",

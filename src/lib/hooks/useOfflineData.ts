@@ -165,42 +165,56 @@ export function useOfflineOrders(
   statusFilter: string = "all",
 ) {
   return useSafeLiveQuery(async () => {
-    const allOrders = await db.orders.orderBy("created_at").reverse().toArray();
+    const [allOrders, allParties] = await Promise.all([
+      db.orders.orderBy("created_at").reverse().toArray(),
+      db.parties.toArray(),
+    ]);
 
-    let filtered = allOrders;
+    const partyMap = new Map(
+      allParties.map((p) => [(p.id || p._id)?.toString(), p]),
+    );
+
+    const withCustomers = allOrders.map((o) => {
+      const customer = o.customer_id ? partyMap.get(o.customer_id.toString()) : null;
+      return {
+        ...o,
+        customer: customer
+          ? {
+              id: customer.id || customer._id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              company_name: customer.company_name,
+              company_address: customer.company_address,
+            }
+          : (o.customer || null),
+      };
+    });
+
+    let filtered = withCustomers;
     if (statusFilter !== "all") {
       filtered = filtered.filter((o) => o.status === statusFilter);
     }
 
     if (searchQuery) {
-      const term = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (o) =>
-          o.invoice_no?.toLowerCase().includes(term) ||
-          o.id?.toString().toLowerCase().includes(term),
-      );
+      const term = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((o) => {
+        const invoiceNoMatch = o.invoice_no?.toLowerCase().includes(term);
+        const idMatch = o.id?.toString().toLowerCase().includes(term);
+        const customerNameMatch = o.customer?.name?.toLowerCase().includes(term);
+        const customerPhoneMatch = o.customer?.phone?.toLowerCase().includes(term);
+        const companyNameMatch = o.customer?.company_name?.toLowerCase().includes(term);
+        return Boolean(
+          invoiceNoMatch ||
+          idMatch ||
+          customerNameMatch ||
+          customerPhoneMatch ||
+          companyNameMatch
+        );
+      });
     }
 
-    const withCustomers = await Promise.all(
-      filtered.map(async (o) => {
-        const customer = o.customer_id ? await db.parties.get(o.customer_id.toString()) : null;
-        return {
-          ...o,
-          customer: customer
-            ? {
-                id: customer.id,
-                name: customer.name,
-                email: customer.email,
-                phone: customer.phone,
-                company_name: customer.company_name,
-                company_address: customer.company_address,
-              }
-            : (o.customer || null),
-        };
-      }),
-    );
-
-    return withCustomers;
+    return filtered;
   }, [searchQuery, statusFilter]);
 }
 

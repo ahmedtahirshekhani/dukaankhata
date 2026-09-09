@@ -1,5 +1,6 @@
 {
   "common": {
+    "noData": "کوئی ڈیٹا دستیاب نہیں ہے",
     "appName": "دکان کھاتہ",
     "addNewShop": "نئی دکان شامل کریں",
     "addNewShopDescription": "ایک اور کاروبار کے لیے نیا ورک اسپیس بنائیں۔ آپ اس نئی دکان کے مالک ہوں گے۔",
@@ -128,8 +129,8 @@
     "ordersDescription": "آرڈرز ٹریک کریں",
     "counterSale": "کاؤنٹر سیل",
     "counterSaleDescription": "فوری کاؤنٹر فروخت",
-    "accountStatement": "اکاؤنٹ سٹیٹمنٹ",
-    "accountStatementDescription": "پارٹی اکاؤنٹ سٹیٹمنٹ",
+    "accountStatement": "پارٹی سٹیٹمنٹ",
+    "accountStatementDescription": "پارٹی سٹیٹمنٹ",
     "aiChat": "دکان چیٹ اے آئی",
     "aiChatDescription": "AI بصیرت",
     "aiChatSubtext": "بہتر کاروباری فیصلے لیں",
@@ -693,6 +694,7 @@
   },
   "customers": {
     "cannotDeleteDefaultParty": "یہ ڈیفالٹ کیش سیل پارٹی ہے اور اسے ڈیلیٹ نہیں کیا جا سکتا۔",
+    "cannotEditDefaultParty": "یہ ڈیفالٹ کیش سیل پارٹی ہے اور اسے ایڈٹ نہیں کیا جا سکتا۔",
     "title": "پارٹیز",
     "pageDescription": "اپنے پارٹیز ڈیٹابیس کو منظم کریں",
     "customerName": "پارٹیز کا نام",
@@ -789,7 +791,7 @@
     "subtotal": "ذیلی کل",
     "tax": "ٹیکس",
     "discount": "رعایت",
-    "searchPlaceholder": "انوائسز تلاش...",
+    "searchPlaceholder": "انوائس، پارٹی کا نام یا فون تلاش کریں...",
     "filters": "فلٹرز",
     "sort": "ترتیب دیں",
     "sortBy": "ترتیب لحاظ",
@@ -1139,7 +1141,7 @@
     "addAnotherItem": "ایک اور آئٹم شامل کریں"
   },
   "accountStatement": {
-    "title": "اکاؤنٹ سٹیٹمنٹ",
+    "title": "پارٹی سٹیٹمنٹ",
     "modalDescription": "تاریخ کی حد کا اسٹیٹمنٹ بنائیں",
     "selectCustomer": "پارٹی",
     "searchCustomer": "پارٹی تلاش...",
@@ -1343,8 +1345,11 @@
     "bankDetails": "بینک کی تفصیلات",
     "balanceDue": "واجب الادا رقم",
     "description": "تفصیل",
-    "billNumber": "بل",
+    "billNumber": "بل نمبر",
     "billNumberPlaceholder": "بل نمبر درج کریں",
+    "purchaseNo": "پرچیز نمبر",
+    "purchaseNumber": "پرچیز نمبر",
+    "purchaseNoPlaceholder": "مثلاً PUR-001",
     "searchProduct": "پروڈکٹ تلاش...",
     "addNote": "نوٹ شامل کریں",
     "saveNew": "محفوظ اور نیا",

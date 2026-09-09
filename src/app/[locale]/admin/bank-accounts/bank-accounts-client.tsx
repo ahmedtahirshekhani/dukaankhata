@@ -380,7 +380,7 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                       <TableCell className="font-semibold text-primary">{formatCurrencyString(item.currentBalance ?? item.openingBalance)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {/* <Button
+                          <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-primary hover:bg-primary/10"
@@ -388,7 +388,7 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                             title={tBank("viewStatement")}
                           >
                             <FileText className="h-4 w-4 text-primary" />
-                          </Button> */}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -581,7 +581,7 @@ function BankAccountCard({
           {item.bankName}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
+          {/* <Button
             size="icon"
             variant="ghost"
             onClick={onStatement}
@@ -589,7 +589,7 @@ function BankAccountCard({
             title={tBank("viewStatement")}
           >
             <FileText className="w-4 h-4 text-primary" />
-          </Button>
+          </Button> */}
           <Button
             size="icon"
             variant="ghost"

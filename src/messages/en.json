@@ -1,5 +1,6 @@
 {
   "common": {
+    "noData": "No data available",
     "appName": "DukaanKhata",
     "addNewShop": "Add New Shop",
     "addNewShopDescription": "Create a new workspace for another business. You will be the owner of this new shop.",
@@ -127,7 +128,7 @@
     "ordersDescription": "Track & manage orders",
     "counterSale": "Counter Sale",
     "counterSaleDescription": "Quick counter sales",
-    "accountStatement": "Account Statement",
+    "accountStatement": "Party Statement",
     "accountStatementDescription": "Party account statements",
     "aiChat": "Dukaan Chat AI",
     "aiChatDescription": "AI business insights",
@@ -693,6 +694,7 @@
   },
   "customers": {
     "cannotDeleteDefaultParty": "This is a default Cash Sale party and cannot be deleted.",
+    "cannotEditDefaultParty": "This is a default Cash Sale party and cannot be edited.",
     "title": "Parties",
     "pageDescription": "Manage your parties database",
     "customerName": "Party Name",
@@ -789,7 +791,7 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "discount": "Discount",
-    "searchPlaceholder": "Search invoices...",
+    "searchPlaceholder": "Search invoices, party name or phone...",
     "filters": "Filters",
     "sort": "Sort",
     "sortBy": "Sort By",
@@ -1140,7 +1142,7 @@
     "notePrintMessage": "This note will be printed on the invoice"
   },
   "accountStatement": {
-    "title": "Account Statement",
+    "title": "Party Statement",
     "modalDescription": "Generate party statement for date range",
     "selectCustomer": "Party",
     "searchCustomer": "Search Party",
@@ -1327,6 +1329,9 @@
     "searchCustomer": "Search customer...",
     "billNumber": "Bill Number",
     "billNumberPlaceholder": "Enter bill number",
+    "purchaseNo": "Purchase No",
+    "purchaseNumber": "Purchase No",
+    "purchaseNoPlaceholder": "e.g. PUR-001",
     "searchProduct": "Search product...",
     "billedItems": "Billed Items",
     "noItems": "No items added",
