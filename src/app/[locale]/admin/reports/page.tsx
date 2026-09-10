@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Package, Users, TrendingUp } from "lucide-react";
+import { FileText, Package, Users, TrendingUp, BarChart } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -20,7 +20,8 @@ export default function ReportsModulePage() {
   const hasReportsSub = can('reports', 'view_account_statement') || 
                         can('reports', 'view_stock') || 
                         can('reports', 'view_receivable_summary') || 
-                        can('reports', 'view_profitability');
+                        can('reports', 'view_profitability') ||
+                        can('reports', 'view_item_wise_sales');
 
   useEffect(() => {
     if (!hasReportsSub) {
@@ -61,6 +62,14 @@ export default function ReportsModulePage() {
       color: "bg-violet-500/10 text-violet-500 dark:bg-violet-500/20",
       isComingSoon: false,
     },
+    {
+      title: tNav("itemWiseSaleReport"),
+      description: tNav("itemWiseSaleReportDescription") || "Sales breakdown and revenue by product",
+      href: `/${locale}/admin/reports/item-wise-sales`,
+      icon: BarChart,
+      color: "bg-indigo-500/10 text-indigo-500 dark:bg-indigo-500/20",
+      isComingSoon: false,
+    },
   ];
 
   return (
@@ -77,6 +86,7 @@ export default function ReportsModulePage() {
             if (report.href.includes('stock') && !can('reports', 'view_stock')) return false;
             if (report.href.includes('receivable-summary') && !can('reports', 'view_receivable_summary')) return false;
             if (report.href.includes('profitability') && !can('reports', 'view_profitability')) return false;
+            if (report.href.includes('item-wise-sales') && !can('reports', 'view_item_wise_sales')) return false;
             return true;
           })
           .map((report, idx) => {
