@@ -18,31 +18,58 @@ const BASE_MODULES = [
 ];
 
 const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
-  'customers': ['view', 'create', 'edit', 'delete'],
-  'products': ['view', 'create', 'edit', 'delete'],
-  'sales': [
-    'view_quotations', 'create_quotations', 'edit_quotations', 'delete_quotations',
-    'view_invoice', 'create_invoice', 'edit_invoice', 'delete_invoice',
-    'view_payment_in', 'create_payment_in', 'edit_payment_in', 'delete_payment_in',
-    'view_sale_return', 'create_sale_return', 'edit_sale_return', 'delete_sale_return',
-    'view_counter_sale', 'create_counter_sale', 'edit_counter_sale', 'delete_counter_sale'
+  customers: ['view', 'create', 'edit', 'delete'],
+  products: ['view', 'create', 'edit', 'delete'],
+  sales: [
+    'view_quotations',
+    'create_quotations',
+    'edit_quotations',
+    'delete_quotations',
+    'view_invoice',
+    'create_invoice',
+    'edit_invoice',
+    'delete_invoice',
+    'view_payment_in',
+    'create_payment_in',
+    'edit_payment_in',
+    'delete_payment_in',
+    'view_sale_return',
+    'create_sale_return',
+    'edit_sale_return',
+    'delete_sale_return',
+    'view_counter_sale',
+    'create_counter_sale',
+    'edit_counter_sale',
+    'delete_counter_sale'
   ],
-  'purchase': [
-    'view_purchase_bill', 'create_purchase_bill', 'edit_purchase_bill', 'delete_purchase_bill',
-    'view_payment_out', 'create_payment_out', 'edit_payment_out', 'delete_payment_out'
+  purchase: [
+    'view_purchase_bill',
+    'create_purchase_bill',
+    'edit_purchase_bill',
+    'delete_purchase_bill',
+    'view_payment_out',
+    'create_payment_out',
+    'edit_payment_out',
+    'delete_payment_out'
   ],
-  'expenses': ['view', 'create', 'edit', 'delete'],
-  'reports': [
-    'view_account_statement', 'export_account_statement',
-    'view_stock', 'export_stock',
-    'view_receivable_summary', 'export_receivable_summary',
-    'view_profitability', 'export_profitability'
+  expenses: ['view', 'create', 'edit', 'delete'],
+  reports: [
+    'view_account_statement',
+    'export_account_statement',
+    'view_stock',
+    'export_stock',
+    'view_receivable_summary',
+    'export_receivable_summary',
+    'view_profitability',
+    'export_profitability',
+    'view_item_wise_sales',
+    'export_item_wise_sales'
   ],
-  'staff': ['view', 'create', 'edit', 'delete'],
-  'payment_methods': ['view', 'create', 'edit', 'delete'],
-  'configuration': ['view', 'create', 'edit', 'delete'],
-  'whatsapp': ['view', 'create', 'edit', 'delete'],
-  'ai_chat': ['view']
+  staff: ['view', 'create', 'edit', 'delete'],
+  payment_methods: ['view', 'create', 'edit', 'delete'],
+  configuration: ['view', 'create', 'edit', 'delete'],
+  whatsapp: ['view', 'create', 'edit', 'delete'],
+  ai_chat: ['view']
 };
 
 async function seedRBAC() {

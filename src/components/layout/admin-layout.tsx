@@ -1032,6 +1032,20 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       {tNav("profitability")}
                     </Link>
                   )}
+                  {can('reports', 'view_item_wise_sales') && (
+                    <Link
+                      href={`/${locale}/admin/reports/item-wise-sales`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/item-wise-sales" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/item-wise-sales"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("itemWiseSaleReport")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>

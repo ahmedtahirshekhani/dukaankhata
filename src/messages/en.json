@@ -146,6 +146,8 @@
     "receivableSummaryDescription": "Outstanding party balances",
     "profitability": "Profitability",
     "profitabilityDescription": "Net profit margins",
+    "itemWiseSaleReport": "Item Wise Sale Report",
+    "itemWiseSaleReportDescription": "Sales breakdown and revenue by product",
     "admin": "Admin",
     "expenses": "Expenses",
     "expensesDescription": "Business expenses",

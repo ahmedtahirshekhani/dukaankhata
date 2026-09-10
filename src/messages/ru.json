@@ -147,6 +147,8 @@
     "receivableSummaryDescription": "Outstanding party balances",
     "profitability": "Profitability",
     "profitabilityDescription": "Net profit margins",
+    "itemWiseSaleReport": "Item Wise Sale Report",
+    "itemWiseSaleReportDescription": "Product wise sales aur revenue report",
     "admin": "Admin",
     "expenses": "Expenses",
     "expensesDescription": "Karobari kharche",
