@@ -6,7 +6,7 @@ export interface Subscription {
   user_id: ObjectId;
   email: string;
   plan: "trial" | "pro";
-  status: "pending" | "active" | "expired" | "cancelled";
+  status: "pending" | "active" | "expired" | "cancelled" | "login_blocked" | "payment_expire" | "in_trial" | "trial";
   amount: number;
   trial_days?: number;
   created_at: Date;
@@ -34,13 +34,26 @@ export async function getUserActiveSubscription(userId: string | ObjectId): Prom
   return subscription || null;
 }
 
-/**
- * Get user's latest subscription (regardless of status)
- */
 export async function getUserLatestSubscription(userId: string | ObjectId): Promise<Subscription | null> {
   const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
   const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
+  const now = new Date();
 
+  // First priority: active subscription that hasn't expired yet
+  const activeSubscription = await subscriptionsCollection.findOne(
+    {
+      user_id: userObjectId,
+      status: { $in: ["active", "in_trial", "trial"] },
+      expiry_date: { $gt: now },
+    },
+    { sort: { expiry_date: -1 } }
+  );
+
+  if (activeSubscription) {
+    return activeSubscription;
+  }
+
+  // Fallback: latest created subscription record
   const subscription = await subscriptionsCollection.findOne(
     { user_id: userObjectId },
     { sort: { created_at: -1 } }
