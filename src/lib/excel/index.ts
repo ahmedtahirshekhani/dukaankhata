@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { ItemWiseSaleExportItem, ItemWiseSaleSummary } from "@/types/item-wise-sales";
 
 interface Transaction {
   id: number;
@@ -521,6 +522,76 @@ export function exportProfitabilityToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+
+export function exportItemWiseSalesToExcel(
+  items: ItemWiseSaleExportItem[],
+  summary: ItemWiseSaleSummary,
+  fromDate: string,
+  toDate: string,
+  filename: string = "item-wise-sales-report.xlsx"
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    ["Item Wise Sale Report Summary"],
+    [`Period: ${fromDate} to ${toDate}`],
+    [],
+    ["Metric", "Value"],
+    ["Total Products Sold (Count)", summary.totalProductsCount || 0],
+    ["Total Units Sold (Quantity)", summary.totalItemsSold || 0],
+    ["Total Gross Sales (Rs.)", Math.round(summary.totalGrossRevenue || 0)],
+    ["Total Discounts Given (Rs.)", Math.round(summary.totalDiscountGiven || 0)],
+    ["Total Net Revenue (Rs.)", Math.round(summary.totalNetRevenue || 0)],
+    ["Total Gross Profit (Rs.)", Math.round(summary.totalProfitEarned || 0)],
+    ["Profit Margin (%)", `${summary.overallProfitMargin || 0}%`],
+  ];
+
+  const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+  summaryWorksheet["!cols"] = [{ wch: 30 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Summary");
+
+  // 2. Items Detail Sheet
+  const itemsExcelData = items.map((item, index) => ({
+    "Rank (#)": index + 1,
+    "Item Name": item.productName || "-",
+    SKU: item.sku || "-",
+    Category: item.category || "-",
+    "Qty Sold": item.totalQuantitySold || 0,
+    Unit: item.uom || "pcs",
+    "Avg Sell Price (Rs.)": Math.round(item.avgSellingPrice || 0),
+    "Gross Sales (Rs.)": Math.round(item.totalGrossAmount || 0),
+    "Discount (Rs.)": Math.round(item.totalDiscount || 0),
+    "Net Revenue (Rs.)": Math.round(item.totalRevenue || 0),
+    "Profit (Rs.)": Math.round(item.totalProfit || 0),
+    "Profit Margin (%)": `${item.profitMargin || 0}%`,
+    "Current Stock": item.currentStock || 0,
+  }));
+
+  if (itemsExcelData.length > 0) {
+    const itemsWorksheet = XLSX.utils.json_to_sheet(itemsExcelData);
+    itemsWorksheet["!cols"] = [
+      { wch: 10 },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 15 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, itemsWorksheet, "Item Sales");
+  }
+
+  XLSX.writeFile(workbook, filename);
+}
+
 
 
 
