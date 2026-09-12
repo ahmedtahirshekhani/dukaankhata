@@ -1,50 +1,16 @@
 import * as XLSX from "xlsx";
 import { ItemWiseSaleExportItem, ItemWiseSaleSummary } from "@/types/item-wise-sales";
-
-interface Transaction {
-  id: number;
-  productId?: number | string;
-  productName?: string;
-  productDescription?: string;
-  type: "income" | "expense";
-  created_at: string;
-  amount: number;
-  customerName?: string;
-  customerNumber?: string;
-}
-
-interface ProfitabilitySummary {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  profitMargin: number;
-  totalOrders: number;
-  totalExpenseItems: number;
-  avgOrderValue?: number;
-  avgExpenseValue?: number;
-}
-
-interface ProfitabilityBreakdown {
-  category: string;
-  revenue: number;
-  orders: number;
-}
-
-interface ProfitabilityExpense {
-  _id?: string;
-  id?: string;
-  category: string;
-  description: string;
-  amount: number;
-  date: string;
-  paymentMethod?: string;
-}
-
-interface ProfitabilityReportData {
-  summary: ProfitabilitySummary;
-  breakdown: ProfitabilityBreakdown[];
-  expenses: ProfitabilityExpense[];
-}
+import {
+  ExcelTransaction,
+  ProfitabilityReportData,
+  ProfitabilitySummary,
+  ProfitabilityBreakdown,
+  ProfitabilityExpense,
+  ExcelProduct,
+  ExcelCustomer,
+  StockProduct,
+  ReceivableDebtorItem,
+} from "@/types/reports";
 
 /**
  * Exports transactions to an Excel file
@@ -52,7 +18,7 @@ interface ProfitabilityReportData {
  * @param filename Name of the file to download
  */
 export function exportTransactionsToExcel(
-  transactions: Transaction[],
+  transactions: ExcelTransaction[],
   filename: string = "counter-sale-transactions.xlsx"
 ): void {
   // Prepare data for Excel
@@ -150,27 +116,8 @@ export function exportTransactionsTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface Product {
-  id: number;
-  type?: string;
-  name: string;
-  description?: string;
-  sell_price?: number;
-  cost_price?: number;
-  quantity?: number;
-  in_stock?: number;
-  category?: string;
-  unit_of_measurement?: string;
-  branch?: string;
-}
-
-/**
- * Exports products to an Excel file
- * @param products Array of products to export
- * @param filename Name of the file to download
- */
 export function exportProductsToExcel(
-  products: Product[],
+  products: ExcelProduct[],
   filename: string = "products.xlsx"
 ): void {
   // Prepare data for Excel
@@ -260,23 +207,8 @@ export function exportProductsTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  status?: "active" | "inactive";
-  company_name?: string;
-  balance?: number;
-}
-
-/**
- * Exports customers to an Excel file
- * @param customers Array of customers to export
- * @param filename Name of the file to download
- */
 export function exportCustomersToExcel(
-  customers: Customer[],
+  customers: ExcelCustomer[],
   filename: string = "customers.xlsx"
 ): void {
   // Prepare data for Excel
@@ -346,22 +278,11 @@ export function exportCustomersTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface StockReportItem {
-  sku?: string;
-  name: string;
-  category?: string;
-  branch?: string;
-  quantity?: number;
-  cost_price?: number;
-  sell_price?: number;
-  damaged_quantity?: number;
-}
-
 /**
  * Exports Stock Report items to an Excel file with detailed valuations
  */
 export function exportStockReportToExcel(
-  items: StockReportItem[],
+  items: StockProduct[],
   filename: string = "stock-report.xlsx"
 ): void {
   const excelData = items.map((item) => {
@@ -408,15 +329,6 @@ export function exportStockReportToExcel(
 
   XLSX.utils.book_append_sheet(workbook, worksheet, "Stock Report");
   XLSX.writeFile(workbook, filename);
-}
-
-interface ReceivableDebtorItem {
-  name: string;
-  company_name?: string;
-  email?: string;
-  phone?: string;
-  balance: number;
-  status: string;
 }
 
 /**

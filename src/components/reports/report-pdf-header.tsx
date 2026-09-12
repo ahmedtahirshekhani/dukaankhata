@@ -67,7 +67,7 @@ export function ReportPdfHeader({
   );
 
   return (
-    <div className={`pdf-header ${className}`} style={{ display: "none", backgroundColor: "white" }}>
+    <div className={`pdf-header ${className}`} style={{ backgroundColor: "white" }}>
       {/* 1. Main Business Branding & Title Section */}
       <div style={{ paddingBottom: "12px", marginBottom: "12px", borderBottom: "2px solid #0f172a" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
