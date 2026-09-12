@@ -543,6 +543,7 @@ export function exportItemWiseSalesToExcel(
     ["Total Units Sold (Quantity)", summary.totalItemsSold || 0],
     ["Total Gross Sales (Rs.)", Math.round(summary.totalGrossRevenue || 0)],
     ["Total Discounts Given (Rs.)", Math.round(summary.totalDiscountGiven || 0)],
+    ["Total Returns (Rs.)", Math.round(summary.totalReturnedAmount || 0)],
     ["Total Net Revenue (Rs.)", Math.round(summary.totalNetRevenue || 0)],
     ["Total Gross Profit (Rs.)", Math.round(summary.totalProfitEarned || 0)],
     ["Profit Margin (%)", `${summary.overallProfitMargin || 0}%`],

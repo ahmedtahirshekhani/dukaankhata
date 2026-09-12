@@ -425,8 +425,15 @@ export default function ItemWiseSaleReportPage() {
         sortable: true,
         className: "w-[90px] text-right justify-end",
         cell: (row) => (
-          <div className="font-medium text-xs">
-            {row.totalQuantitySold} <span className="text-[10px] text-muted-foreground">{row.uom || "pcs"}</span>
+          <div className="text-right">
+            <div className="font-medium text-xs">
+              {row.totalQuantitySold} <span className="text-[10px] text-muted-foreground">{row.uom || "pcs"}</span>
+            </div>
+            {Boolean(row.totalReturnedQuantity && row.totalReturnedQuantity > 0) && (
+              <div className="text-[9px] text-rose-500 font-normal">
+                -{row.totalReturnedQuantity} ret
+              </div>
+            )}
           </div>
         ),
       },

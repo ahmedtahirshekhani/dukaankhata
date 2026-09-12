@@ -225,43 +225,216 @@ export async function GET(request: NextRequest) {
       }
     ];
 
+    // Execute aggregation for all matching sales
+    const allMatchingSales = await ordersCollection.aggregate(pipeline).toArray();
+
+    // 3. Query Sale Returns in the same date range
+    const saleReturnsCollection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
+    const returnMatch: any = {
+      user_id: userId,
+      $or: [
+        { date: { $gte: from, $lte: to } },
+        { date: { $gte: from.toISOString(), $lte: to.toISOString() } },
+        { created_at: { $gte: from, $lte: to } },
+        { created_at: { $gte: from.toISOString(), $lte: to.toISOString() } }
+      ]
+    };
+
+    const returnPipeline: any[] = [
+      { $match: returnMatch },
+      { $unwind: { path: "$items", preserveNullAndEmptyArrays: false } },
+      {
+        $project: {
+          productId: { $ifNull: ["$items.productId", { $ifNull: ["$items.product_id", "$items.id"] }] },
+          itemName: { $ifNull: ["$items.itemName", { $ifNull: ["$items.name", "Unknown Item"] }] },
+          quantity: {
+            $convert: {
+              input: { $ifNull: ["$items.quantity", 0] },
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          },
+          rate: {
+            $convert: {
+              input: { $ifNull: ["$items.rate", 0] },
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          },
+          amount: {
+            $convert: {
+              input: { $ifNull: ["$items.amount", 0] },
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $toString: "$productId" },
+          productName: { $first: "$itemName" },
+          totalQuantityReturned: { $sum: "$quantity" },
+          totalReturnAmount: { $sum: "$amount" },
+          returnsCount: { $sum: 1 }
+        }
+      }
+    ];
+
+    const returnResults = await saleReturnsCollection.aggregate(returnPipeline).toArray();
+    const returnsByProductId = new Map<string, {
+      totalQuantityReturned: number;
+      totalReturnAmount: number;
+      returnsCount: number;
+      productName: string;
+    }>();
+
+    for (const r of returnResults) {
+      returnsByProductId.set(String(r._id), {
+        totalQuantityReturned: r.totalQuantityReturned || 0,
+        totalReturnAmount: r.totalReturnAmount || 0,
+        returnsCount: r.returnsCount || 0,
+        productName: r.productName || ""
+      });
+    }
+
+    // 4. Merge Sales and Returns to compute Net Sales
+    const processedMap = new Map<string, any>();
+
+    for (const item of allMatchingSales) {
+      const prodId = String(item.productId);
+      const returnData = returnsByProductId.get(prodId);
+      const totalReturnedQuantity = returnData?.totalQuantityReturned || 0;
+      const totalReturnedAmount = returnData?.totalReturnAmount || 0;
+
+      const grossQuantity = item.totalQuantitySold || 0;
+      const grossRevenue = item.totalRevenue || 0;
+      const grossCost = item.totalCost || 0;
+
+      // Net Quantity Sold
+      const netQuantitySold = Math.max(0, grossQuantity - totalReturnedQuantity);
+
+      // Net Revenue after subtracting Return Amount
+      const netRevenue = Math.max(0, grossRevenue - totalReturnedAmount);
+
+      // Unit Cost from original sales
+      const unitCost = grossQuantity > 0 ? (grossCost / grossQuantity) : 0;
+      const netCost = Math.max(0, netQuantitySold * unitCost);
+
+      // Net Profit
+      const netProfit = netRevenue - netCost;
+
+      const avgSellingPrice = netQuantitySold > 0 
+        ? Math.round((netRevenue / netQuantitySold) * 100) / 100 
+        : (grossQuantity > 0 ? Math.round((grossRevenue / grossQuantity) * 100) / 100 : 0);
+
+      const profitMargin = netRevenue > 0 
+        ? Math.round(((netProfit / netRevenue) * 100) * 10) / 10 
+        : 0;
+
+      processedMap.set(prodId, {
+        _id: prodId,
+        productId: prodId,
+        productName: item.productName,
+        sku: item.sku,
+        category: item.category,
+        uom: item.uom,
+        currentStock: item.currentStock,
+        totalGrossQuantity: Math.round(grossQuantity * 100) / 100,
+        totalReturnedQuantity: Math.round(totalReturnedQuantity * 100) / 100,
+        totalReturnedAmount: Math.round(totalReturnedAmount * 100) / 100,
+        totalQuantitySold: Math.round(netQuantitySold * 100) / 100,
+        totalGrossAmount: Math.round(item.totalGrossAmount * 100) / 100,
+        totalDiscount: Math.round(item.totalDiscount * 100) / 100,
+        totalRevenue: Math.round(netRevenue * 100) / 100,
+        totalCost: Math.round(netCost * 100) / 100,
+        totalProfit: Math.round(netProfit * 100) / 100,
+        invoicesCount: item.invoicesCount || 1,
+        minSellPrice: item.minSellPrice,
+        maxSellPrice: item.maxSellPrice,
+        avgSellingPrice,
+        profitMargin
+      });
+    }
+
+    // Include products that only had returns in this period (0 sales)
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    for (const [prodId, returnData] of Array.from(returnsByProductId.entries())) {
+      if (!processedMap.has(prodId)) {
+        let prodInfo: any = null;
+        try {
+          prodInfo = await productsCollection.findOne({
+            $or: [
+              { _id: toObjectId(prodId) },
+              { id: prodId }
+            ]
+          });
+        } catch {
+          // ignore invalid objectId
+        }
+
+        const categoryName = prodInfo?.category || "Uncategorized";
+        const sku = prodInfo?.sku || "-";
+        const productName = prodInfo?.name || returnData.productName || "Unknown Item";
+        const uom = prodInfo?.unit_of_measurement || "pcs";
+        const currentStock = prodInfo?.quantity || 0;
+
+        processedMap.set(prodId, {
+          _id: prodId,
+          productId: prodId,
+          productName,
+          sku,
+          category: categoryName,
+          uom,
+          currentStock,
+          totalGrossQuantity: 0,
+          totalReturnedQuantity: Math.round(returnData.totalQuantityReturned * 100) / 100,
+          totalReturnedAmount: Math.round(returnData.totalReturnAmount * 100) / 100,
+          totalQuantitySold: 0,
+          totalGrossAmount: 0,
+          totalDiscount: 0,
+          totalRevenue: 0,
+          totalCost: 0,
+          totalProfit: 0,
+          invoicesCount: 0,
+          minSellPrice: 0,
+          maxSellPrice: 0,
+          avgSellingPrice: 0,
+          profitMargin: 0
+        });
+      }
+    }
+
+    let allMatchingItems = Array.from(processedMap.values());
+
     // Filter by Category if specified
     if (category && category !== "all") {
-      pipeline.push({
-        $match: {
-          category: { $regex: `^${category}$`, $options: "i" }
-        }
-      });
+      const catRegex = new RegExp(`^${category}$`, "i");
+      allMatchingItems = allMatchingItems.filter(item => catRegex.test(item.category));
     }
 
     // Filter by Search term if specified
     if (search) {
-      pipeline.push({
-        $match: {
-          $or: [
-            { productName: { $regex: search, $options: "i" } },
-            { sku: { $regex: search, $options: "i" } },
-            { category: { $regex: search, $options: "i" } }
-          ]
-        }
-      });
+      const searchRegex = new RegExp(search, "i");
+      allMatchingItems = allMatchingItems.filter(item => 
+        searchRegex.test(item.productName) || 
+        searchRegex.test(item.sku) || 
+        searchRegex.test(item.category)
+      );
     }
 
-    // Sorting stage
-    const sortStage: any = {};
-    if (sortBy === "productName") {
-      sortStage.productName = sortOrder;
-    } else if (sortBy === "totalQuantitySold") {
-      sortStage.totalQuantitySold = sortOrder;
-    } else if (sortBy === "totalProfit") {
-      sortStage.totalProfit = sortOrder;
-    } else {
-      sortStage.totalRevenue = sortOrder;
-    }
-    pipeline.push({ $sort: sortStage });
-
-    // Execute aggregation for all matching items
-    const allMatchingItems = await ordersCollection.aggregate(pipeline).toArray();
+    // Sort items
+    allMatchingItems.sort((a, b) => {
+      let valA = a[sortBy] ?? 0;
+      let valB = b[sortBy] ?? 0;
+      if (typeof valA === "string") {
+        return sortOrder === 1 ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return sortOrder === 1 ? valA - valB : valB - valA;
+    });
 
     // Calculate Summary Statistics
     let totalItemsSold = 0;
@@ -269,6 +442,8 @@ export async function GET(request: NextRequest) {
     let totalDiscountGiven = 0;
     let totalNetRevenue = 0;
     let totalProfitEarned = 0;
+    let totalReturnedUnits = 0;
+    let totalReturnedAmount = 0;
     let topSellingItem = null as any;
     let topRevenueItem = null as any;
 
@@ -279,6 +454,8 @@ export async function GET(request: NextRequest) {
         totalDiscountGiven += item.totalDiscount || 0;
         totalNetRevenue += item.totalRevenue || 0;
         totalProfitEarned += item.totalProfit || 0;
+        totalReturnedUnits += item.totalReturnedQuantity || 0;
+        totalReturnedAmount += item.totalReturnedAmount || 0;
       }
 
       // Find top selling by quantity and revenue
@@ -303,6 +480,8 @@ export async function GET(request: NextRequest) {
         totalItemsSold: Math.round(totalItemsSold * 100) / 100,
         totalGrossRevenue: Math.round(totalGrossRevenue * 100) / 100,
         totalDiscountGiven: Math.round(totalDiscountGiven * 100) / 100,
+        totalReturnedUnits: Math.round(totalReturnedUnits * 100) / 100,
+        totalReturnedAmount: Math.round(totalReturnedAmount * 100) / 100,
         totalNetRevenue: Math.round(totalNetRevenue * 100) / 100,
         totalProfitEarned: Math.round(totalProfitEarned * 100) / 100,
         overallProfitMargin: totalNetRevenue > 0 
