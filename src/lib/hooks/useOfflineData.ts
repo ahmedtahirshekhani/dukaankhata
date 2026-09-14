@@ -566,18 +566,28 @@ export function useOfflineSaleReturns(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by date descending
-        const dateA = a.date
-          ? new Date(a.date).getTime()
-          : a.created_at
-            ? new Date(a.created_at).getTime()
+        // Sort by creation time / date descending (latest created on top)
+        const timeA = a.created_at
+          ? new Date(a.created_at).getTime()
+          : a.date
+            ? new Date(a.date).getTime()
             : 0;
-        const dateB = b.date
-          ? new Date(b.date).getTime()
-          : b.created_at
-            ? new Date(b.created_at).getTime()
+        const timeB = b.created_at
+          ? new Date(b.created_at).getTime()
+          : b.date
+            ? new Date(b.date).getTime()
             : 0;
-        return dateB - dateA;
+
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numB - numA;
+        }
+        return String(b.id || "").localeCompare(String(a.id || ""));
       });
   }, [searchQuery, filterPaymentMethodId, filterPartyId]);
 }

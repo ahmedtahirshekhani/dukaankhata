@@ -8,12 +8,15 @@ export interface ItemSaleRecord {
   category: string;
   uom: string;
   currentStock: number;
-  totalQuantitySold: number;
+  totalQuantitySold: number; // Net Quantity Sold
+  totalGrossQuantity?: number; // Gross Quantity Sold before returns
+  totalReturnedQuantity?: number; // Quantity Returned
+  totalReturnedAmount?: number; // Total Return Value
   totalGrossAmount: number;
   totalDiscount: number;
-  totalRevenue: number;
-  totalCost: number;
-  totalProfit: number;
+  totalRevenue: number; // Net Revenue
+  totalCost: number; // Net Cost
+  totalProfit: number; // Net Profit
   invoicesCount: number;
   minSellPrice: number;
   maxSellPrice: number;
@@ -23,7 +26,9 @@ export interface ItemSaleRecord {
 
 export interface ItemWiseSaleSummary {
   totalProductsCount: number;
-  totalItemsSold: number;
+  totalItemsSold: number; // Net Items Sold
+  totalReturnedUnits?: number; // Total Returned Units
+  totalReturnedAmount?: number; // Total Returned Amount
   totalGrossRevenue: number;
   totalDiscountGiven: number;
   totalNetRevenue: number;
