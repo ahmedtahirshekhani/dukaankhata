@@ -494,21 +494,40 @@ export default function ItemWiseSaleReportPage() {
       {
         id: "currentStock",
         header: t("currentStock"),
-        className: "w-[95px] text-center",
-        cell: (row) =>
-          row.currentStock <= 0 ? (
-            <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-              {t("outOfStock")}
-            </Badge>
-          ) : row.currentStock <= 5 ? (
-            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200">
-              {row.currentStock} {t("lowStock")}
-            </Badge>
-          ) : (
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              {row.currentStock} {row.uom || "pcs"}
-            </span>
-          ),
+        className: "w-[105px] text-center",
+        cell: (row) => {
+          const qty = typeof row.currentStock === "number" ? row.currentStock : 0;
+          const isOut = qty <= 0;
+          const isLow = qty > 0 && qty <= 5;
+          return (
+            <div className="flex flex-col items-center justify-center gap-0.5">
+              <span
+                className={`font-semibold text-xs ${
+                  isOut
+                    ? "text-rose-600 dark:text-rose-400"
+                    : isLow
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}
+              >
+                {qty} <span className="text-[10px] text-muted-foreground">{row.uom || "pcs"}</span>
+              </span>
+              {isOut && (
+                <Badge variant="destructive" className="text-[8px] h-4 px-1 py-0 font-medium">
+                  {t("outOfStock")}
+                </Badge>
+              )}
+              {isLow && (
+                <Badge
+                  variant="secondary"
+                  className="text-[8px] h-4 px-1 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 font-medium"
+                >
+                  {t("lowStock")}
+                </Badge>
+              )}
+            </div>
+          );
+        },
       },
     ],
     [currentPage, pageSize, t]
@@ -793,7 +812,15 @@ export default function ItemWiseSaleReportPage() {
               </div>
               <div className="text-right">
                 <span className="text-muted-foreground block text-[10px]">Stock</span>
-                <span className={row.currentStock <= 5 ? "font-bold text-amber-600" : "font-medium"}>
+                <span
+                  className={
+                    row.currentStock <= 0
+                      ? "font-bold text-rose-600"
+                      : row.currentStock <= 5
+                      ? "font-bold text-amber-600"
+                      : "font-medium text-emerald-600"
+                  }
+                >
                   {row.currentStock} {row.uom || "pcs"}
                 </span>
               </div>
@@ -844,61 +871,68 @@ export default function ItemWiseSaleReportPage() {
                 kpis={pdfKpis}
               />
 
-              {/* Printable Table */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
-                <thead>
-                  <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
-                    <th style={{ padding: "5px 6px", textAlign: "center", width: "35px" }}>#</th>
-                    <th style={{ padding: "5px 6px", textAlign: "left" }}>Item Name</th>
-                    <th style={{ padding: "5px 6px", textAlign: "left", width: "100px" }}>SKU</th>
-                    <th style={{ padding: "5px 6px", textAlign: "left", width: "110px" }}>Category</th>
-                    <th style={{ padding: "5px 6px", textAlign: "right", width: "75px" }}>Qty Sold</th>
-                    <th style={{ padding: "5px 6px", textAlign: "right", width: "85px" }}>Avg Rate</th>
-                    <th style={{ padding: "5px 6px", textAlign: "right", width: "75px" }}>Discount</th>
-                    <th style={{ padding: "5px 6px", textAlign: "right", width: "100px" }}>Net Sales</th>
-                    <th style={{ padding: "5px 6px", textAlign: "right", width: "90px" }}>Profit</th>
-                    <th style={{ padding: "5px 6px", textAlign: "center", width: "65px" }}>Stock</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, idx) => (
-                    <tr
-                      key={item.productId || idx}
-                      style={{
-                        borderBottom: "1px solid #e2e8f0",
-                        backgroundColor: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
-                      }}
-                    >
-                      <td style={{ padding: "5px 6px", textAlign: "center", fontWeight: "bold", color: "#64748b" }}>
-                        {idx + 1}
-                      </td>
-                      <td style={{ padding: "5px 6px", fontWeight: "bold", color: "#0f172a" }}>
-                        {item.productName}
-                      </td>
-                      <td style={{ padding: "5px 6px", color: "#475569" }}>{item.sku || "-"}</td>
-                      <td style={{ padding: "5px 6px", color: "#475569" }}>{item.category || "-"}</td>
-                      <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold" }}>
-                        {item.totalQuantitySold} {item.uom || "pcs"}
-                      </td>
-                      <td style={{ padding: "5px 6px", textAlign: "right" }}>
-                        {formatCurrency(item.avgSellingPrice)}
-                      </td>
-                      <td style={{ padding: "5px 6px", textAlign: "right", color: "#64748b" }}>
-                        {item.totalDiscount > 0 ? formatCurrency(item.totalDiscount) : "-"}
-                      </td>
-                      <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold", color: "#0f172a" }}>
-                        {formatCurrency(item.totalRevenue)}
-                      </td>
-                      <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold", color: item.totalProfit >= 0 ? "#059669" : "#dc2626" }}>
-                        {formatCurrency(item.totalProfit)}
-                      </td>
-                      <td style={{ padding: "5px 6px", textAlign: "center", color: item.currentStock <= 5 ? "#d97706" : "#0f172a" }}>
-                        {item.currentStock}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* Printable Table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+          <thead>
+            <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
+              <th style={{ padding: "5px 6px", textAlign: "center", width: "35px" }}>#</th>
+              <th style={{ padding: "5px 6px", textAlign: "left" }}>Item Name</th>
+              <th style={{ padding: "5px 6px", textAlign: "left", width: "100px" }}>SKU</th>
+              <th style={{ padding: "5px 6px", textAlign: "left", width: "110px" }}>Category</th>
+              <th style={{ padding: "5px 6px", textAlign: "right", width: "75px" }}>Qty Sold</th>
+              <th style={{ padding: "5px 6px", textAlign: "right", width: "85px" }}>Avg Rate</th>
+              <th style={{ padding: "5px 6px", textAlign: "right", width: "75px" }}>Discount</th>
+              <th style={{ padding: "5px 6px", textAlign: "right", width: "100px" }}>Net Sales</th>
+              <th style={{ padding: "5px 6px", textAlign: "right", width: "90px" }}>Profit</th>
+              <th style={{ padding: "5px 6px", textAlign: "center", width: "65px" }}>Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, idx) => (
+              <tr
+                key={item.productId || idx}
+                style={{
+                  borderBottom: "1px solid #e2e8f0",
+                  backgroundColor: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
+                }}
+              >
+                <td style={{ padding: "5px 6px", textAlign: "center", fontWeight: "bold", color: "#64748b" }}>
+                  {idx + 1}
+                </td>
+                <td style={{ padding: "5px 6px", fontWeight: "bold", color: "#0f172a" }}>
+                  {item.productName}
+                </td>
+                <td style={{ padding: "5px 6px", color: "#475569" }}>{item.sku || "-"}</td>
+                <td style={{ padding: "5px 6px", color: "#475569" }}>{item.category || "-"}</td>
+                <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold" }}>
+                  {item.totalQuantitySold} {item.uom || "pcs"}
+                </td>
+                <td style={{ padding: "5px 6px", textAlign: "right" }}>
+                  {formatCurrency(item.avgSellingPrice)}
+                </td>
+                <td style={{ padding: "5px 6px", textAlign: "right", color: "#64748b" }}>
+                  {item.totalDiscount > 0 ? formatCurrency(item.totalDiscount) : "-"}
+                </td>
+                <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold", color: "#0f172a" }}>
+                  {formatCurrency(item.totalRevenue)}
+                </td>
+                <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold", color: item.totalProfit >= 0 ? "#059669" : "#dc2626" }}>
+                  {formatCurrency(item.totalProfit)}
+                </td>
+                <td
+                  style={{
+                    padding: "5px 6px",
+                    textAlign: "center",
+                    fontWeight: "bold",
+                    color: item.currentStock <= 0 ? "#dc2626" : item.currentStock <= 5 ? "#d97706" : "#0f172a",
+                  }}
+                >
+                  {item.currentStock}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
               <div style={{ marginTop: "10px", borderTop: "2px solid #0f172a", paddingTop: "6px" }}>
                 <table style={{ width: "100%", fontSize: "10px", fontWeight: "bold" }}>
