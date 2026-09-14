@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 
 export interface Subscription {
   _id?: ObjectId;
-  user_id: ObjectId;
+  user_id: ObjectId | string;
   email: string;
   plan: "trial" | "pro";
   status: "pending" | "active" | "expired" | "cancelled" | "login_blocked" | "payment_expire" | "in_trial" | "trial";
@@ -24,38 +24,75 @@ export interface Subscription {
  */
 export async function getUserActiveSubscription(userId: string | ObjectId): Promise<Subscription | null> {
   const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
+  const usersCollection = await getCollection(COLLECTIONS.USERS);
   const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
+  const now = new Date();
 
-  const subscription = await subscriptionsCollection.findOne({
-    user_id: userObjectId,
-    status: "active",
-  });
+  const user = await usersCollection.findOne({ _id: userObjectId }, { projection: { email: 1 } });
+  const userEmail = user?.email;
 
-  return subscription || null;
+  const userOrEmailFilter: any = userEmail
+    ? { $or: [{ user_id: userObjectId }, { user_id: userId.toString() }, { email: userEmail }] }
+    : { $or: [{ user_id: userObjectId }, { user_id: userId.toString() }] };
+
+  const subscriptions = await subscriptionsCollection
+    .find({
+      ...userOrEmailFilter,
+      status: { $in: ["active", "in_trial", "trial"] },
+    } as any)
+    .sort({ expiry_date: -1 })
+    .toArray();
+
+  const activeSub = subscriptions.find((sub) => new Date(sub.expiry_date) > now);
+  return activeSub || null;
 }
 
 export async function getUserLatestSubscription(userId: string | ObjectId): Promise<Subscription | null> {
   const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
+  const usersCollection = await getCollection(COLLECTIONS.USERS);
   const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
   const now = new Date();
 
+  const user = await usersCollection.findOne({ _id: userObjectId }, { projection: { email: 1 } });
+  const userEmail = user?.email;
+
+  const userOrEmailFilter: any = userEmail
+    ? { $or: [{ user_id: userObjectId }, { user_id: userId.toString() }, { email: userEmail }] }
+    : { $or: [{ user_id: userObjectId }, { user_id: userId.toString() }] };
+
   // First priority: active subscription that hasn't expired yet
-  const activeSubscription = await subscriptionsCollection.findOne(
-    {
-      user_id: userObjectId,
+  const activeSubscriptions = await subscriptionsCollection
+    .find({
+      ...userOrEmailFilter,
       status: { $in: ["active", "in_trial", "trial"] },
-      expiry_date: { $gt: now },
-    },
-    { sort: { expiry_date: -1 } }
+    } as any)
+    .sort({ expiry_date: -1 })
+    .toArray();
+
+  const activeSubscription = activeSubscriptions.find(
+    (sub) => new Date(sub.expiry_date) > now
   );
 
   if (activeSubscription) {
     return activeSubscription;
   }
 
-  // Fallback: latest created subscription record
+  // Fallback: latest created non-cancelled subscription record
+  const nonCancelledSub = await subscriptionsCollection.findOne(
+    {
+      ...userOrEmailFilter,
+      status: { $ne: "cancelled" },
+    } as any,
+    { sort: { created_at: -1 } }
+  );
+
+  if (nonCancelledSub) {
+    return nonCancelledSub;
+  }
+
+  // Ultimate fallback: latest created subscription record
   const subscription = await subscriptionsCollection.findOne(
-    { user_id: userObjectId },
+    userOrEmailFilter as any,
     { sort: { created_at: -1 } }
   );
 
@@ -69,8 +106,7 @@ export async function hasActiveSubscription(userId: string | ObjectId): Promise<
   const subscription = await getUserActiveSubscription(userId);
   if (!subscription) return false;
 
-  // Check if subscription hasn't expired yet
-  return subscription.expiry_date > new Date();
+  return new Date(subscription.expiry_date) > new Date();
 }
 
 /**
@@ -104,24 +140,42 @@ export async function getSubscriptionStatus(userId: string | ObjectId): Promise<
   }
 
   const now = new Date();
-  const daysRemaining = Math.ceil(
-    (subscription.expiry_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const subExpiryDate = subscription.expiry_date ? new Date(subscription.expiry_date) : null;
+  const daysRemaining = subExpiryDate
+    ? Math.ceil((subExpiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
 
   const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
+  const usersCollection = await getCollection(COLLECTIONS.USERS);
   const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
-  const subscriptionCount = await subscriptionsCollection.countDocuments({ user_id: userObjectId });
+  const user = await usersCollection.findOne({ _id: userObjectId }, { projection: { email: 1 } });
+  const userEmail = user?.email;
+
+  const countFilter: any = userEmail
+    ? { $or: [{ user_id: userObjectId }, { user_id: userId.toString() }, { email: userEmail }] }
+    : { $or: [{ user_id: userObjectId }, { user_id: userId.toString() }] };
+
+  const subscriptionCount = await subscriptionsCollection.countDocuments(countFilter);
   const isRenewal = subscriptionCount > 1 || !!subscription.previous_subscription_id;
 
+  const isActive =
+    ["active", "in_trial", "trial"].includes(subscription.status) &&
+    !!subExpiryDate &&
+    subExpiryDate > now;
+
   return {
-    isActive: ["active", "in_trial", "trial"].includes(subscription.status) && subscription.expiry_date > now,
-    isPending: subscription.status === "pending",
-    isExpired: ["expired", "payment_expire", "login_blocked"].includes(subscription.status) || subscription.expiry_date <= now,
+    isActive,
+    isPending: !isActive && subscription.status === "pending",
+    isExpired: !isActive,
     plan: subscription.plan,
     daysRemaining: Math.max(0, daysRemaining),
-    expiryDate: subscription.expiry_date,
-    startDate: subscription.billing_cycle_start || subscription.created_at,
-    status: subscription.status,
+    expiryDate: subExpiryDate,
+    startDate: subscription.billing_cycle_start ? new Date(subscription.billing_cycle_start) : subscription.created_at ? new Date(subscription.created_at) : null,
+    status: isActive
+      ? subscription.status
+      : subscription.status === "active"
+      ? "expired"
+      : subscription.status,
     isRenewal,
   };
 }
