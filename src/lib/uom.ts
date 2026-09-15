@@ -198,9 +198,38 @@ export function getUomShortcut(uom?: string | null): string {
  * Formats a UOM string for display, using shortcut if available
  */
 export function formatUomDisplay(uom?: string | null): string {
-  if (!uom) return "-";
+  if (!uom || uom === "-" || uom === "none") return "-";
   const shortcut = getUomShortcut(uom);
   return shortcut || uom;
+}
+
+/**
+ * Formats a UOM string with its localized name and shortcut (e.g. "پیس (pcs)" or "Piece (pcs)")
+ */
+export function formatLocalizedUom(
+  uom?: string | null,
+  t?: (key: string) => string
+): string {
+  if (!uom || uom === "-" || uom === "none") return "-";
+  const normalized = uom.toLowerCase().trim();
+  if (t) {
+    try {
+      const translated = t(`units.${normalized}`);
+      if (
+        translated &&
+        !translated.startsWith("units.") &&
+        !translated.includes(".units.")
+      ) {
+        return translated;
+      }
+    } catch {
+      // fallback
+    }
+  }
+  const found = UNITS_OF_MEASUREMENT.find((u) => u.value === normalized);
+  if (found) return found.label;
+  const shortcut = getUomShortcut(uom);
+  return shortcut && shortcut !== uom ? `${uom} (${shortcut})` : uom;
 }
 
 /**
@@ -216,4 +245,5 @@ export function getLocalizedUnitOptions(t?: (key: string) => string): UnitOption
   }));
   return options.sort((a, b) => a.label.localeCompare(b.label));
 }
+
 
