@@ -128,18 +128,18 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
     // All sizing via inline styles so html2canvas / print see identical values.
     const S = isThermal
       ? {
-          outerPad: "12px",
-          outerPadNum: 12,
+          outerPad: "8px",
+          outerPadNum: 8,
           minHeight: "auto",       // Thermal has no fixed page height
-          headerFontSize: "15px",
-          textFontSize: "11px",
-          boldFontSize: "13px",
-          labelFontSize: "9px",
-          logoH: "40px",
+          headerFontSize: "16px",
+          textFontSize: "12px",
+          boldFontSize: "14px",
+          labelFontSize: "10px",
+          logoH: "44px",
           sigH: "48px",
           sigW: "120px",
           headerGap: "8px",
-          sectionGap: "12px",
+          sectionGap: "10px",
         }
       : {
           outerPad: "24px",
@@ -166,7 +166,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
         className="invoice-preview-container"
         style={{
           background: "#ffffff",
-          border: "1px solid #e9ecefff",
+          border: isThermal ? "none" : "1px solid #e9ecefff",
           borderRadius: "6px",
           fontFamily: "'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
@@ -177,9 +177,10 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
       >
         {isThermal && (
           <style>{`
-            .invoice-preview-container * {
-              font-weight: 800 !important;
+            .invoice-preview-container, .invoice-preview-container * {
               color: #000000 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .invoice-preview-container table td, .invoice-preview-container table th {
               border-color: #000000 !important;
@@ -215,7 +216,16 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                   <img
                     src={companyLogo}
                     alt="Company Logo"
-                    style={{ height: S.logoH, width: "auto", objectFit: "contain", display: "block", margin: "0 auto 8px" }}
+                    className="invoice-company-logo"
+                    style={{
+                      maxHeight: "50px",
+                      maxWidth: "120px",
+                      height: "auto",
+                      width: "auto",
+                      objectFit: "contain",
+                      display: "block",
+                      margin: "0 auto 8px",
+                    }}
                   />
                 )}
                 {companyName && (
@@ -259,7 +269,15 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         <img
                           src={companyLogo}
                           alt="Company Logo"
-                          style={{ height: S.logoH, width: "auto", objectFit: "contain", display: "block" }}
+                          className="invoice-company-logo"
+                          style={{
+                            maxHeight: S.logoH,
+                            maxWidth: "160px",
+                            height: "auto",
+                            width: "auto",
+                            objectFit: "contain",
+                            display: "block",
+                          }}
                         />
                       )}
                     </td>
@@ -692,7 +710,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {signatureImage && includeSignature && (
                     <div>
-                      <img src={signatureImage} alt="Company Signature" style={{ height: S.sigH, width: "auto", display: "block", marginBottom: "6px" }} />
+                      <img
+                        src={signatureImage}
+                        alt="Company Signature"
+                        className="invoice-sig-img"
+                        style={{ maxHeight: S.sigH, maxWidth: "120px", height: "auto", width: "auto", objectFit: "contain", display: "block", marginBottom: "6px" }}
+                      />
                       <div style={{ width: "120px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
                       <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{companyName}</div>
                     </div>
@@ -719,7 +742,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                     <tr>
                       {signatureImage && includeSignature ? (
                         <td style={{ verticalAlign: "bottom", width: "50%" }}>
-                          <img src={signatureImage} alt="Company Signature" style={{ height: S.sigH, width: "auto", display: "block", marginBottom: "6px" }} />
+                          <img
+                            src={signatureImage}
+                            alt="Company Signature"
+                            className="invoice-sig-img"
+                            style={{ maxHeight: S.sigH, maxWidth: "160px", height: "auto", width: "auto", objectFit: "contain", display: "block", marginBottom: "6px" }}
+                          />
                           <div style={{ width: "160px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
                           <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{companyName}</div>
                         </td>
