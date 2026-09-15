@@ -34,6 +34,7 @@ import { exportItemWiseSalesToExcel } from "@/lib/excel";
 import { formatReadableDate, toHTMLDateString } from "@/lib/date-utils";
 import { ItemSaleRecord, ItemWiseSaleSummary } from "@/types/item-wise-sales";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
+import { getUomShortcut } from "@/lib/uom";
 
 export default function ItemWiseSaleReportPage() {
   const locale = useLocale();
@@ -427,7 +428,7 @@ export default function ItemWiseSaleReportPage() {
         cell: (row) => (
           <div className="text-right">
             <div className="font-medium text-xs">
-              {row.totalQuantitySold} <span className="text-[10px] text-muted-foreground">{row.uom || "pcs"}</span>
+              {row.totalQuantitySold} <span className="text-[10px] text-muted-foreground">{getUomShortcut(row.uom) || "pcs"}</span>
             </div>
             {Boolean(row.totalReturnedQuantity && row.totalReturnedQuantity > 0) && (
               <div className="text-[9px] text-rose-500 font-normal">
@@ -510,7 +511,7 @@ export default function ItemWiseSaleReportPage() {
                     : "text-emerald-600 dark:text-emerald-400"
                 }`}
               >
-                {qty} <span className="text-[10px] text-muted-foreground">{row.uom || "pcs"}</span>
+                {qty} <span className="text-[10px] text-muted-foreground">{getUomShortcut(row.uom) || "pcs"}</span>
               </span>
               {isOut && (
                 <Badge variant="destructive" className="text-[8px] h-4 px-1 py-0 font-medium">
@@ -804,7 +805,7 @@ export default function ItemWiseSaleReportPage() {
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-[11px]">
               <div>
                 <span className="text-muted-foreground block text-[10px]">Qty Sold</span>
-                <span className="font-semibold">{row.totalQuantitySold} {row.uom || "pcs"}</span>
+                <span className="font-semibold">{row.totalQuantitySold} {getUomShortcut(row.uom) || "pcs"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground block text-[10px]">Avg Rate</span>
@@ -821,7 +822,7 @@ export default function ItemWiseSaleReportPage() {
                       : "font-medium text-emerald-600"
                   }
                 >
-                  {row.currentStock} {row.uom || "pcs"}
+                  {row.currentStock} {getUomShortcut(row.uom) || "pcs"}
                 </span>
               </div>
             </div>
@@ -905,7 +906,7 @@ export default function ItemWiseSaleReportPage() {
                 <td style={{ padding: "5px 6px", color: "#475569" }}>{item.sku || "-"}</td>
                 <td style={{ padding: "5px 6px", color: "#475569" }}>{item.category || "-"}</td>
                 <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: "bold" }}>
-                  {item.totalQuantitySold} {item.uom || "pcs"}
+                  {item.totalQuantitySold} {getUomShortcut(item.uom) || "pcs"}
                 </td>
                 <td style={{ padding: "5px 6px", textAlign: "right" }}>
                   {formatCurrency(item.avgSellingPrice)}

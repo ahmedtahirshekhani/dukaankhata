@@ -8,6 +8,7 @@ import {
   calculateLineTotal,
 } from "@/lib/invoice/calculations";
 import { formatCurrencyString } from "@/lib/utils";
+import { formatUomDisplay, getUomShortcut } from "@/lib/uom";
 
 export interface InvoiceProduct {
   id: number | string;
@@ -84,9 +85,6 @@ const formatDateShort = (dateStr: string) => {
   });
 };
 
-const formatUom = (uom?: string) =>
-  uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-";
-
 const truncateDescription = (desc?: string, limit = 25) => {
   if (!desc) return "";
   return desc.length > limit ? `${desc.slice(0, limit)}...` : desc;
@@ -130,18 +128,18 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
     // All sizing via inline styles so html2canvas / print see identical values.
     const S = isThermal
       ? {
-          outerPad: "12px",
-          outerPadNum: 12,
+          outerPad: "8px",
+          outerPadNum: 8,
           minHeight: "auto",       // Thermal has no fixed page height
-          headerFontSize: "15px",
-          textFontSize: "11px",
-          boldFontSize: "13px",
-          labelFontSize: "9px",
-          logoH: "40px",
+          headerFontSize: "16px",
+          textFontSize: "12px",
+          boldFontSize: "14px",
+          labelFontSize: "10px",
+          logoH: "44px",
           sigH: "48px",
           sigW: "120px",
           headerGap: "8px",
-          sectionGap: "12px",
+          sectionGap: "10px",
         }
       : {
           outerPad: "24px",
@@ -168,7 +166,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
         className="invoice-preview-container"
         style={{
           background: "#ffffff",
-          border: "1px solid #e9ecefff",
+          border: isThermal ? "none" : "1px solid #e9ecefff",
           borderRadius: "6px",
           fontFamily: "'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
@@ -179,9 +177,10 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
       >
         {isThermal && (
           <style>{`
-            .invoice-preview-container * {
-              font-weight: 800 !important;
+            .invoice-preview-container, .invoice-preview-container * {
               color: #000000 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .invoice-preview-container table td, .invoice-preview-container table th {
               border-color: #000000 !important;
@@ -217,7 +216,16 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                   <img
                     src={companyLogo}
                     alt="Company Logo"
-                    style={{ height: S.logoH, width: "auto", objectFit: "contain", display: "block", margin: "0 auto 8px" }}
+                    className="invoice-company-logo"
+                    style={{
+                      maxHeight: "50px",
+                      maxWidth: "120px",
+                      height: "auto",
+                      width: "auto",
+                      objectFit: "contain",
+                      display: "block",
+                      margin: "0 auto 8px",
+                    }}
                   />
                 )}
                 {companyName && (
@@ -261,7 +269,15 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         <img
                           src={companyLogo}
                           alt="Company Logo"
-                          style={{ height: S.logoH, width: "auto", objectFit: "contain", display: "block" }}
+                          className="invoice-company-logo"
+                          style={{
+                            maxHeight: S.logoH,
+                            maxWidth: "160px",
+                            height: "auto",
+                            width: "auto",
+                            objectFit: "contain",
+                            display: "block",
+                          }}
                         />
                       )}
                     </td>
@@ -497,6 +513,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       {t("discount")}
                     </th>
                   )}
+                  {isThermal && (
+                    <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 700, color: "#0f172a" }}>
+                      {t("sellPrice") || "Rate"}
+                    </th>
+                  )}
                   <th style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
                     {t("total")}
                   </th>
@@ -506,45 +527,88 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 {products.map((product) => {
                   const discountValue = calculateDiscountValue(product);
                   const lineTotal = calculateLineTotal(product);
+                  const uomShortcut = getUomShortcut(product.unit_of_measurement);
+                  const qtyDisplay = product.quantity_str || (product as any).quantityInput || product.quantity;
+
                   return (
                     <tr key={product.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      {/* Product Name & Description & Thermal Discount */}
                       <td style={{ padding: isThermal ? "6px 4px" : "10px 8px", verticalAlign: "top" }}>
                         <div style={{ fontWeight: 600, color: "#1e293b" }}>{product.name}</div>
                         {product.description && (
                           <div style={{
-                            fontSize: "11px",
+                            fontSize: "9px",
                             color: "#475569",
                             marginTop: "2px",
                             lineHeight: 1.4,
                             whiteSpace: "pre-line",
-                            wordBreak: "break-word"
+                            wordBreak: "break-word",
+                            fontStyle: "italic"
                           }}>
                             {product.description}
                           </div>
                         )}
+                        {isThermal && discountValue > 0 && (
+                          <div style={{
+                            fontSize: "10px",
+                            color: "#475569",
+                            marginTop: "2px",
+                            fontStyle: "italic",
+                          }}>
+                            (Disc: -{formatCurrencyString(discountValue)})
+                            {product.discountType === "percentage" && product.discount ? ` (${product.discount}%)` : ""}
+                          </div>
+                        )}
                       </td>
+
+                      {/* A4 Sell Price */}
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>
                           {formatCurrencyString(product.sell_price)}
                         </td>
                       )}
-                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", color: "#334155" }}>
+
+                      {/* Qty (with UOM shortcut in Thermal) */}
+                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", color: "#334155", whiteSpace: "nowrap" }}>
                         {product.quantityType === "damaged" && (
                           <span style={{ fontSize: "10px", color: "#475569" }}>(dmg) </span>
                         )}
-                        {product.quantity_str || (product as any).quantityInput || product.quantity}
+                        {qtyDisplay}
+                        {isThermal && uomShortcut ? ` ${uomShortcut}` : ""}
                       </td>
+
+                      {/* A4 UOM */}
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>
-                          {formatUom(product.unit_of_measurement)}
+                          {formatUomDisplay(product.unit_of_measurement)}
                         </td>
                       )}
+
+                      {/* A4 Discount */}
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>
-                          {discountValue > 0 ? formatCurrencyString(discountValue) : "-"}
+                          {discountValue > 0 ? (
+                            <div>
+                              <span>{formatCurrencyString(discountValue)}</span>
+                              {product.discountType === "percentage" && product.discount ? (
+                                <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "4px" }}>
+                                  ({product.discount}%)
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : "-"}
                         </td>
                       )}
-                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
+
+                      {/* Thermal Rate (before Total) */}
+                      {isThermal && (
+                        <td style={{ textAlign: "right", padding: "6px 4px", color: "#334155", whiteSpace: "nowrap" }}>
+                          {formatCurrencyString(product.sell_price)}
+                        </td>
+                      )}
+
+                      {/* Line Total */}
+                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap" }}>
                         {formatCurrencyString(lineTotal)}
                       </td>
                     </tr>
@@ -646,7 +710,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {signatureImage && includeSignature && (
                     <div>
-                      <img src={signatureImage} alt="Company Signature" style={{ height: S.sigH, width: "auto", display: "block", marginBottom: "6px" }} />
+                      <img
+                        src={signatureImage}
+                        alt="Company Signature"
+                        className="invoice-sig-img"
+                        style={{ maxHeight: S.sigH, maxWidth: "120px", height: "auto", width: "auto", objectFit: "contain", display: "block", marginBottom: "6px" }}
+                      />
                       <div style={{ width: "120px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
                       <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{companyName}</div>
                     </div>
@@ -673,7 +742,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                     <tr>
                       {signatureImage && includeSignature ? (
                         <td style={{ verticalAlign: "bottom", width: "50%" }}>
-                          <img src={signatureImage} alt="Company Signature" style={{ height: S.sigH, width: "auto", display: "block", marginBottom: "6px" }} />
+                          <img
+                            src={signatureImage}
+                            alt="Company Signature"
+                            className="invoice-sig-img"
+                            style={{ maxHeight: S.sigH, maxWidth: "160px", height: "auto", width: "auto", objectFit: "contain", display: "block", marginBottom: "6px" }}
+                          />
                           <div style={{ width: "160px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
                           <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{companyName}</div>
                         </td>

@@ -63,6 +63,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportStockReportToExcel } from "@/lib/excel";
 import { useCategories, useBranches } from "@/components/products/use-products-data";
+import { getUomShortcut } from "@/lib/uom";
 
 interface StockProduct {
   id: string;
@@ -792,7 +793,7 @@ export default function StockReportPage() {
                           <td style={{ padding: "6px", fontWeight: "600", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</td>
                           <td style={{ padding: "6px", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.category || "-"}</td>
                           <td style={{ padding: "6px", textAlign: "center", fontWeight: "600", color: isOut ? "#ef4444" : "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {qty} {p.unit_of_measurement || ""}
+                            {qty} {getUomShortcut(p.unit_of_measurement)}
                           </td>
                           <td style={{ padding: "6px", textAlign: "right", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Rs. {formatCurrency(cost)}</td>
                           <td style={{ padding: "6px", textAlign: "right", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Rs. {formatCurrency(sell)}</td>
@@ -853,7 +854,7 @@ export default function StockReportPage() {
                               : "text-foreground"
                           }`}
                         >
-                          {qty} {product.unit_of_measurement || ""}
+                          {qty} {getUomShortcut(product.unit_of_measurement)}
                         </span>
                         {isOut && (
                           <span className="text-[10px] font-semibold bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded uppercase">
@@ -986,7 +987,7 @@ export default function StockReportPage() {
                                 {qty}
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                {product.unit_of_measurement || ""}
+                                {getUomShortcut(product.unit_of_measurement)}
                               </span>
                               {isOut && (
                                 <span className="text-[10px] font-semibold bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded uppercase whitespace-nowrap">

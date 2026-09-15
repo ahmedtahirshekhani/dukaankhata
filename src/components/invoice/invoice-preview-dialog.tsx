@@ -550,32 +550,117 @@ export function InvoicePreviewDialog({
     // Wait a tick for the DOM to update so zoom is removed
     await new Promise((resolve) => setTimeout(resolve, 50));
     try {
-      const html2canvas = (await import("html2canvas")).default;
+      // Create hidden iframe for printing
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
 
-      // Determine dimensions based on selected print format
-      let windowWidth: number;
-      let scale: number;
-
-      switch (printFormat) {
-        case "thermal":
-          // 80mm width (approximately 302 pixels at 96 dpi)
-          windowWidth = 320;
-          scale = 2;
-          break;
-        case "letter":
-          // 8.5 inches (612 pixels)
-          windowWidth = 612;
-          scale = 2;
-          break;
-        case "a4":
-        default:
-          // A4 width (approximately 794 pixels at 96 dpi)
-          windowWidth = 794;
-          scale = 2;
-          break;
+      const iframeDoc =
+        iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        return;
       }
 
-      // Capture invoice with format-specific dimensions
+      if (printFormat === "thermal") {
+        // Direct Native Vector HTML Print for Thermal (Razor sharp text, no pixelation/fading)
+        iframeDoc.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${invoiceNo || "Invoice"}</title>
+              <style>
+                @page {
+                  margin: 0 !important;
+                  size: 80mm auto;
+                }
+                * {
+                  box-sizing: border-box !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color: #000000 !important;
+                }
+                body {
+                  margin: 0 !important;
+                  padding: 2mm 3mm !important;
+                  background: #ffffff !important;
+                  font-family: Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                  width: 80mm !important;
+                  color: #000000 !important;
+                }
+                .invoice-preview-container {
+                  border: none !important;
+                  box-shadow: none !important;
+                  width: 100% !important;
+                  margin: 0 auto !important;
+                  padding: 0 !important;
+                  background: #ffffff !important;
+                }
+                .invoice-preview-inner {
+                  padding: 0 !important;
+                  min-height: auto !important;
+                }
+                table {
+                  width: 100% !important;
+                  border-collapse: collapse !important;
+                }
+                th, td {
+                  color: #000000 !important;
+                  border-color: #000000 !important;
+                }
+                img.invoice-company-logo {
+                  max-height: 50px !important;
+                  max-width: 120px !important;
+                  height: auto !important;
+                  width: auto !important;
+                  object-fit: contain !important;
+                  display: block !important;
+                  margin: 0 auto 8px !important;
+                }
+                img.invoice-sig-img {
+                  max-height: 48px !important;
+                  max-width: 120px !important;
+                  height: auto !important;
+                  width: auto !important;
+                  object-fit: contain !important;
+                  display: block !important;
+                  margin-bottom: 6px !important;
+                }
+                img {
+                  max-width: 100% !important;
+                  height: auto !important;
+                }
+              </style>
+            </head>
+            <body>
+              ${invoiceRef.current.outerHTML}
+            </body>
+          </html>
+        `);
+        iframeDoc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 1000);
+        }, 300);
+        return;
+      }
+
+      // For A4 and Letter formats
+      const html2canvas = (await import("html2canvas")).default;
+      const windowWidth = printFormat === "letter" ? 612 : 794;
+      const scale = 2;
+
       const canvas = await html2canvas(invoiceRef.current, {
         scale: scale,
         useCORS: true,
@@ -586,35 +671,11 @@ export function InvoicePreviewDialog({
 
       const imageData = canvas.toDataURL("image/png");
 
-      // Create hidden iframe for printing
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
-
-      const iframeDoc =
-        iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        document.body.removeChild(iframe);
-        return;
-      }
-
-      // Calculate physical height in mm based on width
-      const imgWidthMm = printFormat === "thermal" ? 80 : (printFormat === "letter" ? 215.9 : 210);
-      const pxPerMm = canvas.width / imgWidthMm;
-      const imgHeightMm = Math.ceil(canvas.height / pxPerMm);
-
-      let pageCss = '';
-      let imgCss = '';
-      if (printFormat === "thermal") {
-        pageCss = `@page { margin: 0mm !important; size: 80mm ${imgHeightMm}mm; }`;
-        imgCss = `width: 80mm !important; max-width: 100%; margin: 0;`;
-      } else if (printFormat === "letter") {
-        pageCss = `@page { margin: 0mm !important; size: letter portrait; }`;
-        imgCss = `width: calc(100% - 20mm); margin: 0 auto;`;
-      } else {
-        pageCss = `@page { margin: 0mm !important; size: A4 portrait; }`;
-        imgCss = `width: calc(100% - 20mm); margin: 0 auto;`;
-      }
+      const pageCss =
+        printFormat === "letter"
+          ? `@page { margin: 0mm !important; size: letter portrait; }`
+          : `@page { margin: 0mm !important; size: A4 portrait; }`;
+      const imgCss = `width: calc(100% - 20mm); margin: 0 auto;`;
 
       iframeDoc.write(`
         <!DOCTYPE html>
@@ -635,7 +696,6 @@ export function InvoicePreviewDialog({
                   page-break-before: avoid;
                 }
               }
-              /* Screen styles (just in case) */
               body { margin: 0; background: white; }
               img { ${imgCss} height: auto; display: block; }
             </style>
@@ -650,7 +710,6 @@ export function InvoicePreviewDialog({
       // Wait for content to render, then trigger print
       setTimeout(() => {
         iframe.contentWindow?.print();
-        // Remove iframe after a delay
         setTimeout(() => {
           if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);

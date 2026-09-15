@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { ItemWiseSaleExportItem, ItemWiseSaleSummary } from "@/types/item-wise-sales";
+import { formatLocalizedUom, getUomShortcut } from "@/lib/uom";
 
 interface Transaction {
   id: number;
@@ -181,7 +182,7 @@ export function exportProductsToExcel(
     "Sell Price (Rs.)": product.sell_price !== undefined && product.sell_price !== null ? Math.floor(product.sell_price) : "-",
     "Cost Price (Rs.)": product.cost_price !== undefined && product.cost_price !== null ? Math.floor(product.cost_price) : "-",
     Quantity: product.quantity !== undefined ? product.quantity : (product.in_stock !== undefined ? product.in_stock : "-"),
-    "Unit of Measurement": product.unit_of_measurement || "-",
+    "Unit of Measurement": formatLocalizedUom(product.unit_of_measurement) || "-",
     Category: product.category || "-",
     Branch: product.branch || "-",
   }));
@@ -560,7 +561,7 @@ export function exportItemWiseSalesToExcel(
     SKU: item.sku || "-",
     Category: item.category || "-",
     "Qty Sold": item.totalQuantitySold || 0,
-    Unit: item.uom || "pcs",
+    Unit: getUomShortcut(item.uom) || "pcs",
     "Avg Sell Price (Rs.)": Math.round(item.avgSellingPrice || 0),
     "Gross Sales (Rs.)": Math.round(item.totalGrossAmount || 0),
     "Discount (Rs.)": Math.round(item.totalDiscount || 0),

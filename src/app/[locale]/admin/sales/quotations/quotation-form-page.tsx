@@ -43,6 +43,7 @@ interface QuotationItem {
     product_description?: string;
     quantity: number;
     unit_price: number;
+    unit_of_measurement?: string;
     amount: number;
 }
 
@@ -110,6 +111,7 @@ function QuotationFormPageInner({
                             ...item,
                             id: item.id || `item-${Math.random()}`,
                             unit_price: item.unit_price || item.sell_price || 0,
+                            unit_of_measurement: item.unit_of_measurement || item.uom || "",
                         }));
                         setQuotationItems(mappedItems);
                         setDiscount(quot.discount?.toString() || "0");
@@ -186,6 +188,7 @@ function QuotationFormPageInner({
             product_description: selectedProductObj.description,
             quantity: qty,
             unit_price: price,
+            unit_of_measurement: selectedProductObj.unit_of_measurement || selectedProductObj.uom || "",
             amount: qty * price,
         };
 
