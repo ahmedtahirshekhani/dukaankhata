@@ -8,6 +8,7 @@ import {
   calculateLineTotal,
 } from "@/lib/invoice/calculations";
 import { formatCurrencyString } from "@/lib/utils";
+import { formatUomDisplay, getUomShortcut } from "@/lib/uom";
 
 export interface InvoiceProduct {
   id: number | string;
@@ -83,9 +84,6 @@ const formatDateShort = (dateStr: string) => {
     day: "2-digit",
   });
 };
-
-const formatUom = (uom?: string) =>
-  uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-";
 
 const truncateDescription = (desc?: string, limit = 25) => {
   if (!desc) return "";
@@ -497,6 +495,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                       {t("discount")}
                     </th>
                   )}
+                  {isThermal && (
+                    <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 700, color: "#0f172a" }}>
+                      {t("sellPrice") || "Rate"}
+                    </th>
+                  )}
                   <th style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
                     {t("total")}
                   </th>
@@ -506,45 +509,88 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 {products.map((product) => {
                   const discountValue = calculateDiscountValue(product);
                   const lineTotal = calculateLineTotal(product);
+                  const uomShortcut = getUomShortcut(product.unit_of_measurement);
+                  const qtyDisplay = product.quantity_str || (product as any).quantityInput || product.quantity;
+
                   return (
                     <tr key={product.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      {/* Product Name & Description & Thermal Discount */}
                       <td style={{ padding: isThermal ? "6px 4px" : "10px 8px", verticalAlign: "top" }}>
                         <div style={{ fontWeight: 600, color: "#1e293b" }}>{product.name}</div>
                         {product.description && (
                           <div style={{
-                            fontSize: "11px",
+                            fontSize: "9px",
                             color: "#475569",
                             marginTop: "2px",
                             lineHeight: 1.4,
                             whiteSpace: "pre-line",
-                            wordBreak: "break-word"
+                            wordBreak: "break-word",
+                            fontStyle: "italic"
                           }}>
                             {product.description}
                           </div>
                         )}
+                        {isThermal && discountValue > 0 && (
+                          <div style={{
+                            fontSize: "10px",
+                            color: "#475569",
+                            marginTop: "2px",
+                            fontStyle: "italic",
+                          }}>
+                            (Disc: -{formatCurrencyString(discountValue)})
+                            {product.discountType === "percentage" && product.discount ? ` (${product.discount}%)` : ""}
+                          </div>
+                        )}
                       </td>
+
+                      {/* A4 Sell Price */}
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>
                           {formatCurrencyString(product.sell_price)}
                         </td>
                       )}
-                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", color: "#334155" }}>
+
+                      {/* Qty (with UOM shortcut in Thermal) */}
+                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", color: "#334155", whiteSpace: "nowrap" }}>
                         {product.quantityType === "damaged" && (
                           <span style={{ fontSize: "10px", color: "#475569" }}>(dmg) </span>
                         )}
-                        {product.quantity_str || (product as any).quantityInput || product.quantity}
+                        {qtyDisplay}
+                        {isThermal && uomShortcut ? ` ${uomShortcut}` : ""}
                       </td>
+
+                      {/* A4 UOM */}
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>
-                          {formatUom(product.unit_of_measurement)}
+                          {formatUomDisplay(product.unit_of_measurement)}
                         </td>
                       )}
+
+                      {/* A4 Discount */}
                       {!isThermal && (
                         <td style={{ textAlign: "right", padding: "10px 8px", color: "#475569" }}>
-                          {discountValue > 0 ? formatCurrencyString(discountValue) : "-"}
+                          {discountValue > 0 ? (
+                            <div>
+                              <span>{formatCurrencyString(discountValue)}</span>
+                              {product.discountType === "percentage" && product.discount ? (
+                                <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "4px" }}>
+                                  ({product.discount}%)
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : "-"}
                         </td>
                       )}
-                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
+
+                      {/* Thermal Rate (before Total) */}
+                      {isThermal && (
+                        <td style={{ textAlign: "right", padding: "6px 4px", color: "#334155", whiteSpace: "nowrap" }}>
+                          {formatCurrencyString(product.sell_price)}
+                        </td>
+                      )}
+
+                      {/* Line Total */}
+                      <td style={{ textAlign: "right", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap" }}>
                         {formatCurrencyString(lineTotal)}
                       </td>
                     </tr>
