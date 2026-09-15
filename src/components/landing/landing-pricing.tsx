@@ -44,7 +44,7 @@ export function LandingPricing() {
   const locale = useLocale();
   const t = useTranslations("landing.pricing");
   const [proDialogOpen, setProDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly" | "lifetime">("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly" | "custom">("monthly");
   const [selectedPlanPrice, setSelectedPlanPrice] = useState("1000");
   const [selectedPlanName, setSelectedPlanName] = useState("DukaanKhata Pro");
 
@@ -54,7 +54,7 @@ export function LandingPricing() {
     ? t("dialogWhatsappMessageMonthly")
     : selectedPlan === "yearly"
     ? t("dialogWhatsappMessageYearly")
-    : t("dialogWhatsappMessageLifetime");
+    : t("dialogWhatsappMessageCustom");
 
   const whatsappLink = `${proAccessPaymentInfo.proofWhatsappHref}?text=${encodeURIComponent(
     whatsappMessage,
@@ -80,9 +80,9 @@ export function LandingPricing() {
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mt-8">
           {plansData.map((plan) => {
             const isYearly = plan.billing === "yearly";
-            const isLifetime = plan.billing === "lifetime";
-            const billingLabel = isLifetime
-              ? t("billingLifetime")
+            const isCustom = plan.billing === "custom" || plan.id === "custom";
+            const billingLabel = isCustom
+              ? t("billingCustom")
               : isYearly
               ? "12 Month"
               : t("billingMonthly");
@@ -127,7 +127,7 @@ export function LandingPricing() {
                 )}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-                      {plan.name} ({billingLabel})
+                      {isCustom ? plan.name : `${plan.name} (${billingLabel})`}
                     </p>
                     {plan.isPopular && !isCampaignApplied && (
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm">
@@ -151,10 +151,15 @@ export function LandingPricing() {
                       </span>
                     )}
                     <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-bold text-foreground tracking-tight">
+                      <span className={cn(
+                        "font-bold text-foreground tracking-tight",
+                        isCustom ? "text-3xl sm:text-4xl" : "text-5xl"
+                      )}>
                         {plan.currency}{displayPrice}
                       </span>
-                      <span className="text-muted-foreground text-sm font-medium">/{billingLabel.toLowerCase()}</span>
+                      {!isCustom && (
+                        <span className="text-muted-foreground text-sm font-medium">/{billingLabel.toLowerCase()}</span>
+                      )}
                     </div>
                   </div>
                   
@@ -175,7 +180,7 @@ export function LandingPricing() {
                   </ul>
 
                   <div className="mt-10 flex flex-col items-center gap-3">
-                    {!isLifetime && (
+                    {!isCustom && (
                       <Link 
                         href={`/${locale}/signup`} 
                         className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hover:underline"
@@ -189,13 +194,13 @@ export function LandingPricing() {
                       className="w-full text-base"
                       size="lg"
                       onClick={() => {
-                        setSelectedPlan(plan.id as "monthly" | "yearly" | "lifetime");
+                        setSelectedPlan(plan.id as "monthly" | "yearly" | "custom");
                         setSelectedPlanPrice(displayPrice);
                         setSelectedPlanName(plan.name);
                         setProDialogOpen(true);
                       }}
                     >
-                      {plan.billing === "lifetime" ? t("contactSales") : t("proButton")}
+                      {isCustom ? t("contactSales") : t("proButton")}
                     </Button>
                   </div>
                 </div>
@@ -234,10 +239,14 @@ export function LandingPricing() {
                   ? `${selectedPlanName} - Monthly` 
                   : selectedPlan === "yearly" 
                   ? `${selectedPlanName} - 12 Month` 
-                  : `${selectedPlanName} - Lifetime`}
+                  : selectedPlanName}
               </p>
               <p className="text-sm font-medium text-muted-foreground">
-                Amount to Send: <span className="text-foreground font-semibold">Rs.{selectedPlanPrice}</span>
+                {selectedPlan === "custom" ? (
+                  <>Pricing: <span className="text-foreground font-semibold">Contact for price</span></>
+                ) : (
+                  <>Amount to Send: <span className="text-foreground font-semibold">Rs.{selectedPlanPrice}</span></>
+                )}
               </p>
             </div>
 
