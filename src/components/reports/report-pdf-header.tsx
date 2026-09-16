@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { formatReadableDate } from "@/lib/date-utils";
+import { formatReadableDate, formatReadableDateTime } from "@/lib/date-utils";
 
 export interface ReportBranding {
   name?: string;
@@ -49,12 +49,7 @@ export function ReportPdfHeader({
   className = "",
 }: ReportPdfHeaderProps) {
   const generatedDateStr = React.useMemo(() => {
-    if (!generatedAt) {
-      const now = new Date();
-      return `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    if (typeof generatedAt === "string") return generatedAt;
-    return `${generatedAt.toLocaleDateString()} ${generatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return formatReadableDateTime(generatedAt || new Date());
   }, [generatedAt]);
 
   const displayPeriod = periodLabel || (

@@ -91,6 +91,7 @@ export interface POSProduct extends Product {
   discountType?: "value" | "percentage";
   discountInput?: string;
   sellPriceInput?: string;
+  hadNoUomOriginally?: boolean;
 }
 
 export default function NewInvoicePage() {
@@ -299,6 +300,12 @@ export default function NewInvoicePage() {
     const productId = product.id;
     if (!product) return;
     setSaveError("");
+    const hadNoUom =
+      !product.unit_of_measurement ||
+      product.unit_of_measurement.trim() === "" ||
+      product.unit_of_measurement === "-" ||
+      product.unit_of_measurement === "none";
+
     if (selectedProducts.some((p) => p.id === productId)) {
       setSelectedProducts(
         selectedProducts.map((p) =>
@@ -324,6 +331,8 @@ export default function NewInvoicePage() {
           discount: 0,
           discountType: "value",
           discountInput: "0",
+          hadNoUomOriginally: hadNoUom,
+          unit_of_measurement: product.unit_of_measurement || "",
         },
       ]);
     }
@@ -331,6 +340,11 @@ export default function NewInvoicePage() {
 
   const handleRowProductChange = (oldId: number | string, newProduct: Product, isSync?: boolean) => {
     if (!newProduct) return;
+    const hadNoUom =
+      !newProduct.unit_of_measurement ||
+      newProduct.unit_of_measurement.trim() === "" ||
+      newProduct.unit_of_measurement === "-" ||
+      newProduct.unit_of_measurement === "none";
     
     setSelectedProducts((current) => {
       return current.map((p) => {
@@ -341,7 +355,8 @@ export default function NewInvoicePage() {
             id: newProduct.id,
             name: newProduct.name,
             description: newProduct.description,
-            unit_of_measurement: newProduct.unit_of_measurement,
+            unit_of_measurement: newProduct.unit_of_measurement || "",
+            hadNoUomOriginally: hadNoUom,
             ...(isSameProduct ? {} : {
               sell_price: newProduct.sell_price ?? 0,
               sellPriceInput: String(newProduct.sell_price ?? 0)
@@ -351,6 +366,19 @@ export default function NewInvoicePage() {
         return p;
       });
     });
+  };
+
+  const handleUomChange = (productId: number | string, newUom: string) => {
+    setSelectedProducts((current) =>
+      current.map((p) =>
+        p.id === productId
+          ? {
+              ...p,
+              unit_of_measurement: newUom,
+            }
+          : p
+      )
+    );
   };
 
   const handleSelectCustomer = (customerId: string, customer?: Customer) => {
@@ -889,18 +917,33 @@ export default function NewInvoicePage() {
         await db.orders.add(orderData);
       }
 
-      // 3. Update stock locally (optimistic)
+      // 3. Update stock & missing UOM locally (optimistic)
       for (const p of selectedProducts) {
-        if (!p.type || p.type === "goods" || p.type === "good") {
-          const prodId = (p.id || (p as any)._id || "").toString();
+        const prodId = (p.id || (p as any)._id || "").toString();
+        if (prodId) {
           const productDoc = await db.products.get(prodId);
           if (productDoc) {
-            if (p.quantityType === "damaged") {
-              const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
-              const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
-              await db.products.update(prodId, { damaged_quantity: newQty });
-            } else {
-              await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+            // Update stock if goods
+            if (!p.type || p.type === "goods" || p.type === "good") {
+              if (p.quantityType === "damaged") {
+                const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+                await db.products.update(prodId, { damaged_quantity: newQty });
+              } else {
+                await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+              }
+            }
+
+            // If product originally had no UOM and user selected a UOM, update product permanently
+            if (p.unit_of_measurement && (!productDoc.unit_of_measurement || productDoc.unit_of_measurement.trim() === "" || productDoc.unit_of_measurement === "-" || productDoc.unit_of_measurement === "none" || p.hadNoUomOriginally)) {
+              await db.products.update(prodId, { unit_of_measurement: p.unit_of_measurement });
+              await SyncEngine.queueOperation(
+                "products",
+                "PUT",
+                `/api/products/${prodId}`,
+                { unit_of_measurement: p.unit_of_measurement },
+                prodId
+              );
             }
           }
         }
@@ -1093,6 +1136,7 @@ export default function NewInvoicePage() {
                 handleSellPriceBlur={handleSellPriceBlur}
                 handleDiscountChange={handleDiscountChange}
                 handleDiscountTypeChange={handleDiscountTypeChange}
+                handleUomChange={handleUomChange}
                 handleRemoveProduct={handleRemoveProduct}
                 handleSelectProduct={handleSelectProduct}
                 handleRowProductChange={handleRowProductChange}

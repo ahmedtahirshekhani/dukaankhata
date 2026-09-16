@@ -35,6 +35,7 @@ import { formatCurrency } from "@/lib/utils";
 import { ItemSaleRecord, ItemWiseSaleSummary } from "@/types/item-wise-sales";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
+import { getUomShortcut } from "@/lib/uom";
 
 export default function ItemWiseSaleReportPage() {
   const locale = useLocale();
@@ -424,7 +425,7 @@ export default function ItemWiseSaleReportPage() {
         cell: (row) => (
           <div className="text-right">
             <div className="font-medium text-xs">
-              {row.totalQuantitySold} <span className="text-[10px] text-muted-foreground">{row.uom || "pcs"}</span>
+              {row.totalQuantitySold} <span className="text-[10px] text-muted-foreground">{getUomShortcut(row.uom) || "pcs"}</span>
             </div>
             {Boolean(row.totalReturnedQuantity && row.totalReturnedQuantity > 0) && (
               <div className="text-[9px] text-rose-500 font-normal">
@@ -491,21 +492,40 @@ export default function ItemWiseSaleReportPage() {
       {
         id: "currentStock",
         header: t("currentStock"),
-        className: "w-[95px] text-center",
-        cell: (row) =>
-          row.currentStock <= 0 ? (
-            <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-              {t("outOfStock")}
-            </Badge>
-          ) : row.currentStock <= 5 ? (
-            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200">
-              {row.currentStock} {t("lowStock")}
-            </Badge>
-          ) : (
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              {row.currentStock} {row.uom || "pcs"}
-            </span>
-          ),
+        className: "w-[105px] text-center",
+        cell: (row) => {
+          const qty = typeof row.currentStock === "number" ? row.currentStock : 0;
+          const isOut = qty <= 0;
+          const isLow = qty > 0 && qty <= 5;
+          return (
+            <div className="flex flex-col items-center justify-center gap-0.5">
+              <span
+                className={`font-semibold text-xs ${
+                  isOut
+                    ? "text-rose-600 dark:text-rose-400"
+                    : isLow
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}
+              >
+                {qty} <span className="text-[10px] text-muted-foreground">{getUomShortcut(row.uom) || "pcs"}</span>
+              </span>
+              {isOut && (
+                <Badge variant="destructive" className="text-[8px] h-4 px-1 py-0 font-medium">
+                  {t("outOfStock")}
+                </Badge>
+              )}
+              {isLow && (
+                <Badge
+                  variant="secondary"
+                  className="text-[8px] h-4 px-1 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 font-medium"
+                >
+                  {t("lowStock")}
+                </Badge>
+              )}
+            </div>
+          );
+        },
       },
     ],
     [currentPage, pageSize, t]
@@ -782,7 +802,7 @@ export default function ItemWiseSaleReportPage() {
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-[11px]">
               <div>
                 <span className="text-muted-foreground block text-[10px]">Qty Sold</span>
-                <span className="font-semibold">{row.totalQuantitySold} {row.uom || "pcs"}</span>
+                <span className="font-semibold">{row.totalQuantitySold} {getUomShortcut(row.uom) || "pcs"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground block text-[10px]">Avg Rate</span>
@@ -790,8 +810,16 @@ export default function ItemWiseSaleReportPage() {
               </div>
               <div className="text-right">
                 <span className="text-muted-foreground block text-[10px]">Stock</span>
-                <span className={row.currentStock <= 5 ? "font-bold text-amber-600" : "font-medium"}>
-                  {row.currentStock} {row.uom || "pcs"}
+                <span
+                  className={
+                    row.currentStock <= 0
+                      ? "font-bold text-rose-600"
+                      : row.currentStock <= 5
+                      ? "font-bold text-amber-600"
+                      : "font-medium text-emerald-600"
+                  }
+                >
+                  {row.currentStock} {getUomShortcut(row.uom) || "pcs"}
                 </span>
               </div>
             </div>

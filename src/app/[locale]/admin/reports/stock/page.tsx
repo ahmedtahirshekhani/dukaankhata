@@ -45,6 +45,7 @@ import {
   ReportPdfMetaItem,
 } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
+import { getUomShortcut } from "@/lib/uom";
 
 export default function StockReportPage() {
   const locale = useLocale();

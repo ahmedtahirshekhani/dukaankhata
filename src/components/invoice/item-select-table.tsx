@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Table,
@@ -9,7 +9,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Select,
@@ -23,6 +22,7 @@ import { XIcon, PlusCircle } from "lucide-react";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { type POSProduct, type Product } from "@/app/[locale]/admin/sales/invoice/new/page";
+import { getLocalizedUnitOptions, formatUomDisplay } from "@/lib/uom";
 
 interface ItemSelectTableProps {
   selectedProducts: POSProduct[];
@@ -33,6 +33,7 @@ interface ItemSelectTableProps {
   handleSellPriceBlur: (id: number | string) => void;
   handleDiscountChange: (id: number | string, val: number) => void;
   handleDiscountTypeChange: (id: number | string, val: "value" | "percentage") => void;
+  handleUomChange?: (id: number | string, val: string) => void;
   handleRemoveProduct: (id: number | string) => void;
   handleSelectProduct: (product: Product) => void;
   handleRowProductChange?: (oldId: number | string, newProduct: Product, isSync?: boolean) => void;
@@ -47,15 +48,28 @@ export function ItemSelectTable({
   handleSellPriceBlur,
   handleDiscountChange,
   handleDiscountTypeChange,
+  handleUomChange,
   handleRemoveProduct,
   handleSelectProduct,
   handleRowProductChange,
 }: ItemSelectTableProps) {
   const t = useTranslations("invoice");
   const tCommon = useTranslations("common");
+  const tProducts = useTranslations("products");
 
-  const formatUom = (uom?: string) =>
-    uom ? uom.charAt(0).toUpperCase() + uom.slice(1) : "-";
+  const unitOptions = useMemo(() => {
+    return getLocalizedUnitOptions((key: string) => tProducts(key));
+  }, [tProducts]);
+
+  const isUomMissing = (product: POSProduct) => {
+    return (
+      product.hadNoUomOriginally ||
+      !product.unit_of_measurement ||
+      product.unit_of_measurement.trim() === "" ||
+      product.unit_of_measurement === "-" ||
+      product.unit_of_measurement === "none"
+    );
+  };
 
   const truncateDescription = (desc?: string, limit = 80) => {
     if (!desc) return "";
@@ -124,12 +138,30 @@ export function ItemSelectTable({
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground py-1">
-                  <Select disabled>
-                    <SelectTrigger className="w-16 h-7 text-xs bg-gray-50">
-                      <SelectValue placeholder={formatUom(product.unit_of_measurement || "pcs")} />
-                    </SelectTrigger>
-                  </Select>
+                <TableCell className="py-1">
+                  {!isUomMissing(product) ? (
+                    <Select disabled>
+                      <SelectTrigger className="w-16 h-7 text-xs bg-gray-50 text-muted-foreground font-medium cursor-not-allowed">
+                        <SelectValue placeholder={formatUomDisplay(product.unit_of_measurement)} />
+                      </SelectTrigger>
+                    </Select>
+                  ) : (
+                    <Select
+                      value={product.unit_of_measurement || ""}
+                      onValueChange={(val) => handleUomChange?.(product.id, val)}
+                    >
+                      <SelectTrigger className="w-24 h-7 text-xs bg-amber-50/70 border-amber-300 text-amber-900 focus:ring-amber-500 font-medium">
+                        <SelectValue placeholder={t("selectUom") || "Select UOM"} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-56">
+                        {unitOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </TableCell>
                 <TableCell className="py-1">
                   <NumericInput
@@ -198,23 +230,23 @@ export function ItemSelectTable({
       {/* Add Item Row - Desktop */}
       <div className="hidden md:flex mt-2 items-center">
         <div className="w-[30%]">
-           <ProductDropdown
-              resetOnChange
-              value={""}
-              onValueChange={(value, product) => {
-                if (!product) return;
-                handleSelectProduct(product as Product);
-              }}
-              placeholder={
-                <div className="flex items-center gap-1.5 text-primary font-medium">
-                  <PlusCircle className="h-3.5 w-3.5" />
-                  {selectedProducts.length > 0 ? (t("addAnotherItem") || "Add Another Item") : (t("addItem") || "Add Item")}
-                </div>
-              }
-              enableSearch={true}
-              searchPlaceholder={tCommon("searchProduct") || "Search product..."}
-              className="h-8 text-xs"
-            />
+          <ProductDropdown
+            resetOnChange
+            value={""}
+            onValueChange={(value, product) => {
+              if (!product) return;
+              handleSelectProduct(product as Product);
+            }}
+            placeholder={
+              <div className="flex items-center gap-1.5 text-primary font-medium">
+                <PlusCircle className="h-3.5 w-3.5" />
+                {selectedProducts.length > 0 ? (t("addAnotherItem") || "Add Another Item") : (t("addItem") || "Add Item")}
+              </div>
+            }
+            enableSearch={true}
+            searchPlaceholder={tCommon("searchProduct") || "Search product..."}
+            className="h-8 text-xs"
+          />
         </div>
       </div>
 
@@ -225,17 +257,17 @@ export function ItemSelectTable({
             <div className="space-y-1.5">
               <div className="flex justify-between items-start gap-1">
                 <div className="flex-1">
-                   <ProductDropdown
-                      resetOnChange={false}
-                      value={String(product.id)}
-                      onValueChange={(value, newProduct, isSync) => {
-                        if (newProduct && handleRowProductChange) {
-                          handleRowProductChange(product.id, newProduct as Product, isSync);
-                        }
-                      }}
-                      placeholder={product.name}
-                      className="w-full h-7 text-xs"
-                    />
+                  <ProductDropdown
+                    resetOnChange={false}
+                    value={String(product.id)}
+                    onValueChange={(value, newProduct, isSync) => {
+                      if (newProduct && handleRowProductChange) {
+                        handleRowProductChange(product.id, newProduct as Product, isSync);
+                      }
+                    }}
+                    placeholder={product.name}
+                    className="w-full h-7 text-xs"
+                  />
                   {product.description && (
                     <p className="text-[10px] text-muted-foreground mt-0.5 px-1 leading-tight">
                       {truncateDescription(product.description, 40)}
@@ -273,7 +305,7 @@ export function ItemSelectTable({
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground mb-0.5">
-                    {t("qty")}
+                    {t("qty")} & {t("uom")}
                   </p>
                   <div className="flex gap-1">
                     <NumericInput
@@ -284,11 +316,29 @@ export function ItemSelectTable({
                       onBlur={() => handleQuantityBlur(product.id)}
                       className="w-full h-7 p-1 text-xs"
                     />
-                    <Select disabled>
-                      <SelectTrigger className="w-16 h-7 text-xs bg-gray-50 px-1">
-                        <SelectValue placeholder={formatUom(product.unit_of_measurement || "pcs")} />
-                      </SelectTrigger>
-                    </Select>
+                    {!isUomMissing(product) ? (
+                      <Select disabled>
+                        <SelectTrigger className="w-16 h-7 text-xs bg-gray-50 px-1 text-muted-foreground font-medium shrink-0 cursor-not-allowed">
+                          <SelectValue placeholder={formatUomDisplay(product.unit_of_measurement)} />
+                        </SelectTrigger>
+                      </Select>
+                    ) : (
+                      <Select
+                        value={product.unit_of_measurement || ""}
+                        onValueChange={(val) => handleUomChange?.(product.id, val)}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-xs bg-amber-50/70 border-amber-300 text-amber-900 font-medium px-1 shrink-0">
+                          <SelectValue placeholder={t("selectUom") || "Select UOM"} />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-56">
+                          {unitOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               </div>
@@ -362,7 +412,7 @@ export function ItemSelectTable({
             </div>
           </Card>
         ))}
-        
+
         {/* Add Item - Mobile */}
         <div className="mt-2">
           <ProductDropdown
