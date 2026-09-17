@@ -14,6 +14,7 @@ import { FilePenIcon, Trash2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Product } from "@/types/product";
+import { formatLocalizedUom } from "@/lib/uom";
 export type { Product };
 
 interface ProductsTableProps {
@@ -123,7 +124,7 @@ export function ProductsTable({
                   {formatQuantity(product.damaged_quantity)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {capitalizeFirstLetter(product.unit_of_measurement)}
+                  {formatLocalizedUom(product.unit_of_measurement, (key) => t(key))}
                 </TableCell>
                 <TableCell className="text-xs">
                   {capitalizeFirstLetter(product.category)}
@@ -223,6 +224,12 @@ export function ProductsTable({
               </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+              <div>
+                <span className="text-muted-foreground">{uomLabel}:</span>
+                <span className="ml-1 font-medium">
+                  {formatLocalizedUom(product.unit_of_measurement, (key) => t(key))}
+                </span>
+              </div>
               <div>
                 <span className="text-muted-foreground">{typeLabel}:</span>
                 <span className="ml-1 font-medium">

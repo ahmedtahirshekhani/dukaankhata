@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { ArrowLeft, Download, FileText, Loader2, Printer, Replace } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
+import { formatUomDisplay } from "@/lib/uom";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { db } from "@/lib/db/offline-db";
 
@@ -58,6 +59,28 @@ export default function QuotationViewClient({ id }: { id: string }) {
                         email: party.email,
                         address: party.company_address || party.address,
                     };
+                }
+            }
+
+            // Enrich items with UOM if missing
+            if (quot.items && Array.isArray(quot.items)) {
+                for (const item of quot.items) {
+                    if (!item.unit_of_measurement && !item.uom) {
+                        try {
+                            let prod: any = null;
+                            if (item.product_id) {
+                                prod = await db.products.get(item.product_id);
+                            }
+                            if (!prod && item.product_name) {
+                                prod = await db.products.filter((p: any) => p.name?.toLowerCase() === item.product_name?.toLowerCase()).first();
+                            }
+                            if (prod) {
+                                item.unit_of_measurement = prod.unit_of_measurement || prod.uom || "";
+                            }
+                        } catch {
+                            // ignore
+                        }
+                    }
                 }
             }
             
@@ -577,7 +600,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                                             {item.quantity}
                                         </td>
                                         <td style={{ textAlign: "right", padding: "10px 12px", color: "#475569" }}>
-                                            {item.unit_of_measurement || "-"}
+                                            {formatUomDisplay(item.unit_of_measurement)}
                                         </td>
                                         <td style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
                                             {formatCurrencyString(item.amount)}
