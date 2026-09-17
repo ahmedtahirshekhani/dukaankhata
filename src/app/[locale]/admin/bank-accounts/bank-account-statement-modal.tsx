@@ -193,7 +193,7 @@ export function BankAccountStatementModal({
                   </Card>
                   <Card className="shadow-sm">
                     <CardHeader className="py-3 bg-blue-50 border-b border-blue-100 rounded-t-lg">
-                      <CardTitle className="text-sm text-blue-700 font-medium">{tBank("totalCreditIn")}</CardTitle>
+                      <CardTitle className="text-sm text-blue-700 font-medium">{tBank("totalDebitIn")}</CardTitle>
                     </CardHeader>
                     <CardContent className="py-4">
                       <div className="text-xl font-bold text-blue-700">+{formatCurrencyString(summary.totalIn)}</div>
@@ -201,7 +201,7 @@ export function BankAccountStatementModal({
                   </Card>
                   <Card className="shadow-sm">
                     <CardHeader className="py-3 bg-red-50 border-b border-red-100 rounded-t-lg">
-                      <CardTitle className="text-sm text-red-700 font-medium">{tBank("totalDebitOut")}</CardTitle>
+                      <CardTitle className="text-sm text-red-700 font-medium">{tBank("totalCreditOut")}</CardTitle>
                     </CardHeader>
                     <CardContent className="py-4">
                       <div className="text-xl font-bold text-red-700">-{formatCurrencyString(summary.totalOut)}</div>
@@ -226,8 +226,8 @@ export function BankAccountStatementModal({
                     <TableRow>
                       <TableHead className="w-[120px] font-bold text-gray-700">{t("date")}</TableHead>
                       <TableHead className="font-bold text-gray-700">{t("particulars")}</TableHead>
-                      <TableHead className="text-right font-bold text-gray-700">{tBank("creditIn")}</TableHead>
-                      <TableHead className="text-right font-bold text-gray-700">{tBank("debitOut")}</TableHead>
+                      <TableHead className="text-right font-bold text-gray-700">{tBank("debitIn")}</TableHead>
+                      <TableHead className="text-right font-bold text-gray-700">{tBank("creditOut")}</TableHead>
                       <TableHead className="text-right font-bold text-gray-700">{t("balance")}</TableHead>
                     </TableRow>
                   </TableHeader>

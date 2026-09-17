@@ -1844,9 +1844,9 @@
     "openingBalance": "ابتدائی بیلنس",
     "viewStatement": "لیجر اسٹیٹمنٹ دیکھیں",
     "statementModalTitle": "بینک اسٹیٹمنٹ",
-    "totalCreditIn": "کل کریڈٹ (In)",
-    "totalDebitOut": "کل ڈیبٹ (Out)",
-    "creditIn": "کریڈٹ (In)",
-    "debitOut": "ڈیبٹ (Out)"
+    "totalDebitIn": "کل ڈیبٹ (In)",
+    "totalCreditOut": "کل کریڈٹ (Out)",
+    "debitIn": "ڈیبٹ (In)",
+    "creditOut": "کریڈٹ (Out)"
   }
 }

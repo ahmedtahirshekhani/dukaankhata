@@ -1842,9 +1842,9 @@
     "openingBalance": "Opening Balance",
     "viewStatement": "Ledger Statement Dekhein",
     "statementModalTitle": "Bank Statement",
-    "totalCreditIn": "Total Credit (In)",
-    "totalDebitOut": "Total Debit (Out)",
-    "creditIn": "Credit (In)",
-    "debitOut": "Debit (Out)"
+    "totalDebitIn": "Total Debit (In)",
+    "totalCreditOut": "Total Credit (Out)",
+    "debitIn": "Debit (In)",
+    "creditOut": "Credit (Out)"
   }
 }
