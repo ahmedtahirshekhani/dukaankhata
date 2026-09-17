@@ -719,23 +719,23 @@ export default function ItemWiseSaleReportPage() {
   };
 
   return (
-    <div className="p-1 sm:p-1 w-full space-y-1">
+    <div className="p-1.5 sm:p-3 w-full space-y-2.5">
       {/* Compact Page Header */}
       <PageHeader
         title={
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
+            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full shrink-0">
               <Link href={`/${locale}/admin/reports`}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <span className="text-xl font-bold">{t("title")}</span>
+            <span className="text-lg sm:text-xl font-bold">{t("title")}</span>
           </div>
         }
-        description={t("description")}
+        description={<span className="text-xs sm:text-sm text-muted-foreground">{t("description")}</span>}
         className="mb-1"
         actions={
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {can("reports", "export_item_wise_sales") && (
               <>
                 <Button
@@ -743,7 +743,7 @@ export default function ItemWiseSaleReportPage() {
                   size="sm"
                   onClick={handleExportExcel}
                   disabled={isExportingExcel || loading || items.length === 0}
-                  className="h-8 text-xs gap-1.5"
+                  className="h-8 text-xs gap-1.5 flex-1 sm:flex-initial"
                 >
                   {isExportingExcel ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -758,7 +758,7 @@ export default function ItemWiseSaleReportPage() {
                   size="sm"
                   onClick={handleExportPdf}
                   disabled={isExportingPdf || loading || items.length === 0}
-                  className="h-8 text-xs gap-1.5"
+                  className="h-8 text-xs gap-1.5 flex-1 sm:flex-initial"
                 >
                   {isExportingPdf ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -774,7 +774,7 @@ export default function ItemWiseSaleReportPage() {
       />
 
       {/* Date Presets Row */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
           { key: "today", label: "Today" },
           { key: "yesterday", label: "Yesterday" },
@@ -797,31 +797,31 @@ export default function ItemWiseSaleReportPage() {
         ))}
       </div>
 
-      {/* Compact Filters Toolbar */}
-      <Card className="p-2.5 sm:p-3 border-border/60 shadow-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 items-center">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground w-12 shrink-0">{t("fromDate")}:</span>
+      {/* Responsive Filters Toolbar */}
+      <Card className="p-3 sm:p-3.5 border-border/60 shadow-xs">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-muted-foreground block">{t("fromDate")}:</label>
             <DatePicker
               value={fromDate}
               max={toDate}
               onChange={handleFromDateChange}
-              className="h-7 text-xs"
+              className="h-8 text-xs w-full"
             />
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground w-10 shrink-0">{t("toDate")}:</span>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-muted-foreground block">{t("toDate")}:</label>
             <DatePicker
               value={toDate}
               min={fromDate}
               onChange={handleToDateChange}
-              className="h-7 text-xs"
+              className="h-8 text-xs w-full"
             />
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground w-14 shrink-0">{t("category")}:</span>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-muted-foreground block">{t("category")}:</label>
             <Select
               value={selectedCategory}
               onValueChange={(val) => {
@@ -829,7 +829,7 @@ export default function ItemWiseSaleReportPage() {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-7 text-xs flex-1">
+              <SelectTrigger className="h-8 text-xs w-full">
                 <SelectValue placeholder={t("allCategories")} />
               </SelectTrigger>
               <SelectContent>
@@ -843,10 +843,10 @@ export default function ItemWiseSaleReportPage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground w-12 shrink-0">{t("sortBy")}:</span>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-muted-foreground block">{t("sortBy")}:</label>
             <Select value={sortBy} onValueChange={(val) => handleSort(val)}>
-              <SelectTrigger className="h-7 text-xs flex-1">
+              <SelectTrigger className="h-8 text-xs w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -880,7 +880,7 @@ export default function ItemWiseSaleReportPage() {
         />
 
         <StatCard
-          title="Gross Sales"
+          title={t("grossSales") || "Gross Sales"}
           value={summary.totalGrossRevenue}
           icon={<Receipt className="h-3.5 w-3.5 text-blue-600" />}
           isPrivacy={false}
@@ -907,11 +907,10 @@ export default function ItemWiseSaleReportPage() {
         />
 
         <StatCard
-          title="Profit Margin"
-          value={summary.overallProfitMargin}
+          title={t("profitMargin") || "Profit Margin"}
+          value={`${summary.overallProfitMargin}%`}
           icon={<Percent className="h-3.5 w-3.5 text-pink-600" />}
           isPrivacy={false}
-          currency="%"
           isLoading={loading}
         />
       </div>
@@ -920,21 +919,21 @@ export default function ItemWiseSaleReportPage() {
       {(summary.topSellingItem || summary.topRevenueItem) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           {summary.topSellingItem && (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200">
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200">
               <Award className="h-4 w-4 text-amber-600 shrink-0" />
               <div className="truncate">
-                <span className="font-semibold text-amber-800 dark:text-amber-300">Top Selling: </span>
+                <span className="font-semibold text-amber-800 dark:text-amber-300">{t("topSelling") || "Top Selling"}: </span>
                 <span className="font-bold">{summary.topSellingItem.name}</span>
-                <span className="text-muted-foreground ml-1">({summary.topSellingItem.quantity} units)</span>
+                <span className="text-muted-foreground ml-1">({summary.topSellingItem.quantity} {getUomShortcut((summary.topSellingItem as any).uom) || "units"})</span>
               </div>
             </div>
           )}
 
           {summary.topRevenueItem && (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-900 dark:text-indigo-200">
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-900 dark:text-indigo-200">
               <Sparkles className="h-4 w-4 text-indigo-600 shrink-0" />
               <div className="truncate">
-                <span className="font-semibold text-indigo-800 dark:text-indigo-300">Top Revenue: </span>
+                <span className="font-semibold text-indigo-800 dark:text-indigo-300">{t("topRevenue") || "Top Revenue"}: </span>
                 <span className="font-bold">{summary.topRevenueItem.name}</span>
                 <span className="text-muted-foreground ml-1">({formatCurrency(summary.topRevenueItem.revenue)})</span>
               </div>
