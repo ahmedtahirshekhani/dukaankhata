@@ -1,9 +1,9 @@
 // src/app/[locale]/admin/reports/receivable-summary/page.tsx
-
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -41,6 +41,7 @@ import {
   Printer,
   UserCheck,
   Filter as FilterIcon,
+  ArrowLeft,
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportReceivableSummaryToExcel } from "@/lib/excel";
@@ -258,25 +259,20 @@ export default function ReceivableSummaryPage() {
       header: tRec("partyName") || "Party Name",
       accessorKey: "name",
       sortable: true,
-      cell: (row) => (
-        <span className="font-semibold text-foreground text-xs sm:text-sm">
-          {row.name}
-        </span>
-      ),
+      className: "min-w-[180px] font-semibold text-foreground text-xs sm:text-sm",
+      cell: (row) => row.name,
     },
     {
       id: "company_name",
       header: tRec("companyName") || "Company Name",
       accessorKey: "company_name",
-      cell: (row) => (
-        <span className="text-muted-foreground text-xs">
-          {row.company_name || "-"}
-        </span>
-      ),
+      className: "w-[160px] text-xs text-muted-foreground",
+      cell: (row) => row.company_name || "-",
     },
     {
       id: "contactInformation",
       header: tRec("contactInformation") || "Contact Information",
+      className: "w-[160px] text-xs text-muted-foreground",
       cell: (row) => (
         <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
           {row.phone && <span>{row.phone}</span>}
@@ -287,33 +283,29 @@ export default function ReceivableSummaryPage() {
     },
     {
       id: "balance",
-      header: <div className="text-right">{tRec("outstandingBalance") || "Outstanding Balance"}</div>,
+      header: tRec("outstandingBalance") || "Outstanding Balance",
       accessorKey: "balance",
       sortable: true,
-      cell: (row) => (
-        <div className="text-right font-bold text-foreground text-xs sm:text-sm">
-          {formatCurrency(row.balance || 0)}
-        </div>
-      ),
+      className: "w-[180px] text-right font-bold text-foreground text-xs sm:text-sm",
+      cell: (row) => formatCurrency(row.balance || 0),
     },
     {
       id: "status",
-      header: <div className="text-center">{tRec("status") || "Status"}</div>,
+      header: tRec("status") || "Status",
       accessorKey: "status",
+      className: "w-[120px] text-center",
       cell: (row) => {
         const isActive = row.status === "active";
         return (
-          <div className="text-center">
-            <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                isActive
-                  ? "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-                  : "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-400"
-              }`}
-            >
-              {isActive ? tRec("active") || "Active" : tRec("inactive") || "Inactive"}
-            </span>
-          </div>
+          <span
+            className={`inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${
+              isActive
+                ? "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                : "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-400"
+            }`}
+          >
+            {isActive ? tRec("active") || "Active" : tRec("inactive") || "Inactive"}
+          </span>
         );
       },
     },
@@ -378,7 +370,16 @@ export default function ReceivableSummaryPage() {
     <div className="flex flex-col gap-4 sm:gap-6">
       {/* Reusable PageHeader */}
       <PageHeader
-        title={titleStr}
+        title={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
+              <Link href={`/${locale}/admin/reports`}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <span className="text-xl font-bold">{titleStr}</span>
+          </div>
+        }
         description={descStr}
         actions={
           can("reports", "export_receivable_summary") ? (
@@ -423,24 +424,28 @@ export default function ReceivableSummaryPage() {
           value={formatCurrency(summary.totalReceivable)}
           subValue={tRec("totalOutstandingDesc")}
           icon={TrendingUp}
+          isLoading={loading}
         />
         <StatCard
           title={tRec("totalDebtors") || "Total Debtors"}
           value={summary.totalDebtors || 0}
           subValue={tRec("totalDebtorsDesc")}
           icon={Users}
+          isLoading={loading}
         />
         <StatCard
           title={tRec("avgOutstanding") || "Avg Outstanding"}
           value={formatCurrency(summary.avgReceivable)}
           subValue={tRec("avgOutstandingDesc")}
           icon={UserCheck}
+          isLoading={loading}
         />
         <StatCard
           title={tRec("maxReceivable") || "Max Receivable"}
           value={formatCurrency(summary.maxReceivable)}
           subValue={tRec("maxReceivableDesc")}
           icon={TrendingDown}
+          isLoading={loading}
         />
       </div>
 

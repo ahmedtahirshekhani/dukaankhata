@@ -641,7 +641,10 @@
     "operatingProfit": "Operating Profit",
     "totalFor": "Total for {name}",
     "account": "Account",
-    "total": "Total"
+    "total": "Total",
+    "detailedExpenses": "Detailed Expense Records",
+    "noExpenses": "No expense items found",
+    "paymentMethod": "Payment Method"
   },
   "itemWiseSaleReportPage": {
     "title": "Item Wise Sale Report",
@@ -1239,7 +1242,9 @@
     "go": "Go",
     "netOrders": "Net Invoices/Bills",
     "netPayments": "Net Payments",
-    "descriptionItems": "Description / Items"
+    "descriptionItems": "Description / Items",
+    "searchTransactions": "Search transactions...",
+    "typeOrderReturn": "Sale Return"
   },
   "payments": {
     "paymentMethod": "Payment Method",

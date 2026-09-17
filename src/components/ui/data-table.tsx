@@ -146,7 +146,7 @@ export function DataTable<T>({
                       }
                     }}
                   >
-                    <div className={cn("flex items-center gap-1.5", col.className?.includes("text-right") || col.className?.includes("justify-end") ? "justify-end" : "")}>
+                    <div className={cn("flex items-center gap-1.5", col.className?.includes("text-right") || col.className?.includes("justify-end") ? "justify-end" : col.className?.includes("text-center") ? "justify-center" : "")}>
                       {col.header}
                       {col.sortable && col.accessorKey && (
                         <div className="w-4">

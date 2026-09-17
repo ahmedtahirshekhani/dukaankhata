@@ -642,7 +642,10 @@
     "operatingProfit": "Operating Profit",
     "totalFor": "Total for {name}",
     "account": "Account",
-    "total": "Total"
+    "total": "Total",
+    "detailedExpenses": "Tafseeli Akhrajaat ke Records",
+    "noExpenses": "Koi akhrajaat nahi mile",
+    "paymentMethod": "Payment Method"
   },
   "itemWiseSaleReportPage": {
     "title": "Item Wise Sale Report",
@@ -1237,7 +1240,9 @@
     "go": "Chalein",
     "netOrders": "Kul Invoices/Bills",
     "netPayments": "Kul Adaigiyan",
-    "descriptionItems": "Tafseel / Items"
+    "descriptionItems": "Tafseel / Items",
+    "searchTransactions": "Transactions search karein...",
+    "typeOrderReturn": "Sale Return"
   },
   "payments": {
     "paymentMethod": "Adaigi ka Tareeka",

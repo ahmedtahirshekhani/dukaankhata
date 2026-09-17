@@ -7,12 +7,14 @@ import {
   useMemo,
   useRef,
 } from "react";
+import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -24,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
+import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 import {
   FileText,
   Loader2,
@@ -35,6 +38,7 @@ import {
   DollarSign,
   Receipt,
   ArrowRightLeft,
+  ArrowLeft,
 } from "lucide-react";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import {
@@ -54,10 +58,8 @@ export default function AccountStatementPage() {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>(() => {
-    return new Date().toISOString().split("T")[0];
-  });
+  const [fromDate, setFromDate] = useState<string>(() => getDaysAgoHTMLDate(30));
+  const [toDate, setToDate] = useState<string>(() => getTodayHTMLDate());
   const [transactions, setTransactions] = useState<StatementTransaction[]>([]);
   const [summary, setSummary] = useState<StatementSummary | null>(null);
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
@@ -95,12 +97,6 @@ export default function AccountStatementPage() {
     };
     loadBranding();
   }, [locale]);
-
-  useEffect(() => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    setFromDate(thirtyDaysAgo.toISOString().split("T")[0]);
-  }, []);
 
   const fetchStatement = useCallback(async () => {
     if (!selectedCustomerId || !fromDate || !toDate) return;
@@ -250,6 +246,157 @@ export default function AccountStatementPage() {
   const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
   const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
 
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredTransactions = useMemo(() => {
+    if (!searchTerm.trim()) return transactions;
+    const term = searchTerm.toLowerCase();
+    return transactions.filter((t) => {
+      return (
+        t.description?.toLowerCase().includes(term) ||
+        t.orderId?.toLowerCase().includes(term) ||
+        t.type?.toLowerCase().includes(term) ||
+        t.items?.some((item) => item.name?.toLowerCase().includes(term))
+      );
+    });
+  }, [transactions, searchTerm]);
+
+  // DataTable Columns Definition
+  const columns: ColumnDef<StatementTransaction>[] = useMemo(
+    () => [
+      {
+        id: "dateTime",
+        accessorKey: "dateTime",
+        header: t("date") || "Date",
+        className: "w-[110px] text-center text-xs text-muted-foreground",
+        cell: (row) => formatStatementDate(row.dateTime),
+      },
+      {
+        id: "voucher",
+        header: t("voucher") || "Voucher #",
+        className: "w-[90px] text-center text-xs text-muted-foreground max-w-[100px] break-all whitespace-normal",
+        cell: (row) => row.orderId || "-",
+      },
+      {
+        id: "type",
+        header: t("type") || "Type",
+        className: "w-[100px] text-center text-xs",
+        cell: (row) => (
+          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
+            {getTransactionType(row.type)}
+          </span>
+        ),
+      },
+      {
+        id: "description",
+        header: t("descriptionItems") || "Description / Items",
+        className: "min-w-[220px]",
+        cell: (row) => {
+          const hasItems = row.items && row.items.length > 0;
+          return (
+            <div>
+              <div className="text-xs text-foreground font-medium">{row.description}</div>
+              {hasItems && (
+                <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
+                  {row.items?.map((item, itemIdx) => (
+                    <div key={itemIdx}>
+                      • {item.name}
+                      <span className="ml-1 text-muted-foreground/60">(x{item.quantity})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "debit",
+        header: <div className="text-right">{t("debit") || "Debit"}</div>,
+        className: "w-[110px] text-right text-xs text-foreground font-medium",
+        cell: (row) => (row.debit ? formatCurrency(row.debit) : "-"),
+      },
+      {
+        id: "credit",
+        header: <div className="text-right">{t("credit") || "Credit"}</div>,
+        className: "w-[110px] text-right text-xs text-foreground font-medium",
+        cell: (row) => (row.credit ? formatCurrency(row.credit) : "-"),
+      },
+      {
+        id: "balance",
+        header: <div className="text-right">{t("balance") || "Balance"}</div>,
+        className: "w-[120px] text-right text-xs font-semibold",
+        cell: (row) => (
+          <span className={getBalanceColor(row.balance)}>
+            {formatCurrency(row.balance)}
+          </span>
+        ),
+      },
+    ],
+    [t]
+  );
+
+  // Responsive Mobile Card Renderer
+  const renderMobileCard = useCallback(
+    (txn: StatementTransaction) => {
+      const isOpening = txn.id === "opening_balance";
+      const hasItems = txn.items && txn.items.length > 0;
+      return (
+        <div
+          key={txn.id}
+          className={`bg-card border rounded-lg p-3.5 shadow-sm space-y-2 ${
+            isOpening ? "bg-muted/30 border-primary/20" : "border-border/60"
+          }`}
+        >
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-muted-foreground font-medium">
+              {formatStatementDate(txn.dateTime)}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
+              {getTransactionType(txn.type)} {txn.orderId ? `(${txn.orderId})` : ""}
+            </span>
+          </div>
+
+          <div className="text-xs text-foreground">
+            <div className="font-medium">{txn.description}</div>
+            {hasItems && (
+              <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 pl-2 border-l-2 border-border">
+                {txn.items?.map((item, itemIdx) => (
+                  <div key={itemIdx}>
+                    • {item.name} <span className="text-muted-foreground/60">(x{item.quantity})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs">
+            <div>
+              {txn.debit ? (
+                <span className="text-foreground font-semibold">
+                  {t("debit") || "Debit"}: {formatCurrency(txn.debit)}
+                </span>
+              ) : txn.credit ? (
+                <span className="text-foreground font-semibold">
+                  {t("credit") || "Credit"}: {formatCurrency(txn.credit)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </div>
+            <div>
+              <span className="text-muted-foreground font-medium mr-1">{t("balance")}:</span>
+              <span className={`font-semibold ${getBalanceColor(txn.balance)}`}>
+                {formatCurrency(txn.balance)}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    },
+    [t]
+  );
+
   const pdfKpis: ReportPdfKpi[] = useMemo(() => {
     if (!summary) return [];
     return [
@@ -284,7 +431,16 @@ export default function AccountStatementPage() {
     <div className="flex flex-col gap-4 sm:gap-6">
       {/* Reusable PageHeader */}
       <PageHeader
-        title={t("title") || "Party Statement"}
+        title={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
+              <Link href={`/${locale}/admin/reports`}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <span className="text-xl font-bold">{t("title") || "Party Statement"}</span>
+          </div>
+        }
         description={t("modalDescription") || "Generate party statement for date range"}
         actions={
           can("reports", "export_account_statement") && transactions.length > 0 ? (
@@ -330,32 +486,30 @@ export default function AccountStatementPage() {
             {/* Date Range: From: & To: side-by-side */}
             <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
               {/* From Date */}
-              <div className="flex-1 md:w-36 space-y-1">
+              <div className="flex-1 md:w-40 space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span>{tCommon("from") || "From"}:</span>
                 </Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  max={toDate}
-                  className="bg-background h-9 sm:h-10 rounded-md text-xs sm:text-sm px-2 w-full"
+                  onChange={(val) => setFromDate(val)}
+                  placeholder="DD-MM-YYYY"
+                  className="h-9 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
 
               {/* To Date */}
-              <div className="flex-1 md:w-36 space-y-1">
+              <div className="flex-1 md:w-40 space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span>{tCommon("to") || "To"}:</span>
                 </Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  min={fromDate}
-                  className="bg-background h-9 sm:h-10 rounded-md text-xs sm:text-sm px-2 w-full"
+                  onChange={(val) => setToDate(val)}
+                  placeholder="DD-MM-YYYY"
+                  className="h-9 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
             </div>
@@ -386,217 +540,72 @@ export default function AccountStatementPage() {
             title={t("openingBalance") || "Opening Balance"}
             value={formatCurrency(summary.openingBalance)}
             icon={DollarSign}
+            isLoading={loading}
           />
           <StatCard
             title={t("netOrders") || "Net Orders"}
             value={formatCurrency((summary.totalOrders || 0) - (summary.totalPurchaseBills || 0))}
             icon={Receipt}
+            isLoading={loading}
           />
           <StatCard
             title={t("netPayments") || "Net Payments"}
             value={formatCurrency((summary.totalPaymentsIn || 0) - (summary.totalPaymentsOut || 0))}
             icon={ArrowRightLeft}
+            isLoading={loading}
           />
           <StatCard
             title={t("currentBalance") || "Current Balance"}
             value={formatCurrency(summary.currentBalance)}
             icon={summary.currentBalance > 0 ? TrendingUp : TrendingDown}
+            isLoading={loading}
           />
         </div>
       )}
 
-      {/* Transactions Section */}
-      {loading ? (
-        <Card className="border border-border/50 bg-card">
-          <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2 text-sm text-muted-foreground">{t("loadingTransactions") || "Loading statement..."}</span>
-          </CardContent>
-        </Card>
-      ) : hasSearched && transactions.length === 0 ? (
-        <Card className="border border-border/50 bg-card">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground text-sm font-medium">{t("noTransactions") || "No transactions found"}</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Try different date range</p>
-          </CardContent>
-        </Card>
-      ) : transactions.length > 0 ? (
+      {/* Transactions Section using Reusable DataTable */}
+      {hasSearched || transactions.length > 0 ? (
         <div className="flex flex-col gap-4">
-          {/* Mobile View: Cards */}
-          <div className="block md:hidden space-y-3">
-            {transactions.map((txn) => {
-              const isOpening = txn.id === "opening_balance";
-              const hasItems = txn.items && txn.items.length > 0;
-              return (
-                <div
-                  key={txn.id}
-                  className={`bg-card border rounded-lg p-3.5 shadow-sm space-y-2 ${
-                    isOpening ? "bg-muted/30 border-primary/20" : "border-border/60"
-                  }`}
-                >
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-medium">
-                      {formatStatementDate(txn.dateTime)}
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
-                      {getTransactionType(txn.type)} {txn.orderId ? `(${txn.orderId})` : ""}
-                    </span>
-                  </div>
+          <DataTable
+            columns={columns}
+            data={filteredTransactions}
+            isLoading={loading}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder={t("searchTransactions") || "Search transactions..."}
+            keyExtractor={(txn, idx) => String(txn.id || idx)}
+            renderMobileCard={renderMobileCard}
+            emptyMessage={t("noTransactions") || "No transactions found for the selected period."}
+          />
 
-                  <div className="text-xs text-foreground">
-                    <div className="font-medium">{txn.description}</div>
-                    {hasItems && (
-                      <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 pl-2 border-l-2 border-border">
-                        {txn.items?.map((item, itemIdx) => (
-                          <div key={itemIdx}>
-                            • {item.name} <span className="text-muted-foreground/60">(x{item.quantity})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs">
-                    <div>
-                      {txn.debit ? (
-                        <span className="text-foreground font-semibold">
-                          {t("debit") || "Debit"}: {formatCurrency(txn.debit)}
-                        </span>
-                      ) : txn.credit ? (
-                        <span className="text-foreground font-semibold">
-                          {t("credit") || "Credit"}: {formatCurrency(txn.credit)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground font-medium mr-1">{t("balance")}:</span>
-                      <span className={`font-semibold ${getBalanceColor(txn.balance)}`}>
-                        {formatCurrency(txn.balance)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Mobile Footer Summary */}
-            <div className="bg-card border border-border/60 rounded-lg p-3.5 shadow-sm space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground font-medium">{t("totalDebit")}:</span>
-                <span className="font-bold text-foreground">{formatCurrency(totalDebit)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground font-medium">{t("totalCredit")}:</span>
-                <span className="font-bold text-foreground">{formatCurrency(totalCredit)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-border/60 font-bold">
-                <span className="text-foreground">{t("closingBalance")}:</span>
-                <span className={getBalanceColor(summary?.currentBalance || 0)}>
-                  {formatCurrency(summary?.currentBalance || 0)}
+          {/* Statement Grand Footer Summary */}
+          {transactions.length > 0 && (
+            <Card className="border border-border/60 bg-muted/30 p-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold uppercase">
+                <span className="text-muted-foreground font-semibold text-[11px]">
+                  Total Records: {transactions.length} Transactions
                 </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop View Table */}
-          <div className="hidden md:block bg-card p-4 sm:p-6 rounded-xl border border-border/50 shadow-sm">
-            <Card className="border-none shadow-none bg-transparent overflow-hidden">
-              <div className="overflow-x-auto">
-                <Table className="min-w-[800px] md:min-w-full">
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 border-b border-border/60">
-                      <TableHead className="w-[100px] text-center text-xs text-muted-foreground font-bold uppercase">{t("date")}</TableHead>
-                      <TableHead className="w-[80px] text-center text-xs text-muted-foreground font-bold uppercase">{t("voucher")}</TableHead>
-                      <TableHead className="w-[80px] text-center text-xs text-muted-foreground font-bold uppercase">{t("type")}</TableHead>
-                      <TableHead className="min-w-[200px] text-xs text-muted-foreground font-bold uppercase">{t("descriptionItems")}</TableHead>
-                      <TableHead className="w-[100px] text-right text-xs text-muted-foreground font-bold uppercase">{t("debit")}</TableHead>
-                      <TableHead className="w-[100px] text-right text-xs text-muted-foreground font-bold uppercase">{t("credit")}</TableHead>
-                      <TableHead className="w-[110px] text-right text-xs text-muted-foreground font-bold uppercase">{t("balance")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((txn, idx) => {
-                      const hasItems = txn.items && txn.items.length > 0;
-                      const isOpening = txn.id === "opening_balance";
-                      return (
-                        <TableRow
-                          key={txn.id}
-                          className={`${isOpening ? "bg-muted/30" : ""} ${idx % 2 === 0 ? "bg-transparent" : "bg-muted/20"} border-b border-border/50`}
-                        >
-                          <TableCell className="text-center py-2.5 text-xs text-muted-foreground">
-                            {formatStatementDate(txn.dateTime)}
-                          </TableCell>
-                          <TableCell className="text-center py-2.5 text-xs text-muted-foreground max-w-[100px] break-all whitespace-normal">
-                            {txn.orderId || "-"}
-                          </TableCell>
-                          <TableCell className="text-center py-2.5">
-                            <span className="text-xs text-muted-foreground">
-                              {getTransactionType(txn.type)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="py-2.5">
-                            <div className="text-xs text-foreground font-medium">
-                              {txn.description}
-                            </div>
-                            {hasItems && (
-                              <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>
-                                    • {item.name}
-                                    <span className="ml-1 text-muted-foreground/60">
-                                      (x{item.quantity})
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-foreground font-medium">
-                            {txn.debit ? formatCurrency(txn.debit) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-foreground font-medium">
-                            {txn.credit ? formatCurrency(txn.credit) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs font-semibold">
-                            <span className={getBalanceColor(txn.balance)}>
-                              {formatCurrency(txn.balance)}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Footer Summary */}
-              <div className="border-t border-border/60 bg-muted/30 p-3">
-                <div className="flex justify-end gap-6 text-xs font-bold uppercase">
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                   <div>
-                    <span className="text-muted-foreground">{t("totalDebit")}:</span>
-                    <span className="ml-2 text-foreground">
-                      {formatCurrency(totalDebit)}
-                    </span>
+                    <span className="text-muted-foreground">{t("totalDebit") || "Total Debit"}:</span>
+                    <span className="ml-1.5 text-foreground">{formatCurrency(totalDebit)}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">{t("totalCredit")}:</span>
-                    <span className="ml-2 text-foreground">
-                      {formatCurrency(totalCredit)}
-                    </span>
+                    <span className="text-muted-foreground">{t("totalCredit") || "Total Credit"}:</span>
+                    <span className="ml-1.5 text-foreground">{formatCurrency(totalCredit)}</span>
                   </div>
-                  <div className="pl-4 border-l border-border/60">
-                    <span className="text-muted-foreground">{t("closingBalance")}:</span>
-                    <span className={`ml-2 ${getBalanceColor(summary?.currentBalance || 0)}`}>
+                  <div className="pl-4 sm:border-l sm:border-border/60">
+                    <span className="text-muted-foreground">{t("closingBalance") || "Closing Balance"}:</span>
+                    <span className={`ml-1.5 ${getBalanceColor(summary?.currentBalance || 0)}`}>
                       {formatCurrency(summary?.currentBalance || 0)}
                     </span>
                   </div>
                 </div>
               </div>
             </Card>
-          </div>
+          )}
+        </div>
+      ) : null}
 
           {/* PDF Preview & Auto-Download Dialog Modal */}
           <ReportPdfModal
@@ -745,8 +754,6 @@ export default function AccountStatementPage() {
               </div>
             </Card>
           </ReportPdfModal>
-        </div>
-      ) : null}
     </div>
   );
 }

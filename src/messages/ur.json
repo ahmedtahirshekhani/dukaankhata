@@ -642,7 +642,10 @@
     "operatingProfit": "آپریٹنگ منافع",
     "totalFor": "کل برائے {name}",
     "account": "اکاؤنٹ",
-    "total": "ٹوٹل"
+    "total": "ٹوٹل",
+    "detailedExpenses": "تفصیلی اخراجات کے ریکارڈ",
+    "noExpenses": "کوئی اخراجات نہیں ملے",
+    "paymentMethod": "ادائیگی کا طریقہ"
   },
   "itemWiseSaleReportPage": {
     "title": "آئٹم وائز سیل رپورٹ",
@@ -1239,7 +1242,9 @@
     "go": "جائیں",
     "netOrders": "کل انوائسز/بل",
     "netPayments": "کل ادائیگیاں",
-    "descriptionItems": "تفصیل / اشیاء"
+    "descriptionItems": "تفصیل / اشیاء",
+    "searchTransactions": "لین دین تلاش کریں...",
+    "typeOrderReturn": "سیل ریٹرن"
   },
   "payments": {
     "paymentMethod": "ادائیگی کا طریقہ",

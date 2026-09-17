@@ -1,18 +1,18 @@
-// src/app/[locale]/admin/reports/profitability/page.tsx
-
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   TrendingUp,
   TrendingDown,
@@ -21,9 +21,13 @@ import {
   FileDown,
   Printer,
   Loader2,
+  ArrowLeft,
+  Receipt,
 } from "lucide-react";
 import { exportProfitabilityToExcel } from "@/lib/excel";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatStatementDate } from "@/lib/utils";
+import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
+import { ProfitabilityExpense } from "@/types/reports";
 import { ReportPdfHeader, ReportPdfKpi } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 
@@ -35,10 +39,8 @@ export default function ProfitabilityReportPage() {
   const { can } = usePermissions();
 
   // Date States
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>(() => {
-    return new Date().toISOString().split("T")[0];
-  });
+  const [fromDate, setFromDate] = useState<string>(() => getDaysAgoHTMLDate(30));
+  const [toDate, setToDate] = useState<string>(() => getTodayHTMLDate());
 
   // Data States
   const [summary, setSummary] = useState<any>({
@@ -102,14 +104,6 @@ export default function ProfitabilityReportPage() {
     };
     loadBranding();
   }, [locale]);
-
-  // Set default from date and auto-load report
-  useEffect(() => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const fromDateStr = thirtyDaysAgo.toISOString().split("T")[0];
-    setFromDate(fromDateStr);
-  }, []);
 
   // Auto-fetch report when dates are set
   useEffect(() => {
@@ -177,14 +171,14 @@ export default function ProfitabilityReportPage() {
     
     switch (preset) {
       case "today":
-        setFromDate(today.toISOString().split("T")[0]);
-        setToDate(today.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(today));
+        setToDate(toHTMLDateString(today));
         break;
       case "yesterday": {
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
-        setFromDate(yesterday.toISOString().split("T")[0]);
-        setToDate(yesterday.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(yesterday));
+        setToDate(toHTMLDateString(yesterday));
         break;
       }
       case "thisWeek": {
@@ -192,8 +186,8 @@ export default function ProfitabilityReportPage() {
         const day = firstDay.getDay();
         const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
         firstDay.setDate(diff);
-        setFromDate(firstDay.toISOString().split("T")[0]);
-        setToDate(today.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(firstDay));
+        setToDate(toHTMLDateString(today));
         break;
       }
       case "lastWeek": {
@@ -203,34 +197,34 @@ export default function ProfitabilityReportPage() {
         lastWeekEnd.setDate(diff2);
         const lastWeekStart = new Date(lastWeekEnd);
         lastWeekStart.setDate(lastWeekStart.getDate() - 6);
-        setFromDate(lastWeekStart.toISOString().split("T")[0]);
-        setToDate(lastWeekEnd.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(lastWeekStart));
+        setToDate(toHTMLDateString(lastWeekEnd));
         break;
       }
       case "thisMonth": {
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-        setFromDate(firstDay.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(firstDay));
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        setToDate(lastDay.toISOString().split("T")[0]);
+        setToDate(toHTMLDateString(lastDay));
         break;
       }
       case "lastMonth": {
         const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        setFromDate(firstDay.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(firstDay));
         const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-        setToDate(lastDay.toISOString().split("T")[0]);
+        setToDate(toHTMLDateString(lastDay));
         break;
       }
       case "thisYear": {
         const firstDay = new Date(today.getFullYear(), 0, 1);
-        setFromDate(firstDay.toISOString().split("T")[0]);
+        setFromDate(toHTMLDateString(firstDay));
         const lastDay = new Date(today.getFullYear(), 11, 31);
-        setToDate(lastDay.toISOString().split("T")[0]);
+        setToDate(toHTMLDateString(lastDay));
         break;
       }
       case "allTime": {
         setFromDate("2000-01-01");
-        setToDate(today.toISOString().split("T")[0]);
+        setToDate(toHTMLDateString(today));
         break;
       }
     }
@@ -325,11 +319,53 @@ export default function ProfitabilityReportPage() {
     { label: "Profit Margin", value: `${(summary.profitMargin || 0).toFixed(2)}%`, highlight: true },
   ], [summary]);
 
+  const expenseColumns: ColumnDef<ProfitabilityExpense>[] = useMemo(
+    () => [
+      {
+        id: "date",
+        accessorKey: "date",
+        header: tProfit("date") || "Date",
+        className: "w-[120px] text-xs text-muted-foreground",
+        cell: (row) => formatStatementDate(row.date),
+      },
+      {
+        id: "category",
+        accessorKey: "category",
+        header: tProfit("category") || "Category",
+        className: "w-[140px] text-xs font-semibold text-foreground",
+        cell: (row) => row.category || "-",
+      },
+      {
+        id: "description",
+        accessorKey: "description",
+        header: tProfit("description") || "Description",
+        className: "min-w-[200px] text-xs",
+        cell: (row) => row.description || "-",
+      },
+      {
+        id: "amount",
+        header: <div className="text-right">{tProfit("amount") || "Amount"}</div>,
+        className: "w-[120px] text-right font-bold text-rose-600 text-xs",
+        cell: (row) => formatCurrency(row.amount || 0),
+      },
+    ],
+    [tCommon, tProfit]
+  );
+
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
       {/* Reusable PageHeader */}
       <PageHeader
-        title={tProfit("title") || "Profitability Report"}
+        title={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
+              <Link href={`/${locale}/admin/reports`}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <span className="text-xl font-bold">{tProfit("title") || "Profitability Report"}</span>
+          </div>
+        }
         description={tProfit("description") || "Track business revenue, expenses, and net profit margins"}
         actions={
           can("reports", "export_profitability") ? (
@@ -398,28 +434,28 @@ export default function ProfitabilityReportPage() {
               <label className="text-xs sm:text-sm font-medium text-muted-foreground block mb-1.5">
                 {tCommon("from") || "From"}
               </label>
-              <Input
-                type="date"
+              <DatePicker
                 value={fromDate}
-                onChange={(e) => {
-                  setFromDate(e.target.value);
+                onChange={(val) => {
+                  setFromDate(val);
                   setActivePreset("");
                 }}
-                className="w-full text-xs sm:text-sm"
+                placeholder="DD-MM-YYYY"
+                className="w-full text-xs sm:text-sm h-9 sm:h-10"
               />
             </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="text-xs sm:text-sm font-medium text-muted-foreground block mb-1.5">
                 {tCommon("to") || "To"}
               </label>
-              <Input
-                type="date"
+              <DatePicker
                 value={toDate}
-                onChange={(e) => {
-                  setToDate(e.target.value);
+                onChange={(val) => {
+                  setToDate(val);
                   setActivePreset("");
                 }}
-                className="w-full text-xs sm:text-sm"
+                placeholder="DD-MM-YYYY"
+                className="w-full text-xs sm:text-sm h-9 sm:h-10"
               />
             </div>
             <div className="flex items-end col-span-1 sm:col-span-2">
@@ -442,37 +478,41 @@ export default function ProfitabilityReportPage() {
         </CardContent>
       </Card>
 
+      {/* Summary KPI Cards with Reusable StatCards */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title={tProfit("totalRevenue") || "Total Revenue"}
+          value={formatCurrency(summary.totalRevenue)}
+          subValue={`${summary.totalOrders || 0} ${tProfit("orders") || "Orders"}`}
+          icon={TrendingUp}
+          isLoading={loading}
+        />
+        <StatCard
+          title={tProfit("totalExpenses") || "Total Expenses"}
+          value={formatCurrency(summary.totalExpenses)}
+          subValue={`${summary.totalExpenseItems || 0} ${tProfit("expenses") || "Expenses"}`}
+          icon={TrendingDown}
+          isLoading={loading}
+        />
+        <StatCard
+          title={tProfit("netProfit") || "Net Profit"}
+          value={formatCurrency(summary.operatingProfit)}
+          subValue={`${((summary.operatingProfit / (summary.totalRevenue || 1)) * 100).toFixed(2)}% ${tProfit("margin") || "Margin"}`}
+          icon={DollarSign}
+          isLoading={loading}
+        />
+        <StatCard
+          title={tProfit("profitMargin") || "Profit Margin"}
+          value={`${(summary.profitMargin || 0).toFixed(2)}%`}
+          subValue={tProfit("marginDescription") || "Overall Margin"}
+          icon={Percent}
+          isLoading={loading}
+        />
+      </div>
+
       {/* Report Content */}
       {hasSearched && !loading && (
         <div className="flex flex-col gap-4 sm:gap-6">
-          {/* Summary Cards with Reusable StatCard Grid */}
-          <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title={tProfit("totalRevenue") || "Total Revenue"}
-              value={formatCurrency(summary.totalRevenue)}
-              subValue={`${summary.totalOrders || 0} ${tProfit("orders") || "Orders"}`}
-              icon={TrendingUp}
-            />
-            <StatCard
-              title={tProfit("totalExpenses") || "Total Expenses"}
-              value={formatCurrency(summary.totalExpenses)}
-              subValue={`${summary.totalExpenseItems || 0} ${tProfit("expenses") || "Expenses"}`}
-              icon={TrendingDown}
-            />
-            <StatCard
-              title={tProfit("netProfit") || "Net Profit"}
-              value={formatCurrency(summary.operatingProfit)}
-              subValue={`${((summary.operatingProfit / (summary.totalRevenue || 1)) * 100).toFixed(2)}% ${tProfit("margin") || "Margin"}`}
-              icon={DollarSign}
-            />
-            <StatCard
-              title={tProfit("profitMargin") || "Profit Margin"}
-              value={`${(summary.profitMargin || 0).toFixed(2)}%`}
-              subValue={tProfit("marginDescription") || "Overall Margin"}
-              icon={Percent}
-            />
-          </div>
-
           {/* Main Financial Table */}
           <Card className="bg-card shadow-sm border-border/50 overflow-x-auto">
             <CardContent className="p-0">
@@ -543,6 +583,30 @@ export default function ProfitabilityReportPage() {
             </CardContent>
           </Card>
 
+          {/* Detailed Itemized Expenses Section with DataTable */}
+          {expenses && expenses.length > 0 && (
+            <div className="space-y-2 mt-2">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-rose-500" />
+                <h3 className="font-bold text-sm text-foreground">
+                  {tProfit("detailedExpenses") || "Detailed Expense Records"}
+                </h3>
+              </div>
+              <DataTable
+                columns={expenseColumns}
+                data={expenses}
+                isLoading={loading}
+                pageSize={pageSize}
+                currentPage={currentPage}
+                totalCount={summary.totalExpenseItems || expenses.length}
+                onPageChange={(p) => setCurrentPage(p)}
+                onPageSizeChange={(s) => setPageSize(s)}
+                keyExtractor={(exp, idx) => String(exp.id || exp._id || idx)}
+                emptyMessage={tProfit("noExpenses") || "No expense items found"}
+              />
+            </div>
+          )}
+
           {/* No Data State */}
           {summary.totalRevenue === 0 && summary.totalExpenses === 0 && (
             <Card className="bg-card shadow-sm border-border/50 mt-4">
@@ -552,16 +616,6 @@ export default function ProfitabilityReportPage() {
             </Card>
           )}
         </div>
-      )}
-
-      {/* Loading State */}
-      {loading && (
-        <Card className="bg-card shadow-sm border-border/50">
-          <CardContent className="py-8 sm:py-12 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground text-sm sm:text-base">{tCommon("loading")}</p>
-          </CardContent>
-        </Card>
       )}
 
       {/* PDF Preview & Auto-Download Modal */}
