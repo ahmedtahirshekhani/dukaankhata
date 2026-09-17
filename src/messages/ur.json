@@ -47,6 +47,8 @@
     "lastMonth": "پچھلا مہینہ",
     "thisYear": "اس سال",
     "allTime": "شروع سے اب تک",
+    "from": "سے",
+    "to": "تک",
     "share": "شیئر",
     "convertToSale": "سیل میں بدلیں",
     "searchProduct": "تلاش اشیاء...",
@@ -573,8 +575,11 @@
     "exportExcel": "ایکسل ایکسپورٹ",
     "downloadPdf": "پی ڈی ایف ڈاؤن لوڈ کریں",
     "searchProducts": "پروڈکٹ کا نام تلاش کریں...",
+    "searchPlaceholder": "نام یا ایس کے یو سے تلاش کریں...",
     "category": "کیٹیگری",
+    "allCategories": "تمام کیٹیگریز",
     "branch": "برانچ",
+    "allBranches": "تمام برانچز",
     "type": "قسم",
     "all": "تمام",
     "products": "پروڈکٹس",
@@ -631,13 +636,24 @@
     "generatedOn": "پر تیار",
     "noData": "منتخب مدت کے لیے کوئی منافع کا ڈیٹا نہیں ملا۔",
     "operatingIncome": "آپریٹنگ آمدنی",
+    "invoicesOrders": "انوائسز / آرڈرز",
+    "counterSales": "کاؤنٹر سیلز",
+    "totalOperatingIncome": "کل آپریٹنگ آمدنی",
     "costOfGoodsSold": "فروخت شدہ اشیاء کی لاگت",
+    "cogs": "فروخت شدہ مال کی لاگت (COGS)",
     "grossProfit": "مجموعی منافع",
+    "operatingExpenses": "آپریٹنگ اخراجات",
     "operatingExpense": "آپریٹنگ خرچ",
+    "totalOperatingExpenses": "کل آپریٹنگ اخراجات",
     "operatingProfit": "آپریٹنگ منافع",
+    "netOperatingProfit": "خالص آپریٹنگ منافع",
+    "accountDescription": "اکاؤنٹ کی تفصیل",
     "totalFor": "کل برائے {name}",
     "account": "اکاؤنٹ",
-    "total": "ٹوٹل"
+    "total": "ٹوٹل",
+    "detailedExpenses": "تفصیلی اخراجات کے ریکارڈ",
+    "noExpenses": "کوئی اخراجات نہیں ملے",
+    "paymentMethod": "ادائیگی کا طریقہ"
   },
   "itemWiseSaleReportPage": {
     "title": "آئٹم وائز سیل رپورٹ",
@@ -1234,7 +1250,9 @@
     "go": "جائیں",
     "netOrders": "کل انوائسز/بل",
     "netPayments": "کل ادائیگیاں",
-    "descriptionItems": "تفصیل / اشیاء"
+    "descriptionItems": "تفصیل / اشیاء",
+    "searchTransactions": "لین دین تلاش کریں...",
+    "typeOrderReturn": "سیل ریٹرن"
   },
   "payments": {
     "paymentMethod": "ادائیگی کا طریقہ",
@@ -1834,9 +1852,9 @@
     "openingBalance": "ابتدائی بیلنس",
     "viewStatement": "لیجر اسٹیٹمنٹ دیکھیں",
     "statementModalTitle": "بینک اسٹیٹمنٹ",
-    "totalCreditIn": "کل کریڈٹ (In)",
-    "totalDebitOut": "کل ڈیبٹ (Out)",
-    "creditIn": "کریڈٹ (In)",
-    "debitOut": "ڈیبٹ (Out)"
+    "totalDebitIn": "کل ڈیبٹ (In)",
+    "totalCreditOut": "کل کریڈٹ (Out)",
+    "debitIn": "ڈیبٹ (In)",
+    "creditOut": "کریڈٹ (Out)"
   }
 }

@@ -24,10 +24,10 @@ export function ReportPdfModal({
   description = "Preparing & downloading your PDF report...",
   reportRef,
   children,
-  width = "1123px",
+  width = "1050px",
   isPortrait = false,
 }: ReportPdfModalProps) {
-  const paperWidth = isPortrait ? "794px" : width;
+  const paperWidth = isPortrait ? "760px" : (width || "1050px");
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -51,7 +51,7 @@ export function ReportPdfModal({
             className="bg-white mx-auto text-slate-900 font-sans shadow-sm"
             style={{
               width: paperWidth,
-              padding: "20px",
+              padding: "16px 20px",
               boxSizing: "border-box",
               borderRadius: "4px",
             }}
@@ -63,3 +63,4 @@ export function ReportPdfModal({
     </Dialog>
   );
 }
+

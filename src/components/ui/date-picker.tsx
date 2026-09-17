@@ -6,21 +6,30 @@ import { toHTMLDateString, safeDate, toPakistaniDateString } from "@/lib/date-ut
 import { CalendarIcon } from "lucide-react";
 
 export interface DatePickerProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type"> {
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type" | "min" | "max"> {
   value?: string | Date; // Accepts ISO string (YYYY-MM-DD), Pakistani string (DD-MM-YYYY), or Date
   onChange?: (dateString: string, dateObj: Date) => void;
+  min?: string | Date;
+  max?: string | Date;
   containerClassName?: string;
   placeholder?: string;
 }
 
 export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(
-  ({ className, containerClassName, value, onChange, disabled, placeholder = "DD-MM-YYYY", ...props }, ref) => {
+  ({ className, containerClassName, value, onChange, min, max, disabled, placeholder = "DD-MM-YYYY", ...props }, ref) => {
     const inputRef = useRef<HTMLInputElement | null>(null);
 
     // Normalize value to HTML date format (YYYY-MM-DD) for native picker
     const dateObj = value ? safeDate(value) : null;
     const isoValue = dateObj && !isNaN(dateObj.getTime()) ? toHTMLDateString(dateObj) : "";
     const displayValue = dateObj && !isNaN(dateObj.getTime()) ? toPakistaniDateString(dateObj) : "";
+
+    // Normalize min & max constraints
+    const minObj = min ? safeDate(min) : null;
+    const isoMin = minObj && !isNaN(minObj.getTime()) ? toHTMLDateString(minObj) : undefined;
+
+    const maxObj = max ? safeDate(max) : null;
+    const isoMax = maxObj && !isNaN(maxObj.getTime()) ? toHTMLDateString(maxObj) : undefined;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value; // YYYY-MM-DD from native picker
@@ -58,6 +67,8 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(
             }
           }}
           value={isoValue}
+          min={isoMin}
+          max={isoMax}
           onChange={handleChange}
           disabled={disabled}
           tabIndex={0}

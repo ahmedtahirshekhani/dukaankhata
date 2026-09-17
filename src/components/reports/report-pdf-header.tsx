@@ -52,17 +52,27 @@ export function ReportPdfHeader({
     return formatReadableDateTime(generatedAt || new Date());
   }, [generatedAt]);
 
+  const isFromValid = fromDate && /^\d{4}-\d{2}-\d{2}/.test(fromDate);
+  const isToValid = toDate && /^\d{4}-\d{2}-\d{2}/.test(toDate);
+
   const displayPeriod = periodLabel || (
-    fromDate && toDate ? (
+    isFromValid && isToValid ? (
       <>
         <strong style={{ color: "#0f172a" }}>{formatReadableDate(fromDate)}</strong> to{" "}
         <strong style={{ color: "#0f172a" }}>{formatReadableDate(toDate)}</strong>
       </>
+    ) : fromDate && isToValid ? (
+      <>
+        <strong style={{ color: "#0f172a" }}>{fromDate}</strong> (as of{" "}
+        <strong style={{ color: "#0f172a" }}>{formatReadableDate(toDate)}</strong>)
+      </>
+    ) : fromDate ? (
+      <strong style={{ color: "#0f172a" }}>{fromDate}</strong>
     ) : null
   );
 
   return (
-    <div className={`pdf-header ${className}`} style={{ display: "none", backgroundColor: "white" }}>
+    <div className={`pdf-header ${className}`} style={{ backgroundColor: "white" }}>
       {/* 1. Main Business Branding & Title Section */}
       <div style={{ paddingBottom: "12px", marginBottom: "12px", borderBottom: "2px solid #0f172a" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
