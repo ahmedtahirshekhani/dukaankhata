@@ -216,8 +216,8 @@ export default function AccountStatementPage() {
   }, [reportMeta, fromDate, toDate, tCommon]);
 
   const getBalanceColor = (balance: number) => {
-    if (balance > 0) return "text-red-600";
-    if (balance < 0) return "text-green-600";
+    if (balance > 0) return "text-green-600";
+    if (balance < 0) return "text-red-600";
     return "text-gray-600";
   };
 
@@ -275,7 +275,7 @@ export default function AccountStatementPage() {
         header: t("type") || "Type",
         className: "w-[100px] text-center text-xs",
         cell: (row) => (
-          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
+          <span className="px-2 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
             {getTransactionType(row.type)}
           </span>
         ),
