@@ -16,14 +16,6 @@ import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
@@ -48,6 +40,8 @@ import {
 } from "@/types/reports";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
+import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
+import { getUomShortcut } from "@/lib/uom";
 
 export default function AccountStatementPage() {
   const t = useTranslations("accountStatement");
@@ -169,16 +163,15 @@ export default function AccountStatementPage() {
       });
 
       const opt = {
-        margin: [4, 4, 4, 4],
+        margin: [6, 6, 6, 6],
         filename: `Statement-${reportMeta?.customerName || "Customer"}-${reportMeta?.fromDate || fromDate}-to-${reportMeta?.toDate || toDate}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
           scale: 2,
           useCORS: true,
-          logging: false,
+          letterRendering: true,
           scrollY: 0,
           scrollX: 0,
-          windowWidth: 1200,
         },
         jsPDF: {
           unit: "mm",
@@ -397,6 +390,176 @@ export default function AccountStatementPage() {
     [t]
   );
 
+  const pdfColumns: PdfTableColumn<StatementTransaction>[] = useMemo(
+    () => [
+      {
+        id: "date",
+        header: t("date") || "Date",
+        width: "85px",
+        align: "center",
+        render: (row) => formatStatementDate(row.dateTime),
+      },
+      {
+        id: "voucher",
+        header: t("voucher") || "Voucher #",
+        width: "75px",
+        align: "center",
+        render: (row) => row.orderId || "-",
+      },
+      {
+        id: "type",
+        header: t("type") || "Type",
+        width: "75px",
+        align: "center",
+        render: (row) => getTransactionType(row.type),
+      },
+      {
+        id: "description",
+        header: t("descriptionItems") || "Description / Items",
+        align: "left",
+        render: (row) => {
+          const hasItems = row.items && row.items.length > 0;
+          return (
+            <div>
+              <div className="font-semibold text-slate-900">{row.description}</div>
+              {hasItems && (
+                <div className="text-[9.5px] text-slate-600 mt-0.5 space-y-0.5">
+                  {row.items?.map((item, itemIdx) => (
+                    <div key={itemIdx}>• {item.name}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "qty",
+        header: t("qty") || "Qty",
+        width: "50px",
+        align: "center",
+        render: (row) => {
+          const hasItems = row.items && row.items.length > 0;
+          return hasItems ? (
+            <div className="space-y-0.5">
+              {row.items?.map((item, itemIdx) => (
+                <div key={itemIdx}>
+                  {item.quantity} {getUomShortcut((item as any).uom || (item as any).unit) || ""}
+                </div>
+              ))}
+            </div>
+          ) : (
+            "-"
+          );
+        },
+      },
+      {
+        id: "rate",
+        header: t("rate") || "Rate",
+        width: "75px",
+        align: "right",
+        render: (row) => {
+          const hasItems = row.items && row.items.length > 0;
+          return hasItems ? (
+            <div className="space-y-0.5">
+              {row.items?.map((item, itemIdx) => (
+                <div key={itemIdx}>{formatCurrency(item.price)}</div>
+              ))}
+            </div>
+          ) : (
+            "-"
+          );
+        },
+      },
+      {
+        id: "amount",
+        header: t("amount") || "Amount",
+        width: "80px",
+        align: "right",
+        render: (row) => {
+          const hasItems = row.items && row.items.length > 0;
+          return hasItems ? (
+            <div className="space-y-0.5">
+              {row.items?.map((item, itemIdx) => (
+                <div key={itemIdx}>{formatCurrency(item.amount)}</div>
+              ))}
+            </div>
+          ) : (
+            "-"
+          );
+        },
+      },
+      {
+        id: "debit",
+        header: t("debit") || "Debit",
+        width: "90px",
+        align: "right",
+        render: (row) => (row.debit ? formatCurrency(row.debit) : "-"),
+      },
+      {
+        id: "credit",
+        header: t("credit") || "Credit",
+        width: "90px",
+        align: "right",
+        render: (row) => (row.credit ? formatCurrency(row.credit) : "-"),
+      },
+      {
+        id: "balance",
+        header: t("balance") || "Balance",
+        width: "100px",
+        align: "right",
+        render: (row) => (
+          <span className={getBalanceColor(row.balance)}>
+            {formatCurrency(row.balance)}
+          </span>
+        ),
+      },
+    ],
+    [t, getTransactionType]
+  );
+
+  const pdfFooterCells: PdfTableFooterCell[] = useMemo(
+    () => [
+      {
+        content: "TOTAL",
+        colSpan: 7,
+        align: "right",
+      },
+      {
+        content: formatCurrency(totalDebit),
+        align: "right",
+      },
+      {
+        content: formatCurrency(totalCredit),
+        align: "right",
+      },
+      {
+        content: (
+          <span className={getBalanceColor(summary?.currentBalance || 0)}>
+            {formatCurrency(summary?.currentBalance || 0)}
+          </span>
+        ),
+        align: "right",
+      },
+    ],
+    [totalDebit, totalCredit, summary?.currentBalance]
+  );
+
+  const handleFromDateChange = (val: string) => {
+    setFromDate(val);
+    if (toDate && val > toDate) {
+      setToDate(val);
+    }
+  };
+
+  const handleToDateChange = (val: string) => {
+    if (fromDate && val < fromDate) {
+      setToDate(fromDate);
+    } else {
+      setToDate(val);
+    }
+  };
+
   const pdfKpis: ReportPdfKpi[] = useMemo(() => {
     if (!summary) return [];
     return [
@@ -493,7 +656,8 @@ export default function AccountStatementPage() {
                 </Label>
                 <DatePicker
                   value={fromDate}
-                  onChange={(val) => setFromDate(val)}
+                  max={toDate}
+                  onChange={handleFromDateChange}
                   placeholder="DD-MM-YYYY"
                   className="h-9 sm:h-10 text-xs sm:text-sm"
                 />
@@ -507,7 +671,8 @@ export default function AccountStatementPage() {
                 </Label>
                 <DatePicker
                   value={toDate}
-                  onChange={(val) => setToDate(val)}
+                  min={fromDate}
+                  onChange={handleToDateChange}
                   placeholder="DD-MM-YYYY"
                   className="h-9 sm:h-10 text-xs sm:text-sm"
                 />
@@ -614,7 +779,7 @@ export default function AccountStatementPage() {
             title="PDF Report Preview"
             description="Preparing & downloading your Landscape account statement PDF..."
             reportRef={reportRef}
-            width="1123px"
+            width="1050px"
             isPortrait={false}
           >
             <ReportPdfHeader
@@ -626,133 +791,13 @@ export default function AccountStatementPage() {
               kpis={pdfKpis}
             />
 
-            {/* Main Table */}
-            <Card className="border-none shadow-none bg-white overflow-hidden">
-              <div className="overflow-x-auto md:overflow-visible [.is-exporting_&]:overflow-visible">
-                <Table className="min-w-[800px] md:min-w-full">
-                  <TableHeader>
-                    <TableRow className="bg-gray-50 border-b border-gray-100 [.is-exporting_&]:bg-[#0f172a] [.is-exporting_&]:border-[#0f172a]">
-                      <TableHead className="w-[100px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("date")}</TableHead>
-                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("voucher")}</TableHead>
-                      <TableHead className="w-[80px] text-center text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("type")}</TableHead>
-                      <TableHead className="min-w-[200px] text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("descriptionItems")}</TableHead>
-                      {/* These columns are hidden in UI but show in PDF */}
-                      <TableHead className="w-[60px] text-center text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("qty")}</TableHead>
-                      <TableHead className="w-[80px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("rate")}</TableHead>
-                      <TableHead className="w-[90px] text-right text-xs text-gray-900 font-extrabold uppercase hidden [.is-exporting_&]:table-cell print:table-cell [.is-exporting_&]:text-white">{t("amount")}</TableHead>
-                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("debit")}</TableHead>
-                      <TableHead className="w-[100px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("credit")}</TableHead>
-                      <TableHead className="w-[110px] text-right text-xs text-gray-900 font-extrabold uppercase [.is-exporting_&]:text-white">{t("balance")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((txn, idx) => {
-                      const hasItems = txn.items && txn.items.length > 0;
-                      const isOpening = txn.id === "opening_balance";
-                      return (
-                        <TableRow
-                          key={txn.id}
-                          className={`${isOpening ? "bg-blue-50/30" : ""} ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/30"} border-b border-gray-100`}
-                        >
-                          <TableCell className="text-center py-2.5 text-xs text-gray-900 font-medium">
-                            {formatStatementDate(txn.dateTime)}
-                          </TableCell>
-                          <TableCell className="text-center py-2.5 text-xs text-gray-900 font-medium max-w-[100px] break-all whitespace-normal">
-                            {txn.orderId || "-"}
-                          </TableCell>
-                          <TableCell className="text-center py-2.5">
-                            <span className="text-xs text-gray-900 font-medium">
-                              {getTransactionType(txn.type)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="py-2.5">
-                            <div className="text-xs text-gray-900 font-medium">
-                              {txn.description}
-                            </div>
-                            {hasItems && (
-                              <div className="text-[10px] text-gray-800 font-medium mt-1 space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>
-                                    • {item.name}
-                                    {/* Show quantity inline only in UI, not in separate column */}
-                                    <span className="inline md:inline [.is-exporting_&]:hidden print:hidden ml-1">
-                                      (x{item.quantity})
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </TableCell>
-                          {/* PDF-only columns - show quantity, rate, amount in separate lines for PDF */}
-                          <TableCell className="text-center py-2.5 text-xs text-gray-900 font-medium hidden [.is-exporting_&]:table-cell print:table-cell">
-                            {hasItems ? (
-                              <div className="space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>{item.quantity}</div>
-                                ))}
-                              </div>
-                            ) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-medium hidden [.is-exporting_&]:table-cell print:table-cell">
-                            {hasItems ? (
-                              <div className="space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>{formatCurrency(item.price)}</div>
-                                ))}
-                              </div>
-                            ) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-medium hidden [.is-exporting_&]:table-cell print:table-cell">
-                            {hasItems ? (
-                              <div className="space-y-0.5">
-                                {txn.items?.map((item, itemIdx) => (
-                                  <div key={itemIdx}>{formatCurrency(item.amount)}</div>
-                                ))}
-                              </div>
-                            ) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-semibold">
-                            {txn.debit ? formatCurrency(txn.debit) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs text-gray-900 font-semibold">
-                            {txn.credit ? formatCurrency(txn.credit) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 text-xs font-bold text-gray-900">
-                            <span className={getBalanceColor(txn.balance)}>
-                              {formatCurrency(txn.balance)}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Footer Summary */}
-              <div className="border-t border-gray-100 bg-gray-50/30 p-3">
-                <div className="flex justify-end gap-6 text-xs font-bold uppercase">
-                  <div>
-                    <span className="text-gray-400">{t("totalDebit")}:</span>
-                    <span className="ml-2 text-gray-900">
-                      {formatCurrency(totalDebit)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">{t("totalCredit")}:</span>
-                    <span className="ml-2 text-gray-900">
-                      {formatCurrency(totalCredit)}
-                    </span>
-                  </div>
-                  <div className="pl-4 border-l border-gray-200">
-                    <span className="text-gray-400">{t("closingBalance")}:</span>
-                    <span className={`ml-2 ${getBalanceColor(summary?.currentBalance || 0)}`}>
-                      {formatCurrency(summary?.currentBalance || 0)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
+            {/* Main Reusable PDF Table */}
+            <PdfTable
+              columns={pdfColumns}
+              data={transactions}
+              footerCells={pdfFooterCells}
+              emptyMessage={t("noTransactions") || "No transactions found"}
+            />
           </ReportPdfModal>
     </div>
   );

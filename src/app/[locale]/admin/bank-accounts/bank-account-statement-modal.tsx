@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { formatCurrency, formatStatementDate } from "@/lib/utils";
+import { formatCurrency, formatStatementDate, cn } from "@/lib/utils";
 import { getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 import {
   Dialog,
@@ -37,6 +37,7 @@ import {
 import type { BankAccountItem } from "./bank-accounts-client";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
+import { PdfTable, PdfTableColumn } from "@/components/reports/pdf-table";
 
 interface BankAccountStatementModalProps {
   bankAccount: BankAccountItem;
@@ -317,6 +318,79 @@ export function BankAccountStatementModal({
     ];
   }, [bankAccount]);
 
+  const pdfColumns: PdfTableColumn<any>[] = useMemo(
+    () => [
+      {
+        id: "date",
+        header: t("date") || "Date",
+        width: "110px",
+        align: "left",
+        render: (row) => (
+          <span className="font-medium whitespace-nowrap">
+            {formatStatementDate(row.dateTime)}
+          </span>
+        ),
+      },
+      {
+        id: "particulars",
+        header: t("particulars") || "Particulars",
+        align: "left",
+        render: (row) => (
+          <div>
+            <div className="font-semibold text-slate-900">{row.type}</div>
+            {row.description && (
+              <div className="text-[9.5px] text-slate-600 mt-0.5">{row.description}</div>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "debitIn",
+        header: tBank("debitIn") || "Debit (In)",
+        width: "130px",
+        align: "right",
+        render: (row) => (row.debit > 0 ? formatCurrency(row.debit) : "-"),
+      },
+      {
+        id: "creditOut",
+        header: tBank("creditOut") || "Credit (Out)",
+        width: "130px",
+        align: "right",
+        render: (row) => (row.credit > 0 ? formatCurrency(row.credit) : "-"),
+      },
+      {
+        id: "balance",
+        header: t("balance") || "Balance",
+        width: "140px",
+        align: "right",
+        render: (row) => {
+          const isDr = row.balance < 0;
+          return (
+            <span className={cn("font-bold", isDr ? "text-red-700" : "text-slate-900")}>
+              {formatCurrency(Math.abs(row.balance))} {isDr ? "(Dr)" : "(Cr)"}
+            </span>
+          );
+        },
+      },
+    ],
+    [t, tBank]
+  );
+
+  const handleFromDateChange = (val: string) => {
+    setFromDate(val);
+    if (toDate && val > toDate) {
+      setToDate(val);
+    }
+  };
+
+  const handleToDateChange = (val: string) => {
+    if (fromDate && val < fromDate) {
+      setToDate(fromDate);
+    } else {
+      setToDate(val);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-5xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6">
@@ -352,7 +426,8 @@ export function BankAccountStatementModal({
                 </Label>
                 <DatePicker
                   value={fromDate}
-                  onChange={(val) => setFromDate(val)}
+                  max={toDate}
+                  onChange={handleFromDateChange}
                   placeholder="DD-MM-YYYY"
                   className="h-9 text-xs sm:text-sm w-full"
                 />
@@ -364,7 +439,8 @@ export function BankAccountStatementModal({
                 </Label>
                 <DatePicker
                   value={toDate}
-                  onChange={(val) => setToDate(val)}
+                  min={fromDate}
+                  onChange={handleToDateChange}
                   placeholder="DD-MM-YYYY"
                   className="h-9 text-xs sm:text-sm w-full"
                 />
@@ -455,55 +531,11 @@ export function BankAccountStatementModal({
             kpis={pdfKpis}
           />
 
-          <Card className="border-none shadow-none bg-white overflow-hidden">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow className="bg-[#0f172a] border-b border-[#0f172a]">
-                  <TableHead className="w-[110px] py-2.5 text-xs font-bold uppercase text-white">{t("date")}</TableHead>
-                  <TableHead className="min-w-[240px] py-2.5 text-xs font-bold uppercase text-white">{t("particulars")}</TableHead>
-                  <TableHead className="w-[130px] py-2.5 text-right text-xs font-bold uppercase text-white">{tBank("debitIn")}</TableHead>
-                  <TableHead className="w-[130px] py-2.5 text-right text-xs font-bold uppercase text-white">{tBank("creditOut")}</TableHead>
-                  <TableHead className="w-[140px] py-2.5 text-right text-xs font-bold uppercase text-white">{t("balance")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-xs text-gray-500">
-                      {t("noTransactions")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  transactions.map((t, idx) => (
-                    <TableRow
-                      key={`${t.id}-${idx}`}
-                      className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"} border-b border-gray-100`}
-                    >
-                      <TableCell className="py-2.5 text-xs font-medium text-gray-900 whitespace-nowrap">
-                        {formatStatementDate(t.dateTime)}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-xs text-gray-900">
-                        <div className="font-semibold">{t.type}</div>
-                        {t.description && (
-                          <div className="text-[10px] text-gray-600 mt-0.5">{t.description}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right text-xs font-medium text-gray-900">
-                        {t.debit > 0 ? formatCurrency(t.debit) : "-"}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right text-xs font-medium text-gray-900">
-                        {t.credit > 0 ? formatCurrency(t.credit) : "-"}
-                      </TableCell>
-                      <TableCell className={`py-2.5 text-right text-xs font-bold ${t.balance < 0 ? 'text-red-700' : 'text-gray-900'}`}>
-                        {formatCurrency(Math.abs(t.balance))}
-                        {t.balance < 0 ? ' (Dr)' : ' (Cr)'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </Card>
+          <PdfTable
+            columns={pdfColumns}
+            data={transactions}
+            emptyMessage={t("noTransactions") || "No transactions found"}
+          />
         </ReportPdfModal>
       </DialogContent>
     </Dialog>

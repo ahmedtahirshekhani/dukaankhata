@@ -30,6 +30,14 @@ import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/da
 import { ProfitabilityExpense } from "@/types/reports";
 import { ReportPdfHeader, ReportPdfKpi } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
+import {
+  PdfTable,
+  PdfTableHeader,
+  PdfTableBody,
+  PdfTableRow,
+  PdfTableCell,
+  PdfTableHead,
+} from "@/components/reports/pdf-table";
 
 export default function ProfitabilityReportPage() {
   const locale = useLocale();
@@ -253,14 +261,15 @@ export default function ProfitabilityReportPage() {
 
       await html2pdf()
         .set({
-          margin: [8, 8, 8, 8],
+          margin: [6, 6, 6, 6],
           filename: `profitability-report-${fromDate}_to_${toDate}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: {
             scale: 2,
             useCORS: true,
             letterRendering: true,
-            logging: false,
+            scrollY: 0,
+            scrollX: 0,
           },
           jsPDF: {
             unit: "mm",
@@ -352,9 +361,26 @@ export default function ProfitabilityReportPage() {
     [tCommon, tProfit]
   );
 
+  const handleFromDateChange = (val: string) => {
+    setFromDate(val);
+    setActivePreset("");
+    if (toDate && val > toDate) {
+      setToDate(val);
+    }
+  };
+
+  const handleToDateChange = (val: string) => {
+    setActivePreset("");
+    if (fromDate && val < fromDate) {
+      setToDate(fromDate);
+    } else {
+      setToDate(val);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      {/* Reusable PageHeader */}
+      {/* Top Page Header */}
       <PageHeader
         title={
           <div className="flex items-center gap-2">
@@ -366,16 +392,16 @@ export default function ProfitabilityReportPage() {
             <span className="text-xl font-bold">{tProfit("title") || "Profitability Report"}</span>
           </div>
         }
-        description={tProfit("description") || "Track business revenue, expenses, and net profit margins"}
+        description={tProfit("description") || "Comprehensive breakdown of revenue, COGS, and expenses"}
         actions={
-          can("reports", "export_profitability") ? (
-            <div className="flex flex-col items-end gap-1 shrink-0">
+          can("reports", "export_profitability") && hasSearched ? (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportExcel}
                 disabled={isExporting || !hasSearched}
-                className="h-7 text-[11px] px-2 gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-none w-full justify-center"
+                className="h-7 text-[11px] px-2 gap-1 w-full justify-center"
               >
                 {isExporting ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -436,10 +462,8 @@ export default function ProfitabilityReportPage() {
               </label>
               <DatePicker
                 value={fromDate}
-                onChange={(val) => {
-                  setFromDate(val);
-                  setActivePreset("");
-                }}
+                max={toDate}
+                onChange={handleFromDateChange}
                 placeholder="DD-MM-YYYY"
                 className="w-full text-xs sm:text-sm h-9 sm:h-10"
               />
@@ -450,10 +474,8 @@ export default function ProfitabilityReportPage() {
               </label>
               <DatePicker
                 value={toDate}
-                onChange={(val) => {
-                  setToDate(val);
-                  setActivePreset("");
-                }}
+                min={fromDate}
+                onChange={handleToDateChange}
                 placeholder="DD-MM-YYYY"
                 className="w-full text-xs sm:text-sm h-9 sm:h-10"
               />
@@ -625,7 +647,7 @@ export default function ProfitabilityReportPage() {
         title="PDF Report Preview"
         description="Preparing & downloading your A4 profitability report PDF..."
         reportRef={reportRef}
-        width="700px"
+        width="794px"
         isPortrait={true}
       >
         {/* Reusable Global Report PDF Header with Branding, Meta & KPIs */}
@@ -637,68 +659,68 @@ export default function ProfitabilityReportPage() {
           kpis={pdfKpis}
         />
 
-        {/* Financial Summary Table */}
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", tableLayout: "fixed" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
-              <th style={{ width: "70%", padding: "7px 10px", textAlign: "left", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>Account Description</th>
-              <th style={{ width: "30%", padding: "7px 10px", textAlign: "right", fontWeight: "700", textTransform: "uppercase", fontSize: "9px" }}>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
+        {/* Financial Summary Table using Reusable PdfTable */}
+        <PdfTable>
+          <PdfTableHeader>
+            <PdfTableRow isHeader>
+              <PdfTableHead width="70%">{tProfit("accountDescription") || "Account Description"}</PdfTableHead>
+              <PdfTableHead width="30%" align="right">{tProfit("amount") || "Amount"}</PdfTableHead>
+            </PdfTableRow>
+          </PdfTableHeader>
+          <PdfTableBody>
             {/* Operating Income */}
-            <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
-              <td style={{ padding: "8px 10px", color: "#0f172a", fontSize: "10px" }}>Operating Income</td>
-              <td style={{ padding: "8px 10px", textAlign: "right" }}></td>
-            </tr>
-            <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-              <td style={{ padding: "6px 16px", color: "#475569" }}>Invoices / Orders</td>
-              <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "500", color: "#475569" }}>{formatCurrency(summary.ordersRevenue || 0)}</td>
-            </tr>
-            <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-              <td style={{ padding: "6px 16px", color: "#475569" }}>Counter Sales</td>
-              <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "500", color: "#475569" }}>{formatCurrency(summary.counterSalesRevenue || 0)}</td>
-            </tr>
-            <tr style={{ backgroundColor: "#f8fafc", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
-              <td style={{ padding: "6px 10px", color: "#0f172a" }}>Total Operating Income</td>
-              <td style={{ padding: "6px 10px", textAlign: "right", color: "#0284c7" }}>{formatCurrency(summary.totalRevenue)}</td>
-            </tr>
+            <PdfTableRow style={{ backgroundColor: "#f1f5f9", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
+              <PdfTableCell bold>{tProfit("operatingIncome") || "Operating Income"}</PdfTableCell>
+              <PdfTableCell align="right"></PdfTableCell>
+            </PdfTableRow>
+            <PdfTableRow>
+              <PdfTableCell style={{ paddingLeft: "16px", color: "#475569" }}>{tProfit("invoicesOrders") || "Invoices / Orders"}</PdfTableCell>
+              <PdfTableCell align="right" style={{ fontWeight: 500, color: "#475569" }}>{formatCurrency(summary.ordersRevenue || 0)}</PdfTableCell>
+            </PdfTableRow>
+            <PdfTableRow>
+              <PdfTableCell style={{ paddingLeft: "16px", color: "#475569" }}>{tProfit("counterSales") || "Counter Sales"}</PdfTableCell>
+              <PdfTableCell align="right" style={{ fontWeight: 500, color: "#475569" }}>{formatCurrency(summary.counterSalesRevenue || 0)}</PdfTableCell>
+            </PdfTableRow>
+            <PdfTableRow style={{ backgroundColor: "#f8fafc", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
+              <PdfTableCell bold>{tProfit("totalOperatingIncome") || "Total Operating Income"}</PdfTableCell>
+              <PdfTableCell align="right" bold highlight>{formatCurrency(summary.totalRevenue)}</PdfTableCell>
+            </PdfTableRow>
 
             {/* Cost of Goods Sold */}
-            <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
-              <td style={{ padding: "8px 10px", color: "#0f172a", fontSize: "10px" }}>Cost of Goods Sold (COGS)</td>
-              <td style={{ padding: "8px 10px", textAlign: "right", color: "#0f172a" }}>{formatCurrency(summary.totalCOGS)}</td>
-            </tr>
+            <PdfTableRow style={{ backgroundColor: "#f1f5f9", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
+              <PdfTableCell bold>{tProfit("cogs") || "Cost of Goods Sold (COGS)"}</PdfTableCell>
+              <PdfTableCell align="right" bold>{formatCurrency(summary.totalCOGS)}</PdfTableCell>
+            </PdfTableRow>
 
             {/* Gross Profit */}
-            <tr style={{ backgroundColor: "#e2e8f0", fontWeight: "bold", borderBottom: "2px solid #94a3b8" }}>
-              <td style={{ padding: "8px 10px", color: "#0f172a", fontSize: "10px" }}>Gross Profit</td>
-              <td style={{ padding: "8px 10px", textAlign: "right", color: "#0f172a", fontSize: "11px" }}>{formatCurrency(summary.grossProfit)}</td>
-            </tr>
+            <PdfTableRow style={{ backgroundColor: "#e2e8f0", fontWeight: "bold", borderBottom: "2px solid #94a3b8" }}>
+              <PdfTableCell bold style={{ fontSize: "10.5px" }}>{tProfit("grossProfit") || "Gross Profit"}</PdfTableCell>
+              <PdfTableCell align="right" bold style={{ fontSize: "11px" }}>{formatCurrency(summary.grossProfit)}</PdfTableCell>
+            </PdfTableRow>
 
             {/* Operating Expenses */}
-            <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
-              <td style={{ padding: "8px 10px", color: "#0f172a", fontSize: "10px" }}>Operating Expenses</td>
-              <td style={{ padding: "8px 10px", textAlign: "right" }}></td>
-            </tr>
+            <PdfTableRow style={{ backgroundColor: "#f1f5f9", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
+              <PdfTableCell bold>{tProfit("operatingExpenses") || "Operating Expenses"}</PdfTableCell>
+              <PdfTableCell align="right"></PdfTableCell>
+            </PdfTableRow>
             {expensesByCategory.map((exp: any, idx: number) => (
-              <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: idx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                <td style={{ padding: "6px 16px", color: "#475569" }}>{exp.category}</td>
-                <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "600", color: "#0f172a" }}>{formatCurrency(exp.amount)}</td>
-              </tr>
+              <PdfTableRow key={idx} isOdd={idx % 2 !== 0}>
+                <PdfTableCell style={{ paddingLeft: "16px", color: "#475569" }}>{exp.category}</PdfTableCell>
+                <PdfTableCell align="right" bold>{formatCurrency(exp.amount)}</PdfTableCell>
+              </PdfTableRow>
             ))}
-            <tr style={{ backgroundColor: "#f8fafc", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
-              <td style={{ padding: "6px 10px", color: "#0f172a" }}>Total Operating Expenses</td>
-              <td style={{ padding: "6px 10px", textAlign: "right", color: "#ef4444" }}>{formatCurrency(summary.totalExpenses)}</td>
-            </tr>
+            <PdfTableRow style={{ backgroundColor: "#f8fafc", fontWeight: "bold", borderBottom: "1px solid #cbd5e1" }}>
+              <PdfTableCell bold>{tProfit("totalOperatingExpenses") || "Total Operating Expenses"}</PdfTableCell>
+              <PdfTableCell align="right" bold style={{ color: "#ef4444" }}>{formatCurrency(summary.totalExpenses)}</PdfTableCell>
+            </PdfTableRow>
 
             {/* Operating Profit */}
-            <tr style={{ backgroundColor: "#0f172a", color: "#ffffff", fontWeight: "bold" }}>
-              <td style={{ padding: "10px", fontSize: "11px", textTransform: "uppercase" }}>Net Operating Profit</td>
-              <td style={{ padding: "10px", textAlign: "right", fontSize: "12px", color: "#38bdf8" }}>{formatCurrency(summary.operatingProfit)}</td>
-            </tr>
-          </tbody>
-        </table>
+            <PdfTableRow isHeader style={{ borderTop: "2px solid #0f172a" }}>
+              <PdfTableCell bold style={{ color: "#ffffff", padding: "8px 10px", textTransform: "uppercase" }}>{tProfit("netOperatingProfit") || "Net Operating Profit"}</PdfTableCell>
+              <PdfTableCell align="right" bold style={{ color: "#38bdf8", padding: "8px 10px", fontSize: "11.5px" }}>{formatCurrency(summary.operatingProfit)}</PdfTableCell>
+            </PdfTableRow>
+          </PdfTableBody>
+        </PdfTable>
       </ReportPdfModal>
     </div>
   );
