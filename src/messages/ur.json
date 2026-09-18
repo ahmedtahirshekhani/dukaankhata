@@ -14,6 +14,7 @@
     "logout": "لاگ آؤٹ",
     "login": "لاگ ان",
     "loading": "لوڈ ہو رہا ہے...",
+    "saving": "محفوظ ہو رہا ہے...",
     "error": "خرابی",
     "success": "کامیابی",
     "cancel": "منسوخ",
@@ -1395,6 +1396,7 @@
     "addNote": "نوٹ شامل کریں",
     "saveNew": "محفوظ اور نیا",
     "save": "محفوظ",
+    "saving": "محفوظ ہو رہا ہے...",
     "validationError": "توثیق خرابی",
     "addItem": "شامل کریں",
     "addBills": "بل شامل کریں",
@@ -1424,7 +1426,16 @@
     "failedToUpdateBill": "بل اپ ڈیٹ کرنے میں ناکام",
     "failedToDeleteBill": "بل حذف کرنے میں ناکام",
     "overpaymentError": "ادا کی گئی رقم کل رقم سے زیادہ نہیں ہو سکتی",
-    "negativeAmountError": "ادا کی گئی رقم 0 سے کم نہیں ہو سکتی"
+    "negativeAmountError": "ادا کی گئی رقم 0 سے کم نہیں ہو سکتی",
+    "paymentMethodRequired": "ادائیگی کا طریقہ منتخب کرنا ضروری ہے",
+    "notesOptional": "نوٹس (اختیاری)",
+    "notePrintMessage": "یہ نوٹ پرچیز بل پر پرنٹ / محفوظ ہوگا",
+    "totalAurPayment": "کل رقم اور ادائیگی",
+    "billSummary": "پرچیز سمری",
+    "items": "اشیاء",
+    "totalQuantity": "کل مقدار",
+    "tipTitle": "آسان ٹپ",
+    "tipDescription": "پہلے سپلائر / پارٹی منتخب کریں، پھر اشیاء شامل کریں اور محفوظ کریں۔"
   },
   "language": {
     "english": "English",
