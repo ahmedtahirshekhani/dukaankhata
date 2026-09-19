@@ -182,6 +182,9 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
+            .invoice-preview-container * {
+              border-color: #000000 !important;
+            }
             .invoice-preview-container table td, .invoice-preview-container table th {
               border-color: #000000 !important;
             }
@@ -208,7 +211,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               HEADER  (Logo | Company Info | Document Title)
               Uses an HTML <table> so every renderer aligns cells identically.
           ══════════════════════════════════════════════════════════════════ */}
-          <div style={{ borderBottom: "1px solid #94a3b8", paddingBottom: S.sectionGap, marginBottom: S.sectionGap }}>
+          <div style={{ borderBottom: isThermal ? "1px dashed #000000" : "1px solid #94a3b8", paddingBottom: S.sectionGap, marginBottom: S.sectionGap }}>
             {isThermal ? (
               /* ── THERMAL HEADER: stacked centre ── */
               <div style={{ textAlign: "center" }}>
@@ -377,7 +380,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                 {customer.phone && <div style={{ color: "#334155" }}>{customer.phone}</div>}
                 {customer.email && <div style={{ color: "#334155" }}>{customer.email}</div>}
 
-                <div style={{ marginTop: "8px", borderTop: "1px solid #94a3b8", paddingTop: "6px" }}>
+                <div style={{ marginTop: "8px", borderTop: isThermal ? "1px dashed #000000" : "1px solid #94a3b8", paddingTop: "6px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "#334155" }}>{t("invoiceNoLabel")}:</span>
                     <span style={{ fontWeight: 700 }}>{invoiceNo}</span>
@@ -491,7 +494,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           <div style={{ marginBottom: S.sectionGap }}>
             <table className="invoice-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: S.textFontSize }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #94a3b8" }}>
+                <tr style={{ borderBottom: isThermal ? "1.5px dashed #000000" : "2px solid #94a3b8" }}>
                   <th style={{ textAlign: "left", padding: isThermal ? "6px 4px" : "10px 8px", fontWeight: 700, color: "#0f172a" }}>
                     {t("item")}
                   </th>
@@ -531,7 +534,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                   const qtyDisplay = product.quantity_str || (product as any).quantityInput || product.quantity;
 
                   return (
-                    <tr key={product.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <tr key={product.id} style={{ borderBottom: isThermal ? "1px dotted #000000" : "1px solid #f1f5f9" }}>
                       {/* Product Name & Description & Thermal Discount */}
                       <td style={{ padding: isThermal ? "6px 4px" : "10px 8px", verticalAlign: "top" }}>
                         <div style={{ fontWeight: 600, color: "#1e293b" }}>{product.name}</div>
@@ -621,7 +624,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           {/* ══════════════════════════════════════════════════════════════════
               TOTALS
           ══════════════════════════════════════════════════════════════════ */}
-          <div className="invoice-totals-container" style={{ borderTop: "1px solid #94a3b8", paddingTop: "12px", marginBottom: S.sectionGap }}>
+          <div className="invoice-totals-container" style={{ borderTop: isThermal ? "1.5px dashed #000000" : "1px solid #94a3b8", paddingTop: "12px", marginBottom: S.sectionGap }}>
             {/* Sub Total */}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: S.textFontSize, marginBottom: "6px" }}>
               <span style={{ color: "#334155" }}>Sub Total:</span>
@@ -653,7 +656,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
             ))}
 
             {/* Grand Total */}
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: S.boldFontSize, borderTop: "1px solid #94a3b8", paddingTop: "8px", marginTop: "4px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: S.boldFontSize, borderTop: isThermal ? "1.5px dashed #000000" : "1px solid #94a3b8", paddingTop: "8px", marginTop: "4px" }}>
               <span style={{ color: "#0f172a" }}>{t("total")} :</span>
               <span style={{ color: "#0f172a" }}>{formatCurrencyString(total)}</span>
             </div>
@@ -680,11 +683,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           {customerNotes && (
             <div style={{
               marginBottom: S.sectionGap,
-              borderLeft: "3px solid #94a3b8",
+              borderLeft: isThermal ? "2px solid #000000" : "3px solid #94a3b8",
               paddingLeft: "12px",
               paddingTop: "6px",
               paddingBottom: "6px",
-              backgroundColor: "#f8fafc",
+              backgroundColor: isThermal ? "transparent" : "#f8fafc",
               borderRadius: "0 6px 6px 0",
               maxWidth: "420px",
             }}>
@@ -716,21 +719,21 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
                         className="invoice-sig-img"
                         style={{ maxHeight: S.sigH, maxWidth: "120px", height: "auto", width: "auto", objectFit: "contain", display: "block", marginBottom: "6px" }}
                       />
-                      <div style={{ width: "120px", borderTop: "1px solid #94a3b8", marginBottom: "4px" }} />
+                      <div style={{ width: "120px", borderTop: isThermal ? "1px solid #000000" : "1px solid #94a3b8", marginBottom: "4px" }} />
                       <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{companyName}</div>
                     </div>
                   )}
                   {requestCustomerSignature && (
                     <div style={{ textAlign: "right" }}>
                       <div style={{
-                        width: "100%", height: S.sigH, border: "2px dashed #94a3b8", borderRadius: "6px",
+                        width: "100%", height: S.sigH, border: isThermal ? "1.5px dashed #000000" : "2px dashed #94a3b8", borderRadius: "6px",
                         display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px",
                       }}>
                         <span style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
                           {t("customerSignature")}
                         </span>
                       </div>
-                      <div style={{ width: "120px", borderTop: "1px solid #94a3b8", marginBottom: "4px", marginLeft: "auto" }} />
+                      <div style={{ width: "120px", borderTop: isThermal ? "1px solid #000000" : "1px solid #94a3b8", marginBottom: "4px", marginLeft: "auto" }} />
                       <div style={{ fontSize: "9px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{customer.name}</div>
                     </div>
                   )}
@@ -792,7 +795,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
               • 1-page  → flex spacer pushes it to bottom of page
               • Multi-page → appears naturally after last content block
           ══════════════════════════════════════════════════════════════════ */}
-          <div style={{ borderTop: "1px solid #f1f5f9", marginTop: isThermal ? "16px" : "32px", paddingTop: "10px", textAlign: "center" }}>
+          <div style={{ borderTop: isThermal ? "1px dashed #000000" : "1px solid #f1f5f9", marginTop: isThermal ? "16px" : "32px", paddingTop: "10px", textAlign: "center" }}>
             <p style={{ fontSize: "10px", color: "#475569", fontStyle: "italic", margin: 0 }}>
               {t("computerGeneratedDisclaimer") || "This is a computer generated document from DukaanKhata.app 03212575665"}
             </p>
