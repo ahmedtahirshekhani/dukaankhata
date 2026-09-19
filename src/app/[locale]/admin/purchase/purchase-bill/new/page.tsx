@@ -223,8 +223,14 @@ function AddPurchaseBillPageInner() {
     if (!product) return;
     setSaveError("");
 
-    const productId = product.id;
-    const costPrice = (product as any).cost_price ?? product.sell_price ?? 0;
+    const productId = product.id || (product as any)._id;
+    const costPrice =
+      product.cost_price !== undefined &&
+      product.cost_price !== null &&
+      String(product.cost_price).trim() !== ""
+        ? Number(product.cost_price)
+        : Number(product.price ?? product.sell_price ?? 0);
+
     const hadNoUom =
       !product.unit_of_measurement ||
       product.unit_of_measurement.trim() === "" ||
@@ -282,10 +288,16 @@ function AddPurchaseBillPageInner() {
       current.map((p) => {
         if (p.id === oldId) {
           const isSameProduct = isSync || p.name === newProduct.name;
-          const newCost = (newProduct as any).cost_price ?? newProduct.sell_price ?? 0;
+          const newCost =
+            newProduct.cost_price !== undefined &&
+            newProduct.cost_price !== null &&
+            String(newProduct.cost_price).trim() !== ""
+              ? Number(newProduct.cost_price)
+              : Number(newProduct.price ?? newProduct.sell_price ?? 0);
+
           return {
             ...p,
-            id: newProduct.id,
+            id: newProduct.id || (newProduct as any)._id || p.id,
             name: newProduct.name,
             description: newProduct.description,
             unit_of_measurement: newProduct.unit_of_measurement || "",
@@ -556,7 +568,7 @@ function AddPurchaseBillPageInner() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/${locale}/admin/purchase/purchase-bill`)}
             className="shrink-0 h-8 w-8 text-gray-500 hover:text-gray-900"
           >
             <ArrowLeftIcon className="h-5 w-5" />
@@ -688,7 +700,7 @@ function AddPurchaseBillPageInner() {
                 handleRemoveProduct={handleRemoveProduct}
                 handleSelectProduct={handleSelectProduct}
                 handleRowProductChange={handleRowProductChange}
-                priceLabel={t("rate") || "Rate"}
+                priceLabel={tInvoice("sellPrice") || "Price/Unit"}
                 showQtyType={false}
                 showDiscount={false}
               />

@@ -794,7 +794,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(
           ══════════════════════════════════════════════════════════════════ */}
           <div style={{ borderTop: "1px solid #f1f5f9", marginTop: isThermal ? "16px" : "32px", paddingTop: "10px", textAlign: "center" }}>
             <p style={{ fontSize: "10px", color: "#475569", fontStyle: "italic", margin: 0 }}>
-              {t("computerGeneratedDisclaimer") || "This is a computer generated document from DukaanKhata.app"}
+              {t("computerGeneratedDisclaimer") || "This is a computer generated document from DukaanKhata.app 03212575665"}
             </p>
           </div>
 
