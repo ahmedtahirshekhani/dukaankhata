@@ -581,7 +581,7 @@ function BankAccountCard({
           {item.bankName}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
-          {/* <Button
+          <Button
             size="icon"
             variant="ghost"
             onClick={onStatement}
@@ -589,7 +589,7 @@ function BankAccountCard({
             title={tBank("viewStatement")}
           >
             <FileText className="w-4 h-4 text-primary" />
-          </Button> */}
+          </Button>
           <Button
             size="icon"
             variant="ghost"

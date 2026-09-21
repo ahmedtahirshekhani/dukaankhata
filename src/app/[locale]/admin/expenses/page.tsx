@@ -11,10 +11,6 @@ import {
   PlusCircle,
   Trash2,
   Edit,
-  Loader2,
-  Edit2,
-  Search,
-  X,
   FilterIcon,
 } from "lucide-react";
 import {
@@ -25,35 +21,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
-import { Pagination } from "@/components/ui/pagination";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type ColumnDef } from "@/components/ui/data-table";
+import { TableRowActions } from "@/components/ui/table-row-actions";
+import { DatePicker } from "@/components/ui/date-picker";
+import { formatReadableDate } from "@/lib/date-utils";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Dialog,
   DialogContent,
@@ -104,7 +83,7 @@ function generateExpenseNumber() {
 
 const generateObjectId = () => {
   const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
-  const randomString = Math.random().toString(16).substring(2).padEnd(16, '0');
+  const randomString = Math.random().toString(16).substring(2).padEnd(16, "0");
   return timestamp + randomString;
 };
 
@@ -162,7 +141,6 @@ export default function ExpensesPage() {
   const [itemOptions, setItemOptions] = useState<SelectOption[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -237,11 +215,14 @@ export default function ExpensesPage() {
       }
 
       filtered.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        (a, b) => {
+          const dateA = a.date ? new Date(a.date).getTime() : 0;
+          const dateB = b.date ? new Date(b.date).getTime() : 0;
+          return dateB - dateA;
+        },
       );
 
       setTotalCount(filtered.length);
-      setTotalPages(Math.ceil(filtered.length / pageSize) || 1);
 
       const startIndex = (page - 1) * pageSize;
       const paginated = filtered.slice(startIndex, startIndex + pageSize);
@@ -533,246 +514,201 @@ export default function ExpensesPage() {
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            {t("pageDescription")}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          onClick={openAddDialog}
-          className="h-9 text-xs px-3 shrink-0"
-        >
-          <PlusCircle className="w-3.5 h-3.5 mr-1" />
-          <span>{t("addExpense")}</span>
-        </Button>
-      </div>
-
-      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
-        <CardHeader className="p-0">
-          <div className="flex items-center justify-between gap-2 w-full">
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder={
-                  typeof tCommon("search") === "string" && tCommon("search")
-                    ? tCommon("search")
-                    : "Search..."
-                }
-                className="pl-9 pr-9 h-9 text-xs sm:text-sm w-full bg-background"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setPage(1);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 h-9 px-2.5 sm:px-3 text-xs shrink-0"
-                >
-                  <FilterIcon className="h-3.5 w-3.5" />
-                  <span>{tCommon("filter")}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-56 max-h-80 overflow-y-auto"
-              >
-                <DropdownMenuLabel>
-                  {t("filterByCategory") || "Filter by Category"}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={filterCategory === "all"}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setFilterCategory("all");
-                      setPage(1);
-                    }
-                  }}
-                >
-                  {tCommon("all", { defaultValue: "All" })}
-                </DropdownMenuCheckboxItem>
-                {categoryOptions.map((cat) => (
-                  <DropdownMenuCheckboxItem
-                    key={cat.value}
-                    checked={filterCategory === cat.value}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setFilterCategory(cat.value);
-                        setPage(1);
-                      }
-                    }}
-                  >
-                    {cat.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {/* Desktop Table View - hidden on mobile */}
-          <div className="hidden md:block overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("expenseNumber")}</TableHead>
-                  <TableHead>{t("date")}</TableHead>
-                  <TableHead>{t("category")}</TableHead>
-                  <TableHead>{t("itemName")}</TableHead>
-                  <TableHead>{t("qty")}</TableHead>
-                  <TableHead>{t("rate")}</TableHead>
-                  <TableHead>{t("amount")}</TableHead>
-                  <TableHead>{tCommon("actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="py-12">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                        <p>{tCommon("loading")}</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : expenses.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center text-muted-foreground"
-                    >
-                      {t("noExpenses")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  expenses.map((expense) => (
-                    <TableRow key={expense.id}>
-                      <TableCell>{expense.expenseNumber}</TableCell>
-                      <TableCell>{expense.date}</TableCell>
-                      <TableCell>{expense.category}</TableCell>
-                      <TableCell>{expense.itemName}</TableCell>
-                      <TableCell>{formatNumber(expense.qty)}</TableCell>
-                      <TableCell>{formatNumber(expense.rate)}</TableCell>
-                      <TableCell>{formatNumber(expense.amount)}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          {can("expenses", "edit") && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => openEditDialog(expense)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {can("expenses", "delete") && (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => requestDeleteExpense(expense)}
-                              disabled={isDeleting}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">{tCommon("delete")}</span>
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile Cards View - visible only on mobile */}
-          <div className="block md:hidden space-y-3">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                <p>{tCommon("loading")}</p>
-              </div>
-            ) : expenses.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                {t("noExpenses")}
-              </div>
-            ) : (
-              expenses.map((expense) => (
-                <ExpenseCard
-                  key={expense.id}
-                  expense={expense}
-                  onEdit={can("expenses", "edit") ? () => openEditDialog(expense) : undefined}
-                  onDelete={can("expenses", "delete") ? () => requestDeleteExpense(expense) : undefined}
-                  t={t}
-                  tCommon={tCommon}
-                />
-              ))
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-t gap-4">
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
-            <div className="text-sm text-muted-foreground whitespace-nowrap">
-              {tCommon("totalCountLabel", { count: totalCount })}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {tCommon("rowsPerPage")}
-              </span>
-              <Select
-                value={pageSize.toString()}
-                onValueChange={(value) => {
-                  setPageSize(parseInt(value));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize.toString()} />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 20, 50, 100].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            isLoading={isLoading}
+  // Define Columns for DataTable
+  const columns = useMemo<ColumnDef<ExpenseRow>[]>(() => [
+    {
+      id: "expenseNumber",
+      header: t("expenseNumber") || "Expense No",
+      cell: (row) => (
+        <span className="font-mono text-xs font-semibold text-foreground">
+          {row.expenseNumber}
+        </span>
+      ),
+    },
+    {
+      id: "date",
+      header: t("date") || "Date",
+      cell: (row) => (
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          {formatReadableDate(row.date)}
+        </span>
+      ),
+    },
+    {
+      id: "category",
+      header: t("category") || "Category",
+      cell: (row) => (
+        <Badge variant="secondary" className="font-medium text-xs">
+          {row.category || "-"}
+        </Badge>
+      ),
+    },
+    {
+      id: "itemName",
+      header: t("itemName") || "Item Name",
+      cell: (row) => (
+        <span className="font-medium text-xs text-foreground">
+          {row.itemName || "-"}
+        </span>
+      ),
+    },
+    {
+      id: "qty",
+      header: t("qty") || "Qty",
+      className: "text-right",
+      cell: (row) => (
+        <span className="text-xs font-medium text-foreground">
+          {formatNumber(row.qty)}
+        </span>
+      ),
+    },
+    {
+      id: "rate",
+      header: t("rate") || "Rate",
+      className: "text-right",
+      cell: (row) => (
+        <span className="text-xs text-muted-foreground">
+          Rs. {formatNumber(row.rate)}
+        </span>
+      ),
+    },
+    {
+      id: "amount",
+      header: t("amount") || "Amount",
+      className: "text-right",
+      cell: (row) => (
+        <span className="text-xs font-semibold text-foreground">
+          Rs. {formatNumber(row.amount)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: <div>{tCommon("actions") || "Actions"}</div>,
+      className: "text-right pr-4",
+      cell: (row) => {
+        return (
+          <TableRowActions
+            canEdit={can("expenses", "edit")}
+            canDelete={can("expenses", "delete")}
+            onEdit={() => openEditDialog(row)}
+            onDelete={() => requestDeleteExpense(row)}
           />
-        </CardFooter>
-      </Card>
+        );
+      },
+    },
+  ], [t, tCommon, can, isDeleting]);
 
+  // Toolbar action with category filter dropdown
+  const toolbarActions = useMemo(() => (
+    <div className="flex items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-10 px-3 text-xs shrink-0"
+          >
+            <FilterIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>
+              {filterCategory === "all"
+                ? tCommon("filter") || "Filter"
+                : filterCategory}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-56 max-h-80 overflow-y-auto"
+        >
+          <DropdownMenuLabel>
+            {t("filterByCategory") || "Filter by Category"}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuCheckboxItem
+            checked={filterCategory === "all"}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setFilterCategory("all");
+                setPage(1);
+              }
+            }}
+          >
+            {tCommon("all", { defaultValue: "All" })}
+          </DropdownMenuCheckboxItem>
+          {categoryOptions.map((cat) => (
+            <DropdownMenuCheckboxItem
+              key={cat.value}
+              checked={filterCategory === cat.value}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setFilterCategory(cat.value);
+                  setPage(1);
+                }
+              }}
+            >
+              {cat.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ), [filterCategory, categoryOptions, t, tCommon]);
+
+  return (
+    <div className="flex-1 space-y-4 w-full mx-auto animate-in fade-in duration-300">
+      <PageHeader
+        title={t("title")}
+        description={t("pageDescription")}
+        actions={
+          <Button
+            size="sm"
+            onClick={openAddDialog}
+            className="h-9 text-xs px-3 shrink-0"
+          >
+            <PlusCircle className="w-3.5 h-3.5 mr-1" />
+            <span>{t("addExpense")}</span>
+          </Button>
+        }
+      />
+
+      <DataTable<ExpenseRow>
+        columns={columns}
+        data={expenses}
+        isLoading={isLoading}
+        pageSize={pageSize}
+        currentPage={page}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+        searchTerm={searchQuery}
+        onSearchChange={(term) => {
+          setSearchQuery(term);
+          setPage(1);
+        }}
+        searchPlaceholder={
+          typeof tCommon("search") === "string" && tCommon("search")
+            ? tCommon("search")
+            : "Search expenses..."
+        }
+        emptyMessage={t("noExpenses") || "No expenses found"}
+        keyExtractor={(row) => row.id}
+        toolbarActions={toolbarActions}
+        renderMobileCard={(expense) => (
+          <ExpenseCard
+            expense={expense}
+            onEdit={can("expenses", "edit") ? () => openEditDialog(expense) : undefined}
+            onDelete={can("expenses", "delete") ? () => requestDeleteExpense(expense) : undefined}
+            t={t}
+            tCommon={tCommon}
+          />
+        )}
+      />
+
+      {/* Add Expense Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -791,11 +727,10 @@ export default function ExpensesPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expenseDate">{t("date")}</Label>
-                <Input
-                  id="expenseDate"
-                  type="date"
+                <DatePicker
                   value={expenseDate}
-                  onChange={(event) => setExpenseDate(event.target.value)}
+                  onChange={(val) => setExpenseDate(val)}
+                  className="h-10 text-xs bg-background"
                 />
               </div>
             </div>
@@ -914,6 +849,7 @@ export default function ExpensesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Expense Dialog */}
       <Dialog
         open={showEditDialog}
         onOpenChange={(open) => {
@@ -939,10 +875,10 @@ export default function ExpensesPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("date")}</Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={editExpenseDate}
-                  onChange={(event) => setEditExpenseDate(event.target.value)}
+                  onChange={(val) => setEditExpenseDate(val)}
+                  className="h-10 text-xs bg-background"
                 />
               </div>
             </div>
@@ -1021,6 +957,7 @@ export default function ExpensesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Error & Success Dialog */}
       <ErrorDialog
         open={errorDialog.open}
         onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
@@ -1029,6 +966,7 @@ export default function ExpensesPage() {
         isSuccess={errorDialog.isSuccess}
       />
 
+      {/* Confirm Delete Dialog */}
       <ConfirmDialog
         open={showDeleteDialog}
         onOpenChange={(open) => {
@@ -1051,16 +989,6 @@ export default function ExpensesPage() {
   );
 }
 
-// Helper function for date formatting (DD-MM-YYYY)
-function formatDateDMY(dateStr?: string) {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-}
 // Mobile Card Component for Expense
 function ExpenseCard({
   expense,
@@ -1083,41 +1011,25 @@ function ExpenseCard({
           <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
             {expense.itemName || "-"}
           </h3>
-          <p className="text-[11px] text-muted-foreground font-medium truncate">
+          <p className="text-[11px] font-mono text-muted-foreground mt-0.5 truncate">
             {expense.expenseNumber}
           </p>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {onEdit && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onEdit}
-              className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-            >
-              <Edit className="w-4 h-4 text-sky-500" />
-              <span className="sr-only">{tCommon("edit")}</span>
-            </Button>
-          )}
-          {onDelete && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onDelete}
-              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-            >
-              <Trash2 className="w-4 h-4 text-red-500" />
-              <span className="sr-only">{tCommon("delete")}</span>
-            </Button>
-          )}
-        </div>
+        <TableRowActions
+          canEdit={Boolean(onEdit)}
+          canDelete={Boolean(onDelete)}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </div>
 
       <div className="space-y-2 text-xs sm:text-sm">
-        {/* Row 1: Date on Left & Category on Right in theme grey without labels */}
-        <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
-          <span>{formatDateDMY(expense.date)}</span>
-          <span>{expense.category || "-"}</span>
+        {/* Row 1: Date on Left & Category on Right */}
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-muted-foreground font-medium">{formatReadableDate(expense.date)}</span>
+          <Badge variant="secondary" className="text-[11px] font-medium px-2 py-0.5">
+            {expense.category || "-"}
+          </Badge>
         </div>
 
         {/* Row 2: Rate to Left & Qty to Right */}
@@ -1133,7 +1045,7 @@ function ExpenseCard({
         </div>
 
         {/* Row 3: Total Amount */}
-        <div className="flex justify-between items-center text-xs pt-1 border-t border-zinc-100 dark:border-zinc-800/40">
+        <div className="flex justify-between items-center text-xs pt-1.5 border-t border-zinc-100 dark:border-zinc-800/40">
           <span className="text-muted-foreground font-medium">{t("amount")}:</span>
           <span className="font-semibold text-foreground text-sm">
             Rs. {formatNumber(expense.amount)}
