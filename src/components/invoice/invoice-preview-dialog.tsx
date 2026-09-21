@@ -584,6 +584,7 @@ export function InvoicePreviewDialog({
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                   color: #000000 !important;
+                  border-color: #000000 !important;
                 }
                 body {
                   margin: 0 !important;

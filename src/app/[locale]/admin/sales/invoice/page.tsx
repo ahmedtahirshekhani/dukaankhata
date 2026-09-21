@@ -73,6 +73,7 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useOfflineOrders } from "@/lib/hooks/useOfflineData";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { maskInvoiceNo } from "@/lib/utils";
+import { formatReadableDate } from "@/lib/date-utils";
 
 // ------------------------------------------------------------
 // Edit Order Dialog Component (embedded for clarity)
@@ -798,6 +799,12 @@ export default function OrdersPage() {
           const balB = (b.total_amount || 0) - (b.payment?.paid_amount || 0);
           return balB - balA;
         });
+      } else {
+        processedOrders.sort((a, b) => {
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : (a.sale_date ? new Date(a.sale_date).getTime() : 0);
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : (b.sale_date ? new Date(b.sale_date).getTime() : 0);
+          return dateB - dateA;
+        });
       }
 
       setTotalCount(processedOrders.length);
@@ -916,7 +923,7 @@ export default function OrdersPage() {
           <Button asChild size="sm" className="h-9 text-xs px-3 shrink-0">
             <Link href={`/${locale}/admin/sales/invoice/new`}>
               <PlusCircle className="w-3.5 h-3.5 mr-1" />
-              {t("createOrder")}
+              {t("addInvoice") || t("createOrder") || "Add Invoice"}
             </Link>
           </Button>
         )}
@@ -1067,12 +1074,7 @@ export default function OrdersPage() {
                         {Math.floor(order.total_amount - (order.payment?.paid_amount || 0))}
                       </TableCell>
                       <TableCell>
-                        {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
-                          weekday: "short",
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {formatReadableDate(order.sale_date || order.created_at)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1181,12 +1183,7 @@ export default function OrdersPage() {
                           <span className="font-semibold">{order.customer?.name || "-"}</span>
                         </p>
                         <p className="text-muted-foreground text-xs">
-                          {new Date(order.sale_date || order.created_at).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
+                          {formatReadableDate(order.sale_date || order.created_at)}
                         </p>
                       </div>
                       <div className="grid grid-cols-3 gap-2 pt-1 text-xs">

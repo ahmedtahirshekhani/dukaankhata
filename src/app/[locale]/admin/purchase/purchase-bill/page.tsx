@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ChevronDownIcon } from "lucide-react";
 import { formatCurrencyString, getYearsFromDates, maskPaymentNo } from "@/lib/utils";
+import { formatReadableDate } from "@/lib/date-utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -129,7 +130,11 @@ export default function PurchaseBillPage() {
       });
     }
 
-    return result;
+    return [...result].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
   }, [rawOfflineBills, selectedYear, statusFilter, amountRange]);
 
   const totalPages = Math.ceil(filteredBills.length / pageSize) || 1;
@@ -367,9 +372,7 @@ export default function PurchaseBillPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {bill.created_at
-                            ? new Date(bill.created_at).toLocaleDateString(locale)
-                            : "-"}
+                          {formatReadableDate(bill.created_at)}
                         </TableCell>
                         <TableCell className="text-right pr-4">
                           <div className="flex items-center justify-end gap-2">
@@ -491,17 +494,6 @@ export default function PurchaseBillPage() {
   );
 }
 
-// Helper function to format date as date-month-year (DD-MM-YYYY)
-function formatDateDMY(dateStr?: string) {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-}
-
 // Mobile Card Component for Purchase Bill
 function PurchaseBillCard({
   bill,
@@ -563,7 +555,7 @@ function PurchaseBillCard({
         {/* Row 1: Date (date-month-year) on Left & Light Sky Blue Status Box on Right */}
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground text-xs font-medium">
-            {formatDateDMY(bill.created_at)}
+            {formatReadableDate(bill.created_at)}
           </span>
           <Badge
             variant="outline"
