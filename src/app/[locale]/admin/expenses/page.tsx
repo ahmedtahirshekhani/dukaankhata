@@ -11,7 +11,13 @@ import {
   PlusCircle,
   Trash2,
   Edit,
+  Eye,
   FilterIcon,
+  Calendar,
+  Tag,
+  Receipt,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,19 +44,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 type SelectOption = {
   value: string;
   label: string;
-};
-
-type ExpenseLine = {
-  id: string;
-  category: string;
-  itemName: string;
-  qty: string;
-  rate: string;
 };
 
 type ExpenseRow = {
@@ -87,16 +86,6 @@ const generateObjectId = () => {
   return timestamp + randomString;
 };
 
-function createLine(): ExpenseLine {
-  return {
-    id: `${Date.now()}-${Math.floor(Math.random() * 100000)}`,
-    category: "",
-    itemName: "",
-    qty: "1",
-    rate: "",
-  };
-}
-
 function formatNumber(value: number): string {
   const normalized = Number(Number(value || 0).toFixed(2));
   return normalized.toString();
@@ -107,34 +96,89 @@ function parseNumericInput(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+const selectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: "38px",
+    height: "38px",
+    fontSize: "13px",
+    borderRadius: "0.375rem",
+    backgroundColor: "hsl(var(--background))",
+    borderColor: state.isFocused ? "hsl(var(--ring))" : "hsl(var(--input))",
+    boxShadow: "none",
+    "&:hover": {
+      borderColor: "hsl(var(--ring))",
+    },
+  }),
+  singleValue: (base: any) => ({
+    ...base,
+    color: "hsl(var(--foreground))",
+  }),
+  input: (base: any) => ({
+    ...base,
+    color: "hsl(var(--foreground))",
+  }),
+  placeholder: (base: any) => ({
+    ...base,
+    color: "hsl(var(--muted-foreground))",
+    fontSize: "13px",
+  }),
+  menu: (base: any) => ({
+    ...base,
+    backgroundColor: "hsl(var(--popover))",
+    borderColor: "hsl(var(--border))",
+    borderWidth: "1px",
+    borderRadius: "0.5rem",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    zIndex: 60,
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? "hsl(var(--primary))"
+      : state.isFocused
+      ? "hsl(var(--accent))"
+      : "transparent",
+    color: state.isSelected
+      ? "hsl(var(--primary-foreground))"
+      : "hsl(var(--foreground))",
+    cursor: "pointer",
+    fontSize: "13px",
+  }),
+};
+
 export default function ExpensesPage() {
   const locale = useLocale();
   const t = useTranslations("expenses");
   const tCommon = useTranslations("common");
   const { can } = usePermissions();
 
-  const [expenseNumber, setExpenseNumber] = useState(generateExpenseNumber());
-  const [expenseDate, setExpenseDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
-  const [lines, setLines] = useState<ExpenseLine[]>([createLine()]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const offlineExpenses = useOfflineExpenses(searchQuery);
   const isLoading = offlineExpenses === undefined;
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
+
+  // Modal States
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
+
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingExpense, setViewingExpense] = useState<ExpenseRow | null>(null);
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<ExpenseRow | null>(
-    null,
-  );
-  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRow | null>(
-    null,
-  );
+  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRow | null>(null);
+
+  // Form State
+  const [formExpenseNumber, setFormExpenseNumber] = useState("");
+  const [formDate, setFormDate] = useState("");
+  const [formCategory, setFormCategory] = useState("");
+  const [formItemName, setFormItemName] = useState("");
+  const [formQty, setFormQty] = useState("1");
+  const [formRate, setFormRate] = useState("");
+
   const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>(
     defaultCategories.map((value) => ({ value, label: value })),
   );
@@ -149,24 +193,11 @@ export default function ExpensesPage() {
     isSuccess?: boolean;
   }>({ open: false, message: "" });
 
-  const [editExpenseNumber, setEditExpenseNumber] = useState("");
-  const [editExpenseDate, setEditExpenseDate] = useState("");
-  const [editCategory, setEditCategory] = useState("");
-  const [editItemName, setEditItemName] = useState("");
-  const [editQty, setEditQty] = useState("1");
-  const [editRate, setEditRate] = useState("");
-
-  const lineTotals = useMemo(() => {
-    return lines.map((line) => {
-      const qty = parseNumericInput(line.qty);
-      const rate = parseNumericInput(line.rate);
-      return Number((qty * rate).toFixed(2));
-    });
-  }, [lines]);
-
-  const grandTotal = useMemo(() => {
-    return Number(lineTotals.reduce((sum, value) => sum + value, 0).toFixed(2));
-  }, [lineTotals]);
+  const calculatedAmount = useMemo(() => {
+    const q = parseNumericInput(formQty);
+    const r = parseNumericInput(formRate);
+    return Number((q * r).toFixed(2));
+  }, [formQty, formRate]);
 
   const mergeOptions = useCallback(
     (existing: SelectOption[], values: string[]) => {
@@ -214,13 +245,11 @@ export default function ExpensesPage() {
         );
       }
 
-      filtered.sort(
-        (a, b) => {
-          const dateA = a.date ? new Date(a.date).getTime() : 0;
-          const dateB = b.date ? new Date(b.date).getTime() : 0;
-          return dateB - dateA;
-        },
-      );
+      filtered.sort((a, b) => {
+        const dateA = a.date ? new Date(a.date).getTime() : 0;
+        const dateB = b.date ? new Date(b.date).getTime() : 0;
+        return dateB - dateA;
+      });
 
       setTotalCount(filtered.length);
 
@@ -236,53 +265,49 @@ export default function ExpensesPage() {
     fetchExpensesData();
   }, [fetchExpensesData]);
 
-  const updateLine = <K extends keyof ExpenseLine>(
-    id: string,
-    key: K,
-    value: ExpenseLine[K],
-  ) => {
-    setLines((prev) =>
-      prev.map((line) => (line.id === id ? { ...line, [key]: value } : line)),
-    );
+  const openAddModal = () => {
+    setEditingExpense(null);
+    setFormExpenseNumber(generateExpenseNumber());
+    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormCategory("");
+    setFormItemName("");
+    setFormQty("1");
+    setFormRate("");
+    setShowFormModal(true);
   };
 
-  const addRow = () => {
-    setLines((prev) => [...prev, createLine()]);
+  const openEditModal = (expense: ExpenseRow) => {
+    setEditingExpense(expense);
+    setFormExpenseNumber(expense.expenseNumber || "");
+    setFormDate(expense.date || new Date().toISOString().split("T")[0]);
+    setFormCategory(expense.category || "");
+    setFormItemName(expense.itemName || "");
+    setFormQty((expense.qty || 1).toString());
+    setFormRate((expense.rate || 0).toString());
+    setShowFormModal(true);
   };
 
-  const removeRow = (id: string) => {
-    setLines((prev) =>
-      prev.length > 1 ? prev.filter((line) => line.id !== id) : prev,
-    );
+  const openViewModal = (expense: ExpenseRow) => {
+    setViewingExpense(expense);
+    setShowViewModal(true);
   };
 
-  const handleCreateCategory = (lineId: string, value: string) => {
+  const handleCreateCategory = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
     setCategoryOptions((prev) => mergeOptions(prev, [trimmed]));
-    updateLine(lineId, "category", trimmed);
+    setFormCategory(trimmed);
   };
 
-  const handleCreateItem = (lineId: string, value: string) => {
+  const handleCreateItem = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
     setItemOptions((prev) => mergeOptions(prev, [trimmed]));
-    updateLine(lineId, "itemName", trimmed);
+    setFormItemName(trimmed);
   };
 
-  const resetForm = () => {
-    setExpenseNumber(generateExpenseNumber());
-    setExpenseDate(new Date().toISOString().split("T")[0]);
-    setLines([createLine()]);
-  };
-
-  const openAddDialog = () => {
-    resetForm();
-    setShowAddDialog(true);
-  };
-
-  const handleSave = async () => {
-    if (!expenseNumber.trim() || !expenseDate) {
+  const handleSaveForm = async () => {
+    if (!formExpenseNumber.trim() || !formDate) {
       setErrorDialog({
         open: true,
         title: t("validationError"),
@@ -291,19 +316,10 @@ export default function ExpensesPage() {
       return;
     }
 
-    const isInvalidLine = lines.some((line) => {
-      const qty = parseNumericInput(line.qty);
-      const rate = parseNumericInput(line.rate);
-      return (
-        !line.category.trim() ||
-        !line.itemName.trim() ||
-        qty <= 0 ||
-        rate < 0 ||
-        qty * rate <= 0
-      );
-    });
+    const qty = parseNumericInput(formQty);
+    const rate = parseNumericInput(formRate);
 
-    if (isInvalidLine) {
+    if (!formCategory.trim() || !formItemName.trim() || qty <= 0 || rate < 0 || qty * rate <= 0) {
       setErrorDialog({
         open: true,
         title: t("validationError"),
@@ -314,60 +330,91 @@ export default function ExpensesPage() {
 
     setIsSaving(true);
     try {
-      const payloadItems = lines.map((line) => ({
-        id: generateObjectId(),
-        qty: Number(parseNumericInput(line.qty)),
-        rate: Number(parseNumericInput(line.rate)),
-        category: line.category.trim(),
-        itemName: line.itemName.trim(),
-        amount: Number(
-          (parseNumericInput(line.qty) * parseNumericInput(line.rate)).toFixed(
-            2,
-          ),
-        ),
-      }));
+      if (editingExpense) {
+        // Edit Mode
+        const updatedExpense = {
+          ...editingExpense,
+          expenseNumber: formExpenseNumber.trim(),
+          date: formDate,
+          category: formCategory.trim(),
+          itemName: formItemName.trim(),
+          qty,
+          rate,
+          amount: Number((qty * rate).toFixed(2)),
+        };
 
-      const payload = {
-        expenseNumber,
-        date: expenseDate,
-        items: payloadItems,
-      };
+        await db.expenses.put(updatedExpense);
 
-      const expenseDocs = payload.items.map((item) => {
-        return {
-          id: item.id,
+        await SyncEngine.queueOperation(
+          "expenses",
+          "PUT",
+          `/api/expenses/${editingExpense.id}`,
+          {
+            expenseNumber: updatedExpense.expenseNumber,
+            date: updatedExpense.date,
+            category: updatedExpense.category,
+            itemName: updatedExpense.itemName,
+            qty: updatedExpense.qty,
+            rate: updatedExpense.rate,
+          },
+        );
+
+        setShowFormModal(false);
+        setEditingExpense(null);
+        setErrorDialog({
+          open: true,
+          title: tCommon("success"),
+          message: t("updatedSuccess"),
+          isSuccess: true,
+        });
+      } else {
+        // Add Mode
+        const newId = generateObjectId();
+        const payloadItem = {
+          id: newId,
+          qty,
+          rate,
+          category: formCategory.trim(),
+          itemName: formItemName.trim(),
+          amount: Number((qty * rate).toFixed(2)),
+        };
+
+        const payload = {
+          expenseNumber: formExpenseNumber.trim(),
+          date: formDate,
+          items: [payloadItem],
+        };
+
+        const expenseDoc = {
+          id: payloadItem.id,
           expenseNumber: payload.expenseNumber,
           date: payload.date,
-          category: item.category,
-          itemName: item.itemName,
-          qty: item.qty,
-          rate: item.rate,
-          amount: item.amount,
+          category: payloadItem.category,
+          itemName: payloadItem.itemName,
+          qty: payloadItem.qty,
+          rate: payloadItem.rate,
+          amount: payloadItem.amount,
           created_at: new Date().toISOString(),
         };
-      });
 
-      // Save to local Dexie
-      await db.expenses.bulkPut(expenseDocs);
+        await db.expenses.put(expenseDoc);
 
-      // Queue sync
-      await SyncEngine.queueOperation(
-        "expenses",
-        "POST",
-        `/api/expenses`,
-        payload,
-      );
+        await SyncEngine.queueOperation(
+          "expenses",
+          "POST",
+          `/api/expenses`,
+          payload,
+        );
 
-      setErrorDialog({
-        open: true,
-        title: tCommon("success"),
-        message: t("createdSuccess"),
-        isSuccess: true,
-      });
-
-      setShowAddDialog(false);
-      resetForm();
-      setPage(1);
+        setShowFormModal(false);
+        setPage(1);
+        setErrorDialog({
+          open: true,
+          title: tCommon("success"),
+          message: t("createdSuccess"),
+          isSuccess: true,
+        });
+      }
     } catch (err) {
       setErrorDialog({
         open: true,
@@ -379,110 +426,13 @@ export default function ExpensesPage() {
     }
   };
 
-  const openEditDialog = (expense: ExpenseRow) => {
-    setSelectedExpense(expense);
-    setEditExpenseNumber(expense.expenseNumber || "");
-    setEditExpenseDate(expense.date || "");
-    setEditCategory(expense.category || "");
-    setEditItemName(expense.itemName || "");
-    setEditQty((expense.qty || 0).toString());
-    setEditRate((expense.rate || 0).toString());
-    setShowEditDialog(true);
-  };
-
-  const handleCreateEditCategory = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setCategoryOptions((prev) => mergeOptions(prev, [trimmed]));
-    setEditCategory(trimmed);
-  };
-
-  const handleCreateEditItem = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setItemOptions((prev) => mergeOptions(prev, [trimmed]));
-    setEditItemName(trimmed);
-  };
-
-  const handleUpdateExpense = async () => {
-    if (!selectedExpense) return;
-
-    if (
-      !editExpenseNumber?.trim() ||
-      !editExpenseDate ||
-      !(editCategory || "").trim() ||
-      !(editItemName || "").trim() ||
-      parseNumericInput(editQty) <= 0 ||
-      parseNumericInput(editRate) < 0 ||
-      parseNumericInput(editQty) * parseNumericInput(editRate) <= 0
-    ) {
-      setErrorDialog({
-        open: true,
-        title: t("validationError"),
-        message: t("lineValidationError"),
-      });
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const updatedExpense = {
-        ...selectedExpense,
-        expenseNumber: (editExpenseNumber || "").trim(),
-        date: editExpenseDate,
-        category: (editCategory || "").trim(),
-        itemName: (editItemName || "").trim(),
-        qty: Number(parseNumericInput(editQty)),
-        rate: Number(parseNumericInput(editRate)),
-        amount:
-          Number(parseNumericInput(editQty)) *
-          Number(parseNumericInput(editRate)),
-      };
-
-      await db.expenses.put(updatedExpense);
-
-      await SyncEngine.queueOperation(
-        "expenses",
-        "PUT",
-        `/api/expenses/${selectedExpense.id}`,
-        {
-          expenseNumber: updatedExpense.expenseNumber,
-          date: updatedExpense.date,
-          category: updatedExpense.category,
-          itemName: updatedExpense.itemName,
-          qty: updatedExpense.qty,
-          rate: updatedExpense.rate,
-        },
-      );
-
-      setShowEditDialog(false);
-      setSelectedExpense(null);
-      setErrorDialog({
-        open: true,
-        title: tCommon("success"),
-        message: t("updatedSuccess"),
-        isSuccess: true,
-      });
-    } catch (err) {
-      setErrorDialog({
-        open: true,
-        title: tCommon("error"),
-        message: err instanceof Error ? err.message : t("failedToSave"),
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const requestDeleteExpense = (expense: ExpenseRow) => {
     setExpenseToDelete(expense);
     setShowDeleteDialog(true);
   };
 
   const handleDeleteExpense = async () => {
-    if (!expenseToDelete) {
-      return;
-    }
+    if (!expenseToDelete) return;
 
     setIsDeleting(true);
     try {
@@ -518,86 +468,94 @@ export default function ExpensesPage() {
   const columns = useMemo<ColumnDef<ExpenseRow>[]>(() => [
     {
       id: "expenseNumber",
-      header: t("expenseNumber") || "Expense No",
+      header: <span className="text-black dark:text-white font-semibold">{t("expenseNumber") || "Expense No"}</span>,
       cell: (row) => (
-        <span className="font-mono text-xs font-semibold text-foreground">
+        <span className="font-mono text-xs font-semibold text-black dark:text-white">
           {row.expenseNumber}
         </span>
       ),
     },
     {
       id: "date",
-      header: t("date") || "Date",
+      header: <span className="text-black dark:text-white font-semibold">{t("date") || "Date"}</span>,
       cell: (row) => (
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
+        <span className="text-xs font-medium text-black dark:text-white whitespace-nowrap">
           {formatReadableDate(row.date)}
         </span>
       ),
     },
     {
       id: "category",
-      header: t("category") || "Category",
+      header: <span className="text-black dark:text-white font-semibold">{t("category") || "Category"}</span>,
       cell: (row) => (
-        <Badge variant="secondary" className="font-medium text-xs">
+        <Badge variant="outline" className="font-medium text-xs text-black dark:text-white border-zinc-300 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80">
           {row.category || "-"}
         </Badge>
       ),
     },
     {
       id: "itemName",
-      header: t("itemName") || "Item Name",
+      header: <span className="text-black dark:text-white font-semibold">{t("itemName") || "Item Name"}</span>,
       cell: (row) => (
-        <span className="font-medium text-xs text-foreground">
+        <span className="font-medium text-xs text-black dark:text-white">
           {row.itemName || "-"}
         </span>
       ),
     },
     {
       id: "qty",
-      header: t("qty") || "Qty",
+      header: <span className="text-black dark:text-white font-semibold">{t("qty") || "Qty"}</span>,
       className: "text-right",
       cell: (row) => (
-        <span className="text-xs font-medium text-foreground">
+        <span className="text-xs font-medium text-black dark:text-white">
           {formatNumber(row.qty)}
         </span>
       ),
     },
     {
       id: "rate",
-      header: t("rate") || "Rate",
+      header: <span className="text-black dark:text-white font-semibold">{t("rate") || "Rate"}</span>,
       className: "text-right",
       cell: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs font-medium text-black dark:text-white">
           Rs. {formatNumber(row.rate)}
         </span>
       ),
     },
     {
       id: "amount",
-      header: t("amount") || "Amount",
+      header: <span className="text-black dark:text-white font-semibold">{t("amount") || "Amount"}</span>,
       className: "text-right",
       cell: (row) => (
-        <span className="text-xs font-semibold text-foreground">
+        <span className="text-xs font-semibold text-black dark:text-white">
           Rs. {formatNumber(row.amount)}
         </span>
       ),
     },
     {
       id: "actions",
-      header: <div>{tCommon("actions") || "Actions"}</div>,
+      header: <div className="text-right pr-2 text-black dark:text-white font-semibold">{tCommon("actions") || "Actions"}</div>,
       className: "text-right pr-4",
       cell: (row) => {
         return (
           <TableRowActions
+            align="right"
             canEdit={can("expenses", "edit")}
             canDelete={can("expenses", "delete")}
-            onEdit={() => openEditDialog(row)}
+            onEdit={() => openEditModal(row)}
             onDelete={() => requestDeleteExpense(row)}
+            extraActions={[
+              {
+                label: t("viewExpense") || tCommon("view") || "View",
+                icon: <Eye className="w-4 h-4" />,
+                onClick: () => openViewModal(row),
+              },
+            ]}
           />
         );
       },
     },
-  ], [t, tCommon, can, isDeleting]);
+  ], [t, tCommon, can]);
 
   // Toolbar action with category filter dropdown
   const toolbarActions = useMemo(() => (
@@ -660,13 +618,14 @@ export default function ExpensesPage() {
       <PageHeader
         title={t("title")}
         description={t("pageDescription")}
+        mobileActionsRows={2}
         actions={
           <Button
             size="sm"
-            onClick={openAddDialog}
-            className="h-9 text-xs px-3 shrink-0"
+            onClick={openAddModal}
+            className="h-9 text-xs px-3.5 shrink-0 gap-1.5 shadow-sm"
           >
-            <PlusCircle className="w-3.5 h-3.5 mr-1" />
+            <PlusCircle className="w-4 h-4" />
             <span>{t("addExpense")}</span>
           </Button>
         }
@@ -700,7 +659,8 @@ export default function ExpensesPage() {
         renderMobileCard={(expense) => (
           <ExpenseCard
             expense={expense}
-            onEdit={can("expenses", "edit") ? () => openEditDialog(expense) : undefined}
+            onView={() => openViewModal(expense)}
+            onEdit={can("expenses", "edit") ? () => openEditModal(expense) : undefined}
             onDelete={can("expenses", "delete") ? () => requestDeleteExpense(expense) : undefined}
             t={t}
             tCommon={tCommon}
@@ -708,252 +668,282 @@ export default function ExpensesPage() {
         )}
       />
 
-      {/* Add Expense Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("addExpense")}</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="expenseNumber">{t("expenseNumber")}</Label>
-                <Input
-                  id="expenseNumber"
-                  value={expenseNumber}
-                  onChange={(event) => setExpenseNumber(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="expenseDate">{t("date")}</Label>
-                <DatePicker
-                  value={expenseDate}
-                  onChange={(val) => setExpenseDate(val)}
-                  className="h-10 text-xs bg-background"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {lines.map((line, index) => (
-                <div
-                  key={line.id}
-                  className="grid gap-3 rounded-md border p-3 grid-cols-1 sm:grid-cols-[1.4fr_1.4fr_0.7fr_0.8fr_0.8fr_auto]"
-                >
-                  <div className="space-y-1">
-                    <Label>{t("category")}</Label>
-                    <CreatableSelect
-                      options={categoryOptions}
-                      value={
-                        line.category
-                          ? { value: line.category, label: line.category }
-                          : null
-                      }
-                      onChange={(option) =>
-                        updateLine(line.id, "category", option?.value ?? "")
-                      }
-                      onCreateOption={(value) =>
-                        handleCreateCategory(line.id, value)
-                      }
-                      placeholder={t("selectOrCreateCategory")}
-                      formatCreateLabel={(value) =>
-                        t("createCategory", { value })
-                      }
-                      isClearable
-                      classNamePrefix="expense-select"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>{t("itemName")}</Label>
-                    <CreatableSelect
-                      options={itemOptions}
-                      value={
-                        line.itemName
-                          ? { value: line.itemName, label: line.itemName }
-                          : null
-                      }
-                      onChange={(option) =>
-                        updateLine(line.id, "itemName", option?.value ?? "")
-                      }
-                      onCreateOption={(value) =>
-                        handleCreateItem(line.id, value)
-                      }
-                      placeholder={t("selectOrCreateItem")}
-                      formatCreateLabel={(value) => t("createItem", { value })}
-                      isClearable
-                      classNamePrefix="expense-select"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>{t("qty")}</Label>
-                    <NumericInput
-                      min="0"
-                      value={line.qty}
-                      onChange={(e) => updateLine(line.id, "qty", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>{t("rate")}</Label>
-                    <NumericInput
-                      min="0"
-                      value={line.rate}
-                      onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>{t("amount")}</Label>
-                    <Input value={formatNumber(lineTotals[index])} readOnly />
-                  </div>
-
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeRow(line.id)}
-                      disabled={lines.length === 1}
-                      aria-label={t("removeRow")}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <Button type="button" variant="outline" onClick={addRow}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                {t("addRow")}
-              </Button>
-
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">{t("total")}</p>
-                <p className="text-2xl font-semibold">
-                  {formatNumber(grandTotal)}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? t("saving") : t("saveExpense")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Expense Dialog */}
+      {/* Unified Add / Edit Expense Dialog */}
       <Dialog
-        open={showEditDialog}
+        open={showFormModal}
         onOpenChange={(open) => {
-          setShowEditDialog(open);
+          setShowFormModal(open);
           if (!open) {
-            setSelectedExpense(null);
+            setEditingExpense(null);
           }
         }}
       >
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("editExpense")}</DialogTitle>
+        <DialogContent className="max-w-xl w-[95vw] sm:w-full overflow-hidden p-0 gap-0 border rounded-xl shadow-xl">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-foreground">
+                    {editingExpense ? t("editExpense") : t("addExpense")}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {editingExpense
+                      ? editingExpense.expenseNumber
+                      : t("pageDescription")}
+                  </p>
+                </div>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("expenseNumber")}</Label>
+          <div className="p-6 space-y-5">
+            {/* Row 1: Expense Number & Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="modalExpenseNumber" className="text-xs font-medium text-foreground">
+                  {t("expenseNumber")}
+                </Label>
                 <Input
-                  value={editExpenseNumber}
-                  onChange={(event) => setEditExpenseNumber(event.target.value)}
+                  id="modalExpenseNumber"
+                  value={formExpenseNumber}
+                  onChange={(e) => setFormExpenseNumber(e.target.value)}
+                  className="h-10 text-xs font-mono bg-background"
+                  placeholder="EXP-XXXXX"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t("date")}</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="modalExpenseDate" className="text-xs font-medium text-foreground">
+                  {t("date")}
+                </Label>
                 <DatePicker
-                  value={editExpenseDate}
-                  onChange={(val) => setEditExpenseDate(val)}
-                  className="h-10 text-xs bg-background"
+                  value={formDate}
+                  onChange={(val) => setFormDate(val)}
+                  className="h-10 text-xs bg-background w-full"
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("category")}</Label>
+            {/* Row 2: Category & Item Name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{t("category")}</span>
+                </Label>
                 <CreatableSelect
                   options={categoryOptions}
                   value={
-                    editCategory
-                      ? { value: editCategory, label: editCategory }
+                    formCategory
+                      ? { value: formCategory, label: formCategory }
                       : null
                   }
-                  onChange={(option) => setEditCategory(option?.value ?? "")}
-                  onCreateOption={handleCreateEditCategory}
+                  onChange={(opt) => setFormCategory(opt?.value ?? "")}
+                  onCreateOption={handleCreateCategory}
                   placeholder={t("selectOrCreateCategory")}
-                  formatCreateLabel={(value) => t("createCategory", { value })}
+                  formatCreateLabel={(val) => t("createCategory", { value: val })}
                   isClearable
-                  classNamePrefix="expense-select"
+                  styles={selectStyles}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t("itemName")}</Label>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{t("itemName")}</span>
+                </Label>
                 <CreatableSelect
                   options={itemOptions}
                   value={
-                    editItemName
-                      ? { value: editItemName, label: editItemName }
+                    formItemName
+                      ? { value: formItemName, label: formItemName }
                       : null
                   }
-                  onChange={(option) => setEditItemName(option?.value ?? "")}
-                  onCreateOption={handleCreateEditItem}
+                  onChange={(opt) => setFormItemName(opt?.value ?? "")}
+                  onCreateOption={handleCreateItem}
                   placeholder={t("selectOrCreateItem")}
-                  formatCreateLabel={(value) => t("createItem", { value })}
+                  formatCreateLabel={(val) => t("createItem", { value: val })}
                   isClearable
-                  classNamePrefix="expense-select"
+                  styles={selectStyles}
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label>{t("qty")}</Label>
+            {/* Row 3: Qty, Rate, and Amount */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg bg-muted/20 border">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">{t("qty")}</Label>
                 <NumericInput
                   min="0"
-                  value={editQty}
-                  onChange={(e) => setEditQty(e.target.value)}
+                  value={formQty}
+                  onChange={(e) => setFormQty(e.target.value)}
+                  className="h-10 text-xs bg-background"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t("rate")}</Label>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">{t("rate")}</Label>
                 <NumericInput
                   min="0"
-                  value={editRate}
-                  onChange={(e) => setEditRate(e.target.value)}
+                  value={formRate}
+                  onChange={(e) => setFormRate(e.target.value)}
+                  placeholder="0.00"
+                  className="h-10 text-xs bg-background"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t("amount")}</Label>
-                <Input
-                  value={formatNumber(
-                    parseNumericInput(editQty) * parseNumericInput(editRate),
-                  )}
-                  readOnly
-                />
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">{t("amount")}</Label>
+                <div className="h-10 px-3 flex items-center rounded-md border bg-muted/40 text-xs font-semibold text-foreground">
+                  Rs. {formatNumber(calculatedAmount)}
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <Button onClick={handleUpdateExpense} disabled={isUpdating}>
-                {isUpdating ? t("saving") : tCommon("save")}
-              </Button>
+            {/* Summary Banner */}
+            <div className="flex items-center justify-between p-3.5 rounded-lg bg-primary/5 border border-primary/15">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("total")}
+              </span>
+              <span className="text-lg font-bold text-primary">
+                Rs. {formatNumber(calculatedAmount)}
+              </span>
             </div>
           </div>
+
+          <DialogFooter className="px-6 py-3.5 border-t bg-muted/20 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFormModal(false)}
+              disabled={isSaving}
+              className="h-9 px-4 text-xs"
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveForm}
+              disabled={isSaving}
+              className="h-9 px-5 text-xs gap-1.5"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>{t("saving")}</span>
+                </>
+              ) : (
+                <span>{editingExpense ? tCommon("save") : t("saveExpense")}</span>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Expense Modal */}
+      <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
+        <DialogContent className="max-w-md w-[95vw] sm:w-full overflow-hidden p-0 gap-0 border rounded-xl shadow-xl">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-semibold text-foreground">
+                    {t("expenseDetails")}
+                  </DialogTitle>
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                    {viewingExpense?.expenseNumber}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {viewingExpense && (
+            <div className="p-6 space-y-4">
+              {/* Header Details */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border text-xs">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span className="font-medium text-foreground">
+                    {formatReadableDate(viewingExpense.date)}
+                  </span>
+                </div>
+                <Badge variant="secondary" className="text-xs font-medium px-2.5 py-0.5">
+                  {viewingExpense.category || "-"}
+                </Badge>
+              </div>
+
+              {/* Expense Info Card */}
+              <div className="p-4 rounded-lg border bg-card space-y-3">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {t("itemName")}
+                  </span>
+                  <h4 className="text-base font-semibold text-foreground">
+                    {viewingExpense.itemName || "-"}
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/60 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">{t("qty")}:</span>
+                    <p className="font-semibold text-foreground mt-0.5">
+                      {formatNumber(viewingExpense.qty)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t("rate")}:</span>
+                    <p className="font-semibold text-foreground mt-0.5">
+                      Rs. {formatNumber(viewingExpense.rate)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Amount Card */}
+              <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <span className="text-xs font-medium text-primary">
+                  {t("total")} {t("amount")}
+                </span>
+                <span className="text-xl font-bold text-primary">
+                  Rs. {formatNumber(viewingExpense.amount)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="px-6 py-3.5 border-t bg-muted/20 flex flex-row items-center justify-end gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowViewModal(false)}
+              className="h-9 px-4 text-xs"
+            >
+              {tCommon("close")}
+            </Button>
+            {can("expenses", "edit") && viewingExpense && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setShowViewModal(false);
+                  openEditModal(viewingExpense);
+                }}
+                className="h-9 px-4 text-xs gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>{t("editExpense")}</span>
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -992,23 +982,28 @@ export default function ExpensesPage() {
 // Mobile Card Component for Expense
 function ExpenseCard({
   expense,
+  onView,
   onEdit,
   onDelete,
   t,
   tCommon,
 }: {
   expense: ExpenseRow;
+  onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   t: (key: string) => string;
   tCommon: (key: string) => string;
 }) {
   return (
-    <div className="bg-card border rounded-lg p-3.5 shadow-sm">
-      {/* Header Row: Expense Item Name & ID below it on Left, Action Icons on Right */}
-      <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
-        <div className="min-w-0 flex-1 pr-2">
-          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
+    <div className="bg-card border rounded-lg p-3.5 shadow-sm space-y-3">
+      {/* Header Row */}
+      <div className="flex justify-between items-start pb-2 border-b border-border/50">
+        <div
+          className="min-w-0 flex-1 pr-2 cursor-pointer"
+          onClick={onView}
+        >
+          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate hover:text-primary transition-colors">
             {expense.itemName || "-"}
           </h3>
           <p className="text-[11px] font-mono text-muted-foreground mt-0.5 truncate">
@@ -1020,14 +1015,23 @@ function ExpenseCard({
           canDelete={Boolean(onDelete)}
           onEdit={onEdit}
           onDelete={onDelete}
+          extraActions={[
+            {
+              label: t("viewExpense") || tCommon("view") || "View",
+              icon: <Eye className="w-4 h-4" />,
+              onClick: onView || (() => {}),
+            },
+          ]}
         />
       </div>
 
-      <div className="space-y-2 text-xs sm:text-sm">
+      <div className="space-y-2 text-xs">
         {/* Row 1: Date on Left & Category on Right */}
         <div className="flex justify-between items-center text-xs">
-          <span className="text-muted-foreground font-medium">{formatReadableDate(expense.date)}</span>
-          <Badge variant="secondary" className="text-[11px] font-medium px-2 py-0.5">
+          <span className="text-black dark:text-white font-medium">
+            {formatReadableDate(expense.date)}
+          </span>
+          <Badge variant="outline" className="text-[11px] font-medium px-2 py-0.5 text-black dark:text-white border-zinc-300 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80">
             {expense.category || "-"}
           </Badge>
         </div>
@@ -1035,19 +1039,19 @@ function ExpenseCard({
         {/* Row 2: Rate to Left & Qty to Right */}
         <div className="flex justify-between items-center text-xs">
           <span>
-            <span className="text-muted-foreground">{t("rate")}: </span>
-            <span className="font-medium text-foreground">Rs. {formatNumber(expense.rate)}</span>
+            <span className="text-black dark:text-white font-medium">{t("rate")}: </span>
+            <span className="font-semibold text-black dark:text-white">Rs. {formatNumber(expense.rate)}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">{t("qty")}: </span>
-            <span className="font-medium text-foreground">{formatNumber(expense.qty)}</span>
+            <span className="text-black dark:text-white font-medium">{t("qty")}: </span>
+            <span className="font-semibold text-black dark:text-white">{formatNumber(expense.qty)}</span>
           </span>
         </div>
 
         {/* Row 3: Total Amount */}
-        <div className="flex justify-between items-center text-xs pt-1.5 border-t border-zinc-100 dark:border-zinc-800/40">
-          <span className="text-muted-foreground font-medium">{t("amount")}:</span>
-          <span className="font-semibold text-foreground text-sm">
+        <div className="flex justify-between items-center text-xs pt-1.5 border-t border-border/50">
+          <span className="text-black dark:text-white font-semibold">{t("amount")}:</span>
+          <span className="font-bold text-black dark:text-white text-sm">
             Rs. {formatNumber(expense.amount)}
           </span>
         </div>
