@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import CreatableSelect from "react-select/creatable";
 import { useOfflineExpenses } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
@@ -37,8 +36,10 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { TableRowActions } from "@/components/ui/table-row-actions";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate } from "@/lib/date-utils";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/page-header";
+import { ExpenseCategorySelector } from "@/components/selectors/expense-category-selector";
+import { ExpenseItemSelector } from "@/components/selectors/expense-item-selector";
 import {
   Dialog,
   DialogContent,
@@ -46,11 +47,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-type SelectOption = {
-  value: string;
-  label: string;
-};
 
 type ExpenseRow = {
   id: string;
@@ -61,18 +57,8 @@ type ExpenseRow = {
   qty: number;
   rate: number;
   amount: number;
+  created_at?: string;
 };
-
-const defaultCategories = [
-  "Petrol",
-  "Rent",
-  "Salary",
-  "Tea",
-  "Electricity",
-  "Transport",
-  "Internet",
-  "Maintenance",
-];
 
 function generateExpenseNumber() {
   const timestamp = Date.now();
@@ -96,57 +82,6 @@ function parseNumericInput(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-const selectStyles = {
-  control: (base: any, state: any) => ({
-    ...base,
-    minHeight: "38px",
-    height: "38px",
-    fontSize: "13px",
-    borderRadius: "0.375rem",
-    backgroundColor: "hsl(var(--background))",
-    borderColor: state.isFocused ? "hsl(var(--ring))" : "hsl(var(--input))",
-    boxShadow: "none",
-    "&:hover": {
-      borderColor: "hsl(var(--ring))",
-    },
-  }),
-  singleValue: (base: any) => ({
-    ...base,
-    color: "hsl(var(--foreground))",
-  }),
-  input: (base: any) => ({
-    ...base,
-    color: "hsl(var(--foreground))",
-  }),
-  placeholder: (base: any) => ({
-    ...base,
-    color: "hsl(var(--muted-foreground))",
-    fontSize: "13px",
-  }),
-  menu: (base: any) => ({
-    ...base,
-    backgroundColor: "hsl(var(--popover))",
-    borderColor: "hsl(var(--border))",
-    borderWidth: "1px",
-    borderRadius: "0.5rem",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-    zIndex: 60,
-  }),
-  option: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: state.isSelected
-      ? "hsl(var(--primary))"
-      : state.isFocused
-      ? "hsl(var(--accent))"
-      : "transparent",
-    color: state.isSelected
-      ? "hsl(var(--primary-foreground))"
-      : "hsl(var(--foreground))",
-    cursor: "pointer",
-    fontSize: "13px",
-  }),
-};
-
 export default function ExpensesPage() {
   const locale = useLocale();
   const t = useTranslations("expenses");
@@ -160,6 +95,32 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Dynamic user categories and items (only what user has added)
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customItems, setCustomItems] = useState<string[]>([]);
+
+  const userCategories = useMemo(() => {
+    const set = new Set<string>();
+    if (offlineExpenses) {
+      offlineExpenses.forEach((exp) => {
+        if (exp.category?.trim()) set.add(exp.category.trim());
+      });
+    }
+    customCategories.forEach((cat) => set.add(cat.trim()));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [offlineExpenses, customCategories]);
+
+  const userItems = useMemo(() => {
+    const set = new Set<string>();
+    if (offlineExpenses) {
+      offlineExpenses.forEach((exp) => {
+        if (exp.itemName?.trim()) set.add(exp.itemName.trim());
+      });
+    }
+    customItems.forEach((item) => set.add(item.trim()));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [offlineExpenses, customItems]);
 
   // Modal States
   const [showFormModal, setShowFormModal] = useState(false);
@@ -179,10 +140,6 @@ export default function ExpensesPage() {
   const [formQty, setFormQty] = useState("1");
   const [formRate, setFormRate] = useState("");
 
-  const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>(
-    defaultCategories.map((value) => ({ value, label: value })),
-  );
-  const [itemOptions, setItemOptions] = useState<SelectOption[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
@@ -199,67 +156,34 @@ export default function ExpensesPage() {
     return Number((q * r).toFixed(2));
   }, [formQty, formRate]);
 
-  const mergeOptions = useCallback(
-    (existing: SelectOption[], values: string[]) => {
-      const map = new Map(existing.map((option) => [option.value, option]));
-      values.forEach((value) => {
-        const trimmed = value.trim();
-        if (trimmed) {
-          map.set(trimmed, { value: trimmed, label: trimmed });
-        }
-      });
-      return Array.from(map.values()).sort((a, b) =>
-        a.label.localeCompare(b.label),
-      );
-    },
-    [],
-  );
-
   const fetchExpensesData = useCallback(async () => {
-    try {
-      const categories = new Set(defaultCategories);
-      const items = new Set<string>();
-
-      if (offlineExpenses) {
-        offlineExpenses.forEach((expense) => {
-          if (expense.category) categories.add(expense.category);
-          if (expense.itemName) items.add(expense.itemName);
-        });
-      }
-
-      setCategoryOptions(
-        Array.from(categories)
-          .map((value) => ({ value, label: value }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
+    let filtered = offlineExpenses ? [...offlineExpenses] : [];
+    if (filterCategory !== "all") {
+      filtered = filtered.filter(
+        (expense) => expense.category === filterCategory,
       );
-      setItemOptions(
-        Array.from(items)
-          .map((value) => ({ value, label: value }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
-      );
-
-      let filtered = offlineExpenses ? [...offlineExpenses] : [];
-      if (filterCategory !== "all") {
-        filtered = filtered.filter(
-          (expense) => expense.category === filterCategory,
-        );
-      }
-
-      filtered.sort((a, b) => {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        return dateB - dateA;
-      });
-
-      setTotalCount(filtered.length);
-
-      const startIndex = (page - 1) * pageSize;
-      const paginated = filtered.slice(startIndex, startIndex + pageSize);
-      setExpenses(paginated);
-    } catch {
-      setCategoryOptions((prev) => mergeOptions(prev, defaultCategories));
     }
-  }, [offlineExpenses, mergeOptions, page, pageSize, filterCategory]);
+
+    filtered.sort((a, b) => {
+      const timeA = safeDate(a.date).getTime();
+      const timeB = safeDate(b.date).getTime();
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (createdB !== createdA) {
+        return createdB - createdA;
+      }
+      return String(b.id || "").localeCompare(String(a.id || ""));
+    });
+
+    setTotalCount(filtered.length);
+
+    const startIndex = (page - 1) * pageSize;
+    const paginated = filtered.slice(startIndex, startIndex + pageSize);
+    setExpenses(paginated);
+  }, [offlineExpenses, page, pageSize, filterCategory]);
 
   useEffect(() => {
     fetchExpensesData();
@@ -292,18 +216,16 @@ export default function ExpensesPage() {
     setShowViewModal(true);
   };
 
-  const handleCreateCategory = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setCategoryOptions((prev) => mergeOptions(prev, [trimmed]));
-    setFormCategory(trimmed);
+  const handleAddCategory = (newCat: string) => {
+    if (!newCat.trim()) return;
+    setCustomCategories((prev) => Array.from(new Set([...prev, newCat.trim()])));
+    setFormCategory(newCat.trim());
   };
 
-  const handleCreateItem = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setItemOptions((prev) => mergeOptions(prev, [trimmed]));
-    setFormItemName(trimmed);
+  const handleAddItem = (newItem: string) => {
+    if (!newItem.trim()) return;
+    setCustomItems((prev) => Array.from(new Set([...prev, newItem.trim()])));
+    setFormItemName(newItem.trim());
   };
 
   const handleSaveForm = async () => {
@@ -594,31 +516,30 @@ export default function ExpensesPage() {
           >
             {tCommon("all", { defaultValue: "All" })}
           </DropdownMenuCheckboxItem>
-          {categoryOptions.map((cat) => (
+          {userCategories.map((cat) => (
             <DropdownMenuCheckboxItem
-              key={cat.value}
-              checked={filterCategory === cat.value}
+              key={cat}
+              checked={filterCategory === cat}
               onCheckedChange={(checked) => {
                 if (checked) {
-                  setFilterCategory(cat.value);
+                  setFilterCategory(cat);
                   setPage(1);
                 }
               }}
             >
-              {cat.label}
+              {cat}
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  ), [filterCategory, categoryOptions, t, tCommon]);
+  ), [filterCategory, userCategories, t, tCommon]);
 
   return (
     <div className="flex-1 space-y-4 w-full mx-auto animate-in fade-in duration-300">
       <PageHeader
         title={t("title")}
         description={t("pageDescription")}
-        mobileActionsRows={2}
         actions={
           <Button
             size="sm"
@@ -726,49 +647,21 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            {/* Row 2: Category & Item Name */}
+            {/* Row 2: Category & Item Name Selectors */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{t("category")}</span>
-                </Label>
-                <CreatableSelect
-                  options={categoryOptions}
-                  value={
-                    formCategory
-                      ? { value: formCategory, label: formCategory }
-                      : null
-                  }
-                  onChange={(opt) => setFormCategory(opt?.value ?? "")}
-                  onCreateOption={handleCreateCategory}
-                  placeholder={t("selectOrCreateCategory")}
-                  formatCreateLabel={(val) => t("createCategory", { value: val })}
-                  isClearable
-                  styles={selectStyles}
-                />
-              </div>
+              <ExpenseCategorySelector
+                value={formCategory}
+                onChange={setFormCategory}
+                categories={userCategories}
+                onAddCategory={handleAddCategory}
+              />
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground flex items-center gap-1">
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{t("itemName")}</span>
-                </Label>
-                <CreatableSelect
-                  options={itemOptions}
-                  value={
-                    formItemName
-                      ? { value: formItemName, label: formItemName }
-                      : null
-                  }
-                  onChange={(opt) => setFormItemName(opt?.value ?? "")}
-                  onCreateOption={handleCreateItem}
-                  placeholder={t("selectOrCreateItem")}
-                  formatCreateLabel={(val) => t("createItem", { value: val })}
-                  isClearable
-                  styles={selectStyles}
-                />
-              </div>
+              <ExpenseItemSelector
+                value={formItemName}
+                onChange={setFormItemName}
+                items={userItems}
+                onAddItem={handleAddItem}
+              />
             </div>
 
             {/* Row 3: Qty, Rate, and Amount */}
@@ -875,7 +768,7 @@ export default function ExpensesPage() {
                     {formatReadableDate(viewingExpense.date)}
                   </span>
                 </div>
-                <Badge variant="secondary" className="text-xs font-medium px-2.5 py-0.5">
+                <Badge variant="outline" className="text-xs font-medium px-2.5 py-0.5 text-black dark:text-white border-zinc-300 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80">
                   {viewingExpense.category || "-"}
                 </Badge>
               </div>
@@ -919,7 +812,7 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          <DialogFooter className="px-6 py-3.5 border-t bg-muted/20 flex flex-row items-center justify-end gap-1">
+          <DialogFooter className="px-6 py-3.5 border-t bg-muted/20 flex flex-row items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -973,7 +866,7 @@ export default function ExpensesPage() {
         }
         confirmLabel={tCommon("delete")}
         onConfirm={handleDeleteExpense}
-        variant="danger"
+        variant="destructive"
       />
     </div>
   );
@@ -1003,10 +896,10 @@ function ExpenseCard({
           className="min-w-0 flex-1 pr-2 cursor-pointer"
           onClick={onView}
         >
-          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate hover:text-primary transition-colors">
+          <h3 className="font-semibold text-sm sm:text-base text-black dark:text-white truncate hover:text-primary transition-colors">
             {expense.itemName || "-"}
           </h3>
-          <p className="text-[11px] font-mono text-muted-foreground mt-0.5 truncate">
+          <p className="text-[11px] font-mono text-zinc-600 dark:text-zinc-400 mt-0.5 truncate">
             {expense.expenseNumber}
           </p>
         </div>
