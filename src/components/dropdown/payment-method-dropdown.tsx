@@ -33,6 +33,8 @@ interface PaymentMethod {
   id: string;
   name: string;
   bankDetails?: string;
+  is_default?: boolean | number | string;
+  isDefault?: boolean | number | string;
 }
 
 interface PaymentMethodDropdownProps {
@@ -46,12 +48,12 @@ interface PaymentMethodDropdownProps {
   noResultsText?: string;
   addButtonPosition?: "top" | "bottom";
   includeDefaultMethods?: boolean; // include Cash & Cheque
-  defaultToCash?: boolean; // auto-select cash method if available
+  defaultToCash?: boolean; // auto-select cash/default method if available
 }
 
 const DEFAULT_METHODS: PaymentMethod[] = [
-  { id: "cash", name: "Cash", bankDetails: "" },
-  { id: "cheque", name: "Cheque", bankDetails: "" },
+  { id: "cash", name: "Cash", bankDetails: "", is_default: true },
+  { id: "cheque", name: "Cheque", bankDetails: "", is_default: false },
 ];
 
 export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethodDropdownProps>(
@@ -99,6 +101,12 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
         id: item.id || item._id,
         name: item.bankName || item.name || item.bank_name,
         bankDetails: item.bankDetails || item.bank_details,
+        is_default: Boolean(
+          item.is_default === true ||
+          item.is_default === 1 ||
+          String(item.is_default).toLowerCase() === "true" ||
+          item.isDefault === true
+        ),
       }));
 
       for (const m of apiMethods) {
@@ -119,11 +127,22 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       );
     }, [methods, searchTerm]);
 
+    // Auto-select default payment method (is_default)
     React.useEffect(() => {
       if (defaultToCash && !value && methods.length > 0) {
-        const cashMethod = methods.find((m) => m.name?.toLowerCase().includes("cash"));
-        if (cashMethod) {
-          onValueChange(cashMethod.id, cashMethod);
+        const defaultMethod =
+          methods.find(
+            (m: any) =>
+              m.is_default === true ||
+              m.is_default === 1 ||
+              String(m.is_default).toLowerCase() === "true" ||
+              m.isDefault === true
+          ) ||
+          methods.find((m) => m.id === "cash") ||
+          methods[0];
+
+        if (defaultMethod) {
+          onValueChange(defaultMethod.id, defaultMethod);
         }
       }
     }, [methods, value, defaultToCash, onValueChange]);

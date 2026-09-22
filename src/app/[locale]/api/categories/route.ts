@@ -10,7 +10,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const authCheck = await requirePermission("settings.view");
+    const authCheck = await requirePermission("products.view");
     if (!authCheck.allowed) return authCheck.response!;
 
     const categoriesCollection = await getCollection(COLLECTIONS.CATEGORIES);
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const authCheck = await requirePermission("settings.edit");
+    const authCheck = await requirePermission("products.create");
     if (!authCheck.allowed) return authCheck.response!;
 
     const body = await request.json();
