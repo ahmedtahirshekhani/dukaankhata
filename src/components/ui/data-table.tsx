@@ -92,32 +92,31 @@ export function DataTable<T>({
 
   return (
     <Card className="flex flex-col flex-1 p-2 sm:p-6">
-        <CardHeader className="p-0">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full">
+      <CardHeader className="p-0 mb-4">
+          <div className="flex items-center gap-2 sm:gap-3 w-full">
             {onSearchChange && (
-              <div className="relative w-full sm:w-64 sm:flex-none">
+              <div className="relative flex-1 sm:w-64 sm:flex-initial">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={searchPlaceholder || tCommon("search") || "Search..."}
                   value={searchTerm || ""}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-9 h-10 w-full"
+                  className="pl-9 h-10 text-xs sm:text-sm w-full bg-background"
                 />
               </div>
             )}
-            
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto sm:flex-1 sm:overflow-x-auto sm:scrollbar-none">
-              {toolbarActions && (
-                <div className="w-full sm:w-auto flex-shrink-0">
-                  {toolbarActions}
-                </div>
-              )}
-              {selectedRowIds.length > 0 && bulkActions && (
-                <div className="flex items-center gap-2 sm:ml-1 sm:border-l sm:pl-4 sm:border-border w-full sm:w-auto flex-shrink-0">
-                  {bulkActions}
-                </div>
-              )}
-            </div>
+
+            {toolbarActions && (
+              <div className="flex-shrink-0">
+                {toolbarActions}
+              </div>
+            )}
+
+            {selectedRowIds.length > 0 && bulkActions && (
+              <div className="flex items-center gap-2 sm:ml-1 sm:border-l sm:pl-3 sm:border-border flex-shrink-0">
+                {bulkActions}
+              </div>
+            )}
           </div>
         </CardHeader>
 

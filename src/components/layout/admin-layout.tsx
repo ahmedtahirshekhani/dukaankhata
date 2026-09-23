@@ -668,7 +668,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
 
             {/* Parties / Customers */}
-            {hasModuleAccess("customers") && (
+            {can("customers", "view") && (
             <div>
               <Link
                 href={`/${locale}/admin/customers`}
@@ -687,7 +687,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             )}
 
             {/* Items / Products */}
-            {hasModuleAccess("products") && (
+            {can("products", "view") && (
             <div>
               <Link
                 href={`/${locale}/admin/products`}
@@ -916,7 +916,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             )}
 
             {/* Bank Accounts */}
-            {hasModuleAccess("payment_methods") && (
+            {can("payment_methods", "view") && (
             <div>
               <Link
                 href={`/${locale}/admin/bank-accounts`}

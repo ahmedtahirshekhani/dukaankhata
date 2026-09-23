@@ -1264,6 +1264,8 @@
   "expenses": {
     "title": "Expenses",
     "pageDescription": "Record and manage expenses",
+    "expenseDetails": "Expense Details",
+    "viewExpense": "View Expense",
     "expenseNumber": "Expense Number",
     "category": "Category",
     "itemName": "Expense Item Name",

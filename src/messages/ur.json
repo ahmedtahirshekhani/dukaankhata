@@ -1264,6 +1264,8 @@
   "expenses": {
     "title": "اخراجات",
     "pageDescription": "اپنے اخراجات منظم کریں",
+    "expenseDetails": "اخراجات کی تفصیلات",
+    "viewExpense": "اخراجات دیکھیں",
     "expenseNumber": "اخراج نمبر",
     "category": "زمرہ",
     "itemName": "اخراج آئٹم کا نام",

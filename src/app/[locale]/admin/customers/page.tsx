@@ -367,30 +367,40 @@ export default function PartiesPage() {
                   <span className="whitespace-nowrap">{t("addCustomer")}</span>
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Import / Export</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleDownloadExcel} disabled={isDownloading}>
-                    {isDownloading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                    {t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDownloadTemplate}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-                    {isImporting ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    {t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} />
+              {(canCreate || canView) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>Import / Export</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {canView && (
+                      <DropdownMenuItem onClick={handleDownloadExcel} disabled={isDownloading}>
+                        {isDownloading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                        {t("downloadExcel")}
+                      </DropdownMenuItem>
+                    )}
+                    {canView && (
+                      <DropdownMenuItem onClick={handleDownloadTemplate}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t("downloadTemplate")}
+                      </DropdownMenuItem>
+                    )}
+                    {canCreate && (
+                      <DropdownMenuItem onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                        {isImporting ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {t("import")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {canCreate && (
+                <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} />
+              )}
           </>
         }
       />
@@ -406,11 +416,7 @@ export default function PartiesPage() {
           onSelectAll={tableState.onSelectAll}
           bulkActions={
             <div className="flex items-center gap-2 flex-wrap">
-              {/* <Button variant="outline" size="sm" onClick={handleBulkWhatsApp}>
-                <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
-                {tInvoice("sendOnWhatsApp")}
-              </Button> */}
-              <Button variant="outline" size="sm" onClick={handleBulkExport} disabled={isDownloading}>
+              <Button variant="outline" size="sm" onClick={handleBulkExport} disabled={isDownloading || !canView}>
                 <FileDown className="mr-2 h-4 w-4" />
                 {tCommon("export")}
               </Button>

@@ -108,11 +108,12 @@ export function useCustomerTableLayout({
 
         return (
           <TableRowActions
+            align="right"
             canEdit={canEdit}
             canDelete={canDelete}
             onEdit={() => {
               if (isDefaultParty) {
-                toast.error(t("cannotEditDefaultParty") || "This is a default Cash Sale party and cannot be edited.");
+                toast.error(t("cannotEditDefaultParty"));
                 return;
               }
               setCustomerToEdit(row);
@@ -120,7 +121,7 @@ export function useCustomerTableLayout({
             }}
             onDelete={() => {
               if (isDefaultParty) {
-                toast.error(t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.");
+                toast.error(t("cannotDeleteDefaultParty"));
                 return;
               }
               setCustomerToDelete(row);
