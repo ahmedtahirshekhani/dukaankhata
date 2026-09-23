@@ -13,7 +13,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const authCheck = await requirePermission("settings.edit");
+    const authCheck = await requirePermission("products.delete");
     if (!authCheck.allowed) return authCheck.response!;
 
     const { id } = params;
