@@ -92,13 +92,14 @@ export function DataTable<T>({
 
   return (
     <Card className="flex flex-col flex-1 p-2 sm:p-6">
-      <CardHeader className="p-0 mb-4">
-          <div className="flex items-center gap-2 sm:gap-3 w-full">
+      <CardHeader className="p-0 mb-4 space-y-3">
+        {(onSearchChange || toolbarActions) && (
+          <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 w-full">
             {onSearchChange && (
-              <div className="relative flex-1 sm:w-64 sm:flex-initial">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder={searchPlaceholder || tCommon("search") || "Search..."}
+                  placeholder={searchPlaceholder || tCommon("search")}
                   value={searchTerm || ""}
                   onChange={(e) => onSearchChange(e.target.value)}
                   className="pl-9 h-10 text-xs sm:text-sm w-full bg-background"
@@ -107,18 +108,29 @@ export function DataTable<T>({
             )}
 
             {toolbarActions && (
-              <div className="flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 {toolbarActions}
               </div>
             )}
-
-            {selectedRowIds.length > 0 && bulkActions && (
-              <div className="flex items-center gap-2 sm:ml-1 sm:border-l sm:pl-3 sm:border-border flex-shrink-0">
-                {bulkActions}
-              </div>
-            )}
           </div>
-        </CardHeader>
+        )}
+
+        {selectedRowIds.length > 0 && bulkActions && (
+          <div className="flex items-center justify-between flex-wrap gap-2.5 p-2 sm:px-3 sm:py-2 rounded-lg bg-primary/5 border border-primary/20 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
+                {selectedRowIds.length}
+              </span>
+              <span>
+                {tCommon("itemSelected", { count: selectedRowIds.length })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {bulkActions}
+            </div>
+          </div>
+        )}
+      </CardHeader>
 
       <CardContent className="p-0 relative flex flex-col flex-1">
         {/* Desktop View */}

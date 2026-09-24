@@ -58,6 +58,7 @@
     "page": "Page",
     "of": "ka",
     "total": "Total",
+    "itemSelected": "{count} selected",
     "totalCountLabel": "Total {count} records",
     "paymentNo": "Payment No",
     "rowsPerPage": "Rows per page",
