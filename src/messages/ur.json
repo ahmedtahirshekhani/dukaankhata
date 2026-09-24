@@ -58,6 +58,7 @@
     "page": "صفحہ",
     "of": "کا",
     "total": "کل",
+    "itemSelected": "{count} منتخب شدہ",
     "totalCountLabel": "کل {count} ریکارڈز",
     "paymentNo": "پیمنٹ نمبر",
     "rowsPerPage": "قطاریں فی صفحہ",

@@ -38,8 +38,7 @@ import { TableRowActions } from "@/components/ui/table-row-actions";
 import { DatePicker } from "@/components/ui/date-picker";
 import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/page-header";
-import { ExpenseCategorySelector } from "@/components/selectors/expense-category-selector";
-import { ExpenseItemSelector } from "@/components/selectors/expense-item-selector";
+import { ExpenseCategorySelector, DEFAULT_EXPENSE_CATEGORIES } from "@/components/selectors/expense-category-selector";
 import {
   Dialog,
   DialogContent,
@@ -96,12 +95,11 @@ export default function ExpensesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Dynamic user categories and items (only what user has added)
+  // Dynamic user categories
   const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [customItems, setCustomItems] = useState<string[]>([]);
 
   const userCategories = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(DEFAULT_EXPENSE_CATEGORIES);
     if (offlineExpenses) {
       offlineExpenses.forEach((exp) => {
         if (exp.category?.trim()) set.add(exp.category.trim());
@@ -110,17 +108,6 @@ export default function ExpensesPage() {
     customCategories.forEach((cat) => set.add(cat.trim()));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [offlineExpenses, customCategories]);
-
-  const userItems = useMemo(() => {
-    const set = new Set<string>();
-    if (offlineExpenses) {
-      offlineExpenses.forEach((exp) => {
-        if (exp.itemName?.trim()) set.add(exp.itemName.trim());
-      });
-    }
-    customItems.forEach((item) => set.add(item.trim()));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [offlineExpenses, customItems]);
 
   // Modal States
   const [showFormModal, setShowFormModal] = useState(false);
@@ -220,12 +207,6 @@ export default function ExpensesPage() {
     if (!newCat.trim()) return;
     setCustomCategories((prev) => Array.from(new Set([...prev, newCat.trim()])));
     setFormCategory(newCat.trim());
-  };
-
-  const handleAddItem = (newItem: string) => {
-    if (!newItem.trim()) return;
-    setCustomItems((prev) => Array.from(new Set([...prev, newItem.trim()])));
-    setFormItemName(newItem.trim());
   };
 
   const handleSaveForm = async () => {
@@ -599,15 +580,15 @@ export default function ExpensesPage() {
           }
         }}
       >
-        <DialogContent className="max-w-xl w-[95vw] sm:w-full overflow-hidden p-0 gap-0 border rounded-xl shadow-xl">
-          <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+        <DialogContent className="max-w-xl w-[95vw] sm:w-full max-h-[90vh] flex flex-col p-0 gap-0 border rounded-xl shadow-xl overflow-hidden">
+          <DialogHeader className="px-4 sm:px-6 py-3.5 sm:py-4 border-b bg-muted/30 shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-lg font-semibold text-foreground">
+                  <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
                     {editingExpense ? t("editExpense") : t("addExpense")}
                   </DialogTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -620,9 +601,9 @@ export default function ExpensesPage() {
             </div>
           </DialogHeader>
 
-          <div className="p-6 space-y-5">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto custom-scrollbar flex-1">
             {/* Row 1: Expense Number & Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="modalExpenseNumber" className="text-xs font-medium text-foreground">
                   {t("expenseNumber")}
@@ -647,8 +628,8 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            {/* Row 2: Category & Item Name Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 2: Category & Item Name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <ExpenseCategorySelector
                 value={formCategory}
                 onChange={setFormCategory}
@@ -656,17 +637,24 @@ export default function ExpensesPage() {
                 onAddCategory={handleAddCategory}
               />
 
-              <ExpenseItemSelector
-                value={formItemName}
-                onChange={setFormItemName}
-                items={userItems}
-                onAddItem={handleAddItem}
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="modalExpenseItem" className="text-xs font-medium text-foreground flex items-center gap-1">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{t("itemName")}</span>
+                </Label>
+                <Input
+                  id="modalExpenseItem"
+                  value={formItemName}
+                  onChange={(e) => setFormItemName(e.target.value)}
+                  placeholder={t("itemName") || "e.g. Office Stationery, Monthly Rent"}
+                  className="h-10 text-xs bg-background"
+                />
+              </div>
             </div>
 
             {/* Row 3: Qty, Rate, and Amount */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg bg-muted/20 border">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-lg bg-muted/20 border">
+              <div className="space-y-1.5 col-span-1">
                 <Label className="text-xs font-medium text-foreground">{t("qty")}</Label>
                 <NumericInput
                   min="0"
@@ -676,7 +664,7 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-1">
                 <Label className="text-xs font-medium text-foreground">{t("rate")}</Label>
                 <NumericInput
                   min="0"
@@ -687,7 +675,7 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <Label className="text-xs font-medium text-foreground">{t("amount")}</Label>
                 <div className="h-10 px-3 flex items-center rounded-md border bg-muted/40 text-xs font-semibold text-foreground">
                   Rs. {formatNumber(calculatedAmount)}
@@ -696,24 +684,24 @@ export default function ExpensesPage() {
             </div>
 
             {/* Summary Banner */}
-            <div className="flex items-center justify-between p-3.5 rounded-lg bg-primary/5 border border-primary/15">
+            <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-lg bg-primary/5 border border-primary/15">
               <span className="text-xs font-medium text-muted-foreground">
                 {t("total")}
               </span>
-              <span className="text-lg font-bold text-primary">
+              <span className="text-base sm:text-lg font-bold text-primary">
                 Rs. {formatNumber(calculatedAmount)}
               </span>
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-3.5 border-t bg-muted/20 flex flex-row items-center justify-end gap-2">
+          <DialogFooter className="px-4 sm:px-6 py-3 sm:py-3.5 border-t bg-muted/20 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-3 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setShowFormModal(false)}
               disabled={isSaving}
-              className="h-9 px-4 text-xs"
+              className="h-9 px-4 text-xs w-full sm:w-auto"
             >
               {tCommon("cancel")}
             </Button>
@@ -722,7 +710,7 @@ export default function ExpensesPage() {
               size="sm"
               onClick={handleSaveForm}
               disabled={isSaving}
-              className="h-9 px-5 text-xs gap-1.5"
+              className="h-9 px-5 text-xs gap-1.5 w-full sm:w-auto"
             >
               {isSaving ? (
                 <>
@@ -739,8 +727,8 @@ export default function ExpensesPage() {
 
       {/* View Expense Modal */}
       <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-        <DialogContent className="max-w-md w-[95vw] sm:w-full overflow-hidden p-0 gap-0 border rounded-xl shadow-xl">
-          <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+        <DialogContent className="max-w-md w-[95vw] sm:w-full max-h-[90vh] flex flex-col p-0 gap-0 border rounded-xl shadow-xl overflow-hidden">
+          <DialogHeader className="px-4 sm:px-6 py-3.5 sm:py-4 border-b bg-muted/30 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -759,7 +747,7 @@ export default function ExpensesPage() {
           </DialogHeader>
 
           {viewingExpense && (
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
               {/* Header Details */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border text-xs">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -801,24 +789,24 @@ export default function ExpensesPage() {
               </div>
 
               {/* Total Amount Card */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-lg bg-primary/10 border border-primary/20">
                 <span className="text-xs font-medium text-primary">
                   {t("total")} {t("amount")}
                 </span>
-                <span className="text-xl font-bold text-primary">
+                <span className="text-lg sm:text-xl font-bold text-primary">
                   Rs. {formatNumber(viewingExpense.amount)}
                 </span>
               </div>
             </div>
           )}
 
-          <DialogFooter className="px-6 py-3.5 border-t bg-muted/20 flex flex-row items-center justify-end gap-2">
+          <DialogFooter className="px-4 sm:px-6 py-3 sm:py-3.5 border-t bg-muted/20 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setShowViewModal(false)}
-              className="h-9 px-4 text-xs"
+              className="h-9 px-4 text-xs w-full sm:w-auto"
             >
               {tCommon("close")}
             </Button>
@@ -830,7 +818,7 @@ export default function ExpensesPage() {
                   setShowViewModal(false);
                   openEditModal(viewingExpense);
                 }}
-                className="h-9 px-4 text-xs gap-1.5"
+                className="h-9 px-4 text-xs gap-1.5 w-full sm:w-auto"
               >
                 <Edit className="w-3.5 h-3.5" />
                 <span>{t("editExpense")}</span>

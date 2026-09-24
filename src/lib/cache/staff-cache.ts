@@ -35,6 +35,9 @@ export const staffCache = {
   },
   invalidateStaff: () => {
     delete cache.staff;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("staff_data_invalidated"));
+    }
   },
 
   getRoles: (ttlMs = DEFAULT_TTL_MS): RolesData | null => {
@@ -50,11 +53,17 @@ export const staffCache = {
   },
   invalidateRoles: () => {
     delete cache.roles;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("staff_data_invalidated"));
+    }
   },
 
   invalidateAll: () => {
     delete cache.staff;
     delete cache.roles;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("staff_data_invalidated"));
+    }
   }
 };
 

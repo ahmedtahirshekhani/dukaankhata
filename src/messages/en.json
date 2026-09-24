@@ -58,6 +58,7 @@
     "page": "Page",
     "of": "of",
     "total": "Total",
+    "itemSelected": "{count} selected",
     "paymentNo": "Payment No",
     "totalCountLabel": "Total {count} records",
     "rowsPerPage": "Rows per page",
