@@ -63,7 +63,7 @@ export function StaffTab() {
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   // Direct DB Fetch via API with caching
-  const fetchStaffAndRoles = useCallback(async (forceRefresh = false) => {
+  const fetchStaffAndRoles = useCallback(async (forceRefresh = false, silent = false) => {
     if (!forceRefresh) {
       const cached = staffCache.getStaff();
       if (cached) {
@@ -75,7 +75,12 @@ export function StaffTab() {
     }
 
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setStaff((prev) => {
+          if (prev.length === 0) setIsLoading(true);
+          return prev;
+        });
+      }
       const [staffRes, rolesRes] = await Promise.all([
         fetch("/api/staff", { cache: "no-store" }),
         fetch("/api/roles", { cache: "no-store" })
@@ -109,6 +114,15 @@ export function StaffTab() {
 
   useEffect(() => {
     fetchStaffAndRoles();
+
+    const handleInvalidated = () => {
+      fetchStaffAndRoles(true, true);
+    };
+
+    window.addEventListener("staff_data_invalidated", handleInvalidated);
+    return () => {
+      window.removeEventListener("staff_data_invalidated", handleInvalidated);
+    };
   }, [fetchStaffAndRoles]);
 
   const handleOpenModal = (staffMember?: any) => {
@@ -124,6 +138,8 @@ export function StaffTab() {
       setSelectedRole("");
     }
     setIsModalOpen(true);
+    // Silently refresh roles in background without showing full-page loader
+    fetchStaffAndRoles(true, true);
   };
 
   const handleSave = async () => {
