@@ -3,7 +3,7 @@ import { ColumnDef } from "@/components/ui/data-table";
 import { TableRowActions } from "@/components/ui/table-row-actions";
 import { Customer } from "@/components/customers/customer-form-modal";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Receipt, Eye } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { toast } from "sonner";
@@ -62,7 +62,7 @@ export function useCustomerTableLayout({
       sortable: true,
       cell: (row) => (
         <span className={row.balance && row.balance < 0 ? "text-red-600 font-medium" : row.balance && row.balance > 0 ? "text-green-600 font-medium" : ""}>
-          Rs. {row.balance ? Math.round(row.balance) : "0"}
+          {formatCurrency(row.balance)}
         </span>
       ),
     },
@@ -156,8 +156,8 @@ export function useCustomerTableLayout({
 
         <div className="flex justify-between items-center text-xs">
           <span className="text-muted-foreground">{t("companyNameLabel")}: {customer.company_name || "-"}</span>
-          <span className="font-medium text-sm flex gap-2">
-            {customer.balance ? Math.round(customer.balance) : 0} <span className="text-muted-foreground">{t("currencySymbol") || "Rs."}</span>
+          <span className="font-medium text-sm">
+            {formatCurrency(customer.balance)}
           </span>
         </div>
       </div>

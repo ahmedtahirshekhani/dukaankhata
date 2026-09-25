@@ -91,7 +91,7 @@ export function useDashboardSummaryCards({
                   value={dashboardStats.totalBalance}
                   icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isLoading={dashboardStats.loadingStates?.parties}
                 />
               ),
@@ -104,7 +104,7 @@ export function useDashboardSummaryCards({
                   value={dashboardStats.totalPayable}
                   icon={<TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isExpense
                   isLoading={dashboardStats.loadingStates?.parties}
                 />
@@ -122,7 +122,7 @@ export function useDashboardSummaryCards({
                   value={dashboardStats.totalRevenue}
                   icon={renderRangeSelect(salesRange, setSalesRange)}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isLoading={dashboardStats.loadingStates?.sales}
                   noIconBg
                 />
@@ -140,7 +140,7 @@ export function useDashboardSummaryCards({
                   value={dashboardStats.totalPurchases}
                   icon={renderRangeSelect(purchasesRange, setPurchasesRange)}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isExpense
                   isLoading={dashboardStats.loadingStates?.purchases}
                   noIconBg
@@ -159,7 +159,7 @@ export function useDashboardSummaryCards({
                   value={dashboardStats.totalExpenses}
                   icon={renderRangeSelect(expensesRange, setExpensesRange)}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isExpense
                   isLoading={dashboardStats.loadingStates?.expenses}
                   noIconBg
@@ -181,7 +181,7 @@ export function useDashboardSummaryCards({
                     setCounterSalesRange
                   )}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isLoading={dashboardStats.loadingStates?.counterSales}
                   noIconBg
                 />
@@ -202,7 +202,7 @@ export function useDashboardSummaryCards({
                     setCounterExpensesRange
                   )}
                   isPrivacy={isPrivacyMode}
-                  currency="PKR"
+                  currency="Rs."
                   isExpense
                   isLoading={dashboardStats.loadingStates?.counterExpenses}
                   noIconBg
