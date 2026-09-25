@@ -195,13 +195,30 @@ export function BankAccountStatementModal({
     }
   }, [bankAccount.bankName, fromDate, toDate, tCommon]);
 
+  const getTypeLabel = useCallback(
+    (row: any) => {
+      const rawType = row.rawType;
+      if (rawType === "order") return t("typeOrder") || "Sale Invoice";
+      if (rawType === "payment_in") return t("typePaymentIn") || "Payment In";
+      if (rawType === "payment_out") return t("typePaymentOut") || "Payment Out";
+      if (rawType === "purchase_bill") return t("typePurchase") || "Purchase Bill";
+      if (rawType === "sale_return") return t("typeSaleReturn") || "Sale Return";
+      if (rawType === "expense") return t("typeExpense") || "Expense";
+      if (rawType === "opening_balance") return t("typeOpeningBalance") || "Opening Balance";
+      return row.type || "Transaction";
+    },
+    [t]
+  );
+
   const filteredTransactions = useMemo(() => {
     if (!searchTerm.trim()) return transactions;
     const term = searchTerm.toLowerCase();
     return transactions.filter((t) => {
       return (
         t.description?.toLowerCase().includes(term) ||
-        t.type?.toLowerCase().includes(term)
+        t.voucherNo?.toLowerCase().includes(term) ||
+        t.type?.toLowerCase().includes(term) ||
+        t.rawType?.toLowerCase().includes(term)
       );
     });
   }, [transactions, searchTerm]);
@@ -211,91 +228,107 @@ export function BankAccountStatementModal({
     () => [
       {
         id: "dateTime",
-        header: t("date") || "Date",
+        header: <span className="text-slate-900 font-bold">{t("date") || "Date"}</span>,
         accessorKey: "dateTime",
-        className: "w-[120px] text-xs text-muted-foreground",
-        cell: (row) => formatStatementDate(row.dateTime),
+        className: "w-[105px] text-center text-xs text-slate-900 font-medium px-2",
+        cell: (row) => <span className="text-slate-900 font-medium whitespace-nowrap">{formatStatementDate(row.dateTime)}</span>,
+      },
+      {
+        id: "voucher",
+        header: <span className="text-slate-900 font-bold">{t("orderId") || "Voucher #"}</span>,
+        className: "w-[115px] text-center text-xs text-slate-900 font-medium px-2 max-w-[125px] break-all whitespace-normal",
+        cell: (row) => <span className="text-slate-900 font-medium">{row.voucherNo || "-"}</span>,
+      },
+      {
+        id: "type",
+        header: <span className="text-slate-900 font-bold">{t("type") || "Type"}</span>,
+        className: "w-[135px] text-center text-xs px-2",
+        cell: (row) => (
+          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-900 border border-slate-300 shadow-2xs whitespace-nowrap">
+            {getTypeLabel(row)}
+          </span>
+        ),
       },
       {
         id: "particulars",
-        header: t("particulars") || "Particulars",
-        className: "min-w-[200px]",
+        header: <span className="text-slate-900 font-bold">{t("particulars") || "Particulars"}</span>,
+        className: "min-w-[180px] px-2",
         cell: (row) => (
-          <div>
-            <div className="font-semibold text-xs text-foreground">{row.type}</div>
-            {row.description && (
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                {row.description}
-              </div>
-            )}
+          <div className="font-semibold text-xs text-slate-900">
+            {row.description}
           </div>
         ),
       },
       {
         id: "debit",
-        header: tBank("debitIn") || "Debit (In)",
-        className: "w-[140px] text-right font-semibold text-foreground text-xs",
-        cell: (row) => (row.debit > 0 ? formatCurrency(row.debit) : "-"),
+        header: <div className="text-right text-slate-900 font-bold">{tBank("debitIn") || "Debit (In)"}</div>,
+        className: "w-[110px] text-right text-xs text-slate-900 font-bold px-2",
+        cell: (row) => (row.debit > 0 ? <span className="text-slate-900 font-bold whitespace-nowrap">{formatCurrency(row.debit)}</span> : <span className="text-slate-400">-</span>),
       },
       {
         id: "credit",
-        header: tBank("creditOut") || "Credit (Out)",
-        className: "w-[140px] text-right font-semibold text-foreground text-xs",
-        cell: (row) => (row.credit > 0 ? formatCurrency(row.credit) : "-"),
+        header: <div className="text-right text-slate-900 font-bold">{tBank("creditOut") || "Credit (Out)"}</div>,
+        className: "w-[110px] text-right text-xs text-slate-900 font-bold px-2",
+        cell: (row) => (row.credit > 0 ? <span className="text-slate-900 font-bold whitespace-nowrap">{formatCurrency(row.credit)}</span> : <span className="text-slate-400">-</span>),
       },
       {
         id: "balance",
-        header: t("balance") || "Balance",
-        className: "w-[150px] text-right font-bold text-xs",
-        cell: (row) => (
-          <span className={row.balance < 0 ? "text-rose-600 dark:text-rose-400 font-bold" : "text-foreground font-bold"}>
-            {formatCurrency(Math.abs(row.balance))}
-            {row.balance < 0 ? " (Dr)" : " (Cr)"}
-          </span>
-        ),
+        header: <div className="text-right text-slate-900 font-bold">{t("balance") || "Balance"}</div>,
+        className: "w-[125px] text-right text-xs font-bold px-2",
+        cell: (row) => {
+          const isDr = row.balance < 0;
+          return (
+            <span className="text-slate-900 font-bold whitespace-nowrap">
+              {formatCurrency(Math.abs(row.balance))} {isDr ? "(Dr)" : "(Cr)"}
+            </span>
+          );
+        },
       },
     ],
-    [t, tBank]
+    [t, tBank, getTypeLabel]
   );
 
   // Mobile card rendering
-  const renderMobileCard = useCallback((txn: any) => {
-    const isDr = txn.balance < 0;
-    return (
-      <div className="bg-card border rounded-lg p-3.5 shadow-sm space-y-2 text-xs">
-        <div className="flex justify-between items-center text-muted-foreground">
-          <span className="font-medium">{formatStatementDate(txn.dateTime)}</span>
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted text-muted-foreground">
-            {txn.type}
-          </span>
-        </div>
-        {txn.description && (
-          <div className="font-medium text-foreground">{txn.description}</div>
-        )}
-        <div className="flex justify-between items-center pt-2 border-t border-border/60">
-          <div>
-            {txn.debit > 0 ? (
-              <span className="text-foreground font-semibold">
-                Debit: {formatCurrency(txn.debit)}
-              </span>
-            ) : txn.credit > 0 ? (
-              <span className="text-foreground font-semibold">
-                Credit: {formatCurrency(txn.credit)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </div>
-          <div className="text-right">
-            <span className="text-muted-foreground mr-1">{t("balance")}:</span>
-            <span className={`font-bold ${isDr ? "text-rose-600 dark:text-rose-400" : "text-foreground"}`}>
-              {formatCurrency(Math.abs(txn.balance))} {isDr ? "(Dr)" : "(Cr)"}
+  const renderMobileCard = useCallback(
+    (txn: any) => {
+      const isDr = txn.balance < 0;
+      return (
+        <div className="bg-card border border-slate-200 rounded-lg p-3.5 shadow-sm space-y-2 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-900 font-semibold">{formatStatementDate(txn.dateTime)}</span>
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-900 border border-slate-300">
+              {getTypeLabel(txn)} {txn.voucherNo ? `(${txn.voucherNo})` : ""}
             </span>
           </div>
+          {txn.description && (
+            <div className="font-semibold text-slate-900">{txn.description}</div>
+          )}
+          <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+            <div>
+              {txn.debit > 0 ? (
+                <span className="text-slate-900 font-bold">
+                  {tBank("debitIn") || "Debit"}: {formatCurrency(txn.debit)}
+                </span>
+              ) : txn.credit > 0 ? (
+                <span className="text-slate-900 font-bold">
+                  {tBank("creditOut") || "Credit"}: {formatCurrency(txn.credit)}
+                </span>
+              ) : (
+                <span className="text-slate-400">-</span>
+              )}
+            </div>
+            <div className="text-right">
+              <span className="text-slate-700 font-medium mr-1">{t("balance") || "Balance"}:</span>
+              <span className="text-slate-900 font-bold">
+                {formatCurrency(Math.abs(txn.balance))} {isDr ? "(Dr)" : "(Cr)"}
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
-    );
-  }, [t]);
+      );
+    },
+    [t, tBank, getTypeLabel]
+  );
 
   const pdfKpis: ReportPdfKpi[] = useMemo(() => {
     if (!summary) return [];
@@ -323,7 +356,7 @@ export function BankAccountStatementModal({
       {
         id: "date",
         header: t("date") || "Date",
-        width: "110px",
+        width: "90px",
         align: "left",
         render: (row) => (
           <span className="font-medium whitespace-nowrap">
@@ -332,48 +365,57 @@ export function BankAccountStatementModal({
         ),
       },
       {
+        id: "voucher",
+        header: t("orderId") || "Voucher #",
+        width: "90px",
+        align: "center",
+        render: (row) => row.voucherNo || "-",
+      },
+      {
+        id: "type",
+        header: t("type") || "Type",
+        width: "100px",
+        align: "center",
+        render: (row) => getTypeLabel(row),
+      },
+      {
         id: "particulars",
         header: t("particulars") || "Particulars",
         align: "left",
         render: (row) => (
-          <div>
-            <div className="font-semibold text-slate-900">{row.type}</div>
-            {row.description && (
-              <div className="text-[9.5px] text-slate-600 mt-0.5">{row.description}</div>
-            )}
-          </div>
+          <div className="font-semibold text-slate-900">{row.description}</div>
         ),
       },
       {
         id: "debitIn",
         header: tBank("debitIn") || "Debit (In)",
-        width: "130px",
+        width: "110px",
         align: "right",
         render: (row) => (row.debit > 0 ? formatCurrency(row.debit) : "-"),
       },
       {
         id: "creditOut",
         header: tBank("creditOut") || "Credit (Out)",
-        width: "130px",
+        width: "110px",
         align: "right",
         render: (row) => (row.credit > 0 ? formatCurrency(row.credit) : "-"),
       },
       {
         id: "balance",
         header: t("balance") || "Balance",
-        width: "140px",
+        width: "120px",
         align: "right",
         render: (row) => {
           const isDr = row.balance < 0;
           return (
-            <span className={cn("font-bold", isDr ? "text-red-700" : "text-slate-900")}>
+            <span className="text-slate-900 font-bold">
               {formatCurrency(Math.abs(row.balance))} {isDr ? "(Dr)" : "(Cr)"}
             </span>
           );
         },
       },
     ],
-    [t, tBank]
+    [t, tBank, getTypeLabel]
   );
 
   const handleFromDateChange = (val: string) => {
@@ -393,33 +435,47 @@ export function BankAccountStatementModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/60">
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold text-foreground">
-            <Building2 className="h-5 w-5 text-primary" />
-            <span>{tBank("statementModalTitle")}: {bankAccount.bankName}</span>
-          </DialogTitle>
+      <DialogContent className="max-w-5xl w-[96vw] sm:w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="relative flex flex-col items-center text-center pb-3 border-b border-border/60">
+          <div className="flex flex-col items-center justify-center gap-1.5 w-full px-8">
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <Building2 className="h-4.5 w-4.5" />
+              </div>
+              <DialogTitle className="text-base sm:text-xl font-bold text-foreground text-center flex flex-wrap items-center justify-center gap-1.5">
+                <span>{tBank("statementModalTitle") || "Bank Statement"}:</span>
+                <span className="text-primary">{bankAccount.bankName}</span>
+              </DialogTitle>
+            </div>
+            {bankAccount.bankDetails && (
+              <p className="text-xs text-muted-foreground text-center max-w-lg truncate">
+                {bankAccount.bankDetails}
+              </p>
+            )}
+          </div>
           {hasSearched && transactions.length > 0 && (
-            <Button
-              size="sm"
-              onClick={handleExportPdf}
-              disabled={exportingPdf}
-              className="h-8 text-xs px-3 gap-1.5 bg-sky-500 hover:bg-sky-600 text-white shadow-none"
-            >
-              {exportingPdf ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Printer className="h-3.5 w-3.5" />
-              )}
-              <span>{tCommon("downloadPdf") || "Download PDF"}</span>
-            </Button>
+            <div className="mt-2 sm:mt-0 sm:absolute sm:right-10 sm:top-1/2 sm:-translate-y-1/2">
+              <Button
+                size="sm"
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+                className="h-8 text-xs px-3 gap-1.5 bg-sky-500 hover:bg-sky-600 text-white shadow-none"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Printer className="h-3.5 w-3.5" />
+                )}
+                <span>{tCommon("downloadPdf") || "Download PDF"}</span>
+              </Button>
+            </div>
           )}
         </DialogHeader>
 
         {/* Date Filter Bar */}
         <Card className="border border-border/60 bg-card shadow-xs">
           <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row items-end gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
               <div className="flex-1 w-full space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">
                   {t("fromDate") || "From Date"}

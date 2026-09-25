@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { ArrowLeft, Loader2Icon, Receipt, ArrowRightLeft, TrendingUp, TrendingDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
 
 type StatementTransaction = {
@@ -285,8 +286,72 @@ export default function CustomerTransactionsDetailPage() {
 
   if (loading) {
     return (
-      <div className="h-[70vh] flex items-center justify-center">
-        <Loader2Icon className="h-10 w-10 animate-spin" />
+      <div className="flex flex-col gap-4 sm:gap-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+        </div>
+
+        {/* Stat Cards Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="border border-slate-200 shadow-sm p-4">
+              <div className="flex justify-between items-center mb-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+              </div>
+              <Skeleton className="h-7 w-32 mt-2" />
+            </Card>
+          ))}
+        </div>
+
+        {/* Search & Table Skeleton */}
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-9 w-full sm:w-72 rounded-md" />
+          </div>
+
+          <Card className="border border-slate-200 overflow-hidden shadow-sm">
+            <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 flex-1 hidden md:block" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="divide-y divide-slate-100 p-2 space-y-2">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="flex items-center justify-between gap-4 py-2.5 px-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-4 flex-1 hidden md:block" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Statement Grand Footer Summary Skeleton */}
+          <Card className="border border-slate-200 bg-slate-50 p-4 shadow-sm rounded-xl">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <Skeleton className="h-4 w-36" />
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }

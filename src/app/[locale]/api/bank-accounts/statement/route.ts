@@ -87,12 +87,16 @@ export async function GET(request: NextRequest) {
     // Payment In (type: payment-in) -> IN
     // Payment Out (type: payment-out) -> OUT
     customerTransactions.forEach(t => {
+      const isPaymentOut = t.type === 'payment-out';
+      const voucherNo = t.payment_number || t.paymentNumber || t.voucher_no || t.reference_no || t.invoice_no || null;
       transactions.push({
         id: t._id.toString(),
-        type: t.type === 'payment-out' ? 'Payment Out' : (t.type === 'payment-in' ? 'Payment In' : 'Payment'),
-        description: t.description || (t.type === 'payment-out' ? 'Payment sent to vendor' : 'Payment received from customer'),
+        type: isPaymentOut ? 'Payment Out' : (t.type === 'payment-in' ? 'Payment In' : 'Payment'),
+        rawType: isPaymentOut ? 'payment_out' : (t.type === 'payment-in' ? 'payment_in' : 'payment'),
+        voucherNo: voucherNo,
+        description: t.description || (isPaymentOut ? 'Payment sent to vendor' : 'Payment received from customer'),
         amount: t.payment_amount || t.amount || 0,
-        direction: t.type === 'payment-out' ? 'OUT' : 'IN',
+        direction: isPaymentOut ? 'OUT' : 'IN',
         dateTime: t.date ? new Date(t.date).toISOString() : (t.created_at ? new Date(t.created_at).toISOString() : new Date().toISOString())
       });
     });
@@ -101,10 +105,13 @@ export async function GET(request: NextRequest) {
     orders.forEach(o => {
       const paidAmount = o.payment?.paid_amount || o.paid_amount || 0;
       if (paidAmount > 0) {
+        const voucherNo = o.invoice_no || o.order_number || null;
         transactions.push({
           id: o._id.toString(),
           type: 'Sale Invoice',
-          description: `Sale Invoice ${o.invoice_no ? '#' + o.invoice_no : ''}`.trim(),
+          rawType: 'order',
+          voucherNo: voucherNo,
+          description: `Sale Invoice ${voucherNo ? '#' + voucherNo : ''}`.trim(),
           amount: paidAmount,
           direction: 'IN',
           dateTime: (o.payment?.paid_date || o.created_at) ? new Date(o.payment?.paid_date || o.created_at).toISOString() : new Date().toISOString()
@@ -116,10 +123,13 @@ export async function GET(request: NextRequest) {
     purchaseBills.forEach(p => {
       const paidAmount = p.payment?.paid_amount || p.paid_amount || 0;
       if (paidAmount > 0) {
+        const voucherNo = p.bill_no || p.purchase_number || p.purchase_no || null;
         transactions.push({
           id: p._id.toString(),
           type: 'Purchase Invoice',
-          description: `Purchase Invoice ${p.bill_no ? '#' + p.bill_no : ''}`.trim(),
+          rawType: 'purchase_bill',
+          voucherNo: voucherNo,
+          description: `Purchase Invoice ${voucherNo ? '#' + voucherNo : ''}`.trim(),
           amount: paidAmount,
           direction: 'OUT',
           dateTime: (p.payment?.paid_date || p.created_at) ? new Date(p.payment?.paid_date || p.created_at).toISOString() : new Date().toISOString()
@@ -130,10 +140,13 @@ export async function GET(request: NextRequest) {
     // Sale Returns -> OUT
     saleReturns.forEach(s => {
       if (s.paid_amount > 0) {
+        const voucherNo = s.return_number || null;
         transactions.push({
           id: s._id.toString(),
           type: 'Sale Return',
-          description: `Sale return refund`,
+          rawType: 'sale_return',
+          voucherNo: voucherNo,
+          description: `Sale return refund ${voucherNo ? '#' + voucherNo : ''}`.trim(),
           amount: s.paid_amount || 0,
           direction: 'OUT',
           dateTime: s.date ? new Date(s.date).toISOString() : new Date().toISOString()
@@ -143,10 +156,13 @@ export async function GET(request: NextRequest) {
 
     // Expenses -> OUT
     expenses.forEach(e => {
+      const voucherNo = e.expense_number || e.expense_no || e.receipt_no || null;
       transactions.push({
         id: e._id.toString(),
         type: 'Expense',
-        description: e.category || 'Expense',
+        rawType: 'expense',
+        voucherNo: voucherNo,
+        description: e.category || e.description || 'Expense',
         amount: e.amount || 0,
         direction: 'OUT',
         dateTime: e.date ? new Date(e.date).toISOString() : new Date().toISOString()
