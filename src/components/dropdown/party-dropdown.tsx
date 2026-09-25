@@ -25,6 +25,7 @@ import { PlusCircle, Loader2Icon, SearchIcon, X, ArrowDownLeft, ArrowUpRight } f
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
+import { usePermissions } from "@/hooks/use-permissions";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,9 @@ type Party = {
   balance?: number;
   status?: "active" | "inactive";
   is_delete?: number;
+  is_default?: boolean | number | string;
+  isDefault?: boolean | number | string;
+  type?: string;
 };
 
 interface PartyDropdownProps {
@@ -79,6 +83,8 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
   ) => {
     const t = useTranslations("customers");
     const tCommon = useTranslations("common");
+    const { can } = usePermissions();
+    const canCreate = can("customers", "create");
 
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -169,12 +175,21 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       return () => observer.disconnect();
     }, [hasMore, loading, loadingMore, isOpen]);
 
-    // Auto-select cash party
+    // Auto-select default party (is_default)
     useEffect(() => {
       if (autoSelectCash && !value && filteredCustomers.length > 0) {
-        const cashParty = filteredCustomers.find(p => (p as any).type === "cash" || p.name.toLowerCase().includes("cash"));
-        if (cashParty) {
-          onValueChange(getPartyId(cashParty), cashParty);
+        const defaultParty =
+          filteredCustomers.find(
+            (p) =>
+              p.is_default === true ||
+              (p as any).is_default === 1 ||
+              String((p as any).is_default).toLowerCase() === "true" ||
+              (p as any).isDefault === true ||
+              (p as any).type === "cash"
+          ) || filteredCustomers[0];
+
+        if (defaultParty) {
+          onValueChange(getPartyId(defaultParty), defaultParty);
         }
       }
     }, [filteredCustomers, value, autoSelectCash, onValueChange]);
@@ -203,6 +218,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     };
 
     const handleAddParty = async () => {
+      if (!canCreate) return;
       if (!newPartyName || newPartyName.trim() === "") {
         setErrorDialog({
           open: true,
@@ -424,20 +440,22 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 </div>
               </div>
 
-              <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setShowAddDialog(true);
-                  }}
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Add New Party
-                </Button>
-              </div>
+              {canCreate && (
+                <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
+                    onClick={() => {
+                      setIsOpen(false);
+                      setShowAddDialog(true);
+                    }}
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Add New Party
+                  </Button>
+                </div>
+              )}
             </SelectContent>
           </Select>
 
@@ -448,116 +466,118 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           )}
         </div>
 
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl sm:text-2xl">{t("createNewCustomer")}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
-              <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("contactInformation")}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {canCreate && (
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl sm:text-2xl">{t("createNewCustomer")}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("contactInformation")}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="party-name" className="text-xs sm:text-sm font-medium">
+                        {t("nameLabel")}<span className="text-red-500 ml-1">*</span>
+                      </Label>
+                      <Input
+                        id="party-name"
+                        value={newPartyName}
+                        onChange={(e) => setNewPartyName(e.target.value)}
+                        placeholder={t("namePlaceholder")}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="party-phone" className="text-xs sm:text-sm font-medium">{t("phoneLabel")}</Label>
+                      <Input
+                        id="party-phone"
+                        value={newPartyPhone}
+                        onChange={(e) => setNewPartyPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                        maxLength={11}
+                        placeholder={t("phonePlaceholder")}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="party-name" className="text-xs sm:text-sm font-medium">
-                      {t("nameLabel")}<span className="text-red-500 ml-1">*</span>
-                    </Label>
+                    <Label htmlFor="party-email" className="text-xs sm:text-sm font-medium">{t("emailLabel")}</Label>
                     <Input
-                      id="party-name"
-                      value={newPartyName}
-                      onChange={(e) => setNewPartyName(e.target.value)}
-                      placeholder={t("namePlaceholder")}
+                      id="party-email"
+                      type="email"
+                      value={newPartyEmail}
+                      onChange={(e) => setNewPartyEmail(e.target.value)}
+                      placeholder={t("emailPlaceholder")}
                       className="h-9 sm:h-10 text-sm"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("companyInformation")}</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="party-phone" className="text-xs sm:text-sm font-medium">{t("phoneLabel")}</Label>
+                    <Label htmlFor="party-company" className="text-xs sm:text-sm font-medium">{t("companyNameLabel")}</Label>
                     <Input
-                      id="party-phone"
-                      value={newPartyPhone}
-                      onChange={(e) => setNewPartyPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                      maxLength={11}
-                      placeholder={t("phonePlaceholder")}
-                      className="h-9 sm:h-10 text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="party-email" className="text-xs sm:text-sm font-medium">{t("emailLabel")}</Label>
-                  <Input
-                    id="party-email"
-                    type="email"
-                    value={newPartyEmail}
-                    onChange={(e) => setNewPartyEmail(e.target.value)}
-                    placeholder={t("emailPlaceholder")}
-                    className="h-9 sm:h-10 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("companyInformation")}</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="party-company" className="text-xs sm:text-sm font-medium">{t("companyNameLabel")}</Label>
-                  <Input
-                    id="party-company"
-                    value={newPartyCompanyName}
-                    onChange={(e) => setNewPartyCompanyName(e.target.value)}
-                    placeholder={t("companyNamePlaceholder")}
-                    className="h-9 sm:h-10 text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="party-address" className="text-xs sm:text-sm font-medium">{t("companyAddressLabel")}</Label>
-                  <Input
-                    id="party-address"
-                    value={newPartyCompanyAddress}
-                    onChange={(e) => setNewPartyCompanyAddress(e.target.value)}
-                    placeholder={t("companyAddressPlaceholder")}
-                    className="h-9 sm:h-10 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("financialInformation")}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">{t("openingBalance")}</Label>
-                    <NumericInput
-                      id="party-balance"
-                      min="0"
-                      value={newPartyOpeningBalance}
-                      onChange={(e) => setNewPartyOpeningBalance(e.target.value)}
-                      placeholder={t("balancePlaceholder")}
+                      id="party-company"
+                      value={newPartyCompanyName}
+                      onChange={(e) => setNewPartyCompanyName(e.target.value)}
+                      placeholder={t("companyNamePlaceholder")}
                       className="h-9 sm:h-10 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
-                    <Select value={newPartyOpeningBalanceType} onValueChange={(val: "receive" | "pay") => setNewPartyOpeningBalanceType(val)}>
-                      <SelectTrigger className="h-9 sm:h-10 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="receive">{t("receive")}</SelectItem>
-                        <SelectItem value="pay">{t("pay")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="party-address" className="text-xs sm:text-sm font-medium">{t("companyAddressLabel")}</Label>
+                    <Input
+                      id="party-address"
+                      value={newPartyCompanyAddress}
+                      onChange={(e) => setNewPartyCompanyAddress(e.target.value)}
+                      placeholder={t("companyAddressPlaceholder")}
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-xs sm:text-sm font-semibold text-foreground">{t("financialInformation")}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="party-balance" className="text-xs sm:text-sm font-medium">{t("openingBalance")}</Label>
+                      <NumericInput
+                        id="party-balance"
+                        min="0"
+                        value={newPartyOpeningBalance}
+                        onChange={(e) => setNewPartyOpeningBalance(e.target.value)}
+                        placeholder={t("balancePlaceholder")}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
+                      <Select value={newPartyOpeningBalanceType} onValueChange={(val: "receive" | "pay") => setNewPartyOpeningBalanceType(val)}>
+                        <SelectTrigger className="h-9 sm:h-10 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="receive">{t("receive")}</SelectItem>
+                          <SelectItem value="pay">{t("pay")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">
-              <Button variant="secondary" onClick={() => { setShowAddDialog(false); resetForm(); }} className="h-9 sm:h-10 w-full sm:w-auto">
-                {tCommon("cancel")}
-              </Button>
-              <Button onClick={handleAddParty} disabled={!newPartyName || newPartyName.trim() === "" || isSaving} className="h-9 sm:h-10 w-full sm:w-auto sm:min-w-[120px]">
-                {isSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                {t("createCustomer")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter className="gap-2 sm:gap-3 pt-3 sm:pt-4 flex-col-reverse sm:flex-row">
+                <Button variant="secondary" onClick={() => { setShowAddDialog(false); resetForm(); }} className="h-9 sm:h-10 w-full sm:w-auto">
+                  {tCommon("cancel")}
+                </Button>
+                <Button onClick={handleAddParty} disabled={!newPartyName || newPartyName.trim() === "" || isSaving} className="h-9 sm:h-10 w-full sm:w-auto sm:min-w-[120px]">
+                  {isSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("createCustomer")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <ErrorDialog
           open={errorDialog.open}

@@ -54,6 +54,8 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { generateReferenceNumber } from "@/lib/utils";
 
+import { DatePicker } from "@/components/ui/date-picker";
+
 const getTodayDateString = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -67,6 +69,8 @@ export type Product = {
   name: string;
   description?: string;
   sell_price: number;
+  cost_price?: number;
+  price?: number;
   unit_of_measurement?: string;
   quantity?: number;
   in_stock?: number;
@@ -985,7 +989,7 @@ export default function NewInvoicePage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/${locale}/admin/sales/invoice`)}
             className="shrink-0 h-8 w-8 text-gray-500 hover:text-gray-900"
           >
             <ArrowLeftIcon className="h-5 w-5" />
@@ -1077,13 +1081,10 @@ export default function NewInvoicePage() {
                   <Label htmlFor="sale-date" className="text-xs font-semibold text-gray-700">
                     {t("invoiceDate")} <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="sale-date"
-                    type="date"
+                  <DatePicker
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    max={todayIso || undefined}
-                    className="h-8 text-xs"
+                    onChange={(val) => setSelectedDate(val)}
+                    className="h-8 text-xs bg-white"
                   />
                 </div>
 
@@ -1091,14 +1092,11 @@ export default function NewInvoicePage() {
                   <Label htmlFor="due-date-section" className="text-xs font-semibold text-gray-700">
                     {t("dueDate")}
                   </Label>
-                  <Input
-                    id="due-date"
-                    type="date"
+                  <DatePicker
                     value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    min={todayIso || undefined}
-                    className="h-10 text-xs mb-3"
+                    onChange={(val) => setDueDate(val)}
                     disabled={!addDueDate}
+                    className="h-8 text-xs bg-white mb-3"
                   />
                   <div className="flex items-center gap-3">
                     <input
