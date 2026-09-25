@@ -98,22 +98,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // Reset default cash balances
-    if (cashParty) {
-       const balanceCollection = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
-       await balanceCollection.updateOne(
-          { party_id: cashParty._id },
-          { $set: { current_balance: 0 } },
-          { upsert: true }
-       );
-    }
-    
-    if (cashMethod) {
-       await pmCollection.updateOne(
-          { _id: cashMethod._id },
-          { $set: { current_balance: 0, opening_balance: 0 } }
-       );
-    }
+    // Reset all remaining parties (e.g. default Cash Sale) balance and opening_balance to 0
+    await partiesCollection.updateMany(
+      filter,
+      {
+        $set: {
+          balance: 0,
+          opening_balance: 0,
+          updated_at: new Date(),
+        },
+      }
+    );
+
+    // Reset all remaining payment methods (e.g. Cash in Hand) to 0
+    await pmCollection.updateMany(
+      filter,
+      {
+        $set: {
+          current_balance: 0,
+          opening_balance: 0,
+          updated_at: new Date(),
+        },
+      }
+    );
+
+    // Clear party balance state collection
+    const balanceCollection = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+    await balanceCollection.deleteMany(filter);
 
     console.log(`========================================`);
     console.log(`[DELETE_ALL_DATA] Deletion Complete. Total records deleted: ${totalDeleted}`);

@@ -41,6 +41,7 @@ export interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   toolbarActions?: React.ReactNode;
   bulkActions?: React.ReactNode;
+  className?: string;
 }
 
 export interface ColumnDef<T> {
@@ -82,6 +83,7 @@ export function DataTable<T>({
   onRowClick,
   toolbarActions,
   bulkActions,
+  className,
 }: DataTableProps<T>) {
   const tCommon = useTranslations("common");
 
@@ -91,7 +93,7 @@ export function DataTable<T>({
   const isSomeSelected = pageRowIds.some(id => selectedRowIds.includes(id)) && !isAllSelected;
 
   return (
-    <Card className="flex flex-col flex-1 p-2 sm:p-6">
+    <Card className={cn("flex flex-col flex-1 p-2.5 sm:p-4 shadow-sm", className)}>
       <CardHeader className="p-0 mb-4 space-y-3">
         {(onSearchChange || toolbarActions) && (
           <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 w-full">

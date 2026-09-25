@@ -216,9 +216,9 @@ export default function AccountStatementPage() {
   }, [reportMeta, fromDate, toDate, tCommon]);
 
   const getBalanceColor = (balance: number) => {
-    if (balance > 0) return "text-green-600";
-    if (balance < 0) return "text-red-600";
-    return "text-gray-600";
+    if (balance > 0) return "text-emerald-700 font-bold";
+    if (balance < 0) return "text-rose-700 font-bold";
+    return "text-slate-900 font-bold";
   };
 
   const getTransactionType = (type: string) => {
@@ -260,41 +260,41 @@ export default function AccountStatementPage() {
       {
         id: "dateTime",
         accessorKey: "dateTime",
-        header: t("date") || "Date",
-        className: "w-[110px] text-center text-xs text-muted-foreground",
-        cell: (row) => formatStatementDate(row.dateTime),
+        header: <span className="text-slate-900 font-bold">{t("date") || "Date"}</span>,
+        className: "w-[105px] text-center text-xs text-slate-900 font-medium px-2",
+        cell: (row) => <span className="text-slate-900 font-medium whitespace-nowrap">{formatStatementDate(row.dateTime)}</span>,
       },
       {
         id: "voucher",
-        header: t("voucher") || "Voucher #",
-        className: "w-[90px] text-center text-xs text-muted-foreground max-w-[100px] break-all whitespace-normal",
-        cell: (row) => row.orderId || "-",
+        header: <span className="text-slate-900 font-bold">{t("voucher") || "Voucher #"}</span>,
+        className: "w-[120px] text-center text-xs text-slate-900 font-medium px-2 max-w-[130px] break-all whitespace-normal",
+        cell: (row) => <span className="text-slate-900 font-medium">{row.orderId || "-"}</span>,
       },
       {
         id: "type",
-        header: t("type") || "Type",
-        className: "w-[100px] text-center text-xs",
+        header: <span className="text-slate-900 font-bold">{t("type") || "Type"}</span>,
+        className: "w-[135px] text-center text-xs px-2",
         cell: (row) => (
-          <span className="px-2 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
+          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-900 border border-slate-300 shadow-2xs whitespace-nowrap">
             {getTransactionType(row.type)}
           </span>
         ),
       },
       {
         id: "description",
-        header: t("descriptionItems") || "Description / Items",
-        className: "min-w-[220px]",
+        header: <span className="text-slate-900 font-bold">{t("descriptionItems") || "Description / Items"}</span>,
+        className: "min-w-[200px] px-2",
         cell: (row) => {
           const hasItems = row.items && row.items.length > 0;
           return (
             <div>
-              <div className="text-xs text-foreground font-medium">{row.description}</div>
+              <div className="text-xs text-slate-900 font-semibold">{row.description}</div>
               {hasItems && (
-                <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
+                <div className="text-[11px] text-slate-800 font-medium mt-1 space-y-0.5 pl-2 border-l-2 border-slate-300">
                   {row.items?.map((item, itemIdx) => (
                     <div key={itemIdx}>
                       • {item.name}
-                      <span className="ml-1 text-muted-foreground/60">(x{item.quantity})</span>
+                      <span className="ml-1 text-slate-500">(x{item.quantity})</span>
                     </div>
                   ))}
                 </div>
@@ -305,22 +305,22 @@ export default function AccountStatementPage() {
       },
       {
         id: "debit",
-        header: <div className="text-right">{t("debit") || "Debit"}</div>,
-        className: "w-[110px] text-right text-xs text-foreground font-medium",
-        cell: (row) => (row.debit ? formatCurrency(row.debit) : "-"),
+        header: <div className="text-right text-slate-900 font-bold">{t("debit") || "Debit"}</div>,
+        className: "w-[105px] text-right text-xs text-slate-900 font-bold px-2",
+        cell: (row) => (row.debit ? <span className="text-slate-900 font-bold whitespace-nowrap">{formatCurrency(row.debit)}</span> : <span className="text-slate-400">-</span>),
       },
       {
         id: "credit",
-        header: <div className="text-right">{t("credit") || "Credit"}</div>,
-        className: "w-[110px] text-right text-xs text-foreground font-medium",
-        cell: (row) => (row.credit ? formatCurrency(row.credit) : "-"),
+        header: <div className="text-right text-slate-900 font-bold">{t("credit") || "Credit"}</div>,
+        className: "w-[105px] text-right text-xs text-slate-900 font-bold px-2",
+        cell: (row) => (row.credit ? <span className="text-slate-900 font-bold whitespace-nowrap">{formatCurrency(row.credit)}</span> : <span className="text-slate-400">-</span>),
       },
       {
         id: "balance",
-        header: <div className="text-right">{t("balance") || "Balance"}</div>,
-        className: "w-[120px] text-right text-xs font-semibold",
+        header: <div className="text-right text-slate-900 font-bold">{t("balance") || "Balance"}</div>,
+        className: "w-[115px] text-right text-xs font-bold px-2",
         cell: (row) => (
-          <span className={getBalanceColor(row.balance)}>
+          <span className={`${getBalanceColor(row.balance)} whitespace-nowrap`}>
             {formatCurrency(row.balance)}
           </span>
         ),
@@ -338,48 +338,48 @@ export default function AccountStatementPage() {
         <div
           key={txn.id}
           className={`bg-card border rounded-lg p-3.5 shadow-sm space-y-2 ${
-            isOpening ? "bg-muted/30 border-primary/20" : "border-border/60"
+            isOpening ? "bg-slate-50 border-slate-300" : "border-slate-200"
           }`}
         >
           <div className="flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">
+            <span className="text-slate-900 font-semibold">
               {formatStatementDate(txn.dateTime)}
             </span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
+            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-900 border border-slate-300">
               {getTransactionType(txn.type)} {txn.orderId ? `(${txn.orderId})` : ""}
             </span>
           </div>
 
-          <div className="text-xs text-foreground">
-            <div className="font-medium">{txn.description}</div>
+          <div className="text-xs text-slate-900">
+            <div className="font-bold text-slate-900">{txn.description}</div>
             {hasItems && (
-              <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 pl-2 border-l-2 border-border">
+              <div className="text-[11px] text-slate-800 font-medium mt-1 space-y-0.5 pl-2 border-l-2 border-slate-300">
                 {txn.items?.map((item, itemIdx) => (
                   <div key={itemIdx}>
-                    • {item.name} <span className="text-muted-foreground/60">(x{item.quantity})</span>
+                    • {item.name} <span className="text-slate-500">(x{item.quantity})</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs">
+          <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
             <div>
               {txn.debit ? (
-                <span className="text-foreground font-semibold">
+                <span className="text-slate-900 font-bold">
                   {t("debit") || "Debit"}: {formatCurrency(txn.debit)}
                 </span>
               ) : txn.credit ? (
-                <span className="text-foreground font-semibold">
+                <span className="text-slate-900 font-bold">
                   {t("credit") || "Credit"}: {formatCurrency(txn.credit)}
                 </span>
               ) : (
-                <span className="text-muted-foreground">-</span>
+                <span className="text-slate-400">-</span>
               )}
             </div>
             <div>
-              <span className="text-muted-foreground font-medium mr-1">{t("balance")}:</span>
-              <span className={`font-semibold ${getBalanceColor(txn.balance)}`}>
+              <span className="text-slate-700 font-medium mr-1">{t("balance")}:</span>
+              <span className={`font-bold ${getBalanceColor(txn.balance)}`}>
                 {formatCurrency(txn.balance)}
               </span>
             </div>
@@ -745,22 +745,22 @@ export default function AccountStatementPage() {
 
           {/* Statement Grand Footer Summary */}
           {transactions.length > 0 && (
-            <Card className="border border-border/60 bg-muted/30 p-4 shadow-xs">
+            <Card className="border border-slate-200 bg-slate-50 p-4 shadow-sm rounded-xl">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold uppercase">
-                <span className="text-muted-foreground font-semibold text-[11px]">
+                <span className="text-slate-800 font-bold text-[11px] tracking-wide">
                   Total Records: {transactions.length} Transactions
                 </span>
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                   <div>
-                    <span className="text-muted-foreground">{t("totalDebit") || "Total Debit"}:</span>
-                    <span className="ml-1.5 text-foreground">{formatCurrency(totalDebit)}</span>
+                    <span className="text-slate-700 font-semibold">{t("totalDebit") || "Total Debit"}:</span>
+                    <span className="ml-1.5 text-slate-900 font-bold">{formatCurrency(totalDebit)}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">{t("totalCredit") || "Total Credit"}:</span>
-                    <span className="ml-1.5 text-foreground">{formatCurrency(totalCredit)}</span>
+                    <span className="text-slate-700 font-semibold">{t("totalCredit") || "Total Credit"}:</span>
+                    <span className="ml-1.5 text-slate-900 font-bold">{formatCurrency(totalCredit)}</span>
                   </div>
-                  <div className="pl-4 sm:border-l sm:border-border/60">
-                    <span className="text-muted-foreground">{t("closingBalance") || "Closing Balance"}:</span>
+                  <div className="pl-4 sm:border-l sm:border-slate-300">
+                    <span className="text-slate-700 font-semibold">{t("closingBalance") || "Closing Balance"}:</span>
                     <span className={`ml-1.5 ${getBalanceColor(summary?.currentBalance || 0)}`}>
                       {formatCurrency(summary?.currentBalance || 0)}
                     </span>

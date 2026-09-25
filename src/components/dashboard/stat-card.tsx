@@ -49,7 +49,7 @@ export function StatCard({
   return (
     <Card className={cn("flex flex-col p-2.5 sm:p-3 gap-1.5 h-full justify-between", className)}>
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[11px] sm:text-xs font-medium leading-tight line-clamp-3 text-muted-foreground">
+        <p className="text-[11px] sm:text-xs font-semibold leading-tight line-clamp-3 text-slate-800 dark:text-slate-200">
           {title}
         </p>
         <div
@@ -62,7 +62,7 @@ export function StatCard({
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-1 font-bold text-sm sm:text-base leading-tight">
+        <div className="flex items-center gap-1 font-bold text-sm sm:text-base leading-tight text-slate-900 dark:text-slate-50">
           {isLoading ? (
             <Skeleton className="h-5 w-24 rounded" />
           ) : isPrivacy ? (
@@ -70,7 +70,7 @@ export function StatCard({
           ) : (
             <>
               {currency && (
-                <span className="text-[10px] font-normal text-muted-foreground">
+                <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
                   {currency}{" "}
                 </span>
               )}
