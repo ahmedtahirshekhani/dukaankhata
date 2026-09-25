@@ -48,6 +48,8 @@
     "lastMonth": "Pichla Mahina",
     "thisYear": "Is Saal",
     "allTime": "Shuru Se Ab Tak",
+    "from": "From",
+    "to": "To",
     "share": "Share",
     "convertToSale": "Sale Mein Tabdeel Karain",
     "searchProduct": "Search Product...",
@@ -575,8 +577,11 @@
     "exportExcel": "Export Excel",
     "downloadPdf": "Download PDF",
     "searchProducts": "Product name se search karein...",
+    "searchPlaceholder": "Product name ya SKU se search karein...",
     "category": "Category",
+    "allCategories": "All Categories",
     "branch": "Branch",
+    "allBranches": "All Branches",
     "type": "Type",
     "all": "All",
     "products": "Products",
@@ -633,13 +638,24 @@
     "generatedOn": "Generated On",
     "noData": "Koi profitability data nahi mile selected period ke liye.",
     "operatingIncome": "Operating Income",
+    "invoicesOrders": "Invoices / Orders",
+    "counterSales": "Counter Sales",
+    "totalOperatingIncome": "Total Operating Income",
     "costOfGoodsSold": "Cost of Goods Sold",
+    "cogs": "Cost of Goods Sold (COGS)",
     "grossProfit": "Gross Profit",
+    "operatingExpenses": "Operating Expenses",
     "operatingExpense": "Operating Expense",
+    "totalOperatingExpenses": "Total Operating Expenses",
     "operatingProfit": "Operating Profit",
+    "netOperatingProfit": "Net Operating Profit",
+    "accountDescription": "Account Description",
     "totalFor": "Total for {name}",
     "account": "Account",
-    "total": "Total"
+    "total": "Total",
+    "detailedExpenses": "Tafseeli Akhrajaat ke Records",
+    "noExpenses": "Koi akhrajaat nahi mile",
+    "paymentMethod": "Payment Method"
   },
   "itemWiseSaleReportPage": {
     "title": "Item Wise Sale Report",
@@ -1235,7 +1251,9 @@
     "go": "Chalein",
     "netOrders": "Kul Invoices/Bills",
     "netPayments": "Kul Adaigiyan",
-    "descriptionItems": "Tafseel / Items"
+    "descriptionItems": "Tafseel / Items",
+    "searchTransactions": "Transactions search karein...",
+    "typeOrderReturn": "Sale Return"
   },
   "payments": {
     "paymentMethod": "Adaigi ka Tareeka",
@@ -1847,9 +1865,9 @@
     "openingBalance": "Opening Balance",
     "viewStatement": "Ledger Statement Dekhein",
     "statementModalTitle": "Bank Statement",
-    "totalCreditIn": "Total Credit (In)",
-    "totalDebitOut": "Total Debit (Out)",
-    "creditIn": "Credit (In)",
-    "debitOut": "Debit (Out)"
+    "totalDebitIn": "Total Debit (In)",
+    "totalCreditOut": "Total Credit (Out)",
+    "debitIn": "Debit (In)",
+    "creditOut": "Credit (Out)"
   }
 }

@@ -9,6 +9,8 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { PageHeader } from "@/components/layout/page-header";
+
 export default function ReportsModulePage() {
   const locale = useLocale();
   const tNav = useTranslations("navigation");
@@ -73,11 +75,11 @@ export default function ReportsModulePage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{tNav("reports")}</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-1">{tNav("reportsDescription")}</p>
-      </div>
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <PageHeader
+        title={tNav("reports")}
+        description={tNav("reportsDescription")}
+      />
 
       <div className="grid gap-6 md:grid-cols-2">
         {reportsList

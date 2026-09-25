@@ -240,13 +240,21 @@ export async function GET(request: NextRequest) {
       } else if (
         entry.event_type === "manual_adjustment" && 
         (eventKeyStr.startsWith("order_update_reverse") || eventKeyStr.startsWith("order_update_apply")) &&
+        (eventKeyStr.startsWith("order_update_reverse") || eventKeyStr.startsWith("order_update_apply") || eventKeyStr.startsWith("order_delete_reverse") || eventKeyStr.startsWith("order_")) &&
         sourceIdStr
       ) {
         if (orderOriginals.has(sourceIdStr)) {
           // Fold into original order within the same date range
           const orig = orderOriginals.get(sourceIdStr)!;
           orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-          if ((entry.metadata as any)?.newTotal !== undefined) {
+          if (eventKeyStr.startsWith("order_delete_reverse") || (entry.metadata as any)?.reason === "order_deleted") {
+            orig.metadata = {
+              ...orig.metadata,
+              is_deleted: true,
+              total_amount: 0,
+              paid_amount: 0,
+            };
+          } else if ((entry.metadata as any)?.newTotal !== undefined) {
             orig.metadata = {
               ...orig.metadata,
               total_amount: (entry.metadata as any).newTotal,
@@ -443,11 +451,20 @@ export async function GET(request: NextRequest) {
       } else if (
         entry.event_type === "manual_adjustment" &&
         (eventKeyStr.startsWith("purchase_bill_revert_") || eventKeyStr.startsWith("purchase_bill_payment_revert_") || eventKeyStr.startsWith("purchase_bill_")) &&
+        (eventKeyStr.startsWith("purchase_bill_revert_") || eventKeyStr.startsWith("purchase_bill_payment_revert_") || eventKeyStr.startsWith("purchase_bill_delete_") || eventKeyStr.startsWith("purchase_bill_payment_delete_") || eventKeyStr.startsWith("purchase_bill_")) &&
         sourceIdStr
       ) {
         if (pbDebitOriginals.has(sourceIdStr)) {
           const orig = pbDebitOriginals.get(sourceIdStr)!;
           orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
+          if (eventKeyStr.startsWith("purchase_bill_delete_") || (entry.metadata as any)?.note?.includes("deletion")) {
+            orig.metadata = {
+              ...orig.metadata,
+              is_deleted: true,
+              total_amount: 0,
+              paid_amount: 0,
+            };
+          }
         } else {
           if (pbDebitAdjustments.has(sourceIdStr)) {
             const adj = pbDebitAdjustments.get(sourceIdStr)!;
@@ -470,6 +487,7 @@ export async function GET(request: NextRequest) {
         e.event_type === "order_debit" ||
         e.event_type === "purchase_bill_debit" ||
         e.event_type === "sale_return_credit" ||
+        !(e.metadata as any)?.is_deleted &&
         Math.abs(Number(e.amount_delta)) >= 0.01
     );
 
@@ -672,32 +690,50 @@ export async function GET(request: NextRequest) {
       let amount = Math.abs(amountDelta);
 
       if (isOrderDebit) {
-        const totalAmount = Number(sourceOrder?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
-        const paidAmount = Number(sourceOrder?.payment?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
-        const balanceDue = sourceOrder?.balance_due !== undefined 
-          ? Number(sourceOrder.balance_due) 
-          : Math.max(0, totalAmount - paidAmount);
-        debit = balanceDue;
-        credit = 0;
-        amount = totalAmount;
+        if ((entry.metadata as any)?.is_deleted || (!sourceOrder && !(entry.metadata as any)?.total_amount)) {
+          debit = 0;
+          credit = 0;
+          amount = 0;
+        } else {
+          const totalAmount = Number(sourceOrder?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
+          const paidAmount = Number(sourceOrder?.payment?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
+          const balanceDue = sourceOrder?.balance_due !== undefined 
+            ? Number(sourceOrder.balance_due) 
+            : Math.max(0, totalAmount - paidAmount);
+          debit = balanceDue;
+          credit = 0;
+          amount = totalAmount;
+        }
       } else if (isPurchaseBillDebit) {
-        const totalAmount = Number(sourcePurchaseBill?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
-        const paidAmount = Number(sourcePurchaseBill?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
-        const balanceDue = sourcePurchaseBill?.balance_due !== undefined 
-          ? Number(sourcePurchaseBill.balance_due) 
-          : Math.max(0, totalAmount - paidAmount);
-        debit = 0;
-        credit = balanceDue;
-        amount = totalAmount;
+        if ((entry.metadata as any)?.is_deleted || (!sourcePurchaseBill && !(entry.metadata as any)?.total_amount)) {
+          debit = 0;
+          credit = 0;
+          amount = 0;
+        } else {
+          const totalAmount = Number(sourcePurchaseBill?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
+          const paidAmount = Number(sourcePurchaseBill?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
+          const balanceDue = sourcePurchaseBill?.balance_due !== undefined 
+            ? Number(sourcePurchaseBill.balance_due) 
+            : Math.max(0, totalAmount - paidAmount);
+          debit = 0;
+          credit = balanceDue;
+          amount = totalAmount;
+        }
       } else if (isSaleReturnCredit) {
-        const totalAmount = Number(sourceSaleReturn?.total_amount ?? sourceSaleReturn?.payment_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
-        const paidAmount = Number(sourceSaleReturn?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? (entry.metadata as any)?.refund_amount ?? 0);
-        const balanceDue = sourceSaleReturn?.balance_due !== undefined 
-          ? Number(sourceSaleReturn.balance_due) 
-          : Math.max(0, totalAmount - paidAmount);
-        debit = 0;
-        credit = balanceDue;
-        amount = totalAmount;
+        if ((entry.metadata as any)?.is_deleted) {
+          debit = 0;
+          credit = 0;
+          amount = 0;
+        } else {
+          const totalAmount = Number(sourceSaleReturn?.total_amount ?? sourceSaleReturn?.payment_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
+          const paidAmount = Number(sourceSaleReturn?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? (entry.metadata as any)?.refund_amount ?? 0);
+          const balanceDue = sourceSaleReturn?.balance_due !== undefined 
+            ? Number(sourceSaleReturn.balance_due) 
+            : Math.max(0, totalAmount - paidAmount);
+          debit = 0;
+          credit = balanceDue;
+          amount = totalAmount;
+        }
       } else if (isPaymentOutDebit || isSaleReturnDebit || isPurchaseBillCredit) {
         debit = amount;
         credit = 0;
@@ -744,7 +780,7 @@ export async function GET(request: NextRequest) {
         dateTime: asISO(entry.effective_at || entry.created_at),
         balance: runningBalance,
       };
-    });
+    }).filter((t) => t.debit > 0 || t.credit > 0 || Math.abs(t.debit - t.credit) >= 0.01);
 
     // Virtual Opening Balance record
     const openingDate = from.getFullYear() === 1970 && customer?.created_at
@@ -764,53 +800,21 @@ export async function GET(request: NextRequest) {
       balance: openingBalance,
     };
 
-    const totalOrdersGross = entries
-      .filter((entry) => entry.event_type === "order_debit")
-      .reduce((sum, entry) => {
-        const totalAmount = Number((entry.metadata as any)?.total_amount ?? Math.abs(Number(entry.amount_delta || 0)));
-        return sum + totalAmount;
-      }, 0);
+    const totalOrders = transactions
+      .filter((t) => t.type === "order")
+      .reduce((sum, t) => sum + (t.amount || t.debit || 0), 0);
 
-    const totalSaleReturns = entries
-      .filter((entry) => entry.event_type === "sale_return_credit")
-      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount_delta || 0)), 0);
+    const totalPurchaseBills = transactions
+      .filter((t) => t.type === "purchase_bill")
+      .reduce((sum, t) => sum + (t.amount || t.credit || 0), 0);
 
-    const totalOrders = totalOrdersGross - totalSaleReturns;
+    const totalPaymentsIn = transactions
+      .filter((t) => t.type === "payment_in")
+      .reduce((sum, t) => sum + (t.credit || 0), 0);
 
-    const totalPurchaseBills = entries
-      .filter((entry) => entry.event_type === "purchase_bill_debit")
-      .reduce((sum, entry) => {
-        const totalAmount = Number((entry.metadata as any)?.total_amount ?? Math.abs(Number(entry.amount_delta || 0)));
-        return sum + totalAmount;
-      }, 0);
-
-    const totalPaymentsIn = entries
-      .reduce((sum, entry) => {
-        if (entry.event_type === "payment_in_credit" || entry.event_type === "order_payment_credit") {
-          return sum + Math.abs(Number(entry.amount_delta || 0));
-        }
-        if (entry.event_type === "order_debit") {
-          const paidAmt = Number((entry.metadata as any)?.paid_amount ?? 0);
-          return sum + paidAmt;
-        }
-        return sum;
-      }, 0);
-
-    const totalPaymentsOut = entries
-      .reduce((sum, entry) => {
-        if (entry.event_type === "payment_out_debit" || entry.event_type === "sale_return_debit" || entry.event_type === "purchase_bill_credit") {
-          return sum + Math.abs(Number(entry.amount_delta || 0));
-        }
-        if (entry.event_type === "purchase_bill_debit") {
-          const paidAmt = Number((entry.metadata as any)?.paid_amount ?? 0);
-          return sum + paidAmt;
-        }
-        if (entry.event_type === "sale_return_credit") {
-          const paidAmt = Number((entry.metadata as any)?.paid_amount ?? (entry.metadata as any)?.refund_amount ?? 0);
-          return sum + paidAmt;
-        }
-        return sum;
-      }, 0);
+    const totalPaymentsOut = transactions
+      .filter((t) => t.type === "payment_out" || t.type === "purchase_bill_payment")
+      .reduce((sum, t) => sum + (t.debit || 0), 0);
 
     const currentBalance = runningBalance;
 
@@ -825,6 +829,7 @@ export async function GET(request: NextRequest) {
         totalPurchaseBills,
         totalPaymentsIn,
         totalPaymentsOut,
+        totalPayments: totalPaymentsIn,
         currentBalance,
         grandTotal: totalOrders + totalPurchaseBills,
       },
