@@ -236,8 +236,12 @@ export default function AccountStatementPage() {
     return types[type] || type;
   };
 
-  const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
-  const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
+  const totalDebit = transactions
+    .filter((t) => t.id !== "opening_balance" && t.type !== "opening_balance")
+    .reduce((sum, t) => sum + (t.debit || 0), 0);
+  const totalCredit = transactions
+    .filter((t) => t.id !== "opening_balance" && t.type !== "opening_balance")
+    .reduce((sum, t) => sum + (t.credit || 0), 0);
 
   const [searchTerm, setSearchTerm] = useState("");
 
