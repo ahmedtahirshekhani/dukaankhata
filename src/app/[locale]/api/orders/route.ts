@@ -438,7 +438,7 @@ export async function POST(request: Request) {
         eventSourceId: orderId.toString(),
         amountDelta: -paymentInfo2.paidAmount,
         effectiveAt: setDateToCurrentTime(
-          paymentInfo2.paidDate || paymentDate || saleDate || now
+          saleDate || paymentInfo2.paidDate || paymentDate || now
         ),
         metadata: {
           invoice_no: invoiceNo || null,

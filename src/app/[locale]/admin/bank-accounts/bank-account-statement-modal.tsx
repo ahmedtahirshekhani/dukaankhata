@@ -235,7 +235,7 @@ export function BankAccountStatementModal({
       },
       {
         id: "voucher",
-        header: <span className="text-slate-900 font-bold">{t("orderId") || "Voucher #"}</span>,
+        header: <span className="text-slate-900 font-bold">{t("voucher") || "Voucher #"}</span>,
         className: "w-[115px] text-center text-xs text-slate-900 font-medium px-2 max-w-[125px] break-all whitespace-normal",
         cell: (row) => <span className="text-slate-900 font-medium">{row.voucherNo || "-"}</span>,
       },
@@ -276,10 +276,10 @@ export function BankAccountStatementModal({
         header: <div className="text-right text-slate-900 font-bold">{t("balance") || "Balance"}</div>,
         className: "w-[125px] text-right text-xs font-bold px-2",
         cell: (row) => {
-          const isDr = row.balance < 0;
+          const isCr = row.balance < 0;
           return (
             <span className="text-slate-900 font-bold whitespace-nowrap">
-              {formatCurrency(Math.abs(row.balance))} {isDr ? "(Dr)" : "(Cr)"}
+              {formatCurrency(Math.abs(row.balance))} {isCr ? "(Cr)" : "(Dr)"}
             </span>
           );
         },
@@ -291,13 +291,17 @@ export function BankAccountStatementModal({
   // Mobile card rendering
   const renderMobileCard = useCallback(
     (txn: any) => {
-      const isDr = txn.balance < 0;
+      const isCr = txn.balance < 0;
+      const isOpening = txn.rawType === "opening_balance" || txn.id === "opening_balance";
       return (
-        <div className="bg-card border border-slate-200 rounded-lg p-3.5 shadow-sm space-y-2 text-xs">
+        <div className={cn(
+          "border rounded-lg p-3.5 shadow-sm space-y-2 text-xs",
+          isOpening ? "bg-slate-50 border-slate-300" : "bg-card border-slate-200"
+        )}>
           <div className="flex justify-between items-center">
             <span className="text-slate-900 font-semibold">{formatStatementDate(txn.dateTime)}</span>
             <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-900 border border-slate-300">
-              {getTypeLabel(txn)} {txn.voucherNo ? `(${txn.voucherNo})` : ""}
+              {getTypeLabel(txn)} {txn.voucherNo && txn.voucherNo !== "-" ? `(${txn.voucherNo})` : ""}
             </span>
           </div>
           {txn.description && (
@@ -320,7 +324,7 @@ export function BankAccountStatementModal({
             <div className="text-right">
               <span className="text-slate-700 font-medium mr-1">{t("balance") || "Balance"}:</span>
               <span className="text-slate-900 font-bold">
-                {formatCurrency(Math.abs(txn.balance))} {isDr ? "(Dr)" : "(Cr)"}
+                {formatCurrency(Math.abs(txn.balance))} {isCr ? "(Cr)" : "(Dr)"}
               </span>
             </div>
           </div>
@@ -366,7 +370,7 @@ export function BankAccountStatementModal({
       },
       {
         id: "voucher",
-        header: t("orderId") || "Voucher #",
+        header: t("voucher") || "Voucher #",
         width: "90px",
         align: "center",
         render: (row) => row.voucherNo || "-",
@@ -406,10 +410,10 @@ export function BankAccountStatementModal({
         width: "120px",
         align: "right",
         render: (row) => {
-          const isDr = row.balance < 0;
+          const isCr = row.balance < 0;
           return (
             <span className="text-slate-900 font-bold">
-              {formatCurrency(Math.abs(row.balance))} {isDr ? "(Dr)" : "(Cr)"}
+              {formatCurrency(Math.abs(row.balance))} {isCr ? "(Cr)" : "(Dr)"}
             </span>
           );
         },
@@ -564,6 +568,33 @@ export function BankAccountStatementModal({
               renderMobileCard={renderMobileCard}
               emptyMessage={t("noTransactions") || "No transactions found for the selected period."}
             />
+
+            {/* Statement Grand Footer Summary */}
+            {summary && transactions.length > 0 && (
+              <Card className="border border-slate-200 bg-slate-50 p-4 shadow-sm rounded-xl">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold uppercase">
+                  <span className="text-slate-800 font-bold text-[11px] tracking-wide">
+                    Total Records: {transactions.length} Transactions
+                  </span>
+                  <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                    <div>
+                      <span className="text-slate-700 font-semibold">{tBank("totalDebitIn") || "Total Debit"}:</span>
+                      <span className="ml-1.5 text-slate-900 font-bold">{formatCurrency(summary.totalIn)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-700 font-semibold">{tBank("totalCreditOut") || "Total Credit"}:</span>
+                      <span className="ml-1.5 text-slate-900 font-bold">{formatCurrency(summary.totalOut)}</span>
+                    </div>
+                    <div className="pl-4 sm:border-l sm:border-slate-300">
+                      <span className="text-slate-700 font-semibold">{t("closingBalance") || "Closing Balance"}:</span>
+                      <span className="ml-1.5 text-slate-900 font-bold">
+                        {formatCurrency(Math.abs(summary.currentBalance))} {summary.currentBalance < 0 ? "(Cr)" : "(Dr)"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         )}
 

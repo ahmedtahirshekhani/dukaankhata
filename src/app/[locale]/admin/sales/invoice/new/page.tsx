@@ -638,11 +638,12 @@ export default function NewInvoicePage() {
   };
 
   const executeCreateOrder = async () => {
+    const saleDateISO = selectedDate ? (selectedDate.includes('T') ? selectedDate : `${selectedDate}T12:00:00.000Z`) : new Date().toISOString();
     if (isCashSale) {
       await handleCreateOrder({
         paidAmount: Math.floor(finalTotal),
         paymentMethod: paymentMethod || "cash",
-        paidDate: new Date().toISOString(),
+        paidDate: saleDateISO,
         noPaymentAtAll: false,
       });
     } else {
@@ -650,7 +651,7 @@ export default function NewInvoicePage() {
       await handleCreateOrder({
         paidAmount: pAmount > 0 ? pAmount : 0,
         paymentMethod: pAmount > 0 ? paymentMethod : "",
-        paidDate: new Date().toISOString(),
+        paidDate: saleDateISO,
         noPaymentAtAll: pAmount === 0,
       });
     }

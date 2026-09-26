@@ -39,15 +39,15 @@ function asISO(value: unknown): string {
 }
 
 function parseDateRange(fromDate: string, toDate: string) {
-  const from = new Date(fromDate);
-  const to = new Date(toDate);
+  const [fY, fM, fD] = fromDate.split("-").map(Number);
+  const [tY, tM, tD] = toDate.split("-").map(Number);
 
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+  if (!fY || !fM || !fD || !tY || !tM || !tD) {
     throw new Error("Invalid date range");
   }
 
-  from.setHours(0, 0, 0, 0);
-  to.setHours(23, 59, 59, 999);
+  const from = new Date(fY, fM - 1, fD, 0, 0, 0, 0);
+  const to = new Date(tY, tM - 1, tD, 23, 59, 59, 999);
 
   if (from.getTime() > to.getTime()) {
     throw new Error("fromDate cannot be greater than toDate");
@@ -110,8 +110,59 @@ export async function GET(request: NextRequest) {
     const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
     const paymentMethodsCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
 
+    // Auto-sync any mismatched order_payment_credit dates with their parent order's effective_at / sale_date
+    try {
+      const mismatchedOrderPayments = await ledgerCollection.aggregate([
+        {
+          $match: {
+            user_id: userId,
+            $or: [{ party_id: customerObjId }, { customer_id: customerObjId }],
+            event_type: "order_payment_credit"
+          }
+        },
+        {
+          $lookup: {
+            from: COLLECTIONS.PARTY_LEDGER_ENTRIES,
+            let: { orderId: "$event_source_id", uId: "$user_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$user_id", "$$uId"] },
+                      { $eq: ["$event_source_id", "$$orderId"] },
+                      { $eq: ["$event_type", "order_debit"] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "orderDebitEntry"
+          }
+        },
+        { $unwind: "$orderDebitEntry" },
+        {
+          $match: {
+            $expr: { $ne: ["$effective_at", "$orderDebitEntry.effective_at"] }
+          }
+        }
+      ]).toArray();
+
+      if (mismatchedOrderPayments.length > 0) {
+        const bulkOps = mismatchedOrderPayments.map((pm: any) => ({
+          updateOne: {
+            filter: { _id: pm._id },
+            update: { $set: { effective_at: pm.orderDebitEntry.effective_at } }
+          }
+        }));
+        await ledgerCollection.bulkWrite(bulkOps);
+      }
+    } catch (syncErr) {
+      console.error("Error auto-syncing ledger payment dates:", syncErr);
+    }
+
     // Parallel queries
-    const [customer, userDoc, rangeEntries, balanceState, openingBalanceAgg, paymentMethodsDocs] = await Promise.all([
+    const [customer, userDoc, rangeEntries, priorAgg, paymentMethodsDocs] = await Promise.all([
       customersCollection.findOne(
         { _id: customerObjId, user_id: userId },
         {
@@ -145,36 +196,45 @@ export async function GET(request: NextRequest) {
           }
         ])
         .toArray(),
-      balanceStateCollection.findOne(
-        {
-          user_id: userId,
-          $or: [
-            { party_id: customerObjId },
-            { customer_id: customerObjId }
-          ]
-        },
-        { projection: { current_balance: 1 } }
-      ),
-      ledgerCollection.findOne(
-        {
-          user_id: userId,
-          $or: [
-            { party_id: customerObjId },
-            { customer_id: customerObjId }
-          ],
-          effective_at: { $lt: from },
-        },
-        {
-          sort: { effective_at: -1, created_at: -1 },
-          projection: { running_balance: 1 },
-        }
-      ),
+      ledgerCollection
+        .aggregate<{ _id: null; totalDelta: number; hasOpeningEntry: number }>([
+          {
+            $match: {
+              user_id: userId,
+              $or: [
+                { party_id: customerObjId },
+                { customer_id: customerObjId }
+              ],
+              effective_at: { $lt: from },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalDelta: { $sum: "$amount_delta" },
+              hasOpeningEntry: {
+                $sum: {
+                  $cond: [{ $eq: ["$event_type", "opening_balance"] }, 1, 0]
+                }
+              }
+            }
+          }
+        ])
+        .toArray(),
       paymentMethodsCollection.find({ user_id: userId }).toArray()
     ]);
 
-    const openingBalance = Number(
-      openingBalanceAgg?.running_balance ?? customer?.opening_balance ?? 0
-    );
+    // Calculate opening balance before 'from' date
+    let openingBalance = 0;
+    if (priorAgg.length > 0) {
+      if (priorAgg[0].hasOpeningEntry > 0) {
+        openingBalance = Number(priorAgg[0].totalDelta || 0);
+      } else {
+        openingBalance = Number(customer?.opening_balance ?? 0) + Number(priorAgg[0].totalDelta || 0);
+      }
+    } else {
+      openingBalance = Number(customer?.opening_balance ?? 0);
+    }
 
     const paymentMethodMap = new Map<string, string>([
       ['cash', 'Cash'],
@@ -186,297 +246,234 @@ export async function GET(request: NextRequest) {
       (entry) => entry.event_type !== "opening_balance"
     );
 
-    // Pre-process entries to collapse order edits and sale return edits
-    const processedEntries: LedgerEntryDoc[] = [];
-    const orderOriginals = new Map<string, LedgerEntryDoc>();
-    const orderAdjustments = new Map<string, LedgerEntryDoc>();
-    const srCreditOriginals = new Map<string, LedgerEntryDoc>();
-    const srCreditAdjustments = new Map<string, LedgerEntryDoc>();
-    const srDebitOriginals = new Map<string, LedgerEntryDoc>();
-    const srDebitAdjustments = new Map<string, LedgerEntryDoc>();
-    
-    const paymentInOriginals = new Map<string, LedgerEntryDoc>();
-    const paymentInAdjustments = new Map<string, LedgerEntryDoc>();
-    const paymentOutOriginals = new Map<string, LedgerEntryDoc>();
-    const paymentOutAdjustments = new Map<string, LedgerEntryDoc>();
-    
-    const pbDebitOriginals = new Map<string, LedgerEntryDoc>();
-    const pbDebitAdjustments = new Map<string, LedgerEntryDoc>();
-    const pbCreditOriginals = new Map<string, LedgerEntryDoc>();
-    const pbCreditAdjustments = new Map<string, LedgerEntryDoc>();
+    // Two-pass folding to ensure order-independence
+    // Step 1: Pre-index entries by event_source_id
+    const orderDebits = new Map<string, LedgerEntryDoc>();
+    const orderPaymentCredits = new Map<string, LedgerEntryDoc[]>();
+    const orderAdjustmentsMap = new Map<string, LedgerEntryDoc[]>();
+
+    const pbDebits = new Map<string, LedgerEntryDoc>();
+    const pbCredits = new Map<string, LedgerEntryDoc[]>();
+    const pbAdjustmentsMap = new Map<string, LedgerEntryDoc[]>();
+
+    const srCredits = new Map<string, LedgerEntryDoc>();
+    const srDebits = new Map<string, LedgerEntryDoc[]>();
+    const srAdjustmentsMap = new Map<string, LedgerEntryDoc[]>();
 
     for (const entry of rawEntries) {
       const sourceIdStr = entry.event_source_id?.toString();
       const eventKeyStr = entry.event_key || "";
 
-      // Order Folding
       if (entry.event_type === "order_debit" && sourceIdStr) {
-        const newEntry = { 
-          ...entry, 
-          metadata: { 
-            ...entry.metadata, 
-            total_amount: Number((entry.metadata as any)?.total_amount ?? entry.amount_delta) 
-          } 
-        };
-        orderOriginals.set(sourceIdStr, newEntry);
-        processedEntries.push(newEntry);
+        orderDebits.set(sourceIdStr, entry);
+      } else if (entry.event_type === "order_payment_credit" && sourceIdStr) {
+        if (!orderPaymentCredits.has(sourceIdStr)) orderPaymentCredits.set(sourceIdStr, []);
+        orderPaymentCredits.get(sourceIdStr)!.push(entry);
       } else if (
-        entry.event_type === "order_payment_credit" &&
+        entry.event_type === "manual_adjustment" &&
+        (eventKeyStr.startsWith("order_update_") || eventKeyStr.startsWith("order_delete_") || eventKeyStr.startsWith("order_")) &&
         sourceIdStr
       ) {
-        if (orderOriginals.has(sourceIdStr)) {
-          // Fold payment into original order so invoice shows in one row with debit and credit
-          const orig = orderOriginals.get(sourceIdStr)!;
-          const paidAmt = Math.abs(Number(entry.amount_delta));
-          orig.metadata = {
-            ...orig.metadata,
+        if (!orderAdjustmentsMap.has(sourceIdStr)) orderAdjustmentsMap.set(sourceIdStr, []);
+        orderAdjustmentsMap.get(sourceIdStr)!.push(entry);
+      } else if (entry.event_type === "purchase_bill_debit" && sourceIdStr) {
+        pbDebits.set(sourceIdStr, entry);
+      } else if (entry.event_type === "purchase_bill_credit" && sourceIdStr) {
+        if (!pbCredits.has(sourceIdStr)) pbCredits.set(sourceIdStr, []);
+        pbCredits.get(sourceIdStr)!.push(entry);
+      } else if (
+        entry.event_type === "manual_adjustment" &&
+        (eventKeyStr.startsWith("purchase_bill_") || eventKeyStr.startsWith("purchase_bill_payment_")) &&
+        sourceIdStr
+      ) {
+        if (!pbAdjustmentsMap.has(sourceIdStr)) pbAdjustmentsMap.set(sourceIdStr, []);
+        pbAdjustmentsMap.get(sourceIdStr)!.push(entry);
+      } else if (entry.event_type === "sale_return_credit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
+        srCredits.set(sourceIdStr, entry);
+      } else if (entry.event_type === "sale_return_debit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
+        if (!srDebits.has(sourceIdStr)) srDebits.set(sourceIdStr, []);
+        srDebits.get(sourceIdStr)!.push(entry);
+      } else if (
+        (entry.event_type === "sale_return_credit" || entry.event_type === "sale_return_debit") &&
+        eventKeyStr.startsWith("sale_return_update") &&
+        sourceIdStr
+      ) {
+        if (!srAdjustmentsMap.has(sourceIdStr)) srAdjustmentsMap.set(sourceIdStr, []);
+        srAdjustmentsMap.get(sourceIdStr)!.push(entry);
+      }
+    }
+
+    // Step 2: Build processedEntries
+    const processedEntries: LedgerEntryDoc[] = [];
+    const foldedEntryIds = new Set<string>();
+
+    for (const entry of rawEntries) {
+      const entryIdStr = entry._id.toString();
+      if (foldedEntryIds.has(entryIdStr)) continue;
+
+      const sourceIdStr = entry.event_source_id?.toString();
+      const eventKeyStr = entry.event_key || "";
+
+      // Order Debit
+      if (entry.event_type === "order_debit" && sourceIdStr) {
+        let totalAmt = Number((entry.metadata as any)?.total_amount ?? entry.amount_delta);
+        let paidAmt = 0;
+        let paymentMethodId = (entry.metadata as any)?.payment_method_id;
+        let isDeleted = false;
+
+        // Fold order_payment_credits
+        const pmCredits = orderPaymentCredits.get(sourceIdStr) || [];
+        for (const pm of pmCredits) {
+          paidAmt += Math.abs(Number(pm.amount_delta));
+          paymentMethodId = (pm.metadata as any)?.payment_method_id || paymentMethodId;
+          foldedEntryIds.add(pm._id.toString());
+        }
+
+        // Fold order adjustments
+        const adjs = orderAdjustmentsMap.get(sourceIdStr) || [];
+        for (const adj of adjs) {
+          const adjKey = adj.event_key || "";
+          if (adjKey.startsWith("order_delete_reverse") || (adj.metadata as any)?.reason === "order_deleted") {
+            isDeleted = true;
+          } else if ((adj.metadata as any)?.newTotal !== undefined) {
+            totalAmt = Number((adj.metadata as any).newTotal);
+            paidAmt = Number((adj.metadata as any).newPaid || 0);
+          }
+          foldedEntryIds.add(adj._id.toString());
+        }
+
+        const newEntry: LedgerEntryDoc = {
+          ...entry,
+          amount_delta: totalAmt - paidAmt,
+          metadata: {
+            ...entry.metadata,
+            total_amount: totalAmt,
             paid_amount: paidAmt,
-            payment_method_id: (entry.metadata as any)?.payment_method_id
-          };
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-        } else {
+            payment_method_id: paymentMethodId,
+            is_deleted: isDeleted,
+          }
+        };
+        processedEntries.push(newEntry);
+      }
+      // Unfolded order payment credit (original order outside date range)
+      else if (entry.event_type === "order_payment_credit" && sourceIdStr) {
+        if (!orderDebits.has(sourceIdStr)) {
           processedEntries.push(entry);
         }
-      } else if (
-        entry.event_type === "manual_adjustment" && 
-        (eventKeyStr.startsWith("order_update_reverse") || eventKeyStr.startsWith("order_update_apply")) &&
-        (eventKeyStr.startsWith("order_update_reverse") || eventKeyStr.startsWith("order_update_apply") || eventKeyStr.startsWith("order_delete_reverse") || eventKeyStr.startsWith("order_")) &&
+      }
+      // Unfolded order adjustment (original order outside date range)
+      else if (
+        entry.event_type === "manual_adjustment" &&
+        (eventKeyStr.startsWith("order_update_") || eventKeyStr.startsWith("order_delete_") || eventKeyStr.startsWith("order_")) &&
         sourceIdStr
       ) {
-        if (orderOriginals.has(sourceIdStr)) {
-          // Fold into original order within the same date range
-          const orig = orderOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-          if (eventKeyStr.startsWith("order_delete_reverse") || (entry.metadata as any)?.reason === "order_deleted") {
-            orig.metadata = {
-              ...orig.metadata,
-              is_deleted: true,
-              total_amount: 0,
-              paid_amount: 0,
-            };
-          } else if ((entry.metadata as any)?.newTotal !== undefined) {
-            orig.metadata = {
-              ...orig.metadata,
-              total_amount: (entry.metadata as any).newTotal,
-              paid_amount: (entry.metadata as any).newPaid,
-            };
-          }
-        } else {
-          // Fold into a single adjustment entry for this order (original order is outside date range)
-          if (orderAdjustments.has(sourceIdStr)) {
-            const adj = orderAdjustments.get(sourceIdStr)!;
-            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
-          } else {
-            const adj = { ...entry, event_key: "order_update_net", event_type: "manual_adjustment" };
-            orderAdjustments.set(sourceIdStr, adj);
-            processedEntries.push(adj);
-          }
-        }
-      } 
-      // Sale Return Credit Folding
-      else if (entry.event_type === "sale_return_credit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        const totalAmt = Math.abs(Number((entry.metadata as any)?.total_amount ?? entry.amount_delta));
-        const newEntry = { 
-          ...entry,
-          amount_delta: -totalAmt,
-          metadata: { 
-            ...entry.metadata, 
-            total_amount: totalAmt 
-          } 
-        };
-        srCreditOriginals.set(sourceIdStr, newEntry);
-        processedEntries.push(newEntry);
-      } else if (
-        entry.event_type === "sale_return_credit" && 
-        (eventKeyStr.startsWith("sale_return_update_reversal_credit") || eventKeyStr.startsWith("sale_return_update_apply_credit")) &&
-        sourceIdStr
-      ) {
-        if (srCreditOriginals.has(sourceIdStr)) {
-          const orig = srCreditOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-        } else {
-          if (srCreditAdjustments.has(sourceIdStr)) {
-            const adj = srCreditAdjustments.get(sourceIdStr)!;
-            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
-          } else {
-            const adj = { ...entry, event_key: "sale_return_credit_net" };
-            srCreditAdjustments.set(sourceIdStr, adj);
-            processedEntries.push(adj);
-          }
+        if (!orderDebits.has(sourceIdStr)) {
+          processedEntries.push({ ...entry, event_key: "order_update_net", event_type: "manual_adjustment" });
         }
       }
-      // Sale Return Debit (Refund) Folding
-      else if (entry.event_type === "sale_return_debit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        if (srCreditOriginals.has(sourceIdStr)) {
-          // Fold refund directly into the sale return entry
-          const orig = srCreditOriginals.get(sourceIdStr)!;
-          const refundAmt = Math.abs(Number((entry.metadata as any)?.paid_amount ?? entry.amount_delta));
-          orig.metadata = {
-            ...orig.metadata,
+      // Purchase Bill Debit
+      else if (entry.event_type === "purchase_bill_debit" && sourceIdStr) {
+        let totalAmt = Number((entry.metadata as any)?.total_amount ?? Math.abs(entry.amount_delta));
+        let paidAmt = 0;
+        let paymentMethodId = (entry.metadata as any)?.payment_method_id;
+        let isDeleted = false;
+
+        const pmCredits = pbCredits.get(sourceIdStr) || [];
+        for (const pm of pmCredits) {
+          paidAmt += Math.abs(Number((pm.metadata as any)?.paid_amount ?? pm.amount_delta));
+          paymentMethodId = (pm.metadata as any)?.payment_method_id || paymentMethodId;
+          foldedEntryIds.add(pm._id.toString());
+        }
+
+        const adjs = pbAdjustmentsMap.get(sourceIdStr) || [];
+        for (const adj of adjs) {
+          const adjKey = adj.event_key || "";
+          if (adjKey.startsWith("purchase_bill_delete_") || (adj.metadata as any)?.note?.includes("deletion")) {
+            isDeleted = true;
+          }
+          foldedEntryIds.add(adj._id.toString());
+        }
+
+        const newEntry: LedgerEntryDoc = {
+          ...entry,
+          amount_delta: -(totalAmt - paidAmt),
+          metadata: {
+            ...entry.metadata,
+            total_amount: totalAmt,
+            paid_amount: paidAmt,
+            payment_method_id: paymentMethodId,
+            is_deleted: isDeleted,
+          }
+        };
+        processedEntries.push(newEntry);
+      }
+      // Unfolded purchase bill payment credit
+      else if (entry.event_type === "purchase_bill_credit" && sourceIdStr) {
+        if (!pbDebits.has(sourceIdStr)) {
+          const paidAmt = Math.abs(Number((entry.metadata as any)?.paid_amount ?? entry.amount_delta));
+          processedEntries.push({ ...entry, amount_delta: paidAmt });
+        }
+      }
+      // Unfolded purchase bill adjustment
+      else if (
+        entry.event_type === "manual_adjustment" &&
+        (eventKeyStr.startsWith("purchase_bill_") || eventKeyStr.startsWith("purchase_bill_payment_")) &&
+        sourceIdStr
+      ) {
+        if (!pbDebits.has(sourceIdStr)) {
+          processedEntries.push({ ...entry, event_key: "purchase_bill_debit_net", event_type: "manual_adjustment" });
+        }
+      }
+      // Sale Return Credit
+      else if (entry.event_type === "sale_return_credit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
+        let totalAmt = Math.abs(Number((entry.metadata as any)?.total_amount ?? entry.amount_delta));
+        let refundAmt = 0;
+        let paymentMethodId = (entry.metadata as any)?.payment_method_id;
+        let isDeleted = Boolean((entry.metadata as any)?.is_deleted);
+
+        const refunds = srDebits.get(sourceIdStr) || [];
+        for (const rf of refunds) {
+          refundAmt += Math.abs(Number((rf.metadata as any)?.paid_amount ?? rf.amount_delta));
+          paymentMethodId = (rf.metadata as any)?.payment_method_id || paymentMethodId;
+          foldedEntryIds.add(rf._id.toString());
+        }
+
+        const adjs = srAdjustmentsMap.get(sourceIdStr) || [];
+        for (const adj of adjs) {
+          foldedEntryIds.add(adj._id.toString());
+        }
+
+        const newEntry: LedgerEntryDoc = {
+          ...entry,
+          amount_delta: -(totalAmt - refundAmt),
+          metadata: {
+            ...entry.metadata,
+            total_amount: totalAmt,
             paid_amount: refundAmt,
             refund_amount: refundAmt,
-            payment_method_id: (entry.metadata as any)?.payment_method_id
-          };
-          orig.amount_delta = Number(orig.amount_delta) + refundAmt;
-        } else {
-          const newEntry = { ...entry };
-          srDebitOriginals.set(sourceIdStr, newEntry);
-          processedEntries.push(newEntry);
-        }
-      } else if (
-        entry.event_type === "sale_return_debit" && 
-        (eventKeyStr.startsWith("sale_return_update_reversal_debit") || eventKeyStr.startsWith("sale_return_update_apply_debit")) &&
-        sourceIdStr
-      ) {
-        if (srCreditOriginals.has(sourceIdStr)) {
-          const orig = srCreditOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-        } else if (srDebitOriginals.has(sourceIdStr)) {
-          const orig = srDebitOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-        } else {
-          if (srDebitAdjustments.has(sourceIdStr)) {
-            const adj = srDebitAdjustments.get(sourceIdStr)!;
-            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
-          } else {
-            const adj = { ...entry, event_key: "sale_return_debit_net" };
-            srDebitAdjustments.set(sourceIdStr, adj);
-            processedEntries.push(adj);
+            payment_method_id: paymentMethodId,
+            is_deleted: isDeleted,
           }
-        }
-      } 
-      // Payment In Folding
-      else if (entry.event_type === "payment_in_credit" && sourceIdStr) {
-        if (!paymentInOriginals.has(sourceIdStr)) {
-          const newEntry = { ...entry };
-          paymentInOriginals.set(sourceIdStr, newEntry);
-          processedEntries.push(newEntry);
-        } else {
-          const orig = paymentInOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-          if (entry.metadata) orig.metadata = { ...orig.metadata, ...entry.metadata };
-          orig.effective_at = entry.effective_at;
-        }
-      } else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("payment_in_") || (entry.metadata as any)?.old_type === "payment-in" || (entry.metadata as any)?.type === "payment-in") &&
-        sourceIdStr
-      ) {
-        if (paymentInOriginals.has(sourceIdStr)) {
-          const orig = paymentInOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-        } else {
-          if (paymentInAdjustments.has(sourceIdStr)) {
-            const adj = paymentInAdjustments.get(sourceIdStr)!;
-            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
-          } else {
-            const adj = { ...entry, event_key: "payment_in_net", event_type: "manual_adjustment" };
-            paymentInAdjustments.set(sourceIdStr, adj);
-            processedEntries.push(adj);
-          }
+        };
+        processedEntries.push(newEntry);
+      }
+      // Unfolded sale return debit (refund)
+      else if (entry.event_type === "sale_return_debit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
+        if (!srCredits.has(sourceIdStr)) {
+          processedEntries.push(entry);
         }
       }
-      // Payment Out Folding
-      else if (entry.event_type === "payment_out_debit" && sourceIdStr) {
-        if (!paymentOutOriginals.has(sourceIdStr)) {
-          const newEntry = { ...entry };
-          paymentOutOriginals.set(sourceIdStr, newEntry);
-          processedEntries.push(newEntry);
-        } else {
-          const orig = paymentOutOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-          if (entry.metadata) orig.metadata = { ...orig.metadata, ...entry.metadata };
-          orig.effective_at = entry.effective_at;
-        }
-      } else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("payment_out_") || (entry.metadata as any)?.old_type === "payment-out" || (entry.metadata as any)?.type === "payment-out") &&
+      // Unfolded sale return adjustment
+      else if (
+        (entry.event_type === "sale_return_credit" || entry.event_type === "sale_return_debit") &&
+        eventKeyStr.startsWith("sale_return_update") &&
         sourceIdStr
       ) {
-        if (paymentOutOriginals.has(sourceIdStr)) {
-          const orig = paymentOutOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-        } else {
-          if (paymentOutAdjustments.has(sourceIdStr)) {
-            const adj = paymentOutAdjustments.get(sourceIdStr)!;
-            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
-          } else {
-            const adj = { ...entry, event_key: "payment_out_net", event_type: "manual_adjustment" };
-            paymentOutAdjustments.set(sourceIdStr, adj);
-            processedEntries.push(adj);
-          }
+        if (!srCredits.has(sourceIdStr) && !srDebits.has(sourceIdStr)) {
+          processedEntries.push(entry);
         }
       }
-      // Purchase Bill Debit Folding
-      else if (entry.event_type === "purchase_bill_debit" && sourceIdStr) {
-        if (!pbDebitOriginals.has(sourceIdStr)) {
-          const totalAmt = Number((entry.metadata as any)?.total_amount ?? Math.abs(entry.amount_delta));
-          const newEntry = { 
-            ...entry,
-            amount_delta: -totalAmt,
-            metadata: { 
-              ...entry.metadata, 
-              total_amount: totalAmt 
-            } 
-          };
-          pbDebitOriginals.set(sourceIdStr, newEntry);
-          processedEntries.push(newEntry);
-        } else {
-          const orig = pbDebitOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-          if (entry.metadata) orig.metadata = { ...orig.metadata, ...entry.metadata };
-          orig.effective_at = entry.effective_at;
-        }
-      } else if (
-        entry.event_type === "purchase_bill_credit" &&
-        sourceIdStr
-      ) {
-        if (pbDebitOriginals.has(sourceIdStr)) {
-          // Fold payment into original purchase bill
-          const orig = pbDebitOriginals.get(sourceIdStr)!;
-          const paidAmt = Math.abs(Number((entry.metadata as any)?.paid_amount ?? entry.amount_delta));
-          orig.metadata = {
-            ...orig.metadata,
-            paid_amount: paidAmt,
-            payment_method_id: (entry.metadata as any)?.payment_method_id
-          };
-          orig.amount_delta = Number(orig.amount_delta) + paidAmt;
-        } else {
-          const paidAmt = Math.abs(Number((entry.metadata as any)?.paid_amount ?? entry.amount_delta));
-          processedEntries.push({
-            ...entry,
-            amount_delta: paidAmt,
-          });
-        }
-      } else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("purchase_bill_revert_") || eventKeyStr.startsWith("purchase_bill_payment_revert_") || eventKeyStr.startsWith("purchase_bill_")) &&
-        (eventKeyStr.startsWith("purchase_bill_revert_") || eventKeyStr.startsWith("purchase_bill_payment_revert_") || eventKeyStr.startsWith("purchase_bill_delete_") || eventKeyStr.startsWith("purchase_bill_payment_delete_") || eventKeyStr.startsWith("purchase_bill_")) &&
-        sourceIdStr
-      ) {
-        if (pbDebitOriginals.has(sourceIdStr)) {
-          const orig = pbDebitOriginals.get(sourceIdStr)!;
-          orig.amount_delta = Number(orig.amount_delta) + Number(entry.amount_delta);
-          if (eventKeyStr.startsWith("purchase_bill_delete_") || (entry.metadata as any)?.note?.includes("deletion")) {
-            orig.metadata = {
-              ...orig.metadata,
-              is_deleted: true,
-              total_amount: 0,
-              paid_amount: 0,
-            };
-          }
-        } else {
-          if (pbDebitAdjustments.has(sourceIdStr)) {
-            const adj = pbDebitAdjustments.get(sourceIdStr)!;
-            adj.amount_delta = Number(adj.amount_delta) + Number(entry.amount_delta);
-          } else {
-            const adj = { ...entry, event_key: "purchase_bill_debit_net", event_type: "manual_adjustment" };
-            pbDebitAdjustments.set(sourceIdStr, adj);
-            processedEntries.push(adj);
-          }
-        }
-      }
-      // All other entries
+      // All other entries (Payment-In, Payment-Out, etc.)
       else {
         processedEntries.push(entry);
       }
@@ -487,8 +484,7 @@ export async function GET(request: NextRequest) {
         e.event_type === "order_debit" ||
         e.event_type === "purchase_bill_debit" ||
         e.event_type === "sale_return_credit" ||
-        !(e.metadata as any)?.is_deleted &&
-        Math.abs(Number(e.amount_delta)) >= 0.01
+        (!(e.metadata as any)?.is_deleted && Math.abs(Number(e.amount_delta)) >= 0.01)
     );
 
     const orderIds = entries
@@ -695,13 +691,10 @@ export async function GET(request: NextRequest) {
           credit = 0;
           amount = 0;
         } else {
-          const totalAmount = Number(sourceOrder?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
-          const paidAmount = Number(sourceOrder?.payment?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
-          const balanceDue = sourceOrder?.balance_due !== undefined 
-            ? Number(sourceOrder.balance_due) 
-            : Math.max(0, totalAmount - paidAmount);
-          debit = balanceDue;
-          credit = 0;
+          const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceOrder?.total_amount ?? Math.abs(amountDelta));
+          const paidAmount = Number((entry.metadata as any)?.paid_amount ?? 0);
+          debit = totalAmount;
+          credit = paidAmount;
           amount = totalAmount;
         }
       } else if (isPurchaseBillDebit) {
@@ -710,13 +703,10 @@ export async function GET(request: NextRequest) {
           credit = 0;
           amount = 0;
         } else {
-          const totalAmount = Number(sourcePurchaseBill?.total_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
-          const paidAmount = Number(sourcePurchaseBill?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
-          const balanceDue = sourcePurchaseBill?.balance_due !== undefined 
-            ? Number(sourcePurchaseBill.balance_due) 
-            : Math.max(0, totalAmount - paidAmount);
-          debit = 0;
-          credit = balanceDue;
+          const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourcePurchaseBill?.total_amount ?? Math.abs(amountDelta));
+          const paidAmount = Number((entry.metadata as any)?.paid_amount ?? 0);
+          debit = paidAmount;
+          credit = totalAmount;
           amount = totalAmount;
         }
       } else if (isSaleReturnCredit) {
@@ -725,13 +715,10 @@ export async function GET(request: NextRequest) {
           credit = 0;
           amount = 0;
         } else {
-          const totalAmount = Number(sourceSaleReturn?.total_amount ?? sourceSaleReturn?.payment_amount ?? (entry.metadata as any)?.total_amount ?? Math.abs(amountDelta));
-          const paidAmount = Number(sourceSaleReturn?.paid_amount ?? (entry.metadata as any)?.paid_amount ?? (entry.metadata as any)?.refund_amount ?? 0);
-          const balanceDue = sourceSaleReturn?.balance_due !== undefined 
-            ? Number(sourceSaleReturn.balance_due) 
-            : Math.max(0, totalAmount - paidAmount);
-          debit = 0;
-          credit = balanceDue;
+          const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceSaleReturn?.total_amount ?? Math.abs(amountDelta));
+          const refundAmount = Number((entry.metadata as any)?.refund_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
+          debit = refundAmount;
+          credit = totalAmount;
           amount = totalAmount;
         }
       } else if (isPaymentOutDebit || isSaleReturnDebit || isPurchaseBillCredit) {
@@ -795,7 +782,7 @@ export async function GET(request: NextRequest) {
       amount: Math.abs(openingBalance),
       debit: openingBalance > 0 ? Math.abs(openingBalance) : 0,
       credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
-      orderId: null, // Removed hardcoded OP-76
+      orderId: null,
       dateTime: openingDate,
       balance: openingBalance,
     };
@@ -809,11 +796,9 @@ export async function GET(request: NextRequest) {
       .reduce((sum, t) => sum + (t.amount || t.credit || 0), 0);
 
     const totalPaymentsIn = transactions
-      .filter((t) => t.type === "payment_in")
       .reduce((sum, t) => sum + (t.credit || 0), 0);
 
     const totalPaymentsOut = transactions
-      .filter((t) => t.type === "payment_out" || t.type === "purchase_bill_payment")
       .reduce((sum, t) => sum + (t.debit || 0), 0);
 
     const currentBalance = runningBalance;
