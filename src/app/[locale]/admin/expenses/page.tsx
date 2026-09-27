@@ -39,6 +39,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/page-header";
 import { ExpenseCategorySelector, DEFAULT_EXPENSE_CATEGORIES } from "@/components/selectors/expense-category-selector";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -70,11 +71,6 @@ const generateObjectId = () => {
   const randomString = Math.random().toString(16).substring(2).padEnd(16, "0");
   return timestamp + randomString;
 };
-
-function formatNumber(value: number): string {
-  const normalized = Number(Number(value || 0).toFixed(2));
-  return normalized.toString();
-}
 
 function parseNumericInput(value: string): number {
   const parsed = Number(value);
@@ -421,7 +417,7 @@ export default function ExpensesPage() {
       className: "text-right",
       cell: (row) => (
         <span className="text-xs font-medium text-black dark:text-white">
-          Rs. {formatNumber(row.rate)}
+          {formatCurrency(row.rate)}
         </span>
       ),
     },
@@ -431,7 +427,7 @@ export default function ExpensesPage() {
       className: "text-right",
       cell: (row) => (
         <span className="text-xs font-semibold text-black dark:text-white">
-          Rs. {formatNumber(row.amount)}
+          {formatCurrency(row.amount)}
         </span>
       ),
     },
@@ -581,22 +577,20 @@ export default function ExpensesPage() {
         }}
       >
         <DialogContent className="max-w-xl w-[95vw] sm:w-full max-h-[90vh] flex flex-col p-0 gap-0 border rounded-xl shadow-xl overflow-hidden">
-          <DialogHeader className="px-4 sm:px-6 py-3.5 sm:py-4 border-b bg-muted/30 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div>
-                  <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
-                    {editingExpense ? t("editExpense") : t("addExpense")}
-                  </DialogTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {editingExpense
-                      ? editingExpense.expenseNumber
-                      : t("pageDescription")}
-                  </p>
-                </div>
+          <DialogHeader className="px-4 sm:px-6 py-3.5 sm:py-4 border-b bg-muted/30 shrink-0 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2.5 w-full">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div className="text-center sm:text-left">
+                <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
+                  {editingExpense ? t("editExpense") : t("addExpense")}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {editingExpense
+                    ? editingExpense.expenseNumber
+                    : t("pageDescription")}
+                </p>
               </div>
             </div>
           </DialogHeader>
@@ -678,7 +672,7 @@ export default function ExpensesPage() {
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <Label className="text-xs font-medium text-foreground">{t("amount")}</Label>
                 <div className="h-10 px-3 flex items-center rounded-md border bg-muted/40 text-xs font-semibold text-foreground">
-                  Rs. {formatNumber(calculatedAmount)}
+                  {formatCurrency(calculatedAmount)}
                 </div>
               </div>
             </div>
@@ -689,7 +683,7 @@ export default function ExpensesPage() {
                 {t("total")}
               </span>
               <span className="text-base sm:text-lg font-bold text-primary">
-                Rs. {formatNumber(calculatedAmount)}
+                {formatCurrency(calculatedAmount)}
               </span>
             </div>
           </div>
@@ -728,20 +722,18 @@ export default function ExpensesPage() {
       {/* View Expense Modal */}
       <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
         <DialogContent className="max-w-md w-[95vw] sm:w-full max-h-[90vh] flex flex-col p-0 gap-0 border rounded-xl shadow-xl overflow-hidden">
-          <DialogHeader className="px-4 sm:px-6 py-3.5 sm:py-4 border-b bg-muted/30 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div>
-                  <DialogTitle className="text-base font-semibold text-foreground">
-                    {t("expenseDetails")}
-                  </DialogTitle>
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                    {viewingExpense?.expenseNumber}
-                  </p>
-                </div>
+          <DialogHeader className="px-4 sm:px-6 py-3.5 sm:py-4 border-b bg-muted/30 shrink-0 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2.5 w-full">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div className="text-center sm:text-left">
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  {t("expenseDetails")}
+                </DialogTitle>
+                <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                  {viewingExpense?.expenseNumber}
+                </p>
               </div>
             </div>
           </DialogHeader>
@@ -782,7 +774,7 @@ export default function ExpensesPage() {
                   <div>
                     <span className="text-muted-foreground">{t("rate")}:</span>
                     <p className="font-semibold text-foreground mt-0.5">
-                      Rs. {formatNumber(viewingExpense.rate)}
+                      {formatCurrency(viewingExpense.rate)}
                     </p>
                   </div>
                 </div>
@@ -794,7 +786,7 @@ export default function ExpensesPage() {
                   {t("total")} {t("amount")}
                 </span>
                 <span className="text-lg sm:text-xl font-bold text-primary">
-                  Rs. {formatNumber(viewingExpense.amount)}
+                  {formatCurrency(viewingExpense.amount)}
                 </span>
               </div>
             </div>
@@ -921,7 +913,7 @@ function ExpenseCard({
         <div className="flex justify-between items-center text-xs">
           <span>
             <span className="text-black dark:text-white font-medium">{t("rate")}: </span>
-            <span className="font-semibold text-black dark:text-white">Rs. {formatNumber(expense.rate)}</span>
+            <span className="font-semibold text-black dark:text-white">{formatCurrency(expense.rate)}</span>
           </span>
           <span>
             <span className="text-black dark:text-white font-medium">{t("qty")}: </span>
@@ -933,7 +925,7 @@ function ExpenseCard({
         <div className="flex justify-between items-center text-xs pt-1.5 border-t border-border/50">
           <span className="text-black dark:text-white font-semibold">{t("amount")}:</span>
           <span className="font-bold text-black dark:text-white text-sm">
-            Rs. {formatNumber(expense.amount)}
+            {formatCurrency(expense.amount)}
           </span>
         </div>
       </div>

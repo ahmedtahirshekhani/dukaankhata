@@ -4,7 +4,7 @@ import React, { useMemo, useCallback } from "react";
 import { ColumnDef } from "@/components/ui/data-table";
 import { TableRowActions, TableRowActionItem } from "@/components/ui/table-row-actions";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
-import { maskInvoiceNo, cn } from "@/lib/utils";
+import { maskInvoiceNo, cn, formatCurrency } from "@/lib/utils";
 import { Receipt } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export function useDashboardTableLayout({
         cell: (row) =>
           isPrivacyMode
             ? "***"
-            : `PKR ${Math.round(row.balance).toLocaleString()}`,
+            : formatCurrency(row.balance),
         sortable: true,
       },
       {
@@ -100,7 +100,7 @@ export function useDashboardTableLayout({
         cell: (row) =>
           isPrivacyMode
             ? "***"
-            : `PKR ${Math.round(row.total).toLocaleString()}`,
+            : formatCurrency(row.total),
       },
       {
         id: "paid",
@@ -108,7 +108,7 @@ export function useDashboardTableLayout({
         cell: (row) =>
           isPrivacyMode
             ? "***"
-            : `PKR ${Math.round(row.paid).toLocaleString()}`,
+            : formatCurrency(row.paid),
       },
       {
         id: "balance",
@@ -116,7 +116,7 @@ export function useDashboardTableLayout({
         cell: (row) =>
           isPrivacyMode
             ? "***"
-            : `PKR ${Math.round(row.balance).toLocaleString()}`,
+            : formatCurrency(row.balance),
       },
       { id: "date", header: tDash("date") || "Date", accessorKey: "date" },
     ],
@@ -134,7 +134,7 @@ export function useDashboardTableLayout({
         cell: (row) =>
           isPrivacyMode
             ? "***"
-            : `PKR ${Math.round(row.price).toLocaleString()}`,
+            : formatCurrency(row.price),
       },
     ],
     [tDash, isPrivacyMode]
@@ -171,7 +171,7 @@ export function useDashboardTableLayout({
         <div className="text-sm">
           <p>
             <span className="text-muted-foreground">{tDash("balance") || "Balance"}:</span>{" "}
-            {isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}
+            {isPrivacyMode ? "***" : formatCurrency(row.balance)}
           </p>
         </div>
       </Card>
@@ -193,10 +193,10 @@ export function useDashboardTableLayout({
         </div>
         <div className="space-y-1 text-sm">
           <p><span className="text-muted-foreground">{tDash("customer") || "Customer"}:</span> {row.customerName}</p>
-          <p><span className="text-muted-foreground">{tDash("total") || "Total"}:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.total).toLocaleString()}`}</p>
+          <p><span className="text-muted-foreground">{tDash("total") || "Total"}:</span> {isPrivacyMode ? "***" : formatCurrency(row.total)}</p>
           <div className="flex justify-between items-center gap-2">
-            <p><span className="text-muted-foreground">{tDash("paid") || "Paid"}:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.paid).toLocaleString()}`}</p>
-            <p><span className="text-muted-foreground">{tDash("balance") || "Balance"}:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.balance).toLocaleString()}`}</p>
+            <p><span className="text-muted-foreground">{tDash("paid") || "Paid"}:</span> {isPrivacyMode ? "***" : formatCurrency(row.paid)}</p>
+            <p><span className="text-muted-foreground">{tDash("balance") || "Balance"}:</span> {isPrivacyMode ? "***" : formatCurrency(row.balance)}</p>
           </div>
         </div>
       </Card>
@@ -213,7 +213,7 @@ export function useDashboardTableLayout({
         </div>
         <div className="flex justify-between items-center text-sm">
           <p><span className="text-muted-foreground">{tDash("stock") || "Stock"}:</span> {row.stock}</p>
-          <p><span className="text-muted-foreground">{tDash("price") || "Price"}:</span> {isPrivacyMode ? "***" : `PKR ${Math.round(row.price).toLocaleString()}`}</p>
+          <p><span className="text-muted-foreground">{tDash("price") || "Price"}:</span> {isPrivacyMode ? "***" : formatCurrency(row.price)}</p>
         </div>
       </Card>
     ),
