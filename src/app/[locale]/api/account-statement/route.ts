@@ -693,8 +693,9 @@ export async function GET(request: NextRequest) {
         } else {
           const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceOrder?.total_amount ?? Math.abs(amountDelta));
           const paidAmount = Number((entry.metadata as any)?.paid_amount ?? 0);
-          debit = totalAmount;
-          credit = paidAmount;
+          const balanceDue = Math.max(0, totalAmount - paidAmount);
+          debit = balanceDue;
+          credit = 0;
           amount = totalAmount;
         }
       } else if (isPurchaseBillDebit) {
@@ -705,8 +706,9 @@ export async function GET(request: NextRequest) {
         } else {
           const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourcePurchaseBill?.total_amount ?? Math.abs(amountDelta));
           const paidAmount = Number((entry.metadata as any)?.paid_amount ?? 0);
-          debit = paidAmount;
-          credit = totalAmount;
+          const balanceDue = Math.max(0, totalAmount - paidAmount);
+          debit = 0;
+          credit = balanceDue;
           amount = totalAmount;
         }
       } else if (isSaleReturnCredit) {
@@ -717,8 +719,9 @@ export async function GET(request: NextRequest) {
         } else {
           const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceSaleReturn?.total_amount ?? Math.abs(amountDelta));
           const refundAmount = Number((entry.metadata as any)?.refund_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
-          debit = refundAmount;
-          credit = totalAmount;
+          const balanceDue = Math.max(0, totalAmount - refundAmount);
+          debit = 0;
+          credit = balanceDue;
           amount = totalAmount;
         }
       } else if (isPaymentOutDebit || isSaleReturnDebit || isPurchaseBillCredit) {
