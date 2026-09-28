@@ -160,7 +160,7 @@ export default function CustomerTransactionsDetailPage() {
       },
       {
         id: "voucher",
-        header: <span className="text-slate-900 font-bold">{tStatement("orderId") || "Voucher #"}</span>,
+        header: <span className="text-slate-900 font-bold">{tStatement("voucher") || "Voucher"}</span>,
         className: "w-[120px] text-center text-xs text-slate-900 font-medium px-2 max-w-[130px] break-all whitespace-normal",
         cell: (row) => <span className="text-slate-900 font-medium">{row.orderId || "-"}</span>,
       },

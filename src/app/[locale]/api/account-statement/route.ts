@@ -246,306 +246,78 @@ export async function GET(request: NextRequest) {
       (entry) => entry.event_type !== "opening_balance"
     );
 
-    // Two-pass folding to ensure order-independence
-    // Step 1: Pre-index entries by event_source_id
-    const orderDebits = new Map<string, LedgerEntryDoc>();
-    const orderPaymentCredits = new Map<string, LedgerEntryDoc[]>();
-    const orderAdjustmentsMap = new Map<string, LedgerEntryDoc[]>();
-
-    const pbDebits = new Map<string, LedgerEntryDoc>();
-    const pbCredits = new Map<string, LedgerEntryDoc[]>();
-    const pbAdjustmentsMap = new Map<string, LedgerEntryDoc[]>();
-
-    const srCredits = new Map<string, LedgerEntryDoc>();
-    const srDebits = new Map<string, LedgerEntryDoc[]>();
-    const srAdjustmentsMap = new Map<string, LedgerEntryDoc[]>();
+    // Collect all candidate source IDs
+    const orderIds = new Set<string>();
+    const paymentIds = new Set<string>();
+    const purchaseBillIds = new Set<string>();
+    const saleReturnIds = new Set<string>();
 
     for (const entry of rawEntries) {
-      const sourceIdStr = entry.event_source_id?.toString();
-      const eventKeyStr = entry.event_key || "";
+      const sourceIdStr = entry.event_source_id ? entry.event_source_id.toString() : null;
+      if (!sourceIdStr) continue;
 
-      if (entry.event_type === "order_debit" && sourceIdStr) {
-        orderDebits.set(sourceIdStr, entry);
-      } else if (entry.event_type === "order_payment_credit" && sourceIdStr) {
-        if (!orderPaymentCredits.has(sourceIdStr)) orderPaymentCredits.set(sourceIdStr, []);
-        orderPaymentCredits.get(sourceIdStr)!.push(entry);
-      } else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("order_update_") || eventKeyStr.startsWith("order_delete_") || eventKeyStr.startsWith("order_")) &&
-        sourceIdStr
+      const eventType = entry.event_type || "";
+      const eventKey = entry.event_key || "";
+      const eventSource = entry.event_source || "";
+
+      if (
+        eventSource === "order" ||
+        eventType.startsWith("order_") ||
+        eventKey.startsWith("order_")
       ) {
-        if (!orderAdjustmentsMap.has(sourceIdStr)) orderAdjustmentsMap.set(sourceIdStr, []);
-        orderAdjustmentsMap.get(sourceIdStr)!.push(entry);
-      } else if (entry.event_type === "purchase_bill_debit" && sourceIdStr) {
-        pbDebits.set(sourceIdStr, entry);
-      } else if (entry.event_type === "purchase_bill_credit" && sourceIdStr) {
-        if (!pbCredits.has(sourceIdStr)) pbCredits.set(sourceIdStr, []);
-        pbCredits.get(sourceIdStr)!.push(entry);
+        orderIds.add(sourceIdStr);
       } else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("purchase_bill_") || eventKeyStr.startsWith("purchase_bill_payment_")) &&
-        sourceIdStr
+        eventSource === "sale_return" ||
+        eventType.startsWith("sale_return") ||
+        eventKey.startsWith("sale_return")
       ) {
-        if (!pbAdjustmentsMap.has(sourceIdStr)) pbAdjustmentsMap.set(sourceIdStr, []);
-        pbAdjustmentsMap.get(sourceIdStr)!.push(entry);
-      } else if (entry.event_type === "sale_return_credit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        srCredits.set(sourceIdStr, entry);
-      } else if (entry.event_type === "sale_return_debit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        if (!srDebits.has(sourceIdStr)) srDebits.set(sourceIdStr, []);
-        srDebits.get(sourceIdStr)!.push(entry);
+        saleReturnIds.add(sourceIdStr);
       } else if (
-        (entry.event_type === "sale_return_credit" || entry.event_type === "sale_return_debit") &&
-        eventKeyStr.startsWith("sale_return_update") &&
-        sourceIdStr
+        eventSource === "purchase_bill" ||
+        eventType.startsWith("purchase_bill") ||
+        eventKey.startsWith("purchase_bill")
       ) {
-        if (!srAdjustmentsMap.has(sourceIdStr)) srAdjustmentsMap.set(sourceIdStr, []);
-        srAdjustmentsMap.get(sourceIdStr)!.push(entry);
+        purchaseBillIds.add(sourceIdStr);
+      } else if (
+        eventType.startsWith("payment_") ||
+        eventKey.startsWith("payment_") ||
+        eventSource === "party_transaction" ||
+        eventSource === "customer_transaction"
+      ) {
+        paymentIds.add(sourceIdStr);
       }
     }
-
-    // Step 2: Build processedEntries
-    const processedEntries: LedgerEntryDoc[] = [];
-    const foldedEntryIds = new Set<string>();
-
-    for (const entry of rawEntries) {
-      const entryIdStr = entry._id.toString();
-      if (foldedEntryIds.has(entryIdStr)) continue;
-
-      const sourceIdStr = entry.event_source_id?.toString();
-      const eventKeyStr = entry.event_key || "";
-
-      // Order Debit
-      if (entry.event_type === "order_debit" && sourceIdStr) {
-        let totalAmt = Number((entry.metadata as any)?.total_amount ?? entry.amount_delta);
-        let paidAmt = 0;
-        let paymentMethodId = (entry.metadata as any)?.payment_method_id;
-        let isDeleted = false;
-
-        // Fold order_payment_credits
-        const pmCredits = orderPaymentCredits.get(sourceIdStr) || [];
-        for (const pm of pmCredits) {
-          paidAmt += Math.abs(Number(pm.amount_delta));
-          paymentMethodId = (pm.metadata as any)?.payment_method_id || paymentMethodId;
-          foldedEntryIds.add(pm._id.toString());
-        }
-
-        // Fold order adjustments
-        const adjs = orderAdjustmentsMap.get(sourceIdStr) || [];
-        for (const adj of adjs) {
-          const adjKey = adj.event_key || "";
-          if (adjKey.startsWith("order_delete_reverse") || (adj.metadata as any)?.reason === "order_deleted") {
-            isDeleted = true;
-          } else if ((adj.metadata as any)?.newTotal !== undefined) {
-            totalAmt = Number((adj.metadata as any).newTotal);
-            paidAmt = Number((adj.metadata as any).newPaid || 0);
-          }
-          foldedEntryIds.add(adj._id.toString());
-        }
-
-        const newEntry: LedgerEntryDoc = {
-          ...entry,
-          amount_delta: totalAmt - paidAmt,
-          metadata: {
-            ...entry.metadata,
-            total_amount: totalAmt,
-            paid_amount: paidAmt,
-            payment_method_id: paymentMethodId,
-            is_deleted: isDeleted,
-          }
-        };
-        processedEntries.push(newEntry);
-      }
-      // Unfolded order payment credit (original order outside date range)
-      else if (entry.event_type === "order_payment_credit" && sourceIdStr) {
-        if (!orderDebits.has(sourceIdStr)) {
-          processedEntries.push(entry);
-        }
-      }
-      // Unfolded order adjustment (original order outside date range)
-      else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("order_update_") || eventKeyStr.startsWith("order_delete_") || eventKeyStr.startsWith("order_")) &&
-        sourceIdStr
-      ) {
-        if (!orderDebits.has(sourceIdStr)) {
-          processedEntries.push({ ...entry, event_key: "order_update_net", event_type: "manual_adjustment" });
-        }
-      }
-      // Purchase Bill Debit
-      else if (entry.event_type === "purchase_bill_debit" && sourceIdStr) {
-        let totalAmt = Number((entry.metadata as any)?.total_amount ?? Math.abs(entry.amount_delta));
-        let paidAmt = 0;
-        let paymentMethodId = (entry.metadata as any)?.payment_method_id;
-        let isDeleted = false;
-
-        const pmCredits = pbCredits.get(sourceIdStr) || [];
-        for (const pm of pmCredits) {
-          paidAmt += Math.abs(Number((pm.metadata as any)?.paid_amount ?? pm.amount_delta));
-          paymentMethodId = (pm.metadata as any)?.payment_method_id || paymentMethodId;
-          foldedEntryIds.add(pm._id.toString());
-        }
-
-        const adjs = pbAdjustmentsMap.get(sourceIdStr) || [];
-        for (const adj of adjs) {
-          const adjKey = adj.event_key || "";
-          if (adjKey.startsWith("purchase_bill_delete_") || (adj.metadata as any)?.note?.includes("deletion")) {
-            isDeleted = true;
-          }
-          foldedEntryIds.add(adj._id.toString());
-        }
-
-        const newEntry: LedgerEntryDoc = {
-          ...entry,
-          amount_delta: -(totalAmt - paidAmt),
-          metadata: {
-            ...entry.metadata,
-            total_amount: totalAmt,
-            paid_amount: paidAmt,
-            payment_method_id: paymentMethodId,
-            is_deleted: isDeleted,
-          }
-        };
-        processedEntries.push(newEntry);
-      }
-      // Unfolded purchase bill payment credit
-      else if (entry.event_type === "purchase_bill_credit" && sourceIdStr) {
-        if (!pbDebits.has(sourceIdStr)) {
-          const paidAmt = Math.abs(Number((entry.metadata as any)?.paid_amount ?? entry.amount_delta));
-          processedEntries.push({ ...entry, amount_delta: paidAmt });
-        }
-      }
-      // Unfolded purchase bill adjustment
-      else if (
-        entry.event_type === "manual_adjustment" &&
-        (eventKeyStr.startsWith("purchase_bill_") || eventKeyStr.startsWith("purchase_bill_payment_")) &&
-        sourceIdStr
-      ) {
-        if (!pbDebits.has(sourceIdStr)) {
-          processedEntries.push({ ...entry, event_key: "purchase_bill_debit_net", event_type: "manual_adjustment" });
-        }
-      }
-      // Sale Return Credit
-      else if (entry.event_type === "sale_return_credit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        let totalAmt = Math.abs(Number((entry.metadata as any)?.total_amount ?? entry.amount_delta));
-        let refundAmt = 0;
-        let paymentMethodId = (entry.metadata as any)?.payment_method_id;
-        let isDeleted = Boolean((entry.metadata as any)?.is_deleted);
-
-        const refunds = srDebits.get(sourceIdStr) || [];
-        for (const rf of refunds) {
-          refundAmt += Math.abs(Number((rf.metadata as any)?.paid_amount ?? rf.amount_delta));
-          paymentMethodId = (rf.metadata as any)?.payment_method_id || paymentMethodId;
-          foldedEntryIds.add(rf._id.toString());
-        }
-
-        const adjs = srAdjustmentsMap.get(sourceIdStr) || [];
-        for (const adj of adjs) {
-          foldedEntryIds.add(adj._id.toString());
-        }
-
-        const newEntry: LedgerEntryDoc = {
-          ...entry,
-          amount_delta: -(totalAmt - refundAmt),
-          metadata: {
-            ...entry.metadata,
-            total_amount: totalAmt,
-            paid_amount: refundAmt,
-            refund_amount: refundAmt,
-            payment_method_id: paymentMethodId,
-            is_deleted: isDeleted,
-          }
-        };
-        processedEntries.push(newEntry);
-      }
-      // Unfolded sale return debit (refund)
-      else if (entry.event_type === "sale_return_debit" && !eventKeyStr.startsWith("sale_return_update") && sourceIdStr) {
-        if (!srCredits.has(sourceIdStr)) {
-          processedEntries.push(entry);
-        }
-      }
-      // Unfolded sale return adjustment
-      else if (
-        (entry.event_type === "sale_return_credit" || entry.event_type === "sale_return_debit") &&
-        eventKeyStr.startsWith("sale_return_update") &&
-        sourceIdStr
-      ) {
-        if (!srCredits.has(sourceIdStr) && !srDebits.has(sourceIdStr)) {
-          processedEntries.push(entry);
-        }
-      }
-      // All other entries (Payment-In, Payment-Out, etc.)
-      else {
-        processedEntries.push(entry);
-      }
-    }
-
-    const entries = processedEntries.filter(
-      (e) =>
-        e.event_type === "order_debit" ||
-        e.event_type === "purchase_bill_debit" ||
-        e.event_type === "sale_return_credit" ||
-        (!(e.metadata as any)?.is_deleted && Math.abs(Number(e.amount_delta)) >= 0.01)
-    );
-
-    const orderIds = entries
-      .filter((entry) => entry.event_source === "order" && entry.event_source_id)
-      .map((entry) => entry.event_source_id!.toString())
-      .filter(isValidObjectId);
-
-    const paymentIds = entries
-      .filter(
-        (entry) =>
-          (entry.event_source === "party_transaction" || entry.event_source === "customer_transaction") &&
-          entry.event_source_id &&
-          entry.event_type !== "purchase_bill_debit"
-      )
-      .map((entry) => entry.event_source_id!.toString())
-      .filter(isValidObjectId);
-
-    const purchaseBillIds = entries
-      .filter((entry) => entry.event_type === "purchase_bill_debit" && entry.event_source_id)
-      .map((entry) => entry.event_source_id!.toString())
-      .filter(isValidObjectId);
-
-    const saleReturnIds = entries
-      .filter(
-        (entry) =>
-          (entry.event_type === "sale_return_credit" || entry.event_type === "sale_return_debit") &&
-          entry.event_source_id
-      )
-      .map((entry) => entry.event_source_id!.toString())
-      .filter(isValidObjectId);
 
     const [orderDocs, paymentDocs, purchaseBillDocs, saleReturnDocs] = await Promise.all([
-      orderIds.length
+      orderIds.size
         ? ordersCollection
             .find({
-              _id: { $in: orderIds.map((id) => toObjectId(id)) },
+              _id: { $in: Array.from(orderIds).filter(isValidObjectId).map((id) => toObjectId(id)) },
               user_id: userId,
             })
             .toArray()
         : Promise.resolve([]),
-      paymentIds.length
+      paymentIds.size
         ? paymentsCollection
             .find({
-              _id: { $in: paymentIds.map((id) => toObjectId(id)) },
+              _id: { $in: Array.from(paymentIds).filter(isValidObjectId).map((id) => toObjectId(id)) },
               user_id: userId,
             })
             .toArray()
         : Promise.resolve([]),
-      purchaseBillIds.length
+      purchaseBillIds.size
         ? purchaseBillsCollection
             .find({
-              _id: { $in: purchaseBillIds.map((id) => toObjectId(id)) },
+              _id: { $in: Array.from(purchaseBillIds).filter(isValidObjectId).map((id) => toObjectId(id)) },
               user_id: userId,
             })
             .toArray()
         : Promise.resolve([]),
-      saleReturnIds.length
+      saleReturnIds.size
         ? getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS).then((c) =>
             c
               .find({
-                _id: { $in: saleReturnIds.map((id) => toObjectId(id)) },
+                _id: { $in: Array.from(saleReturnIds).filter(isValidObjectId).map((id) => toObjectId(id)) },
                 user_id: userId,
               })
               .toArray()
@@ -564,213 +336,271 @@ export async function GET(request: NextRequest) {
       saleReturnDocs.map((doc: any) => [doc._id.toString(), doc])
     );
 
-    let runningBalance = openingBalance;
+    // Build unique statement transactions:
+    // - Deleted items -> 0 rows emitted
+    // - Edited items -> exactly 1 row with current document values (no reversal adjustment rows)
+    const handledSourceIds = new Set<string>();
+    const builtTransactions: any[] = [];
 
-    const transactions = entries.map((entry: LedgerEntryDoc) => {
-      const amountDelta = Number(entry.amount_delta || 0);
+    for (const entry of rawEntries) {
+      const sourceIdStr = entry.event_source_id ? entry.event_source_id.toString() : null;
+      const eventType = entry.event_type || "";
+      const eventKey = entry.event_key || "";
+      const eventSource = entry.event_source || "";
+      const metadata = (entry.metadata as any) || {};
 
-      const isOrderDebit = entry.event_type === "order_debit";
-      const isPaymentCredit =
-        entry.event_type === "payment_in_credit" ||
-        entry.event_type === "order_payment_credit";
-      const isPaymentOutDebit = entry.event_type === "payment_out_debit";
-      const isPurchaseBillDebit = entry.event_type === "purchase_bill_debit";
-      const isPurchaseBillCredit = entry.event_type === "purchase_bill_credit";
-      const isSaleReturnCredit = entry.event_type === "sale_return_credit";
-      const isSaleReturnDebit = entry.event_type === "sale_return_debit";
+      // 1. Order / Invoice
+      if (
+        eventSource === "order" ||
+        eventType.startsWith("order_") ||
+        eventKey.startsWith("order_")
+      ) {
+        if (!sourceIdStr) continue;
+        if (handledSourceIds.has(sourceIdStr)) continue;
+        handledSourceIds.add(sourceIdStr);
 
-      const sourceId = entry.event_source_id?.toString?.() || null;
-      const sourceOrder = sourceId ? orderMap.get(sourceId) : null;
-      const sourcePayment = sourceId ? paymentMap.get(sourceId) : null;
-      const sourcePurchaseBill = sourceId ? purchaseBillMap.get(sourceId) : null;
-      const sourceSaleReturn = sourceId ? saleReturnMap.get(sourceId) : null;
+        const sourceOrder = orderMap.get(sourceIdStr);
+        if (!sourceOrder || sourceOrder.status === "cancelled" || sourceOrder.is_delete) {
+          // Order was deleted or cancelled -> Do not show in statement
+          continue;
+        }
 
-      const items = Array.isArray(sourceOrder?.items) ? sourceOrder.items : [];
-      const billItems = Array.isArray(sourcePurchaseBill?.items) ? sourcePurchaseBill.items : [];
-      const saleReturnItems = Array.isArray(sourceSaleReturn?.items) ? sourceSaleReturn.items : [];
-      
-      let description = "Adjustment";
-      let expandedItems = [];
-
-      const paymentNo = 
-        sourcePayment?.payment_number || 
-        sourcePayment?.paymentNumber || 
-        (entry.metadata as any)?.payment_number || 
-        (entry.metadata as any)?.paymentNumber || 
-        null;
-
-      if (isOrderDebit) {
-        description = "SALES";
-        expandedItems = items.map((item: any) => {
+        const totalAmount = Number(sourceOrder.total_amount ?? 0);
+        const paidAmount = Number(sourceOrder.payment?.paid_amount ?? 0);
+        const balanceDue = Math.max(0, totalAmount - paidAmount);
+        const items = Array.isArray(sourceOrder.items) ? sourceOrder.items : [];
+        const expandedItems = items.map((item: any) => {
           const qty = parseFloat(item.quantity) || 0;
-          const prc = parseFloat(item.price) || 0;
+          const prc = parseFloat(item.price ?? item.sell_price) || 0;
           return {
             name: item.name || "Item",
             quantity: qty,
             price: prc,
-            amount: qty * prc
+            amount: qty * prc,
           };
         });
-      } else if (isPaymentCredit) {
-        const methodId = sourcePayment?.payment_method_id?.toString() || (entry.metadata as any)?.payment_method_id?.toString() || "";
-        const methodName = paymentMethodMap.get(methodId) || "Cash";
-        description = paymentNo 
-          ? `Payment Received - Ref # ${paymentNo} (${methodName})`
-          : `Payment Received - Ref # ${methodName}-${Math.abs(amountDelta)}`;
-      } else if (isPaymentOutDebit) {
-        const methodId = sourcePayment?.payment_method_id?.toString() || (entry.metadata as any)?.payment_method_id?.toString() || "";
-        const methodName = paymentMethodMap.get(methodId) || "Cash";
-        description = paymentNo 
-          ? `Payment Out - Ref # ${paymentNo} (${methodName})`
-          : `Payment Out - Ref # ${methodName}-${Math.abs(amountDelta)}`;
-      } else if (isPurchaseBillDebit) {
-        description = "PURCHASE BILL";
-        expandedItems = billItems.map((item: any) => {
-          const qty = parseFloat(item.quantity) || 0;
-          const cost = parseFloat(item.cost_price || item.price) || 0;
-          const amt = parseFloat(item.amount) || (qty * cost);
-          return {
-            name: item.product_name || item.name || "Item",
-            quantity: qty,
-            price: cost,
-            amount: amt
-          };
+
+        builtTransactions.push({
+          id: entry._id.toString(),
+          type: "order",
+          description: "SALES",
+          items: expandedItems,
+          amount: totalAmount,
+          debit: balanceDue,
+          credit: 0,
+          orderId: sourceOrder.invoice_no || sourceIdStr,
+          dateTime: asISO(sourceOrder.sale_date || sourceOrder.created_at || entry.effective_at),
         });
-      } else if (isPurchaseBillCredit) {
-        description = "Purchase Bill Payment";
-      } else if (entry.event_type === "sale_return_credit") {
-        if (entry.event_key === "sale_return_credit_net") {
-          description = "SALE RETURN (Updated)";
-        } else {
-          description = "SALE RETURN (Credit Note)";
+      }
+
+      // 2. Sale Return
+      else if (
+        eventSource === "sale_return" ||
+        eventType.startsWith("sale_return") ||
+        eventKey.startsWith("sale_return")
+      ) {
+        if (!sourceIdStr) continue;
+        if (handledSourceIds.has(sourceIdStr)) continue;
+        handledSourceIds.add(sourceIdStr);
+
+        const sourceSaleReturn = saleReturnMap.get(sourceIdStr);
+        if (!sourceSaleReturn || sourceSaleReturn.is_delete) {
+          // Sale return was deleted -> Do not show in statement
+          continue;
         }
-        expandedItems = saleReturnItems.map((item: any) => {
+
+        const totalAmount = Number(sourceSaleReturn.total_amount ?? sourceSaleReturn.payment_amount ?? 0);
+        const refundAmount = Number(
+          sourceSaleReturn.paid_amount ?? sourceSaleReturn.refund_amount ?? 0
+        );
+        const balanceDue = Math.max(0, totalAmount - refundAmount);
+        const returnNo = sourceSaleReturn.return_number || sourceIdStr;
+        const saleReturnItems = Array.isArray(sourceSaleReturn.items)
+          ? sourceSaleReturn.items
+          : [];
+        const expandedItems = saleReturnItems.map((item: any) => {
           const qty = parseFloat(item.quantity) || 0;
           const prc = parseFloat(item.rate ?? item.price ?? item.cost_price ?? 0);
-          const amt = parseFloat(item.amount ?? (qty * prc));
+          const amt = parseFloat(item.amount ?? qty * prc);
           return {
             name: item.itemName || item.name || item.product_name || "Item",
             quantity: qty,
             price: prc,
-            amount: amt
+            amount: amt,
           };
         });
-      } else if (entry.event_type === "sale_return_debit") {
-        if (entry.event_key === "sale_return_debit_net") {
-          description = "Refund against Sale Return (Updated)";
+
+        builtTransactions.push({
+          id: entry._id.toString(),
+          type: "sale_return",
+          description: "SALE RETURN (Credit Note)",
+          items: expandedItems,
+          amount: totalAmount,
+          debit: 0,
+          credit: balanceDue,
+          orderId: returnNo,
+          dateTime: asISO(
+            sourceSaleReturn.date || sourceSaleReturn.created_at || entry.effective_at
+          ),
+        });
+      }
+
+      // 3. Purchase Bill
+      else if (
+        eventSource === "purchase_bill" ||
+        eventType.startsWith("purchase_bill") ||
+        eventKey.startsWith("purchase_bill")
+      ) {
+        if (!sourceIdStr) continue;
+        if (handledSourceIds.has(sourceIdStr)) continue;
+        handledSourceIds.add(sourceIdStr);
+
+        const sourcePurchaseBill = purchaseBillMap.get(sourceIdStr);
+        if (!sourcePurchaseBill || sourcePurchaseBill.is_delete) {
+          // Purchase bill was deleted -> Do not show in statement
+          continue;
+        }
+
+        const totalAmount = Number(sourcePurchaseBill.total_amount ?? 0);
+        const paidAmount = Number(sourcePurchaseBill.paid_amount ?? 0);
+        const balanceDue = Math.max(0, totalAmount - paidAmount);
+        const billNo =
+          sourcePurchaseBill.purchase_number ||
+          sourcePurchaseBill.purchase_no ||
+          sourcePurchaseBill.bill_number ||
+          sourceIdStr;
+        const billItems = Array.isArray(sourcePurchaseBill.items) ? sourcePurchaseBill.items : [];
+        const expandedItems = billItems.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const cost = parseFloat(item.cost_price || item.price) || 0;
+          const amt = parseFloat(item.amount) || qty * cost;
+          return {
+            name: item.product_name || item.name || "Item",
+            quantity: qty,
+            price: cost,
+            amount: amt,
+          };
+        });
+
+        builtTransactions.push({
+          id: entry._id.toString(),
+          type: "purchase_bill",
+          description: "PURCHASE BILL",
+          items: expandedItems,
+          amount: totalAmount,
+          debit: 0,
+          credit: balanceDue,
+          orderId: billNo,
+          dateTime: asISO(
+            sourcePurchaseBill.bill_date ||
+            sourcePurchaseBill.date ||
+            sourcePurchaseBill.created_at ||
+            entry.effective_at
+          ),
+        });
+      }
+
+      // 4. Payment In / Payment Out
+      else if (
+        eventType.startsWith("payment_") ||
+        eventKey.startsWith("payment_") ||
+        eventSource === "party_transaction" ||
+        eventSource === "customer_transaction"
+      ) {
+        if (!sourceIdStr) {
+          // If no source ID and it's a reversal/adjustment, skip it
+          if (eventKey.includes("_reversal") || eventKey.includes("_reverse") || eventKey.includes("_delete")) {
+            continue;
+          }
         } else {
-          const methodId = sourceSaleReturn?.payment_method_id?.toString() || "";
+          if (handledSourceIds.has(sourceIdStr)) continue;
+          handledSourceIds.add(sourceIdStr);
+
+          const sourcePayment = paymentMap.get(sourceIdStr);
+          if (!sourcePayment || sourcePayment.is_delete) {
+            // Payment was deleted -> Do not show in statement
+            continue;
+          }
+
+          const paymentAmount = Number(sourcePayment.payment_amount ?? 0);
+          const isPaymentIn =
+            sourcePayment.type === "payment-in" ||
+            (eventType === "payment_in_credit" && sourcePayment.type !== "payment-out");
+          const methodId = sourcePayment.payment_method_id?.toString() || "";
           const methodName = paymentMethodMap.get(methodId) || "Cash";
-          description = `Refund against Sale Return - ${methodName}`;
+          const paymentNo = sourcePayment.payment_number || sourcePayment.paymentNumber || null;
+
+          const description = isPaymentIn
+            ? (methodName ? `Payment Received (${methodName})` : "Payment Received")
+            : (methodName ? `Payment Out (${methodName})` : "Payment Out");
+
+          builtTransactions.push({
+            id: entry._id.toString(),
+            type: isPaymentIn ? "payment_in" : "payment_out",
+            description,
+            items: [],
+            amount: paymentAmount,
+            debit: isPaymentIn ? 0 : paymentAmount,
+            credit: isPaymentIn ? paymentAmount : 0,
+            orderId: paymentNo || sourcePayment._id?.toString() || sourceIdStr,
+            dateTime: asISO(sourcePayment.date || sourcePayment.created_at || entry.effective_at),
+          });
         }
-      } else if (entry.event_type === "manual_adjustment") {
-        if (entry.event_key === "order_update_net") {
-          description = "Invoice (Updated)";
-        } else if (entry.event_key === "payment_in_net") {
-          description = paymentNo ? `Payment Received - Ref # ${paymentNo} (Updated)` : "Payment Received (Updated)";
-        } else if (entry.event_key === "payment_out_net") {
-          description = paymentNo ? `Payment Out - Ref # ${paymentNo} (Updated)` : "Payment Out (Updated)";
-        } else if (entry.event_key === "purchase_bill_debit_net") {
-          description = "PURCHASE BILL (Updated)";
-        } else if (entry.event_key === "purchase_bill_credit_net") {
-          description = "Purchase Bill Payment (Updated)";
-        } else {
-          description = "Manual Adjustment";
-        }
-      } else if (entry.event_type === "opening_balance") {
-        description = "Initial Opening Balance";
       }
 
-      let debit = 0;
-      let credit = 0;
-      let amount = Math.abs(amountDelta);
+      // 5. Standalone Manual Adjustment
+      else if (eventType === "manual_adjustment") {
+        const reason = (metadata.reason || "").toString().toLowerCase();
+        const k = eventKey.toLowerCase();
+        // Skip any reversal or update adjustment
+        if (
+          k.includes("reversal") ||
+          k.includes("reverse") ||
+          k.includes("delete") ||
+          k.includes("update") ||
+          reason.includes("reversal") ||
+          reason.includes("reverse") ||
+          reason.includes("deleted")
+        ) {
+          continue;
+        }
 
-      if (isOrderDebit) {
-        if ((entry.metadata as any)?.is_deleted || (!sourceOrder && !(entry.metadata as any)?.total_amount)) {
-          debit = 0;
-          credit = 0;
-          amount = 0;
-        } else {
-          const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceOrder?.total_amount ?? Math.abs(amountDelta));
-          const paidAmount = Number((entry.metadata as any)?.paid_amount ?? 0);
-          const balanceDue = Math.max(0, totalAmount - paidAmount);
-          debit = balanceDue;
-          credit = 0;
-          amount = totalAmount;
-        }
-      } else if (isPurchaseBillDebit) {
-        if ((entry.metadata as any)?.is_deleted || (!sourcePurchaseBill && !(entry.metadata as any)?.total_amount)) {
-          debit = 0;
-          credit = 0;
-          amount = 0;
-        } else {
-          const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourcePurchaseBill?.total_amount ?? Math.abs(amountDelta));
-          const paidAmount = Number((entry.metadata as any)?.paid_amount ?? 0);
-          const balanceDue = Math.max(0, totalAmount - paidAmount);
-          debit = 0;
-          credit = balanceDue;
-          amount = totalAmount;
-        }
-      } else if (isSaleReturnCredit) {
-        if ((entry.metadata as any)?.is_deleted) {
-          debit = 0;
-          credit = 0;
-          amount = 0;
-        } else {
-          const totalAmount = Number((entry.metadata as any)?.total_amount ?? sourceSaleReturn?.total_amount ?? Math.abs(amountDelta));
-          const refundAmount = Number((entry.metadata as any)?.refund_amount ?? (entry.metadata as any)?.paid_amount ?? 0);
-          const balanceDue = Math.max(0, totalAmount - refundAmount);
-          debit = 0;
-          credit = balanceDue;
-          amount = totalAmount;
-        }
-      } else if (isPaymentOutDebit || isSaleReturnDebit || isPurchaseBillCredit) {
-        debit = amount;
-        credit = 0;
-      } else if (isPaymentCredit) {
-        credit = amount;
-        debit = 0;
-      } else {
-        debit = amountDelta > 0 ? amount : 0;
-        credit = amountDelta < 0 ? amount : 0;
+        const amountDelta = Number(entry.amount_delta || 0);
+        const debit = amountDelta > 0 ? Math.abs(amountDelta) : 0;
+        const credit = amountDelta < 0 ? Math.abs(amountDelta) : 0;
+
+        builtTransactions.push({
+          id: entry._id.toString(),
+          type: "adjustment",
+          description: "Manual Adjustment",
+          items: [],
+          amount: Math.abs(amountDelta),
+          debit,
+          credit,
+          orderId: null,
+          dateTime: asISO(entry.effective_at || entry.created_at),
+        });
       }
+    }
 
-      runningBalance += (debit - credit);
+    // Sort transactions chronologically
+    builtTransactions.sort((a, b) => {
+      const tA = new Date(a.dateTime).getTime() || 0;
+      const tB = new Date(b.dateTime).getTime() || 0;
+      return tA - tB;
+    });
 
-      return {
-        id: entry._id.toString(),
-        type: isOrderDebit
-          ? "order"
-          : isPaymentCredit
-            ? "payment_in"
-            : isPaymentOutDebit
-              ? "payment_out"
-              : isPurchaseBillDebit
-                ? "purchase_bill"
-                : isPurchaseBillCredit
-                  ? "purchase_bill_payment"
-                  : (isSaleReturnCredit || isSaleReturnDebit)
-                    ? "sale_return"
-                    : "adjustment",
-        description,
-        items: expandedItems,
-        amount,
-        debit,
-        credit,
-        orderId:
-          sourceOrder?.invoice_no ||
-          paymentNo ||
-          sourceSaleReturn?.return_number ||
-          (isPurchaseBillDebit ? (sourcePurchaseBill?.purchase_number || sourcePurchaseBill?.purchase_no || sourcePurchaseBill?.bill_number || (entry.metadata as any)?.purchase_number || sourcePurchaseBill?.id || sourceId) : null) ||
-          sourceOrder?._id?.toString?.() ||
-          (isOrderDebit ? sourceId : null) ||
-          (isSaleReturnCredit || isSaleReturnDebit ? sourceId : null) ||
-          (entry.event_key === "order_update_net" ? sourceId : null) ||
-          (isPaymentCredit || isPaymentOutDebit ? (sourcePayment?._id?.toString() || sourceId) : null),
-        dateTime: asISO(entry.effective_at || entry.created_at),
-        balance: runningBalance,
-      };
-    }).filter((t) => t.debit > 0 || t.credit > 0 || Math.abs(t.debit - t.credit) >= 0.01);
+    // Compute running balance
+    let runningBalance = openingBalance;
+    const transactions = builtTransactions
+      .filter((t) => t.debit > 0 || t.credit > 0 || Math.abs(t.debit - t.credit) >= 0.01)
+      .map((t) => {
+        runningBalance += (t.debit - t.credit);
+        return {
+          ...t,
+          balance: runningBalance,
+        };
+      });
 
     // Virtual Opening Balance record
     const openingDate = from.getFullYear() === 1970 && customer?.created_at

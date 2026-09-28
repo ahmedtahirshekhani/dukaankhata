@@ -567,16 +567,34 @@ export function useOfflineSaleReturns(
       })
       .sort((a, b) => {
         // Sort by creation time / date descending (latest created on top)
-        const timeA = a.created_at
-          ? new Date(a.created_at).getTime()
-          : a.date
-            ? new Date(a.date).getTime()
-            : 0;
-        const timeB = b.created_at
-          ? new Date(b.created_at).getTime()
-          : b.date
-            ? new Date(b.date).getTime()
-            : 0;
+        const getCreatedTime = (item: any): number => {
+          if (item.created_at) {
+            const t = new Date(item.created_at).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (item.createdAt) {
+            const t = new Date(item.createdAt).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (item.date) {
+            const t = new Date(item.date).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (
+            typeof item.id === "string" &&
+            item.id.length === 24 &&
+            /^[0-9a-fA-F]{24}$/.test(item.id)
+          ) {
+            const t = parseInt(item.id.substring(0, 8), 16) * 1000;
+            if (!isNaN(t) && t > 0) return t;
+          }
+          const numId = Number(item.id);
+          if (!isNaN(numId) && numId > 1000000000000) return numId;
+          return 0;
+        };
+
+        const timeA = getCreatedTime(a);
+        const timeB = getCreatedTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;

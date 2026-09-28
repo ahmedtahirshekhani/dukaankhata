@@ -57,6 +57,7 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { DatePicker } from "@/components/ui/date-picker";
 import { usePermissions } from "@/hooks/use-permissions";
 
 type Customer = {
@@ -222,7 +223,40 @@ export default function SaleReturnPage() {
 
   const rawOfflineTransactions = useOfflineSaleReturns(debouncedSearch, filters.paymentMethod, filters.customer);
   const loading = rawOfflineTransactions === undefined;
-  const allOfflineTransactions = rawOfflineTransactions || [];
+  const allOfflineTransactions = useMemo(() => {
+    if (!rawOfflineTransactions) return [];
+    return [...rawOfflineTransactions].sort((a: any, b: any) => {
+      const getCreatedTime = (item: any): number => {
+        if (item.created_at) {
+          const t = new Date(item.created_at).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (item.createdAt) {
+          const t = new Date(item.createdAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (item.date) {
+          const t = new Date(item.date).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (
+          typeof item.id === "string" &&
+          item.id.length === 24 &&
+          /^[0-9a-fA-F]{24}$/.test(item.id)
+        ) {
+          const t = parseInt(item.id.substring(0, 8), 16) * 1000;
+          if (!isNaN(t) && t > 0) return t;
+        }
+        const numId = Number(item.id);
+        if (!isNaN(numId) && numId > 1000000000000) return numId;
+        return 0;
+      };
+      const timeA = getCreatedTime(a);
+      const timeB = getCreatedTime(b);
+      if (timeA !== timeB) return timeB - timeA;
+      return String(b.id || "").localeCompare(String(a.id || ""));
+    });
+  }, [rawOfflineTransactions]);
   const totalPages = Math.ceil(allOfflineTransactions.length / pageSize) || 1;
   const transactions = allOfflineTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize) as SaleReturnTransaction[];
 
@@ -640,10 +674,9 @@ export default function SaleReturnPage() {
         </div>
         <div className="space-y-2">
           <Label>{t("date")}</Label>
-          <Input
-            type="daute"
+          <DatePicker
             value={formDate}
-            onChange={(e) => setFormDate(e.target.value)}
+            onChange={(val) => setFormDate(val)}
           />
         </div>
         <div className="space-y-2">
@@ -671,10 +704,9 @@ export default function SaleReturnPage() {
         </div>
         <div className="space-y-2">
           <Label>{t("invoiceDate")}</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={formInvoiceDate}
-            onChange={(e) => setFormInvoiceDate(e.target.value)}
+            onChange={(val) => setFormInvoiceDate(val)}
           />
         </div>
         <div className="space-y-2">

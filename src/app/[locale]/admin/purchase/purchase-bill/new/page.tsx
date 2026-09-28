@@ -22,6 +22,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
+import { toHTMLDateString } from "@/lib/date-utils";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
 import { type POSProduct, type Product } from "@/app/[locale]/admin/sales/invoice/new/page";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
@@ -97,12 +98,8 @@ function AddPurchaseBillPageInner() {
             setSelectedPartyId(String(bill.party_id || bill.partyId || ""));
             setSelectedPartyName(bill.party_name || bill.partyName || "");
 
-            if (bill.created_at) {
-              const dt = bill.created_at.split("T")[0];
-              setSelectedDate(dt || getTodayDateString());
-            } else {
-              setSelectedDate(getTodayDateString());
-            }
+            const rawBillDate = bill.created_at || bill.date || bill.bill_date || bill.purchase_date;
+            setSelectedDate(toHTMLDateString(rawBillDate) || getTodayDateString());
 
             let items = bill.items;
             if (typeof items === "string") {
