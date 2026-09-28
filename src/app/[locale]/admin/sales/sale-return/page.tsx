@@ -58,6 +58,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
+import { formatReadableDate } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
 
 type Customer = {
@@ -1055,7 +1056,7 @@ export default function SaleReturnPage() {
                         {item.returnNumber || "-"}
                       </TableCell>
                       <TableCell>{item.customerName || "-"}</TableCell>
-                      <TableCell>{item.date || "-"}</TableCell>
+                      <TableCell>{formatReadableDate(item.date)}</TableCell>
                       <TableCell>{formatCurrencyString(item.totalAmount)}</TableCell>
                       <TableCell>{formatCurrencyString(item.paidAmount)}</TableCell>
                       <TableCell>{formatCurrencyString(item.balanceDue)}</TableCell>
@@ -1294,7 +1295,7 @@ function SaleReturnCard({
         {/* Row 1: ID number & Date without 'ID:' and 'Date:' text in theme grey */}
         <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
           <span>{transaction.returnNumber || transaction.id || "-"}</span>
-          <span>{transaction.date || "-"}</span>
+          <span>{formatReadableDate(transaction.date)}</span>
         </div>
 
         {/* Row 2: Total & Paid without 'Amount' text */}
