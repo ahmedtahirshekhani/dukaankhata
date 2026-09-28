@@ -59,13 +59,15 @@ export function PdfTable<T = any>({
   // If compound children are provided, render as styled table wrapper
   if (children) {
     return (
-      <div className={cn("w-full bg-white overflow-hidden my-2", className)} style={style}>
+      <div className={cn("w-full bg-white my-2", className)} style={{ pageBreakInside: "auto", breakInside: "auto", ...style }}>
         <table
           style={{
             width: "100%",
             borderCollapse: "collapse",
             fontSize: "10px",
             backgroundColor: "#ffffff",
+            pageBreakInside: "auto",
+            breakInside: "auto",
           }}
         >
           {children}
@@ -76,18 +78,20 @@ export function PdfTable<T = any>({
 
   // If declarative columns and data are provided
   return (
-    <div className={cn("w-full bg-white overflow-hidden my-2", className)} style={style}>
+    <div className={cn("w-full bg-white my-2", className)} style={{ pageBreakInside: "auto", breakInside: "auto", ...style }}>
       <table
         style={{
           width: "100%",
           borderCollapse: "collapse",
           fontSize: "10px",
           backgroundColor: "#ffffff",
+          pageBreakInside: "auto",
+          breakInside: "auto",
         }}
       >
         {columns && columns.length > 0 && (
-          <thead>
-            <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
+          <thead style={{ display: "table-header-group", pageBreakInside: "avoid", breakInside: "avoid" }}>
+            <tr style={{ backgroundColor: "#0f172a", color: "#ffffff", pageBreakInside: "avoid", breakInside: "avoid" }}>
               {columns.map((col, idx) => {
                 const align = col.align || "left";
                 return (
@@ -104,6 +108,8 @@ export function PdfTable<T = any>({
                       letterSpacing: "0.025em",
                       color: "#ffffff",
                       borderBottom: "1px solid #0f172a",
+                      pageBreakInside: "avoid",
+                      breakInside: "avoid",
                       ...col.headerStyle,
                     }}
                   >
@@ -117,7 +123,7 @@ export function PdfTable<T = any>({
 
         <tbody>
           {!data || data.length === 0 ? (
-            <tr>
+            <tr className="pdf-avoid-break break-inside-avoid" style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
               <td
                 colSpan={columns?.length || 1}
                 style={{
@@ -126,6 +132,8 @@ export function PdfTable<T = any>({
                   color: "#64748b",
                   fontSize: "10px",
                   borderBottom: "1px solid #e2e8f0",
+                  pageBreakInside: "avoid",
+                  breakInside: "avoid",
                 }}
               >
                 {emptyMessage}
@@ -142,10 +150,12 @@ export function PdfTable<T = any>({
               return (
                 <tr
                   key={key}
-                  className={extraRowClass}
+                  className={cn("pdf-avoid-break break-inside-avoid", extraRowClass)}
                   style={{
                     backgroundColor: bg,
                     borderBottom: "1px solid #e2e8f0",
+                    pageBreakInside: "avoid",
+                    breakInside: "avoid",
                     ...extraRowStyle,
                   }}
                 >
@@ -173,6 +183,8 @@ export function PdfTable<T = any>({
                           color: "#0f172a",
                           fontSize: "10px",
                           verticalAlign: "middle",
+                          pageBreakInside: "avoid",
+                          breakInside: "avoid",
                           ...dynamicCellStyle,
                         }}
                       >
@@ -187,13 +199,15 @@ export function PdfTable<T = any>({
         </tbody>
 
         {footerCells && footerCells.length > 0 && (
-          <tfoot>
+          <tfoot style={{ display: "table-footer-group", pageBreakInside: "avoid", breakInside: "avoid" }}>
             <tr
               style={{
                 backgroundColor: "#f1f5f9",
                 borderTop: "2px solid #0f172a",
                 borderBottom: "1px solid #cbd5e1",
                 fontWeight: "bold",
+                pageBreakInside: "avoid",
+                breakInside: "avoid",
               }}
             >
               {footerCells.map((cell, idx) => (
@@ -207,6 +221,8 @@ export function PdfTable<T = any>({
                     color: "#0f172a",
                     fontSize: "10.5px",
                     fontWeight: 700,
+                    pageBreakInside: "avoid",
+                    breakInside: "avoid",
                     ...cell.style,
                   }}
                 >
@@ -269,12 +285,14 @@ export function PdfTableRow({
 
   return (
     <tr
-      className={className}
+      className={cn("pdf-avoid-break break-inside-avoid", className)}
       style={{
         backgroundColor: defaultBg,
         borderBottom: isHeader ? "1px solid #0f172a" : "1px solid #e2e8f0",
         color: isHeader ? "#ffffff" : "#0f172a",
         fontWeight: isHeader || isFooter ? "bold" : "normal",
+        pageBreakInside: "avoid",
+        breakInside: "avoid",
         ...style,
       }}
     >
@@ -301,7 +319,7 @@ export function PdfTableHead({
   return (
     <th
       colSpan={colSpan}
-      className={className}
+      className={cn("pdf-avoid-break break-inside-avoid", className)}
       style={{
         width,
         padding: "6px 8px",
@@ -311,6 +329,8 @@ export function PdfTableHead({
         textTransform: "uppercase",
         letterSpacing: "0.025em",
         color: "#ffffff",
+        pageBreakInside: "avoid",
+        breakInside: "avoid",
         ...style,
       }}
     >
@@ -341,7 +361,7 @@ export function PdfTableCell({
   return (
     <td
       colSpan={colSpan}
-      className={className}
+      className={cn("pdf-avoid-break break-inside-avoid", className)}
       style={{
         width,
         padding: "5.5px 8px",
@@ -350,6 +370,8 @@ export function PdfTableCell({
         color: highlight ? "#0284c7" : "#0f172a",
         fontWeight: bold ? 700 : 400,
         verticalAlign: "middle",
+        pageBreakInside: "avoid",
+        breakInside: "avoid",
         ...style,
       }}
     >

@@ -1245,6 +1245,7 @@
     "typePurchase": "Purchase",
     "typePurchaseBillPayment": "Purchase Payment",
     "typeSaleReturn": "Sale Return",
+    "typeExpense": "Expense",
     "typeOpeningBalance": "Opening Balance",
     "amount": "Amount",
     "noTransactions": "No transactions found for the selected period.",

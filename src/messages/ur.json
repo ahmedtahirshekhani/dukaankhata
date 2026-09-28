@@ -1238,6 +1238,7 @@
     "typePurchase": "خریداری",
     "typePurchaseBillPayment": "خریداری کی ادائیگی",
     "typeSaleReturn": "سیل ریٹرن",
+    "typeExpense": "خرچہ",
     "typeOpeningBalance": "ابتدائی بیلنس",
     "amount": "رقم",
     "noTransactions": "منتخب مدت کے لیے کوئی لین دین نہیں ملا۔",

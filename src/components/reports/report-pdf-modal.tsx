@@ -51,7 +51,7 @@ export function ReportPdfModal({
             className="bg-white mx-auto text-slate-900 font-sans shadow-sm"
             style={{
               width: paperWidth,
-              padding: "16px 20px",
+              padding: "8px 12px",
               boxSizing: "border-box",
               borderRadius: "4px",
             }}

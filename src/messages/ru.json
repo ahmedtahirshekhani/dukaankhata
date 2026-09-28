@@ -1236,6 +1236,7 @@
     "typePurchase": "Purchase",
     "typePurchaseBillPayment": "Purchase Payment",
     "typeSaleReturn": "Sale Return",
+    "typeExpense": "Expense",
     "typeOpeningBalance": "Opening Balance",
     "amount": "Raqam",
     "noTransactions": "Chunee hui muddat ke liye koi transaction nahi mila.",
