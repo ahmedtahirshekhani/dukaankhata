@@ -261,7 +261,7 @@ export default function ReceivableSummaryPage() {
             pdf.setFontSize(8);
             pdf.setTextColor(148, 163, 184);
             pdf.text(
-              tCommon("pdfWatermarkText") || "This Document is Generated From dukaankhata.app",
+              tCommon("pdfWatermarkText"),
               210 / 2,
               297 - 5,
               { align: "center" }

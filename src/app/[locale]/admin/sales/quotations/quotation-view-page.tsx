@@ -791,7 +791,7 @@ export default function QuotationViewClient({ id }: { id: string }) {
                         textAlign: "center",
                     }}>
                         <p style={{ fontSize: "10px", color: "#94a3b8", fontStyle: "italic", margin: 0 }}>
-                            {tInvoice("computerGeneratedDisclaimer") || "This is a computer generated document from DukaanKhata.app"}
+                            {tInvoice("computerGeneratedDisclaimer")}
                         </p>
                     </div>
 

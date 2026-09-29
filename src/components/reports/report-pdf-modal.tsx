@@ -24,10 +24,10 @@ export function ReportPdfModal({
   description = "Preparing & downloading your PDF report...",
   reportRef,
   children,
-  width = "1050px",
+  width,
   isPortrait = false,
 }: ReportPdfModalProps) {
-  const paperWidth = isPortrait ? "760px" : (width || "1050px");
+  const paperWidth = width || (isPortrait ? "700px" : "1050px");
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

@@ -241,7 +241,7 @@ export default function StockReportPage() {
             pdf.setFontSize(8);
             pdf.setTextColor(148, 163, 184);
             pdf.text(
-              tCommon("pdfWatermarkText") || "This Document is Generated From dukaankhata.app",
+              tCommon("pdfWatermarkText"),
               297 / 2,
               210 - 5,
               { align: "center" }

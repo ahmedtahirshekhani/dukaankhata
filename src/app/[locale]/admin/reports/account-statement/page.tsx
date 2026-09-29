@@ -197,7 +197,7 @@ export default function AccountStatementPage() {
             pdf.setFontSize(8);
             pdf.setTextColor(148, 163, 184);
             pdf.text(
-              tCommon("pdfWatermarkText") || "This Document is Generated From dukaankhata.app",
+              tCommon("pdfWatermarkText"),
               148.5,
               204,
               { align: "center" }

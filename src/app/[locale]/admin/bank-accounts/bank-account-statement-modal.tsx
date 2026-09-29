@@ -152,7 +152,7 @@ export function BankAccountStatementModal({
 
     try {
       const opt = {
-        margin: [8, 8, 18, 8],
+        margin: [6, 6, 16, 6],
         filename: `Statement_${bankAccount.bankName.replace(/\s+/g, "_")}_${fromDate}_to_${toDate}.pdf`,
         image: { type: "jpeg" as const, quality: 0.98 },
         html2canvas: {
@@ -161,6 +161,7 @@ export function BankAccountStatementModal({
           letterRendering: true,
           scrollY: 0,
           scrollX: 0,
+          windowWidth: 700,
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
         pagebreak: {
@@ -185,7 +186,7 @@ export function BankAccountStatementModal({
             pdf.setFontSize(8);
             pdf.setTextColor(148, 163, 184);
             pdf.text(
-              tCommon("pdfWatermarkText") || "This Document is Generated From dukaankhata.app",
+              tCommon("pdfWatermarkText"),
               105,
               290,
               { align: "center" }
@@ -417,7 +418,7 @@ export function BankAccountStatementModal({
         render: (row) => {
           const isCr = row.balance < 0;
           return (
-            <span className="text-slate-900 font-bold">
+            <span className="text-slate-900 font-bold whitespace-nowrap">
               {formatCurrency(Math.abs(row.balance))} {isCr ? "(Cr)" : "(Dr)"}
             </span>
           );
@@ -610,7 +611,7 @@ export function BankAccountStatementModal({
           title="Bank Statement PDF"
           description="Preparing & downloading your bank statement PDF..."
           reportRef={reportRef}
-          width="760px"
+          width="700px"
           isPortrait={true}
         >
           <ReportPdfHeader
