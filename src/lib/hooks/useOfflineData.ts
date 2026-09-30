@@ -371,8 +371,11 @@ export function useOfflineCustomerTransactions(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by creation time / date descending (latest created on top)
-        const getCreatedTime = (item: any): number => {
+        const getTxnTime = (item: any): number => {
+          if (item.date) {
+            const parsed = safeDate(item.date, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+          }
           if (item.created_at) {
             const t = new Date(item.created_at).getTime();
             if (!isNaN(t) && t > 0) return t;
@@ -381,35 +384,20 @@ export function useOfflineCustomerTransactions(
             const t = new Date(item.createdAt).getTime();
             if (!isNaN(t) && t > 0) return t;
           }
-          if (item.date) {
-            const t = new Date(item.date).getTime();
-            if (!isNaN(t) && t > 0) return t;
-          }
-          if (
-            typeof item.id === "string" &&
-            item.id.length === 24 &&
-            /^[0-9a-fA-F]{24}$/.test(item.id)
-          ) {
-            const t = parseInt(item.id.substring(0, 8), 16) * 1000;
-            if (!isNaN(t) && t > 0) return t;
-          }
-          const numId = Number(item.id);
-          if (!isNaN(numId) && numId > 1000000000000) return numId;
           return 0;
         };
 
-        const timeA = getCreatedTime(a);
-        const timeB = getCreatedTime(b);
+        const timeA = getTxnTime(a);
+        const timeB = getTxnTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;
         }
 
-        const numA = Number(a.id);
-        const numB = Number(b.id);
-        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-          return numB - numA;
-        }
+        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (createA !== createB) return createB - createA;
+
         return String(b.id || "").localeCompare(String(a.id || ""));
       });
   }, [type, searchQuery, filterPaymentMethodId, filterPartyId]);
@@ -611,8 +599,11 @@ export function useOfflineSaleReturns(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by creation time / date descending (latest created on top)
-        const getCreatedTime = (item: any): number => {
+        const getReturnTime = (item: any): number => {
+          if (item.date) {
+            const parsed = safeDate(item.date, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+          }
           if (item.created_at) {
             const t = new Date(item.created_at).getTime();
             if (!isNaN(t) && t > 0) return t;
@@ -621,35 +612,20 @@ export function useOfflineSaleReturns(
             const t = new Date(item.createdAt).getTime();
             if (!isNaN(t) && t > 0) return t;
           }
-          if (item.date) {
-            const t = new Date(item.date).getTime();
-            if (!isNaN(t) && t > 0) return t;
-          }
-          if (
-            typeof item.id === "string" &&
-            item.id.length === 24 &&
-            /^[0-9a-fA-F]{24}$/.test(item.id)
-          ) {
-            const t = parseInt(item.id.substring(0, 8), 16) * 1000;
-            if (!isNaN(t) && t > 0) return t;
-          }
-          const numId = Number(item.id);
-          if (!isNaN(numId) && numId > 1000000000000) return numId;
           return 0;
         };
 
-        const timeA = getCreatedTime(a);
-        const timeB = getCreatedTime(b);
+        const timeA = getReturnTime(a);
+        const timeB = getReturnTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;
         }
 
-        const numA = Number(a.id);
-        const numB = Number(b.id);
-        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-          return numB - numA;
-        }
+        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (createA !== createB) return createB - createA;
+
         return String(b.id || "").localeCompare(String(a.id || ""));
       });
   }, [searchQuery, filterPaymentMethodId, filterPartyId]);
