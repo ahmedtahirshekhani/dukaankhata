@@ -54,7 +54,7 @@ export async function GET(request: Request) {
   // Get orders for the user
   const orders = await ordersCollection
     .find(query)
-    .sort({ created_at: -1 })
+    .sort({ sale_date: -1, created_at: -1, _id: -1 })
     .skip(skip)
     .limit(limit)
     .toArray();

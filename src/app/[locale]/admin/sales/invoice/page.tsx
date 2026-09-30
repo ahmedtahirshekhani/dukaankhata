@@ -73,7 +73,7 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useOfflineOrders } from "@/lib/hooks/useOfflineData";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { maskInvoiceNo } from "@/lib/utils";
-import { formatReadableDate } from "@/lib/date-utils";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 
 // ------------------------------------------------------------
 // Edit Order Dialog Component (embedded for clarity)
@@ -801,9 +801,18 @@ export default function OrdersPage() {
         });
       } else {
         processedOrders.sort((a, b) => {
-          const dateA = a.created_at ? new Date(a.created_at).getTime() : (a.sale_date ? new Date(a.sale_date).getTime() : 0);
-          const dateB = b.created_at ? new Date(b.created_at).getTime() : (b.sale_date ? new Date(b.sale_date).getTime() : 0);
-          return dateB - dateA;
+          const getOrderTime = (order: any) => {
+            const raw = order.sale_date || order.order_date || order.date || order.created_at;
+            if (!raw) return 0;
+            const parsed = safeDate(raw, new Date(0));
+            return parsed.getTime();
+          };
+          const dateA = getOrderTime(a);
+          const dateB = getOrderTime(b);
+          if (dateB !== dateA) return dateB - dateA;
+          const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return createB - createA;
         });
       }
 
