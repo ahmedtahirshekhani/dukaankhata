@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const [items, totalCount] = await Promise.all([
       collection
         .find(filter)
-        .sort({ created_at: -1, date: -1, _id: -1 })
+        .sort({ date: -1, created_at: -1, _id: -1 })
         .skip(limit === -1 ? 0 : skip)
         .limit(limit === -1 ? 0 : limit)
         .toArray(),

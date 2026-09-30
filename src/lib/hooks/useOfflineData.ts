@@ -215,7 +215,6 @@ export function useOfflineOrders(
       });
     }
 
-    // Sort by sale_date descending, fallback to created_at
     filtered.sort((a, b) => {
       const getOrderTime = (order: any) => {
         const raw = order.sale_date || order.order_date || order.date || order.created_at;
