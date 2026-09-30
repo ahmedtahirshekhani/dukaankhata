@@ -196,7 +196,10 @@ export async function GET(request: NextRequest) {
       ledgerCollection
         .find({
           user_id: userId,
-          ...partyMatchFilter,
+          $or: [
+            { customer_id: customerObjId },
+            { party_id: customerObjId },
+          ],
           event_type: "manual_adjustment",
         })
         .toArray(),
