@@ -192,7 +192,9 @@ export function useOfflineOrders(
       };
     });
 
-    let filtered = withCustomers;
+    let filtered = withCustomers.filter(
+      (o) => o.is_delete !== 1 && !o.is_deleted && o.status !== "cancelled" && o.status !== "deleted"
+    );
     if (statusFilter !== "all") {
       filtered = filtered.filter((o) => o.status === statusFilter);
     }
@@ -342,6 +344,10 @@ export function useOfflineCustomerTransactions(
         };
       })
       .filter((t) => {
+        if (t.is_delete === 1 || t.is_deleted || t.status === "cancelled" || t.status === "deleted") {
+          return false;
+        }
+
         let matches = t.type === type;
 
         if (filterPaymentMethodId && filterPaymentMethodId !== "all") {

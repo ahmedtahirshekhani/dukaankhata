@@ -48,6 +48,19 @@ function parseDocDate(val: unknown): Date | null {
   return d.getTime() === 0 ? null : d;
 }
 
+function isDocDeleted(doc: any): boolean {
+  if (!doc) return true;
+  if (doc.is_delete === 1 || doc.is_delete === true || doc.is_delete === "1") return true;
+  if (doc.is_deleted === 1 || doc.is_deleted === true || doc.is_deleted === "1" || doc.isDeleted === true || doc.isDeleted === 1) return true;
+  if (doc.isDelete === 1 || doc.isDelete === true || doc.isDelete === "1") return true;
+  if (doc.deleted_at || doc.deletedAt) return true;
+  if (typeof doc.status === "string") {
+    const s = doc.status.toLowerCase().trim();
+    if (s === "cancelled" || s === "deleted" || s === "inactive") return true;
+  }
+  return false;
+}
+
 function parseDateRange(fromDate: string, toDate: string) {
   const fDate = safeDate(fromDate);
   const tDate = safeDate(toDate);
@@ -136,6 +149,15 @@ export async function GET(request: NextRequest) {
       ],
     };
 
+    const notDeletedFilter: any = {
+      is_delete: { $nin: [1, true, "1"] },
+      is_deleted: { $nin: [1, true, "1"] },
+      isDelete: { $nin: [1, true, "1"] },
+      isDeleted: { $ne: true },
+      status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
+      deleted_at: null,
+    };
+
     // Parallel fetch of customer, user, payment methods, and all active source documents
     const [
       customer,
@@ -153,6 +175,8 @@ export async function GET(request: NextRequest) {
           projection: {
             created_at: 1,
             opening_balance: 1,
+            opening_balance_date: 1,
+            date: 1,
             name: 1,
             company_name: 1,
             company_address: 1,
@@ -168,29 +192,28 @@ export async function GET(request: NextRequest) {
         .find({
           user_id: userId,
           ...partyMatchFilter,
-          status: { $ne: "cancelled" },
-          is_delete: { $ne: 1 },
+          ...notDeletedFilter,
         })
         .toArray(),
       paymentsCollection
         .find({
           user_id: userId,
           ...partyMatchFilter,
-          is_delete: { $ne: 1 },
+          ...notDeletedFilter,
         })
         .toArray(),
       saleReturnsCollection
         .find({
           user_id: userId,
           ...partyMatchFilter,
-          is_delete: { $ne: 1 },
+          ...notDeletedFilter,
         })
         .toArray(),
       purchaseBillsCollection
         .find({
           user_id: userId,
           ...vendorMatchFilter,
-          is_delete: { $ne: 1 },
+          ...notDeletedFilter,
         })
         .toArray(),
       ledgerCollection
@@ -201,6 +224,9 @@ export async function GET(request: NextRequest) {
             { party_id: customerObjId },
           ],
           event_type: "manual_adjustment",
+          is_delete: { $nin: [1, true, "1"] },
+          is_deleted: { $nin: [1, true, "1"] },
+          isDeleted: { $ne: true },
         })
         .toArray(),
     ]);
@@ -228,6 +254,8 @@ export async function GET(request: NextRequest) {
 
     // 1. Process Orders / Sales
     for (const order of orderDocs) {
+      if (isDocDeleted(order)) continue;
+
       const docDate =
         parseDocDate(order.sale_date) ||
         parseDocDate(order.order_date) ||
@@ -269,6 +297,8 @@ export async function GET(request: NextRequest) {
 
     // 2. Process Sale Returns
     for (const sr of saleReturnDocs) {
+      if (isDocDeleted(sr)) continue;
+
       const docDate =
         parseDocDate(sr.date) ||
         parseDocDate(sr.created_at) ||
@@ -307,6 +337,8 @@ export async function GET(request: NextRequest) {
 
     // 3. Process Purchase Bills
     for (const bill of purchaseBillDocs) {
+      if (isDocDeleted(bill)) continue;
+
       const docDate =
         parseDocDate(bill.bill_date) ||
         parseDocDate(bill.purchase_date) ||
@@ -351,6 +383,8 @@ export async function GET(request: NextRequest) {
 
     // 4. Process Payment In / Payment Out
     for (const payment of paymentDocs) {
+      if (isDocDeleted(payment)) continue;
+
       const docDate =
         parseDocDate(payment.date) ||
         parseDocDate(payment.created_at) ||
@@ -385,6 +419,8 @@ export async function GET(request: NextRequest) {
 
     // 5. Process Manual Adjustments (excluding system reversals/edits/deletions)
     for (const adj of manualAdjustmentDocs) {
+      if (isDocDeleted(adj)) continue;
+
       const eventKey = (adj.event_key || "").toLowerCase();
       const metadata = (adj.metadata as any) || {};
       const reason = (metadata.reason || "").toString().toLowerCase();
@@ -469,7 +505,20 @@ export async function GET(request: NextRequest) {
       });
 
     // Opening Balance virtual row
-    const openingDate = from.toISOString();
+    let openingDate: string;
+    if (from.getFullYear() <= 1970) {
+      const rawDate = (customer as any)?.opening_balance_date || customer?.created_at || (customer as any)?.date;
+      if (rawDate) {
+        openingDate = asISO(rawDate);
+      } else if (inRangeTransactions.length > 0) {
+        openingDate = inRangeTransactions[0].dateTime;
+      } else {
+        openingDate = new Date().toISOString();
+      }
+    } else {
+      openingDate = from.toISOString();
+    }
+
     const openingBalanceRecord = {
       id: "opening_balance",
       type: "opening_balance",
@@ -504,11 +553,12 @@ export async function GET(request: NextRequest) {
     const currentBalance = runningBalance;
 
     const reportNow = new Date();
+    const shouldIncludeOpeningRow = Math.abs(calculatedOpeningBalance) >= 0.01 || from.getFullYear() > 1970;
 
     await updateUserLastActivity();
     return NextResponse.json(
       {
-        transactions: [openingBalanceRecord, ...transactions],
+        transactions: shouldIncludeOpeningRow ? [openingBalanceRecord, ...transactions] : transactions,
         summary: {
           openingBalance: calculatedOpeningBalance,
           totalOrders,

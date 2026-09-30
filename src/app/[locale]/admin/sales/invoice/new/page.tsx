@@ -7,14 +7,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
@@ -24,11 +16,6 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -1137,7 +1124,7 @@ export default function NewInvoicePage() {
                     value={dueDate}
                     onChange={(val) => setDueDate(val)}
                     disabled={!addDueDate}
-                    className="h-8 text-xs bg-white mb-3"
+                    className="h-8 text-xs bg-white"
                   />
                   <div className="flex items-center gap-3">
                     <input

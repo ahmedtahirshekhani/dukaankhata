@@ -428,9 +428,16 @@ export default function SaleReturnPage() {
       await db.sale_return_transactions.put({
         ...payload,
         id: newId,
+        customer_id: formCustomerId,
+        customerId: formCustomerId,
+        total_amount: totalAmount,
+        totalAmount: totalAmount,
+        paid_amount: paidAmount,
+        paidAmount: paidAmount,
+        balance_due: balanceDue,
+        balanceDue: balanceDue,
         customerName: customer?.name ?? "",
         paymentMethodName: pm?.name ?? "",
-        balanceDue,
         is_delete: 0,
         created_at: new Date().toISOString()
       });
@@ -441,7 +448,8 @@ export default function SaleReturnPage() {
 
       const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const item of payload.items) {
-        if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
+        const pId = (item.productId || (item as any).product_id)?.toString();
+        if (pId) await adjustOfflineStock(pId, item.quantity);
       }
 
       await SyncEngine.queueOperation(
@@ -504,25 +512,45 @@ export default function SaleReturnPage() {
         // Revert old stock
         if (existing.items && Array.isArray(existing.items)) {
           for (const item of existing.items) {
-            if (item.productId) await adjustOfflineStock(item.productId, -(item.quantity || 0));
+            const pId = (item.productId || item.product_id)?.toString();
+            const qty = Number(item.quantity) || 0;
+            if (pId && qty > 0) await adjustOfflineStock(pId, -qty);
           }
         }
         await db.sale_return_transactions.update(selectedId, {
           ...existing,
           ...payload,
+          customer_id: formCustomerId,
+          customerId: formCustomerId,
+          total_amount: totalAmount,
+          totalAmount: totalAmount,
+          paid_amount: paidAmount,
+          paidAmount: paidAmount,
+          balance_due: balanceDue,
+          balanceDue: balanceDue,
           customerName: customer?.name ?? "",
           paymentMethodName: pm?.name ?? "",
-          balanceDue,
           updated_at: new Date().toISOString()
         });
         
         const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
-        const oldNetAmount = (existing.paidAmount || 0) - (existing.totalAmount || 0);
+        const oldPaid = Number(existing.paidAmount ?? existing.paid_amount ?? existing.paymentAmount ?? existing.payment_amount ?? 0);
+        const oldTotal = Number(existing.totalAmount ?? existing.total_amount ?? 0);
+        const oldCustomerId = (existing.customerId || existing.customer_id)?.toString() || formCustomerId;
+        const oldNetAmount = oldPaid - oldTotal;
         const newNetAmount = paidAmount - totalAmount;
-        await updateOfflinePartyBalance(formCustomerId, newNetAmount - oldNetAmount);
+
+        if (oldCustomerId !== formCustomerId) {
+          await updateOfflinePartyBalance(oldCustomerId, -oldNetAmount);
+          await updateOfflinePartyBalance(formCustomerId, newNetAmount);
+        } else {
+          await updateOfflinePartyBalance(formCustomerId, newNetAmount - oldNetAmount);
+        }
+
         // Apply new stock
         for (const item of payload.items) {
-          if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
+          const pId = (item.productId || (item as any).product_id)?.toString();
+          if (pId) await adjustOfflineStock(pId, item.quantity);
         }
 
         await SyncEngine.queueOperation(
@@ -581,7 +609,9 @@ export default function SaleReturnPage() {
         // Revert stock
         if (existing.items && Array.isArray(existing.items)) {
           for (const item of existing.items) {
-            if (item.productId) await adjustOfflineStock(item.productId, -(item.quantity || 0));
+            const pId = (item.productId || (item as any).product_id)?.toString();
+            const qty = Number(item.quantity) || 0;
+            if (pId && qty > 0) await adjustOfflineStock(pId, -qty);
           }
         }
         await db.sale_return_transactions.update(transactionToDelete.id, {
@@ -591,8 +621,13 @@ export default function SaleReturnPage() {
         });
 
         const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
-        const oldNetAmount = (existing.paidAmount || 0) - (existing.totalAmount || 0);
-        await updateOfflinePartyBalance(existing.customerId, -oldNetAmount);
+        const oldPaid = Number(existing.paidAmount ?? existing.paid_amount ?? existing.paymentAmount ?? existing.payment_amount ?? 0);
+        const oldTotal = Number(existing.totalAmount ?? existing.total_amount ?? 0);
+        const targetCustomerId = (existing.customerId || existing.customer_id || transactionToDelete.customerId)?.toString();
+        const oldNetAmount = oldPaid - oldTotal;
+        if (targetCustomerId) {
+          await updateOfflinePartyBalance(targetCustomerId, -oldNetAmount);
+        }
 
         await SyncEngine.queueOperation(
           "sale_return_transactions", 
