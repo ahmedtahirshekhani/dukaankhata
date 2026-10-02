@@ -86,6 +86,16 @@ export async function POST(request: Request) {
     }
 
     const remainingCount = otherOwnedShops.length + otherStaffShopIds.length;
+    if (remainingCount === 0) {
+      return Response.json(
+        {
+          error: "CANNOT_DELETE_ONLY_WORKSPACE",
+          message: "You cannot delete your only workspace. If you want to delete your entire account, please go to the Settings page and click Delete Account.",
+        },
+        { status: 400 }
+      );
+    }
+
     const nextWorkspaceId =
       otherOwnedShops[0]?._id?.toString() || otherStaffShopIds[0] || null;
 

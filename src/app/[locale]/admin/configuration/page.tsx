@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useSession, signOut } from "next-auth/react";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -31,14 +32,17 @@ export default function ConfigurationPage({
 }: {
   params: { locale: string };
 }) {
+  const router = useRouter();
   const tNav = useTranslations("navigation");
   const tCommon = useTranslations("common");
   const t = useTranslations("configurationPage");
   const { data: session, update: updateSession } = useSession();
-  const { refreshSession } = useUserProfile();
+  const { user, refreshSession } = useUserProfile();
   const { can } = usePermissions();
 
-  const isOwner = (session?.user as any)?.role === "owner";
+  const isOwner = (session?.user as any)?.role === "owner" || (user as any)?.role === "owner";
+  const workspaces = (session?.user as any)?.workspaces || user?.workspaces || [];
+  const isSoleWorkspace = workspaces.length <= 1;
   const canViewConfig = can("configuration", "view");
   const canEditConfig = can("configuration", "edit");
   const canViewPaymentMethods = can("payment_methods", "view");
@@ -222,6 +226,9 @@ export default function ConfigurationPage({
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data.error === "CANNOT_DELETE_ONLY_WORKSPACE") {
+          throw new Error(t("cannotDeleteOnlyWorkspaceDesc"));
+        }
         throw new Error(data.error || "Failed to delete workspace");
       }
 
@@ -601,6 +608,26 @@ export default function ConfigurationPage({
                             {t("deleteWorkspaceButton") || "Delete Workspace"}
                           </Button>
                         </div>
+
+                        {isSoleWorkspace && (
+                          <div className="mt-1 p-3 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <p className="leading-relaxed">
+                                {t("cannotDeleteOnlyWorkspaceDesc") || "You cannot delete your only workspace. If you want to delete your entire account, please go to the Settings page and click Delete Account."}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`/${params.locale}/admin/settings`)}
+                              className="border-amber-300 bg-white hover:bg-amber-100 text-amber-900 hover:text-slate-600 text-xs shrink-0 font-medium"
+                            >
+                              {t("goToSettings")}
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -624,10 +651,10 @@ export default function ConfigurationPage({
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-red-600">
                   <AlertCircle className="h-5 w-5" />
-                  {t("deleteAllDataTitle") || "Delete All Workspace Data"}
+                  {t("deleteAllDataTitle")}
                 </DialogTitle>
                 <DialogDescription>
-                  {t("deleteAllDataWarning") || "Are you sure you want to delete all data? This cannot be undone."}
+                  {t("deleteAllDataWarning")}
                 </DialogDescription>
               </DialogHeader>
 
@@ -640,14 +667,14 @@ export default function ConfigurationPage({
 
                 <div className="space-y-2">
                   <Label htmlFor="delete-data-password">
-                    {t("enterPassword") || "Enter Password"} <span className="text-red-600">*</span>
+                    {t("enterPassword")} <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     id="delete-data-password"
                     type="password"
                     value={deleteDataPassword}
                     onChange={(e) => setDeleteDataPassword(e.target.value)}
-                    placeholder={t("enterPasswordDescription") || "Enter password to confirm"}
+                    placeholder={t("enterPasswordDescription")}
                     disabled={isDeletingData}
                   />
                 </div>
@@ -663,7 +690,7 @@ export default function ConfigurationPage({
                     }}
                     disabled={isDeletingData}
                   >
-                    {t("cancelDeletion") || "Cancel"}
+                    {t("cancelDeletion")}
                   </Button>
                   <Button
                     type="submit"
@@ -673,10 +700,10 @@ export default function ConfigurationPage({
                     {isDeletingData ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t("deleting") || "Deleting..."}
+                        {t("deleting")}
                       </>
                     ) : (
-                      t("confirmDeletion") || "Confirm"
+                      t("confirmDeletion")
                     )}
                   </Button>
                 </div>
@@ -696,66 +723,109 @@ export default function ConfigurationPage({
             }}
           >
             <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="h-5 w-5" />
-                  {t("deleteWorkspaceTitle") || "Delete Workspace"}
-                </DialogTitle>
-                <DialogDescription>
-                  {t("deleteWorkspaceWarning") || "Are you sure you want to permanently delete this workspace and all its data? This cannot be undone."}
-                </DialogDescription>
-              </DialogHeader>
+              {isSoleWorkspace ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-amber-600">
+                      <AlertCircle className="h-5 w-5" />
+                      {t("cannotDeleteOnlyWorkspaceTitle")}
+                    </DialogTitle>
+                    <DialogDescription className="text-gray-700 pt-2 leading-relaxed">
+                      {t("cannotDeleteOnlyWorkspaceDesc")}
+                    </DialogDescription>
+                  </DialogHeader>
 
-              <form onSubmit={handleDeleteWorkspace} className="space-y-4">
-                {deleteWorkspaceError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                    {deleteWorkspaceError}
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs flex items-start gap-2 mt-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">
+                      {t("cannotDeleteOnlyWorkspaceDesc")}
+                    </span>
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="delete-workspace-password">
-                    {t("enterPassword") || "Enter Password"} <span className="text-red-600">*</span>
-                  </Label>
-                  <Input
-                    id="delete-workspace-password"
-                    type="password"
-                    value={deleteWorkspacePassword}
-                    onChange={(e) => setDeleteWorkspacePassword(e.target.value)}
-                    placeholder={t("enterPasswordDescription") || "Enter password to confirm"}
-                    disabled={isDeletingWorkspace}
-                  />
-                </div>
+                  <div className="flex gap-3 justify-end pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowDeleteWorkspaceModal(false)}
+                    >
+                      {t("cancelDeletion")}
+                    </Button>
+                    <Button
+                      type="button"
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={() => {
+                        setShowDeleteWorkspaceModal(false);
+                        router.push(`/${params.locale}/admin/settings`);
+                      }}
+                    >
+                      {t("goToSettings")}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-red-600">
+                      <AlertCircle className="h-5 w-5" />
+                      {t("deleteWorkspaceTitle") || "Delete Workspace"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t("deleteWorkspaceWarning") || "Are you sure you want to permanently delete this workspace and all its data? This cannot be undone."}
+                    </DialogDescription>
+                  </DialogHeader>
 
-                <div className="flex gap-3 justify-end pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowDeleteWorkspaceModal(false);
-                      setDeleteWorkspacePassword("");
-                      setDeleteWorkspaceError("");
-                    }}
-                    disabled={isDeletingWorkspace}
-                  >
-                    {t("cancelDeletion") || "Cancel"}
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-red-700 hover:bg-red-800 text-white"
-                    disabled={isDeletingWorkspace}
-                  >
-                    {isDeletingWorkspace ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t("deletingWorkspace") || "Deleting Workspace..."}
-                      </>
-                    ) : (
-                      t("confirmDeletion") || "Confirm"
+                  <form onSubmit={handleDeleteWorkspace} className="space-y-4">
+                    {deleteWorkspaceError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                        {deleteWorkspaceError}
+                      </div>
                     )}
-                  </Button>
-                </div>
-              </form>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="delete-workspace-password">
+                        {t("enterPassword") || "Enter Password"} <span className="text-red-600">*</span>
+                      </Label>
+                      <Input
+                        id="delete-workspace-password"
+                        type="password"
+                        value={deleteWorkspacePassword}
+                        onChange={(e) => setDeleteWorkspacePassword(e.target.value)}
+                        placeholder={t("enterPasswordDescription") || "Enter password to confirm"}
+                        disabled={isDeletingWorkspace}
+                      />
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowDeleteWorkspaceModal(false);
+                          setDeleteWorkspacePassword("");
+                          setDeleteWorkspaceError("");
+                        }}
+                        disabled={isDeletingWorkspace}
+                      >
+                        {t("cancelDeletion") || "Cancel"}
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="bg-red-700 hover:bg-red-800 text-white"
+                        disabled={isDeletingWorkspace}
+                      >
+                        {isDeletingWorkspace ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t("deletingWorkspace") || "Deleting Workspace..."}
+                          </>
+                        ) : (
+                          t("confirmDeletion") || "Confirm"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </>
+              )}
             </DialogContent>
           </Dialog>
 
