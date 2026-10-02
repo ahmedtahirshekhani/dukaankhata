@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,11 @@ export default function ConfigurationPage({
   const tNav = useTranslations("navigation");
   const tCommon = useTranslations("common");
   const t = useTranslations("configurationPage");
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const { refreshSession } = useUserProfile();
   const { can } = usePermissions();
 
+  const isOwner = (session?.user as any)?.role === "owner";
   const canViewConfig = can("configuration", "view");
   const canEditConfig = can("configuration", "edit");
   const canViewPaymentMethods = can("payment_methods", "view");
@@ -59,6 +60,12 @@ export default function ConfigurationPage({
   const [deleteDataPassword, setDeleteDataPassword] = useState("");
   const [deleteDataError, setDeleteDataError] = useState<string>("");
   const [isDeletingData, setIsDeletingData] = useState(false);
+
+  // Delete Entire Workspace Modal State
+  const [showDeleteWorkspaceModal, setShowDeleteWorkspaceModal] = useState(false);
+  const [deleteWorkspacePassword, setDeleteWorkspacePassword] = useState("");
+  const [deleteWorkspaceError, setDeleteWorkspaceError] = useState<string>("");
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
   // Feature Switches State
   const [enableCounterSale, setEnableCounterSale] = useState(true);
@@ -195,6 +202,55 @@ export default function ConfigurationPage({
       setDeleteDataError(err.message || "Something went wrong");
     } finally {
       setIsDeletingData(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteWorkspaceError("");
+    if (!deleteWorkspacePassword) {
+      setDeleteWorkspaceError(t("enterPassword"));
+      return;
+    }
+
+    setIsDeletingWorkspace(true);
+    try {
+      const res = await fetch(`/${params.locale}/api/settings/delete-workspace`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deleteWorkspacePassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete workspace");
+      }
+
+      const wsId = (session?.user as any)?.id || "";
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`companyName_${wsId}`);
+        localStorage.removeItem(`companyAddress_${wsId}`);
+        localStorage.removeItem(`companyPhone_${wsId}`);
+        localStorage.removeItem(`companyEmail_${wsId}`);
+        localStorage.removeItem(`companyLogo_${wsId}`);
+        localStorage.removeItem(`invoiceSignature_${wsId}`);
+      }
+
+      // If user has other remaining workspaces, switch to the next one
+      if (data.remainingCount > 0 && data.nextWorkspaceId) {
+        const { SyncEngine } = await import('@/lib/sync/sync-engine');
+        await updateSession?.({ active_workspace_id: data.nextWorkspaceId });
+        await SyncEngine.clearCacheAndResync();
+        window.location.href = `/${params.locale}/admin`;
+      } else {
+        // Scenario B: Last remaining workspace deleted -> clear DB and sign out to login screen
+        const { clearUserDatabase } = await import('@/lib/db/offline-db');
+        await clearUserDatabase();
+        await signOut({ callbackUrl: `/${params.locale}/login` });
+      }
+    } catch (err: any) {
+      setDeleteWorkspaceError(err.message || "Something went wrong");
+    } finally {
+      setIsDeletingWorkspace(false);
     }
   };
 
@@ -524,6 +580,27 @@ export default function ConfigurationPage({
                             {t("deleteAllDataButton") || "Delete Data"}
                           </Button>
                         </div>
+
+                        <div className="border-t border-red-200/80 my-2" />
+
+                        {/* Option 2: Delete Entire Workspace */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-1 text-red-900/90">
+                            <h3 className="font-medium text-red-800">{t("deleteWorkspaceTitle") || "Delete Workspace"}</h3>
+                            <p className="text-sm">{t("deleteWorkspaceDescription") || "Permanently delete this entire workspace along with all its sales, expenses, inventory, staff roles, and settings. This cannot be undone."}</p>
+                            {!isOwner && (
+                              <p className="text-xs text-red-600 italic mt-1 font-medium">{t("onlyOwnerCanDeleteWorkspace") || "Only the workspace owner can delete this workspace."}</p>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteWorkspaceModal(true)}
+                            disabled={!isOwner}
+                            className="bg-red-700 text-white hover:bg-red-800 hover:text-white border-red-300 w-full sm:w-auto shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {t("deleteWorkspaceButton") || "Delete Workspace"}
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
@@ -597,6 +674,81 @@ export default function ConfigurationPage({
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {t("deleting") || "Deleting..."}
+                      </>
+                    ) : (
+                      t("confirmDeletion") || "Confirm"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Entire Workspace Modal */}
+          <Dialog
+            open={showDeleteWorkspaceModal}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeleteWorkspacePassword("");
+                setDeleteWorkspaceError("");
+              }
+              setShowDeleteWorkspaceModal(open);
+            }}
+          >
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="h-5 w-5" />
+                  {t("deleteWorkspaceTitle") || "Delete Workspace"}
+                </DialogTitle>
+                <DialogDescription>
+                  {t("deleteWorkspaceWarning") || "Are you sure you want to permanently delete this workspace and all its data? This cannot be undone."}
+                </DialogDescription>
+              </DialogHeader>
+
+              <form onSubmit={handleDeleteWorkspace} className="space-y-4">
+                {deleteWorkspaceError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {deleteWorkspaceError}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="delete-workspace-password">
+                    {t("enterPassword") || "Enter Password"} <span className="text-red-600">*</span>
+                  </Label>
+                  <Input
+                    id="delete-workspace-password"
+                    type="password"
+                    value={deleteWorkspacePassword}
+                    onChange={(e) => setDeleteWorkspacePassword(e.target.value)}
+                    placeholder={t("enterPasswordDescription") || "Enter password to confirm"}
+                    disabled={isDeletingWorkspace}
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowDeleteWorkspaceModal(false);
+                      setDeleteWorkspacePassword("");
+                      setDeleteWorkspaceError("");
+                    }}
+                    disabled={isDeletingWorkspace}
+                  >
+                    {t("cancelDeletion") || "Cancel"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-red-700 hover:bg-red-800 text-white"
+                    disabled={isDeletingWorkspace}
+                  >
+                    {isDeletingWorkspace ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("deletingWorkspace") || "Deleting Workspace..."}
                       </>
                     ) : (
                       t("confirmDeletion") || "Confirm"
