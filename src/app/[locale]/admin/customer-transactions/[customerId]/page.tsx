@@ -156,11 +156,19 @@ export default function CustomerTransactionsDetailPage() {
         accessorKey: "dateTime",
         header: <span className="text-slate-900 font-bold">{tStatement("date") || "Date"}</span>,
         className: "w-[105px] text-center text-xs text-slate-900 font-medium px-2",
-        cell: (row) => <span className="text-slate-900 font-medium whitespace-nowrap">{formatStatementDate(row.dateTime)}</span>,
+        cell: (row) => {
+          if (row.id === "opening_balance") {
+            const d = new Date(row.dateTime);
+            if (!row.dateTime || isNaN(d.getTime()) || d.getFullYear() <= 1970) {
+              return <span className="text-slate-900 font-medium whitespace-nowrap">-</span>;
+            }
+          }
+          return <span className="text-slate-900 font-medium whitespace-nowrap">{formatStatementDate(row.dateTime)}</span>;
+        },
       },
       {
         id: "voucher",
-        header: <span className="text-slate-900 font-bold">{tStatement("orderId") || "Voucher #"}</span>,
+        header: <span className="text-slate-900 font-bold">{tStatement("voucher") || "Voucher"}</span>,
         className: "w-[120px] text-center text-xs text-slate-900 font-medium px-2 max-w-[130px] break-all whitespace-normal",
         cell: (row) => <span className="text-slate-900 font-medium">{row.orderId || "-"}</span>,
       },
@@ -237,7 +245,9 @@ export default function CustomerTransactionsDetailPage() {
         >
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-900 font-semibold">
-              {formatStatementDate(txn.dateTime)}
+              {txn.id === "opening_balance" && (!txn.dateTime || new Date(txn.dateTime).getFullYear() <= 1970)
+                ? "-"
+                : formatStatementDate(txn.dateTime)}
             </span>
             <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-900 border border-slate-300">
               {getTransactionType(txn.type)} {txn.orderId ? `(${txn.orderId})` : ""}

@@ -60,6 +60,8 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
 import { generateReferenceNumber, maskPaymentNo } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 
 type Customer = {
   id: string;
@@ -126,7 +128,35 @@ export default function PaymentInPage() {
   // Replace API fetching with offline hook
   const offlineTransactions = useOfflineCustomerTransactions("payment-in", searchTerm, filters.paymentMethod, filters.customer);
   const loading = offlineTransactions === undefined;
-  const allOfflineTransactions = offlineTransactions || [];
+  const allOfflineTransactions = useMemo(() => {
+    if (!offlineTransactions) return [];
+    return [...offlineTransactions].sort((a: any, b: any) => {
+      const getTxnTime = (item: any): number => {
+        if (item.date) {
+          const parsed = safeDate(item.date, new Date(0));
+          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+        }
+        if (item.created_at) {
+          const t = new Date(item.created_at).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (item.createdAt) {
+          const t = new Date(item.createdAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        return 0;
+      };
+      const timeA = getTxnTime(a);
+      const timeB = getTxnTime(b);
+      if (timeA !== timeB) return timeB - timeA;
+
+      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (createA !== createB) return createB - createA;
+
+      return String(b.id || "").localeCompare(String(a.id || ""));
+    });
+  }, [offlineTransactions]);
   
   const totalCount = allOfflineTransactions.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -555,7 +585,7 @@ export default function PaymentInPage() {
                         Rs. {Math.round(item.paymentAmount)}
                       </TableCell>
                       <TableCell>{item.paymentMethodName || "-"}</TableCell>
-                      <TableCell>{item.date || "-"}</TableCell>
+                      <TableCell>{formatReadableDate(item.date)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {can("sales", "edit_payment_in") && (
@@ -712,10 +742,9 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+                onChange={(val) => setFormDate(val)}
               />
             </div>
           </div>
@@ -786,10 +815,9 @@ export default function PaymentInPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+                onChange={(val) => setFormDate(val)}
               />
             </div>
           </div>
@@ -917,7 +945,7 @@ function TransactionCard({
         </div>
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground">{t("date")}:</span>
-          <span className="text-muted-foreground">{transaction.date || "-"}</span>
+          <span className="text-muted-foreground">{formatReadableDate(transaction.date)}</span>
         </div>
       </div>
     </div>

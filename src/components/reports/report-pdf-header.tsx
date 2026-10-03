@@ -74,7 +74,7 @@ export function ReportPdfHeader({
   return (
     <div className={`pdf-header ${className}`} style={{ backgroundColor: "white" }}>
       {/* 1. Main Business Branding & Title Section */}
-      <div style={{ paddingBottom: "12px", marginBottom: "12px", borderBottom: "2px solid #0f172a" }}>
+      <div style={{ paddingBottom: "6px", marginBottom: "6px", borderBottom: "2px solid #0f172a" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <tbody>
             <tr>
@@ -84,27 +84,27 @@ export function ReportPdfHeader({
                     src={branding.logo}
                     alt="Company Logo"
                     width={130}
-                    height={42}
+                    height={38}
                     unoptimized
                     style={{
-                      height: "42px",
+                      height: "38px",
                       width: "auto",
                       objectFit: "contain",
                       display: "block",
-                      marginBottom: "4px",
+                      marginBottom: "3px",
                     }}
                   />
                 )}
-                <div style={{ fontWeight: 900, fontSize: "17px", color: "#0f172a", textTransform: "uppercase" }}>
+                <div style={{ fontWeight: 900, fontSize: "16px", color: "#0f172a", textTransform: "uppercase" }}>
                   {branding.name || "Dukan Khata"}
                 </div>
                 {branding.address && (
-                  <div style={{ fontSize: "10px", color: "#334155", marginTop: "2px", lineHeight: 1.3 }}>
+                  <div style={{ fontSize: "9.5px", color: "#334155", marginTop: "1px", lineHeight: 1.2 }}>
                     {branding.address}
                   </div>
                 )}
                 {(branding.phone || branding.email) && (
-                  <div style={{ fontSize: "9px", color: "#475569", marginTop: "2px" }}>
+                  <div style={{ fontSize: "8.5px", color: "#475569", marginTop: "1px" }}>
                     {branding.phone ? `Phone: ${branding.phone}` : ""}
                     {branding.phone && branding.email ? " | " : ""}
                     {branding.email ? `Email: ${branding.email}` : ""}
@@ -112,20 +112,20 @@ export function ReportPdfHeader({
                 )}
               </td>
               <td style={{ width: "52%", textAlign: "right", verticalAlign: "top" }}>
-                <div style={{ fontWeight: 900, fontSize: "19px", color: "#0f172a", textTransform: "uppercase" }}>
+                <div style={{ fontWeight: 900, fontSize: "18px", color: "#0f172a", textTransform: "uppercase" }}>
                   {title}
                 </div>
                 {subtitle && (
-                  <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px" }}>
+                  <div style={{ fontSize: "10px", color: "#475569", marginTop: "1px" }}>
                     {subtitle}
                   </div>
                 )}
                 {displayPeriod && (
-                  <div style={{ fontSize: "10px", color: "#475569", marginTop: "3px" }}>
+                  <div style={{ fontSize: "9.5px", color: "#475569", marginTop: "2px" }}>
                     Period: {displayPeriod}
                   </div>
                 )}
-                <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>
+                <div style={{ fontSize: "8.5px", color: "#64748b", marginTop: "1px" }}>
                   Generated on: {generatedDateStr}
                 </div>
               </td>
@@ -136,7 +136,7 @@ export function ReportPdfHeader({
 
       {/* 2. Optional Metadata Bar (e.g. Customer Name, ID, Category filter) */}
       {metaItems && metaItems.length > 0 && (
-        <div style={{ marginBottom: "12px" }}>
+        <div style={{ marginBottom: "6px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1", backgroundColor: "#ffffff" }}>
             <tbody>
               <tr>
@@ -144,16 +144,16 @@ export function ReportPdfHeader({
                   <td
                     key={idx}
                     style={{
-                      padding: "6px 10px",
+                      padding: "4px 8px",
                       textAlign: "left",
                       borderRight: idx < metaItems.length - 1 ? "1px solid #cbd5e1" : "none",
                       backgroundColor: "#f8fafc",
                     }}
                   >
-                    <div style={{ fontSize: "8px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>
+                    <div style={{ fontSize: "7.5px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>
                       {meta.label}
                     </div>
-                    <div style={{ fontSize: "11px", fontWeight: "bold", color: "#0f172a", marginTop: "1px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: "bold", color: "#0f172a", marginTop: "1px" }}>
                       {meta.value}
                     </div>
                   </td>
@@ -166,7 +166,7 @@ export function ReportPdfHeader({
 
       {/* 3. Optional KPI Summary Strip (e.g. Total Revenue, Units Sold, Gross Profit) */}
       {kpis && kpis.length > 0 && (
-        <div style={{ marginBottom: "12px" }}>
+        <div style={{ marginBottom: "6px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1", backgroundColor: "#f8fafc" }}>
             <tbody>
               <tr>
@@ -174,16 +174,16 @@ export function ReportPdfHeader({
                   <td
                     key={idx}
                     style={{
-                      padding: "6px 8px",
+                      padding: "4px 6px",
                       textAlign: "center",
                       borderRight: idx < kpis.length - 1 ? "1px solid #cbd5e1" : "none",
                       backgroundColor: kpi.highlight ? "#f1f5f9" : "#f8fafc",
                     }}
                   >
-                    <div style={{ fontSize: "8px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>
+                    <div style={{ fontSize: "7.5px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>
                       {kpi.label}
                     </div>
-                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a", marginTop: "1px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "bold", color: "#0f172a", marginTop: "1px" }}>
                       {kpi.value}
                     </div>
                   </td>

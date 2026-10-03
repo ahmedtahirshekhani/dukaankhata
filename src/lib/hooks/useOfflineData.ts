@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { liveQuery } from "dexie";
 import { db } from "../db/offline-db";
+import { safeDate } from "@/lib/date-utils";
 
 // Custom hook to replace useLiveQuery from dexie-react-hooks
 // This fixes the Next.js App Router bug where navigating back returns an empty/stale state
@@ -191,7 +192,9 @@ export function useOfflineOrders(
       };
     });
 
-    let filtered = withCustomers;
+    let filtered = withCustomers.filter(
+      (o) => o.is_delete !== 1 && !o.is_deleted && o.status !== "cancelled" && o.status !== "deleted"
+    );
     if (statusFilter !== "all") {
       filtered = filtered.filter((o) => o.status === statusFilter);
     }
@@ -213,6 +216,21 @@ export function useOfflineOrders(
         );
       });
     }
+
+    filtered.sort((a, b) => {
+      const getOrderTime = (order: any) => {
+        const raw = order.sale_date || order.order_date || order.date || order.created_at;
+        if (!raw) return 0;
+        const parsed = safeDate(raw, new Date(0));
+        return parsed.getTime();
+      };
+      const dateA = getOrderTime(a);
+      const dateB = getOrderTime(b);
+      if (dateB !== dateA) return dateB - dateA;
+      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return createB - createA;
+    });
 
     return filtered;
   }, [searchQuery, statusFilter]);
@@ -326,6 +344,10 @@ export function useOfflineCustomerTransactions(
         };
       })
       .filter((t) => {
+        if (t.is_delete === 1 || t.is_deleted || t.status === "cancelled" || t.status === "deleted") {
+          return false;
+        }
+
         let matches = t.type === type;
 
         if (filterPaymentMethodId && filterPaymentMethodId !== "all") {
@@ -354,18 +376,34 @@ export function useOfflineCustomerTransactions(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by date descending
-        const dateA = a.date
-          ? new Date(a.date).getTime()
-          : a.created_at
-            ? new Date(a.created_at).getTime()
-            : 0;
-        const dateB = b.date
-          ? new Date(b.date).getTime()
-          : b.created_at
-            ? new Date(b.created_at).getTime()
-            : 0;
-        return dateB - dateA;
+        const getTxnTime = (item: any): number => {
+          if (item.date) {
+            const parsed = safeDate(item.date, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+          }
+          if (item.created_at) {
+            const t = new Date(item.created_at).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (item.createdAt) {
+            const t = new Date(item.createdAt).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          return 0;
+        };
+
+        const timeA = getTxnTime(a);
+        const timeB = getTxnTime(b);
+
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+
+        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (createA !== createB) return createB - createA;
+
+        return String(b.id || "").localeCompare(String(a.id || ""));
       });
   }, [type, searchQuery, filterPaymentMethodId, filterPartyId]);
 }
@@ -566,27 +604,33 @@ export function useOfflineSaleReturns(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by creation time / date descending (latest created on top)
-        const timeA = a.created_at
-          ? new Date(a.created_at).getTime()
-          : a.date
-            ? new Date(a.date).getTime()
-            : 0;
-        const timeB = b.created_at
-          ? new Date(b.created_at).getTime()
-          : b.date
-            ? new Date(b.date).getTime()
-            : 0;
+        const getReturnTime = (item: any): number => {
+          if (item.date) {
+            const parsed = safeDate(item.date, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+          }
+          if (item.created_at) {
+            const t = new Date(item.created_at).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (item.createdAt) {
+            const t = new Date(item.createdAt).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          return 0;
+        };
+
+        const timeA = getReturnTime(a);
+        const timeB = getReturnTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;
         }
 
-        const numA = Number(a.id);
-        const numB = Number(b.id);
-        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-          return numB - numA;
-        }
+        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (createA !== createB) return createB - createA;
+
         return String(b.id || "").localeCompare(String(a.id || ""));
       });
   }, [searchQuery, filterPaymentMethodId, filterPartyId]);

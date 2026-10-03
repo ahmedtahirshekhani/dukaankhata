@@ -43,17 +43,16 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(
         {/* Custom Visual Display showing Pakistani DD-MM-YYYY format */}
         <div
           className={cn(
-            "flex h-9 w-full items-center rounded-md border border-input bg-background pl-8 pr-2.5 text-xs shadow-xs transition-colors",
+            "relative flex h-9 w-full items-center rounded-md border border-input bg-background pl-8 pr-2.5 text-xs shadow-xs transition-colors",
             disabled ? "opacity-50 cursor-not-allowed bg-muted" : "cursor-pointer hover:bg-accent/40",
             className
           )}
         >
+          <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <span className={cn("truncate font-medium", !displayValue && "text-muted-foreground")}>
             {displayValue || placeholder}
           </span>
         </div>
-
-        <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
 
         {/* Native date input stretched over the container to capture clicks & open calendar picker */}
         <input
