@@ -153,6 +153,10 @@
     "profitabilityDescription": "خالص منافع مارجن",
     "itemWiseSaleReport": "آئٹم وائز سیل رپورٹ",
     "itemWiseSaleReportDescription": "ہر پروڈکٹ کی فروخت اور آمدنی کی رپورٹ",
+    "saleReport": "سیل رپورٹ",
+    "saleReportDescription": "مکمل فروخت کا تجزیہ اور رپورٹس",
+    "purchaseReport": "خریداری رپورٹ",
+    "purchaseReportDescription": "مکمل خریداری کا تجزیہ اور رپورٹس",
     "admin": "ایڈمن",
     "expenses": "اخراجات",
     "expensesDescription": "کاروباری اخراجات",
@@ -563,7 +567,10 @@
     "openModule": "کھولیں"
   },
   "reportsModule": {
-    "openModule": "کھولیں"
+    "openModule": "کھولیں",
+    "comingSoonTitle": "جلد آ رہا ہے",
+    "comingSoonDescription": "یہ رپورٹ فی الحال تیاری کے مراحل میں ہے اور جلد دستیاب ہوگی۔",
+    "stayTuned": "مزید اپ ڈیٹس کے لیے ہمارے ساتھ رہیں! ہم جلد جدید تجزیاتی رپورٹس لا رہے ہیں۔"
   },
   "stockReportPage": {
     "title": "اسٹاک رپورٹ",

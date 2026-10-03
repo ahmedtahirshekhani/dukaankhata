@@ -152,6 +152,10 @@
     "profitabilityDescription": "Net profit margins",
     "itemWiseSaleReport": "Item Wise Sale Report",
     "itemWiseSaleReportDescription": "Sales breakdown and revenue by product",
+    "saleReport": "Sale Report",
+    "saleReportDescription": "Comprehensive sale analysis and reports",
+    "purchaseReport": "Purchase Report",
+    "purchaseReportDescription": "Comprehensive purchase analysis and reports",
     "admin": "Admin",
     "expenses": "Expenses",
     "expensesDescription": "Business expenses",
@@ -562,7 +566,10 @@
     "openModule": "Open"
   },
   "reportsModule": {
-    "openModule": "Open"
+    "openModule": "Open",
+    "comingSoonTitle": "Coming Soon",
+    "comingSoonDescription": "This report is currently under development and will be available soon.",
+    "stayTuned": "Stay tuned for updates! We are bringing comprehensive reporting and analytics."
   },
   "stockReportPage": {
     "title": "Stock Report",

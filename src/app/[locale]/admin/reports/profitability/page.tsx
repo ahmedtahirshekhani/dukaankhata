@@ -383,16 +383,8 @@ export default function ProfitabilityReportPage() {
     <div className="flex flex-col gap-4 sm:gap-6">
       {/* Top Page Header */}
       <PageHeader
-        title={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
-              <Link href={`/${locale}/admin/reports`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <span className="text-xl font-bold">{tProfit("title") || "Profitability Report"}</span>
-          </div>
-        }
+        backHref={`/${locale}/admin/reports`}
+        title={tProfit("title") || "Profitability Report"}
         description={tProfit("description") || "Comprehensive breakdown of revenue, COGS, and expenses"}
         actions={
           can("reports", "export_profitability") && hasSearched ? (

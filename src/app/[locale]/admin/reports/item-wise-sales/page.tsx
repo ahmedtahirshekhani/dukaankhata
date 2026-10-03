@@ -723,17 +723,9 @@ export default function ItemWiseSaleReportPage() {
     <div className="p-1.5 sm:p-3 w-full space-y-2.5">
       {/* Compact Page Header */}
       <PageHeader
-        title={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full shrink-0">
-              <Link href={`/${locale}/admin/reports`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <span className="text-lg sm:text-xl font-bold">{t("title")}</span>
-          </div>
-        }
-        description={<span className="text-xs sm:text-sm text-muted-foreground">{t("description")}</span>}
+        backHref={`/${locale}/admin/reports`}
+        title={t("title")}
+        description={t("description")}
         className="mb-1"
         actions={
           <div className="flex items-center gap-2 w-full sm:w-auto">

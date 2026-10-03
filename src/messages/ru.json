@@ -153,6 +153,10 @@
     "profitabilityDescription": "Net profit margins",
     "itemWiseSaleReport": "Item Wise Sale Report",
     "itemWiseSaleReportDescription": "Product wise sales aur revenue report",
+    "saleReport": "Sale Report",
+    "saleReportDescription": "Detailed sale analysis aur report",
+    "purchaseReport": "Purchase Report",
+    "purchaseReportDescription": "Detailed purchase analysis aur report",
     "admin": "Admin",
     "expenses": "Expenses",
     "expensesDescription": "Karobari kharche",
@@ -563,7 +567,10 @@
     "openModule": "Open"
   },
   "reportsModule": {
-    "openModule": "Open"
+    "openModule": "Open",
+    "comingSoonTitle": "Aney Wala Hai",
+    "comingSoonDescription": "Yeh report abhi development mein hai aur jald dastyab hogi.",
+    "stayTuned": "Updates ke liye jude rahein! Hum jald behtareen reporting features la rahe hain."
   },
   "stockReportPage": {
     "title": "Stock Report",
