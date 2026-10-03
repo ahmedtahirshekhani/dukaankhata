@@ -12,6 +12,8 @@ import {
   ReceivableDebtorItem,
   PurchaseReportBill,
   PurchaseReportSummary,
+  SaleReportInvoice,
+  SaleReportSummary,
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
 
@@ -569,6 +571,71 @@ export function exportPurchaseReportToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports Sale Report to an Excel file with Summary and Invoices sheets
+ */
+export function exportSaleReportToExcel(
+  invoices: SaleReportInvoice[],
+  summary: SaleReportSummary,
+  filename: string = `sale-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    { Metric: "Total Sales", Value: `Rs. ${Math.round(summary.totalSales || 0).toLocaleString()}` },
+    { Metric: "Total Received", Value: `Rs. ${Math.round(summary.totalReceived || 0).toLocaleString()}` },
+    { Metric: "Balance Due (Outstanding)", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Invoices Count", Value: summary.totalInvoicesCount || 0 },
+    { Metric: "Total Items Sold", Value: summary.totalItemsSold || 0 },
+    { Metric: "Average Invoice Value", Value: `Rs. ${Math.round(summary.averageInvoiceValue || 0).toLocaleString()}` },
+    { Metric: "Fully Paid Invoices", Value: summary.fullyPaidCount || 0 },
+    { Metric: "Partially Paid Invoices", Value: summary.partialCount || 0 },
+    { Metric: "Unpaid Invoices", Value: summary.unpaidCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // 2. Invoices Sheet
+  const invoicesData = invoices.map((inv, index) => ({
+    "#": index + 1,
+    "Invoice #": inv.invoice_number || "-",
+    Date: (inv.invoice_date || inv.created_at)
+      ? new Date(inv.invoice_date || inv.created_at).toLocaleDateString("en-GB")
+      : "-",
+    "Party": inv.customer_name || "-",
+    "Items Count": inv.items_count || (inv.items?.length ?? 0),
+    "Items List": inv.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
+    "Total Amount (Rs.)": Math.round(inv.total_amount || 0),
+    "Received Amount (Rs.)": Math.round(inv.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(inv.balance_due || 0),
+    Status: inv.status.toUpperCase(),
+    "Payment Method": inv.payment_method_name || "-",
+    Note: inv.notes || "-",
+  }));
+
+  const invoicesSheet = XLSX.utils.json_to_sheet(invoicesData);
+  invoicesSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 18 }, // Invoice #
+    { wch: 14 }, // Date
+    { wch: 24 }, // Party
+    { wch: 12 }, // Items Count
+    { wch: 35 }, // Items List
+    { wch: 18 }, // Total
+    { wch: 18 }, // Received
+    { wch: 18 }, // Balance
+    { wch: 12 }, // Status
+    { wch: 18 }, // Payment Method
+    { wch: 25 }, // Note
+  ];
+  XLSX.utils.book_append_sheet(workbook, invoicesSheet, "Sale Invoices");
+
+  XLSX.writeFile(workbook, filename);
+}
+
 
 
 

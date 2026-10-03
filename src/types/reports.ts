@@ -223,3 +223,42 @@ export interface PurchaseReportSummary {
   partialCount: number;
 }
 
+export interface SaleReportItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  discount?: number;
+  amount: number;
+}
+
+export interface SaleReportInvoice {
+  id: string;
+  invoice_number: string;
+  customer_id: string;
+  customer_name: string;
+  customer_phone?: string;
+  total_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  is_paid: boolean;
+  status: "paid" | "partial" | "unpaid";
+  payment_method_name?: string;
+  notes?: string;
+  items_count: number;
+  items: SaleReportItem[];
+  invoice_date?: string;
+  created_at: string;
+}
+
+export interface SaleReportSummary {
+  totalSales: number;
+  totalReceived: number;
+  totalBalanceDue: number;
+  totalInvoicesCount: number;
+  totalItemsSold: number;
+  averageInvoiceValue: number;
+  fullyPaidCount: number;
+  unpaidCount: number;
+  partialCount: number;
+}
