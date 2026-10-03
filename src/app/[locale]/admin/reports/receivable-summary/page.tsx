@@ -463,16 +463,8 @@ export default function ReceivableSummaryPage() {
     <div className="flex flex-col gap-4 sm:gap-6">
       {/* Reusable PageHeader */}
       <PageHeader
-        title={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
-              <Link href={`/${locale}/admin/reports`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <span className="text-xl font-bold">{titleStr}</span>
-          </div>
-        }
+        backHref={`/${locale}/admin/reports`}
+        title={titleStr}
         description={descStr}
         actions={
           can("reports", "export_receivable_summary") ? (

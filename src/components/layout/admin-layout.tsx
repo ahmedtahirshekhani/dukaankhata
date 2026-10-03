@@ -130,7 +130,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   // Sub-menu Permission Checks
   const hasSalesSub = can('sales', 'view_quotations') || can('sales', 'view_invoice') || can('sales', 'view_payment_in') || can('sales', 'view_sale_return') || (enableCounterSale && can('sales', 'view_counter_sale'));
   const hasPurchaseSub = can('purchase', 'view_purchase_bill') || can('purchase', 'view_payment_out');
-  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability');
+  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability') || can('reports', 'view_item_wise_sales') || can('reports', 'view_sale_report') || can('reports', 'view_purchase_report');
 
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
@@ -321,6 +321,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     "/admin/reports/stock",
     "/admin/reports/receivable-summary",
     "/admin/reports/profitability",
+    "/admin/reports/item-wise-sales",
+    "/admin/reports/sale-report",
+    "/admin/reports/purchase-report",
   ];
   const isSalesSectionActive =
     pathWithoutLocale === "/admin/sales" || salesSubRoutes.includes(pathWithoutLocale);
@@ -366,6 +369,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     "/admin/reports/stock": tNav("stockReport"),
     "/admin/reports/receivable-summary": tNav("receivableSummary"),
     "/admin/reports/profitability": tNav("profitability"),
+    "/admin/reports/item-wise-sales": tNav("itemWiseSaleReport"),
+    "/admin/reports/sale-report": tNav("saleReport"),
+    "/admin/reports/purchase-report": tNav("purchaseReport"),
     "/admin/ai-chat": tNav("aiChat"),
   };
 
@@ -1044,6 +1050,34 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                         }`}
                     >
                       {tNav("itemWiseSaleReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_sale_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/sale-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/sale-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/sale-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("saleReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_purchase_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/purchase-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/purchase-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/purchase-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("purchaseReport")}
                     </Link>
                   )}
                 </div>

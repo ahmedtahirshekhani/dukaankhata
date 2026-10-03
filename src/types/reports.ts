@@ -182,3 +182,44 @@ export interface StatementReportMeta {
   reportDate: string;
   [key: string]: any;
 }
+
+// --- Purchase Report Interfaces ---
+export interface PurchaseReportItem {
+  product_id?: string;
+  product_name: string;
+  quantity: number;
+  cost_price: number;
+  amount: number;
+}
+
+export interface PurchaseReportBill {
+  id: string;
+  purchase_number: string;
+  bill_number: string;
+  party_id: string;
+  party_name: string;
+  total_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  is_paid: boolean;
+  status: "paid" | "partial" | "unpaid";
+  payment_method_name?: string;
+  description?: string;
+  items_count: number;
+  items: PurchaseReportItem[];
+  bill_date?: string;
+  created_at: string;
+}
+
+export interface PurchaseReportSummary {
+  totalPurchases: number;
+  totalPaid: number;
+  totalBalanceDue: number;
+  totalBillsCount: number;
+  totalItemsPurchased: number;
+  averageBillValue: number;
+  fullyPaidCount: number;
+  unpaidCount: number;
+  partialCount: number;
+}
+

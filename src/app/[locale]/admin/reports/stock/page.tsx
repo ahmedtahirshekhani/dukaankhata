@@ -557,16 +557,8 @@ export default function StockReportPage() {
     <div className="p-1 sm:p-1 w-full space-y-3">
       {/* Top Header Controls with PageHeader */}
       <PageHeader
-        title={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full">
-              <Link href={`/${locale}/admin/reports`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <span className="text-xl font-bold">{tStock("title")}</span>
-          </div>
-        }
+        backHref={`/${locale}/admin/reports`}
+        title={tStock("title")}
         description={tStock("description")}
         className="mb-1"
         actions={

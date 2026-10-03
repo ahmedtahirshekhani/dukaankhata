@@ -486,6 +486,8 @@ function AddPurchaseBillPageInner() {
         payment_method_id: paymentMethod || null,
         description: description || null,
         user_id: (session?.user as any)?.id || "",
+        bill_date: selectedDate ? new Date(selectedDate).toISOString() : now,
+        date: selectedDate ? new Date(selectedDate).toISOString() : now,
         created_at: selectedDate ? new Date(selectedDate).toISOString() : now,
         updated_at: now,
       };
