@@ -435,7 +435,7 @@ export default function PurchaseReportPage() {
         header: t("date"),
         accessorKey: "bill_date",
         sortable: true,
-        className: "w-[100px] text-xs font-medium text-foreground",
+        className: "whitespace-nowrap text-xs font-medium text-foreground",
         cell: (row) => {
           const d = row.bill_date || row.created_at;
           return d
@@ -452,7 +452,7 @@ export default function PurchaseReportPage() {
         header: t("billNo"),
         accessorKey: "purchase_number",
         sortable: true,
-        className: "w-[120px] font-semibold text-xs text-foreground",
+        className: "whitespace-nowrap font-semibold text-xs text-foreground",
         cell: (row) => (
           // View Modal trigger - To re-enable, uncomment the button below and remove the span:
           // <button
@@ -472,13 +472,13 @@ export default function PurchaseReportPage() {
         header: t("supplierName"),
         accessorKey: "party_name",
         sortable: true,
-        className: "min-w-[100px] font-medium text-xs text-foreground",
+        className: "font-medium text-xs text-foreground",
         cell: (row) => row.party_name || "-",
       },
       {
         id: "items",
         header: t("items"),
-        className: "w-[90px] text-center text-xs text-foreground",
+        className: "text-center text-xs text-foreground whitespace-nowrap",
         cell: (row) => (
           // View Modal trigger - To re-enable, uncomment the Button below and remove the div:
           // <Button
@@ -501,7 +501,7 @@ export default function PurchaseReportPage() {
         header: <div className="text-right text-foreground">{t("totalAmount")}</div>,
         accessorKey: "total_amount",
         sortable: true,
-        className: "w-[120px] text-right font-bold text-xs text-foreground",
+        className: "text-right font-bold text-xs text-foreground whitespace-nowrap",
         cell: (row) => formatCurrency(row.total_amount),
       },
       {
@@ -509,7 +509,7 @@ export default function PurchaseReportPage() {
         header: <div className="text-right text-foreground">{t("paidAmount")}</div>,
         accessorKey: "paid_amount",
         sortable: true,
-        className: "w-[110px] text-right text-xs font-semibold text-foreground",
+        className: "text-right text-xs font-semibold text-foreground whitespace-nowrap",
         cell: (row) => formatCurrency(row.paid_amount),
       },
       {
@@ -517,20 +517,20 @@ export default function PurchaseReportPage() {
         header: <div className="text-right text-foreground">{t("balance")}</div>,
         accessorKey: "balance_due",
         sortable: true,
-        className: "w-[110px] text-right text-xs font-semibold text-foreground",
+        className: "text-right text-xs font-semibold text-foreground whitespace-nowrap",
         cell: (row) => formatCurrency(row.balance_due),
       },
       {
         id: "status",
         header: <div className="text-center text-foreground">{t("status")}</div>,
-        className: "w-[100px] text-center text-foreground",
+        className: "text-center text-foreground whitespace-nowrap",
         cell: (row) => <div className="flex justify-center">{renderStatusBadge(row.status, true)}</div>,
       },
       // View Modal Actions column - To re-enable, uncomment below:
       // {
       //   id: "actions",
       //   header: "",
-      //   className: "w-[50px] text-right text-foreground",
+      //   className: "text-right text-foreground whitespace-nowrap",
       //   cell: (row) => (
       //     <Button
       //       variant="ghost"
