@@ -210,6 +210,9 @@ export async function POST(request: Request) {
     payment_method_id: paymentMethodId,
     payment_method_name: paymentMethodName,
     description,
+    bill_date: customBillDate,
+    date: customDate,
+    created_at: customCreatedAt,
   } = await request.json();
 
   try {
@@ -298,6 +301,9 @@ export async function POST(request: Request) {
     const finalPurchaseNo = purchase_number || purchase_no || bill_number || generateReferenceNumber("PUR");
     const now = new Date();
 
+    const rawDateInput = customBillDate || customDate || customCreatedAt;
+    const finalBillDate = rawDateInput ? new Date(rawDateInput) : now;
+
     const billResult = await purchaseBillsCollection.insertOne({
       user_id: userObjId,
       purchase_number: finalPurchaseNo,
@@ -317,7 +323,10 @@ export async function POST(request: Request) {
       payment_method_id: paymentMethodId || null,
       payment_method_name: paymentMethodName || null,
       description: description || null,
-      created_at: now,
+      bill_date: finalBillDate,
+      purchase_date: finalBillDate,
+      date: finalBillDate,
+      created_at: finalBillDate,
       updated_at: now,
     });
 

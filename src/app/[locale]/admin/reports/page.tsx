@@ -88,7 +88,7 @@ export default function ReportsModulePage() {
       href: `/${locale}/admin/reports/purchase-report`,
       icon: ShoppingCart,
       color: "bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/20",
-      isComingSoon: true,
+      isComingSoon: false,
     },
   ];
 

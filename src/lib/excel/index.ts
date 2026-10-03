@@ -10,6 +10,8 @@ import {
   ExcelCustomer,
   StockProduct,
   ReceivableDebtorItem,
+  PurchaseReportBill,
+  PurchaseReportSummary,
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
 
@@ -505,6 +507,69 @@ export function exportItemWiseSalesToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports Purchase Report to an Excel file with Summary and Bills sheets
+ */
+export function exportPurchaseReportToExcel(
+  bills: PurchaseReportBill[],
+  summary: PurchaseReportSummary,
+  filename: string = `purchase-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    { Metric: "Total Purchases", Value: `Rs. ${Math.round(summary.totalPurchases || 0).toLocaleString()}` },
+    { Metric: "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Balance Due (Outstanding)", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Bills Count", Value: summary.totalBillsCount || 0 },
+    { Metric: "Total Items Purchased", Value: summary.totalItemsPurchased || 0 },
+    { Metric: "Average Bill Value", Value: `Rs. ${Math.round(summary.averageBillValue || 0).toLocaleString()}` },
+    { Metric: "Fully Paid Bills", Value: summary.fullyPaidCount || 0 },
+    { Metric: "Partially Paid Bills", Value: summary.partialCount || 0 },
+    { Metric: "Unpaid Bills", Value: summary.unpaidCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // 2. Bills Sheet
+  const billsData = bills.map((bill, index) => ({
+    "#": index + 1,
+    "Bill #": bill.purchase_number || bill.bill_number || "-",
+    Date: (bill.bill_date || bill.created_at) ? new Date(bill.bill_date || bill.created_at).toLocaleDateString("en-GB") : "-",
+    "Party": bill.party_name || "-",
+    "Items Count": bill.items_count || (bill.items?.length ?? 0),
+    "Items List": bill.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
+    "Total Amount (Rs.)": Math.round(bill.total_amount || 0),
+    "Paid Amount (Rs.)": Math.round(bill.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(bill.balance_due || 0),
+    Status: bill.status.toUpperCase(),
+    "Payment Method": bill.payment_method_name || "-",
+    Note: bill.description || "-",
+  }));
+
+  const billsSheet = XLSX.utils.json_to_sheet(billsData);
+  billsSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 18 }, // Bill #
+    { wch: 14 }, // Date
+    { wch: 24 }, // Party
+    { wch: 12 }, // Items Count
+    { wch: 35 }, // Items List
+    { wch: 18 }, // Total
+    { wch: 18 }, // Paid
+    { wch: 18 }, // Balance
+    { wch: 12 }, // Status
+    { wch: 18 }, // Payment Method
+    { wch: 25 }, // Note
+  ];
+  XLSX.utils.book_append_sheet(workbook, billsSheet, "Purchase Bills");
+
+  XLSX.writeFile(workbook, filename);
+}
+
 
 
 
