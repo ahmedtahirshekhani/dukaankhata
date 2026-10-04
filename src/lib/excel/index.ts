@@ -1,51 +1,19 @@
 import * as XLSX from "xlsx";
 import { ItemWiseSaleExportItem, ItemWiseSaleSummary } from "@/types/item-wise-sales";
-import { formatLocalizedUom, getUomShortcut } from "@/lib/uom";
-
-interface Transaction {
-  id: number;
-  productId?: number | string;
-  productName?: string;
-  productDescription?: string;
-  type: "income" | "expense";
-  created_at: string;
-  amount: number;
-  customerName?: string;
-  customerNumber?: string;
-}
-
-interface ProfitabilitySummary {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  profitMargin: number;
-  totalOrders: number;
-  totalExpenseItems: number;
-  avgOrderValue?: number;
-  avgExpenseValue?: number;
-}
-
-interface ProfitabilityBreakdown {
-  category: string;
-  revenue: number;
-  orders: number;
-}
-
-interface ProfitabilityExpense {
-  _id?: string;
-  id?: string;
-  category: string;
-  description: string;
-  amount: number;
-  date: string;
-  paymentMethod?: string;
-}
-
-interface ProfitabilityReportData {
-  summary: ProfitabilitySummary;
-  breakdown: ProfitabilityBreakdown[];
-  expenses: ProfitabilityExpense[];
-}
+import {
+  ExcelTransaction,
+  ProfitabilityReportData,
+  ProfitabilitySummary,
+  ProfitabilityBreakdown,
+  ProfitabilityExpense,
+  ExcelProduct,
+  ExcelCustomer,
+  StockProduct,
+  ReceivableDebtorItem,
+  PurchaseReportBill,
+  PurchaseReportSummary,
+} from "@/types/reports";
+import { formatLocalizedUom, getUomShortcut } from "../uom";
 
 /**
  * Exports transactions to an Excel file
@@ -53,7 +21,7 @@ interface ProfitabilityReportData {
  * @param filename Name of the file to download
  */
 export function exportTransactionsToExcel(
-  transactions: Transaction[],
+  transactions: ExcelTransaction[],
   filename: string = "counter-sale-transactions.xlsx"
 ): void {
   // Prepare data for Excel
@@ -151,27 +119,8 @@ export function exportTransactionsTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface Product {
-  id: number;
-  type?: string;
-  name: string;
-  description?: string;
-  sell_price?: number;
-  cost_price?: number;
-  quantity?: number;
-  in_stock?: number;
-  category?: string;
-  unit_of_measurement?: string;
-  branch?: string;
-}
-
-/**
- * Exports products to an Excel file
- * @param products Array of products to export
- * @param filename Name of the file to download
- */
 export function exportProductsToExcel(
-  products: Product[],
+  products: ExcelProduct[],
   filename: string = "products.xlsx"
 ): void {
   // Prepare data for Excel
@@ -261,23 +210,8 @@ export function exportProductsTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  status?: "active" | "inactive";
-  company_name?: string;
-  balance?: number;
-}
-
-/**
- * Exports customers to an Excel file
- * @param customers Array of customers to export
- * @param filename Name of the file to download
- */
 export function exportCustomersToExcel(
-  customers: Customer[],
+  customers: ExcelCustomer[],
   filename: string = "customers.xlsx"
 ): void {
   // Prepare data for Excel
@@ -347,22 +281,11 @@ export function exportCustomersTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface StockReportItem {
-  sku?: string;
-  name: string;
-  category?: string;
-  branch?: string;
-  quantity?: number;
-  cost_price?: number;
-  sell_price?: number;
-  damaged_quantity?: number;
-}
-
 /**
  * Exports Stock Report items to an Excel file with detailed valuations
  */
 export function exportStockReportToExcel(
-  items: StockReportItem[],
+  items: StockProduct[],
   filename: string = "stock-report.xlsx"
 ): void {
   const excelData = items.map((item) => {
@@ -409,15 +332,6 @@ export function exportStockReportToExcel(
 
   XLSX.utils.book_append_sheet(workbook, worksheet, "Stock Report");
   XLSX.writeFile(workbook, filename);
-}
-
-interface ReceivableDebtorItem {
-  name: string;
-  company_name?: string;
-  email?: string;
-  phone?: string;
-  balance: number;
-  status: string;
 }
 
 /**
@@ -593,6 +507,69 @@ export function exportItemWiseSalesToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports Purchase Report to an Excel file with Summary and Bills sheets
+ */
+export function exportPurchaseReportToExcel(
+  bills: PurchaseReportBill[],
+  summary: PurchaseReportSummary,
+  filename: string = `purchase-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    { Metric: "Total Purchases", Value: `Rs. ${Math.round(summary.totalPurchases || 0).toLocaleString()}` },
+    { Metric: "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Balance Due (Outstanding)", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Bills Count", Value: summary.totalBillsCount || 0 },
+    { Metric: "Total Items Purchased", Value: summary.totalItemsPurchased || 0 },
+    { Metric: "Average Bill Value", Value: `Rs. ${Math.round(summary.averageBillValue || 0).toLocaleString()}` },
+    { Metric: "Fully Paid Bills", Value: summary.fullyPaidCount || 0 },
+    { Metric: "Partially Paid Bills", Value: summary.partialCount || 0 },
+    { Metric: "Unpaid Bills", Value: summary.unpaidCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // 2. Bills Sheet
+  const billsData = bills.map((bill, index) => ({
+    "#": index + 1,
+    "Bill #": bill.purchase_number || bill.bill_number || "-",
+    Date: (bill.bill_date || bill.created_at) ? new Date(bill.bill_date || bill.created_at).toLocaleDateString("en-GB") : "-",
+    "Party": bill.party_name || "-",
+    "Items Count": bill.items_count || (bill.items?.length ?? 0),
+    "Items List": bill.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
+    "Total Amount (Rs.)": Math.round(bill.total_amount || 0),
+    "Paid Amount (Rs.)": Math.round(bill.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(bill.balance_due || 0),
+    Status: bill.status.toUpperCase(),
+    "Payment Method": bill.payment_method_name || "-",
+    Note: bill.description || "-",
+  }));
+
+  const billsSheet = XLSX.utils.json_to_sheet(billsData);
+  billsSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 18 }, // Bill #
+    { wch: 14 }, // Date
+    { wch: 24 }, // Party
+    { wch: 12 }, // Items Count
+    { wch: 35 }, // Items List
+    { wch: 18 }, // Total
+    { wch: 18 }, // Paid
+    { wch: 18 }, // Balance
+    { wch: 12 }, // Status
+    { wch: 18 }, // Payment Method
+    { wch: 25 }, // Note
+  ];
+  XLSX.utils.book_append_sheet(workbook, billsSheet, "Purchase Bills");
+
+  XLSX.writeFile(workbook, filename);
+}
+
 
 
 

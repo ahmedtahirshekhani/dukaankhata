@@ -7,14 +7,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
@@ -24,11 +16,6 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -55,6 +42,7 @@ import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { generateReferenceNumber } from "@/lib/utils";
 
 import { DatePicker } from "@/components/ui/date-picker";
+import { toHTMLDateString } from "@/lib/date-utils";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -200,29 +188,68 @@ export default function NewInvoicePage() {
     const loadEditOrder = async () => {
       if (editOrderId) {
         try {
-          const order = await db.orders.get(editOrderId);
+          let order = await db.orders.get(editOrderId);
+          if (!order) {
+            order = await db.orders.where("id").equals(editOrderId).first() ||
+                    await db.orders.where("_id").equals(editOrderId).first();
+          }
+          if (!order) {
+            try {
+              const res = await fetch(`/api/orders/${editOrderId}`);
+              if (res.ok) {
+                order = await res.json();
+              }
+            } catch (err) {
+              console.error("Failed to fetch order from API:", err);
+            }
+          }
+
           if (order) {
             if (!order.invoice_no) {
               setInvoiceNo(generateReferenceNumber("INV"));
             } else {
               setInvoiceNo(order.invoice_no);
             }
-            setSelectedDate(order.sale_date?.split("T")[0] || getTodayDateString());
+
+            const rawSaleDate = order.sale_date || order.created_at || order.date || order.order_date;
+            const parsedDate = toHTMLDateString(rawSaleDate) || getTodayDateString();
+            setSelectedDate(parsedDate);
+
             if (order.due_date) {
-              setAddDueDate(true);
-              setDueDate(order.due_date.split("T")[0]);
+              const parsedDueDate = toHTMLDateString(order.due_date);
+              if (parsedDueDate) {
+                setAddDueDate(true);
+                setDueDate(parsedDueDate);
+              } else {
+                setAddDueDate(false);
+              }
             } else {
               setAddDueDate(false);
             }
 
-            const customer = await db.parties.get(order.customer_id);
+            let customer = await db.parties.get(order.customer_id);
+            if (!customer && order.customer_id) {
+              customer = await db.parties.where("id").equals(order.customer_id).first() ||
+                         await db.parties.where("_id").equals(order.customer_id).first();
+            }
+            if (!customer && order.customer) {
+              customer = {
+                id: order.customer_id,
+                _id: order.customer_id,
+                name: order.customer.name,
+                phone: order.customer.phone,
+                email: order.customer.email,
+                type: order.customer.type
+              };
+            }
             if (customer) {
               setSelectedCustomer({
-                id: customer.id,
+                id: customer.id || customer._id,
                 _id: customer._id || customer.id,
                 name: customer.name,
                 phone: customer.phone,
-                email: customer.email
+                email: customer.email,
+                type: customer.type
               });
             }
 
@@ -638,11 +665,12 @@ export default function NewInvoicePage() {
   };
 
   const executeCreateOrder = async () => {
+    const saleDateISO = selectedDate ? (selectedDate.includes('T') ? selectedDate : `${selectedDate}T12:00:00.000Z`) : new Date().toISOString();
     if (isCashSale) {
       await handleCreateOrder({
         paidAmount: Math.floor(finalTotal),
         paymentMethod: paymentMethod || "cash",
-        paidDate: new Date().toISOString(),
+        paidDate: saleDateISO,
         noPaymentAtAll: false,
       });
     } else {
@@ -650,7 +678,7 @@ export default function NewInvoicePage() {
       await handleCreateOrder({
         paidAmount: pAmount > 0 ? pAmount : 0,
         paymentMethod: pAmount > 0 ? paymentMethod : "",
-        paidDate: new Date().toISOString(),
+        paidDate: saleDateISO,
         noPaymentAtAll: pAmount === 0,
       });
     }
@@ -1096,7 +1124,7 @@ export default function NewInvoicePage() {
                     value={dueDate}
                     onChange={(val) => setDueDate(val)}
                     disabled={!addDueDate}
-                    className="h-8 text-xs bg-white mb-3"
+                    className="h-8 text-xs bg-white"
                   />
                   <div className="flex items-center gap-3">
                     <input

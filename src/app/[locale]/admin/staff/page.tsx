@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { RolesTab } from "@/components/staff/roles-tab";
 import { StaffTab } from "@/components/staff/staff-tab";
 import { Users, Lock, WifiOff } from "lucide-react";
+import { staffCache } from "@/lib/cache/staff-cache";
 
 export default function StaffManagementPage() {
   const [activeTab, setActiveTab] = useState<"staff" | "roles">("staff");
@@ -50,7 +51,10 @@ export default function StaffManagementPage() {
       
       <div className="flex space-x-1 border-b border-border/50">
         <button
-          onClick={() => setActiveTab("staff")}
+          onClick={() => {
+            setActiveTab("staff");
+            staffCache.invalidateAll();
+          }}
           className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
             activeTab === "staff"
               ? "border-primary text-primary"
@@ -61,7 +65,10 @@ export default function StaffManagementPage() {
           {t("staffMembersTab")}
         </button>
         <button
-          onClick={() => setActiveTab("roles")}
+          onClick={() => {
+            setActiveTab("roles");
+            staffCache.invalidateAll();
+          }}
           className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
             activeTab === "roles"
               ? "border-primary text-primary"

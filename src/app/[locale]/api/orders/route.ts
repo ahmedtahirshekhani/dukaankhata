@@ -54,7 +54,7 @@ export async function GET(request: Request) {
   // Get orders for the user
   const orders = await ordersCollection
     .find(query)
-    .sort({ created_at: -1 })
+    .sort({ sale_date: -1, created_at: -1, _id: -1 })
     .skip(skip)
     .limit(limit)
     .toArray();
@@ -438,7 +438,7 @@ export async function POST(request: Request) {
         eventSourceId: orderId.toString(),
         amountDelta: -paymentInfo2.paidAmount,
         effectiveAt: setDateToCurrentTime(
-          paymentInfo2.paidDate || paymentDate || saleDate || now
+          saleDate || paymentInfo2.paidDate || paymentDate || now
         ),
         metadata: {
           invoice_no: invoiceNo || null,

@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Package, Users, TrendingUp, BarChart } from "lucide-react";
+import { FileText, Package, Users, TrendingUp, BarChart, ShoppingBag, ShoppingCart } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function ReportsModulePage() {
   const locale = useLocale();
@@ -21,7 +23,9 @@ export default function ReportsModulePage() {
                         can('reports', 'view_stock') || 
                         can('reports', 'view_receivable_summary') || 
                         can('reports', 'view_profitability') ||
-                        can('reports', 'view_item_wise_sales');
+                        can('reports', 'view_item_wise_sales') ||
+                        can('reports', 'view_sale_report') ||
+                        can('reports', 'view_purchase_report');
 
   useEffect(() => {
     if (!hasReportsSub) {
@@ -70,14 +74,30 @@ export default function ReportsModulePage() {
       color: "bg-indigo-500/10 text-indigo-500 dark:bg-indigo-500/20",
       isComingSoon: false,
     },
+    {
+      title: tNav("saleReport"),
+      description: tNav("saleReportDescription") || "Comprehensive sale analysis and reports",
+      href: `/${locale}/admin/reports/sale-report`,
+      icon: ShoppingBag,
+      color: "bg-teal-500/10 text-teal-500 dark:bg-teal-500/20",
+      isComingSoon: true,
+    },
+    {
+      title: tNav("purchaseReport"),
+      description: tNav("purchaseReportDescription") || "Comprehensive purchase analysis and reports",
+      href: `/${locale}/admin/reports/purchase-report`,
+      icon: ShoppingCart,
+      color: "bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/20",
+      isComingSoon: false,
+    },
   ];
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{tNav("reports")}</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-1">{tNav("reportsDescription")}</p>
-      </div>
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <PageHeader
+        title={tNav("reports")}
+        description={tNav("reportsDescription")}
+      />
 
       <div className="grid gap-6 md:grid-cols-2">
         {reportsList
@@ -87,6 +107,8 @@ export default function ReportsModulePage() {
             if (report.href.includes('receivable-summary') && !can('reports', 'view_receivable_summary')) return false;
             if (report.href.includes('profitability') && !can('reports', 'view_profitability')) return false;
             if (report.href.includes('item-wise-sales') && !can('reports', 'view_item_wise_sales')) return false;
+            if (report.href.includes('sale-report') && !can('reports', 'view_sale_report')) return false;
+            if (report.href.includes('purchase-report') && !can('reports', 'view_purchase_report')) return false;
             return true;
           })
           .map((report, idx) => {

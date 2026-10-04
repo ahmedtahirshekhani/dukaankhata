@@ -57,7 +57,7 @@ export function RolesTab() {
   const [enableWhatsApp, setEnableWhatsApp] = useState(true);
 
   // Direct DB Fetch via API with caching
-  const fetchRolesAndModules = useCallback(async (forceRefresh = false) => {
+  const fetchRolesAndModules = useCallback(async (forceRefresh = false, silent = false) => {
     if (!forceRefresh) {
       const cached = staffCache.getRoles();
       if (cached) {
@@ -69,7 +69,12 @@ export function RolesTab() {
     }
 
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setRoles((prev) => {
+          if (prev.length === 0) setIsLoading(true);
+          return prev;
+        });
+      }
       const [rolesRes, modulesRes] = await Promise.all([
         fetch("/api/roles", { cache: "no-store" }),
         fetch("/api/modules")
@@ -112,6 +117,15 @@ export function RolesTab() {
     }
 
     fetchRolesAndModules();
+
+    const handleInvalidated = () => {
+      fetchRolesAndModules(true, true);
+    };
+
+    window.addEventListener("staff_data_invalidated", handleInvalidated);
+    return () => {
+      window.removeEventListener("staff_data_invalidated", handleInvalidated);
+    };
   }, [fetchRolesAndModules]);
 
   const modules = useMemo(() => {

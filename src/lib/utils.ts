@@ -79,14 +79,29 @@ export function formatCurrencyString(amount: number): string {
 }
 
 /**
- * Formats a currency amount with Pakistani numbering format and currency prefix
- * Example: formatCurrency(125000) => "Rs. 125,000"
+ * Formats a numeric value as a clean string (with max 2 decimals if decimal exists)
+ * Example: formatNumber(1000) => "1000"
+ * Example: formatNumber(1000.5) => "1000.5"
  */
-export function formatCurrency(amount: number | string | undefined | null): string {
+export function formatNumber(value: number | string | undefined | null): string {
+  if (value === undefined || value === null || value === "") return "0";
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "0";
+  const normalized = Number(Number(num || 0).toFixed(2));
+  return normalized.toString();
+}
+
+/**
+ * Formats a currency amount with "Rs." prefix
+ * Example: formatCurrency(125000) => "Rs. 125000"
+ * Example: formatCurrency(125000, true) => "Rs. 125,000"
+ */
+export function formatCurrency(amount: number | string | undefined | null, useCommas = false): string {
   if (amount === undefined || amount === null || amount === "") return "Rs. 0";
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
   if (isNaN(num)) return "Rs. 0";
-  return `Rs. ${Math.round(num).toLocaleString()}`;
+  const rounded = Math.round(num);
+  return useCommas ? `Rs. ${rounded.toLocaleString()}` : `Rs. ${rounded}`;
 }
 
 /**
