@@ -551,15 +551,9 @@ export default function PurchaseReportPage() {
   const pdfColumns: PdfTableColumn<PurchaseReportBill>[] = useMemo(
     () => [
       {
-        header: "#",
-        align: "center",
-        width: "35px",
-        render: (_, idx) => idx + 1,
-      },
-      {
         header: t("date"),
         align: "left",
-        width: "80px",
+        width: "90px",
         render: (row) => {
           const d = row.bill_date || row.created_at;
           return d
@@ -574,44 +568,59 @@ export default function PurchaseReportPage() {
       {
         header: t("billNo"),
         align: "left",
-        width: "100px",
+        width: "110px",
         render: (row) => row.purchase_number || row.bill_number || "-",
       },
       {
         header: t("supplierName"),
         align: "left",
-        width: "140px",
+        width: "160px",
         render: (row) => row.party_name || "-",
       },
       {
         header: t("items"),
         align: "center",
-        width: "50px",
+        width: "55px",
         render: (row) => row.items_count || row.items?.length || 0,
       },
       {
         header: t("totalAmount"),
         align: "right",
-        width: "90px",
+        width: "100px",
         render: (row) => formatCurrency(row.total_amount),
       },
       {
         header: t("paidAmount"),
         align: "right",
-        width: "85px",
+        width: "95px",
         render: (row) => formatCurrency(row.paid_amount),
       },
       {
         header: t("balance"),
         align: "right",
-        width: "85px",
+        width: "95px",
         render: (row) => formatCurrency(row.balance_due),
       },
       {
         header: t("status"),
         align: "center",
-        width: "70px",
-        render: (row) => row.status.toUpperCase(),
+        width: "80px",
+        render: (row) => (
+          <span
+            style={{
+              display: "inline-block",
+              padding: "1px 6px",
+              borderRadius: "12px",
+              fontSize: "9px",
+              fontWeight: 600,
+              border: "1px solid #cbd5e1",
+              backgroundColor: "#f1f5f9",
+              color: "#0f172a",
+            }}
+          >
+            {t(row.status)}
+          </span>
+        ),
       },
     ],
     [t]
@@ -622,19 +631,23 @@ export default function PurchaseReportPage() {
       {
         label: t("totalPurchases"),
         value: formatCurrency(summary.totalPurchases),
+        subValue: `${summary.totalBillsCount} ${t("totalBills")}`,
       },
       {
         label: t("totalPaid"),
         value: formatCurrency(summary.totalPaid),
+        subValue: `${summary.fullyPaidCount} ${t("paidBills")}`,
       },
       {
         label: t("balanceDue"),
         value: formatCurrency(summary.totalBalanceDue),
+        subValue: `${summary.unpaidCount + summary.partialCount} ${t("unpaidBills")}`,
         highlight: summary.totalBalanceDue > 0,
       },
       {
-        label: t("totalBills"),
-        value: String(summary.totalBillsCount),
+        label: t("totalItems"),
+        value: summary.totalItemsPurchased.toLocaleString(),
+        subValue: `${t("avgBillValue")}: ${formatCurrency(summary.averageBillValue)}`,
       },
     ],
     [summary, t]
@@ -653,13 +666,13 @@ export default function PurchaseReportPage() {
 
   const pdfFooterCells: PdfTableFooterCell[] = useMemo(
     () => [
-      { content: "Total", colSpan: 5, align: "left" },
+      { content: tCommon("total") || "Total", colSpan: 4, align: "left" },
       { content: formatCurrency(summary.totalPurchases), align: "right" },
       { content: formatCurrency(summary.totalPaid), align: "right" },
       { content: formatCurrency(summary.totalBalanceDue), align: "right" },
       { content: "", align: "center" },
     ],
-    [summary]
+    [summary, tCommon]
   );
 
   return (

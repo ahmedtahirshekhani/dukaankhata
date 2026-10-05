@@ -559,15 +559,9 @@ export default function SaleReportPage() {
   const pdfColumns: PdfTableColumn<SaleReportInvoice>[] = useMemo(
     () => [
       {
-        header: "#",
-        align: "center",
-        width: "35px",
-        render: (_, idx) => idx + 1,
-      },
-      {
         header: t("date"),
         align: "left",
-        width: "80px",
+        width: "90px",
         render: (row) => {
           const d = row.invoice_date || row.created_at;
           return d
@@ -582,44 +576,59 @@ export default function SaleReportPage() {
       {
         header: t("invoiceNo"),
         align: "left",
-        width: "100px",
+        width: "110px",
         render: (row) => row.invoice_number || "-",
       },
       {
         header: t("customerName"),
         align: "left",
-        width: "140px",
+        width: "160px",
         render: (row) => row.customer_name || "-",
       },
       {
         header: t("items"),
         align: "center",
-        width: "50px",
+        width: "55px",
         render: (row) => row.items_count || row.items?.length || 0,
       },
       {
         header: t("totalAmount"),
         align: "right",
-        width: "90px",
+        width: "100px",
         render: (row) => formatCurrency(row.total_amount),
       },
       {
         header: t("paidAmount"),
         align: "right",
-        width: "85px",
+        width: "95px",
         render: (row) => formatCurrency(row.paid_amount),
       },
       {
         header: t("balance"),
         align: "right",
-        width: "85px",
+        width: "95px",
         render: (row) => formatCurrency(row.balance_due),
       },
       {
         header: t("status"),
         align: "center",
-        width: "70px",
-        render: (row) => row.status.toUpperCase(),
+        width: "80px",
+        render: (row) => (
+          <span
+            style={{
+              display: "inline-block",
+              padding: "1px 6px",
+              borderRadius: "12px",
+              fontSize: "9px",
+              fontWeight: 600,
+              border: "1px solid #cbd5e1",
+              backgroundColor: "#f1f5f9",
+              color: "#0f172a",
+            }}
+          >
+            {t(row.status)}
+          </span>
+        ),
       },
     ],
     [t]
@@ -630,19 +639,23 @@ export default function SaleReportPage() {
       {
         label: t("totalSales"),
         value: formatCurrency(summary.totalSales),
+        subValue: `${summary.totalInvoicesCount} ${t("totalInvoices")}`,
       },
       {
         label: t("totalReceived"),
         value: formatCurrency(summary.totalReceived),
+        subValue: `${summary.fullyPaidCount} ${t("paidInvoices")}`,
       },
       {
         label: t("balanceDue"),
         value: formatCurrency(summary.totalBalanceDue),
+        subValue: `${summary.unpaidCount + summary.partialCount} ${t("unpaidInvoices")}`,
         highlight: summary.totalBalanceDue > 0,
       },
       {
-        label: t("totalInvoices"),
-        value: String(summary.totalInvoicesCount),
+        label: t("totalItems"),
+        value: summary.totalItemsSold.toLocaleString(),
+        subValue: `${t("avgInvoiceValue")}: ${formatCurrency(summary.averageInvoiceValue)}`,
       },
     ],
     [summary, t]
@@ -658,13 +671,13 @@ export default function SaleReportPage() {
 
   const pdfFooterCells: PdfTableFooterCell[] = useMemo(
     () => [
-      { content: "Total", colSpan: 5, align: "left" },
+      { content: tCommon("total"), colSpan: 4, align: "left" },
       { content: formatCurrency(summary.totalSales), align: "right" },
       { content: formatCurrency(summary.totalReceived), align: "right" },
       { content: formatCurrency(summary.totalBalanceDue), align: "right" },
       { content: "", align: "center" },
     ],
-    [summary]
+    [summary, tCommon]
   );
 
   return (

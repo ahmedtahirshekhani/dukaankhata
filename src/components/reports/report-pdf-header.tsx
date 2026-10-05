@@ -15,6 +15,7 @@ export interface ReportBranding {
 export interface ReportPdfKpi {
   label: string;
   value: React.ReactNode;
+  subValue?: React.ReactNode;
   highlight?: boolean;
 }
 
@@ -164,28 +165,33 @@ export function ReportPdfHeader({
         </div>
       )}
 
-      {/* 3. Optional KPI Summary Strip (e.g. Total Revenue, Units Sold, Gross Profit) */}
+      {/* 3. Optional KPI Summary Strip (matches on-screen StatCards) */}
       {kpis && kpis.length > 0 && (
         <div style={{ marginBottom: "6px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1", backgroundColor: "#f8fafc" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #cbd5e1" }}>
             <tbody>
               <tr>
                 {kpis.map((kpi, idx) => (
                   <td
                     key={idx}
                     style={{
-                      padding: "4px 6px",
+                      padding: "5px 6px",
                       textAlign: "center",
                       borderRight: idx < kpis.length - 1 ? "1px solid #cbd5e1" : "none",
-                      backgroundColor: kpi.highlight ? "#f1f5f9" : "#f8fafc",
+                      backgroundColor: kpi.highlight ? "#fff1f2" : "#f8fafc",
                     }}
                   >
                     <div style={{ fontSize: "7.5px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>
                       {kpi.label}
                     </div>
-                    <div style={{ fontSize: "11px", fontWeight: "bold", color: "#0f172a", marginTop: "1px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "bold", color: kpi.highlight ? "#be123c" : "#0f172a", marginTop: "1px" }}>
                       {kpi.value}
                     </div>
+                    {kpi.subValue && (
+                      <div style={{ fontSize: "7px", color: kpi.highlight ? "#e11d48" : "#64748b", marginTop: "1px" }}>
+                        {kpi.subValue}
+                      </div>
+                    )}
                   </td>
                 ))}
               </tr>
