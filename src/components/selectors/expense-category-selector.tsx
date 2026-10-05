@@ -151,7 +151,7 @@ export function ExpenseCategorySelector({
             <Button
               type="button"
               variant="ghost"
-              className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium bg-primary text-white hover:bg-accent rounded-none justify-center"
+              className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
               onClick={() => {
                 setIsOpen(false);
                 setNewCategoryName(searchTerm);

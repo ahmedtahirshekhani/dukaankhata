@@ -315,8 +315,8 @@ export default function PurchaseBillPage() {
           {bills.length === 0 ? (
             <div className="text-center text-muted-foreground py-20 flex flex-col items-center justify-center gap-2">
               <SearchIcon className="h-10 w-10 opacity-20" />
-              <p>{searchTerm ? t("common.noResults") || "No results found" : t("noBills") || "No purchase bills found"}</p>
-              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{t("common.clearSearch") || "Clear search"}</Button>}
+              <p>{searchTerm ? tCommon("noResults") : t("noBills")}</p>
+              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{tCommon("clearSearch")}</Button>}
             </div>
           ) : (
             <div className="overflow-x-auto">

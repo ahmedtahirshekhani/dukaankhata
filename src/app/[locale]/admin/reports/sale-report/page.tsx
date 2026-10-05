@@ -652,11 +652,6 @@ export default function SaleReportPage() {
         subValue: `${summary.unpaidCount + summary.partialCount} ${t("unpaidInvoices")}`,
         highlight: summary.totalBalanceDue > 0,
       },
-      {
-        label: t("totalItems"),
-        value: summary.totalItemsSold.toLocaleString(),
-        subValue: `${t("avgInvoiceValue")}: ${formatCurrency(summary.averageInvoiceValue)}`,
-      },
     ],
     [summary, t]
   );
@@ -925,8 +920,8 @@ export default function SaleReportPage() {
         </CardContent>
       </Card>
 
-      {/* KPI Summary StatCards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* KPI Summary StatCards (3 Cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           title={t("totalSales")}
           value={formatCurrency(summary.totalSales)}
@@ -949,14 +944,6 @@ export default function SaleReportPage() {
           icon={<AlertCircle className="h-4 w-4 text-rose-600" />}
           subValue={`${summary.unpaidCount + summary.partialCount} ${t("unpaidInvoices")}`}
           isExpense={summary.totalBalanceDue > 0}
-          isLoading={loading}
-        />
-
-        <StatCard
-          title={t("totalItems")}
-          value={summary.totalItemsSold.toLocaleString()}
-          icon={<Package className="h-4 w-4 text-violet-600" />}
-          subValue={`${t("avgInvoiceValue")}: ${formatCurrency(summary.averageInvoiceValue)}`}
           isLoading={loading}
         />
       </div>
