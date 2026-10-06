@@ -39,7 +39,7 @@ import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
 import { exportSaleReportToExcel } from "@/lib/excel";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -444,16 +444,7 @@ export default function SaleReportPage() {
         accessorKey: "invoice_date",
         sortable: true,
         className: "whitespace-nowrap text-xs text-foreground",
-        cell: (row) => {
-          const d = row.invoice_date || row.created_at;
-          return d
-            ? new Date(d).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "-";
-        },
+        cell: (row) => formatStatementDate(row.invoice_date || row.created_at),
       },
       {
         id: "invoice_number",
@@ -562,16 +553,7 @@ export default function SaleReportPage() {
         header: t("date"),
         align: "left",
         width: "90px",
-        render: (row) => {
-          const d = row.invoice_date || row.created_at;
-          return d
-            ? new Date(d).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "-";
-        },
+        render: (row) => formatStatementDate(row.invoice_date || row.created_at),
       },
       {
         header: t("invoiceNo"),
@@ -974,13 +956,7 @@ export default function SaleReportPage() {
                 <span className="font-mono font-bold text-foreground">{row.invoice_number}</span>
                 <p className="font-semibold text-foreground text-sm mt-0.5">{row.customer_name}</p>
                 <p className="text-[11px] text-foreground/75">
-                  {row.invoice_date || row.created_at
-                    ? new Date(row.invoice_date || row.created_at).toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : "-"}
+                  {formatStatementDate(row.invoice_date || row.created_at)}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -1045,11 +1021,9 @@ export default function SaleReportPage() {
                 <div>
                   <span className="text-muted-foreground block text-[11px]">{t("date")}:</span>
                   <span className="font-medium text-foreground">
-                    {selectedInvoiceForDetails.invoice_date || selectedInvoiceForDetails.created_at
-                      ? new Date(
-                          selectedInvoiceForDetails.invoice_date || selectedInvoiceForDetails.created_at
-                        ).toLocaleDateString("en-GB")
-                      : "-"}
+                    {formatStatementDate(
+                      selectedInvoiceForDetails.invoice_date || selectedInvoiceForDetails.created_at
+                    )}
                   </span>
                 </div>
                 <div>

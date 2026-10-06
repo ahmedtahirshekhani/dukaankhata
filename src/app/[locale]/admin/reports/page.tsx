@@ -25,7 +25,8 @@ export default function ReportsModulePage() {
                         can('reports', 'view_profitability') ||
                         can('reports', 'view_item_wise_sales') ||
                         can('reports', 'view_sale_report') ||
-                        can('reports', 'view_purchase_report');
+                        can('reports', 'view_purchase_report') ||
+                        can('reports', 'view_party_wise_sale_purchase_report');
 
   useEffect(() => {
     if (!hasReportsSub) {

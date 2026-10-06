@@ -16,6 +16,7 @@ import {
   SaleReportSummary,
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
+import { formatStatementDate } from "../utils";
 
 /**
  * Exports transactions to an Excel file
@@ -540,7 +541,7 @@ export function exportPurchaseReportToExcel(
   const billsData = bills.map((bill, index) => ({
     "#": index + 1,
     "Bill #": bill.purchase_number || bill.bill_number || "-",
-    Date: (bill.bill_date || bill.created_at) ? new Date(bill.bill_date || bill.created_at).toLocaleDateString("en-GB") : "-",
+    Date: formatStatementDate(bill.bill_date || bill.created_at),
     "Party": bill.party_name || "-",
     "Items Count": bill.items_count || (bill.items?.length ?? 0),
     "Items List": bill.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
@@ -602,9 +603,7 @@ export function exportSaleReportToExcel(
   const invoicesData = invoices.map((inv, index) => ({
     "#": index + 1,
     "Invoice #": inv.invoice_number || "-",
-    Date: (inv.invoice_date || inv.created_at)
-      ? new Date(inv.invoice_date || inv.created_at).toLocaleDateString("en-GB")
-      : "-",
+    Date: formatStatementDate(inv.invoice_date || inv.created_at),
     "Party": inv.customer_name || "-",
     "Items Count": inv.items_count || (inv.items?.length ?? 0),
     "Items List": inv.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
