@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ChevronDownIcon } from "lucide-react";
 import { formatCurrencyString, getYearsFromDates, maskPaymentNo } from "@/lib/utils";
-import { formatReadableDate } from "@/lib/date-utils";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -138,12 +138,14 @@ export default function PurchaseBillPage() {
     }
 
     return [...result].sort((a, b) => {
-      const getBillTime = (bill: any) => {
+      const getBillDayTime = (bill: any) => {
         const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
-        return raw ? new Date(raw).getTime() : 0;
+        if (!raw) return 0;
+        const parsed = safeDate(raw, new Date(0));
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
       };
-      const dateA = getBillTime(a);
-      const dateB = getBillTime(b);
+      const dateA = getBillDayTime(a);
+      const dateB = getBillDayTime(b);
       if (dateB !== dateA) return dateB - dateA;
 
       const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);

@@ -147,17 +147,19 @@ export default function PaymentOutPage() {
   const allOfflineTransactions = useMemo(() => {
     if (!offlineTransactions) return [];
     return [...offlineTransactions].sort((a: any, b: any) => {
-      // 1. Primary: Compare Transaction Date (Descending)
-      const getTxnTime = (item: any): number => {
+      // 1. Primary: Compare Transaction Date at Day level (Descending)
+      const getTxnDayTime = (item: any): number => {
         const raw = item.date || item.payment_date || item.raw_date || item.created_at || item.createdAt;
         if (raw) {
           const parsed = safeDate(raw, new Date(0));
-          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+            return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+          }
         }
         return 0;
       };
-      const timeA = getTxnTime(a);
-      const timeB = getTxnTime(b);
+      const timeA = getTxnDayTime(a);
+      const timeB = getTxnDayTime(b);
       if (timeA !== timeB) return timeB - timeA;
 
       // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)

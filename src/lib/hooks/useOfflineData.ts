@@ -218,18 +218,19 @@ export function useOfflineOrders(
     }
 
     filtered.sort((a, b) => {
-      const getOrderTime = (order: any) => {
+      const getOrderDayTime = (order: any) => {
         const raw = order.sale_date || order.order_date || order.date || order.created_at;
         if (!raw) return 0;
         const parsed = safeDate(raw, new Date(0));
-        return parsed.getTime();
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
       };
-      const dateA = getOrderTime(a);
-      const dateB = getOrderTime(b);
+      const dateA = getOrderDayTime(a);
+      const dateB = getOrderDayTime(b);
       if (dateB !== dateA) return dateB - dateA;
-      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return createB - createA;
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+      if (createB !== createA) return createB - createA;
+      return (b.invoice_no || b.id || "").toString().localeCompare((a.invoice_no || a.id || "").toString());
     });
 
     return filtered;
@@ -380,18 +381,20 @@ export function useOfflineCustomerTransactions(
         return matches;
       })
       .sort((a, b) => {
-        // 1. Primary: Compare Transaction Date (Descending)
-        const getTxnTime = (item: any): number => {
+        // 1. Primary: Compare Transaction Date at Day level (Descending)
+        const getTxnDayTime = (item: any): number => {
           const raw = item.raw_date || item.payment_date || item.date || item.created_at || item.createdAt;
           if (raw) {
             const parsed = safeDate(raw, new Date(0));
-            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+            }
           }
           return 0;
         };
 
-        const timeA = getTxnTime(a);
-        const timeB = getTxnTime(b);
+        const timeA = getTxnDayTime(a);
+        const timeB = getTxnDayTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;
@@ -561,7 +564,11 @@ export function useOfflineSaleReturns(
           invoiceNo: t.invoiceNo || t.invoice_no || "",
           invoiceDate: t.invoiceDate || t.invoice_date || "",
           paymentRefNo: t.paymentRefNo || t.payment_ref_no || "",
+          raw_date: t.date,
+          return_date: t.return_date || t.date,
           date: formattedDate,
+          created_at: t.created_at || t.createdAt,
+          updated_at: t.updated_at || t.updatedAt,
           customerName: t.customerName || partyMap.get(customerId) || "-",
           paymentMethodName:
             t.paymentMethodName ||
@@ -604,34 +611,29 @@ export function useOfflineSaleReturns(
         return matches;
       })
       .sort((a, b) => {
-        const getReturnTime = (item: any): number => {
-          if (item.date) {
-            const parsed = safeDate(item.date, new Date(0));
-            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
-          }
-          if (item.created_at) {
-            const t = new Date(item.created_at).getTime();
-            if (!isNaN(t) && t > 0) return t;
-          }
-          if (item.createdAt) {
-            const t = new Date(item.createdAt).getTime();
-            if (!isNaN(t) && t > 0) return t;
+        const getReturnDayTime = (item: any): number => {
+          const raw = item.raw_date || item.return_date || item.date || item.created_at || item.createdAt;
+          if (raw) {
+            const parsed = safeDate(raw, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+            }
           }
           return 0;
         };
 
-        const timeA = getReturnTime(a);
-        const timeB = getReturnTime(b);
+        const timeA = getReturnDayTime(a);
+        const timeB = getReturnDayTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;
         }
 
-        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        if (createA !== createB) return createB - createA;
+        const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+        const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+        if (createB !== createA) return createB - createA;
 
-        return String(b.id || "").localeCompare(String(a.id || ""));
+        return String(b.returnNumber || b.return_number || b.id || "").localeCompare(String(a.returnNumber || a.return_number || a.id || ""));
       });
   }, [searchQuery, filterPaymentMethodId, filterPartyId]);
 }
@@ -758,13 +760,15 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
         return matches;
       })
       .sort((a, b) => {
-        // 1. Primary: Compare Bill / Purchase Date (Descending)
-        const getBillTime = (bill: any) => {
+        // 1. Primary: Compare Bill / Purchase Date at Day level (Descending)
+        const getBillDayTime = (bill: any) => {
           const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
-          return raw ? new Date(raw).getTime() : 0;
+          if (!raw) return 0;
+          const parsed = safeDate(raw, new Date(0));
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
         };
-        const dateA = getBillTime(a);
-        const dateB = getBillTime(b);
+        const dateA = getBillDayTime(a);
+        const dateB = getBillDayTime(b);
         if (dateB !== dateA) return dateB - dateA;
 
         // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
