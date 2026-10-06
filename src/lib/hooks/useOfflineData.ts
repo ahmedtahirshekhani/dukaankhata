@@ -331,7 +331,11 @@ export function useOfflineCustomerTransactions(
           customerId,
           paymentMethodId,
           paymentAmount,
+          raw_date: t.date,
+          payment_date: t.payment_date || t.date,
           date: formattedDate,
+          created_at: t.created_at || t.createdAt,
+          updated_at: t.updated_at || t.updatedAt,
           customerName: t.customerName || partyMap.get(customerId) || "-",
           paymentMethodName:
             t.paymentMethodName ||
@@ -376,18 +380,12 @@ export function useOfflineCustomerTransactions(
         return matches;
       })
       .sort((a, b) => {
+        // 1. Primary: Compare Transaction Date (Descending)
         const getTxnTime = (item: any): number => {
-          if (item.date) {
-            const parsed = safeDate(item.date, new Date(0));
+          const raw = item.raw_date || item.payment_date || item.date || item.created_at || item.createdAt;
+          if (raw) {
+            const parsed = safeDate(raw, new Date(0));
             if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
-          }
-          if (item.created_at) {
-            const t = new Date(item.created_at).getTime();
-            if (!isNaN(t) && t > 0) return t;
-          }
-          if (item.createdAt) {
-            const t = new Date(item.createdAt).getTime();
-            if (!isNaN(t) && t > 0) return t;
           }
           return 0;
         };
@@ -399,11 +397,13 @@ export function useOfflineCustomerTransactions(
           return timeB - timeA;
         }
 
-        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        if (createA !== createB) return createB - createA;
+        // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
+        const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+        const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+        if (createB !== createA) return createB - createA;
 
-        return String(b.id || "").localeCompare(String(a.id || ""));
+        // 3. Tertiary: Payment number / ID (Descending)
+        return (b.paymentNumber || b.payment_number || b.id || "").toString().localeCompare((a.paymentNumber || a.payment_number || a.id || "").toString());
       });
   }, [type, searchQuery, filterPaymentMethodId, filterPartyId]);
 }

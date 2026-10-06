@@ -84,8 +84,10 @@ export async function GET(req: NextRequest) {
       paymentAmount: item.payment_amount ?? 0,
       paymentMethodId: item.payment_method_id?.toString() ?? '',
       paymentMethodName: item.payment_method_id ? paymentMethodMap[item.payment_method_id.toString()] ?? '' : '',
-      date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
+      date: item.date ? (typeof item.date === 'string' ? item.date : new Date(item.date).toISOString()) : '',
       type: item.type ?? 'payment-in',
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : undefined,
+      updated_at: item.updated_at ? new Date(item.updated_at).toISOString() : undefined,
     }));
 
     await updateUserLastActivity();

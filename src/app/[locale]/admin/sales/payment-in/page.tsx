@@ -59,7 +59,7 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
-import { generateReferenceNumber, maskPaymentNo } from "@/lib/utils";
+import { generateReferenceNumber, maskPaymentNo, setDateToCurrentTime } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { formatReadableDate, safeDate } from "@/lib/date-utils";
 
@@ -85,6 +85,8 @@ type CustomerTransaction = {
   paymentMethodId: string;
   paymentMethodName: string;
   date: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export default function PaymentInPage() {
@@ -131,18 +133,12 @@ export default function PaymentInPage() {
   const allOfflineTransactions = useMemo(() => {
     if (!offlineTransactions) return [];
     return [...offlineTransactions].sort((a: any, b: any) => {
+      // 1. Primary: Compare Transaction Date (Descending)
       const getTxnTime = (item: any): number => {
-        if (item.date) {
-          const parsed = safeDate(item.date, new Date(0));
+        const raw = item.date || item.payment_date || item.raw_date || item.created_at || item.createdAt;
+        if (raw) {
+          const parsed = safeDate(raw, new Date(0));
           if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
-        }
-        if (item.created_at) {
-          const t = new Date(item.created_at).getTime();
-          if (!isNaN(t) && t > 0) return t;
-        }
-        if (item.createdAt) {
-          const t = new Date(item.createdAt).getTime();
-          if (!isNaN(t) && t > 0) return t;
         }
         return 0;
       };
@@ -150,11 +146,13 @@ export default function PaymentInPage() {
       const timeB = getTxnTime(b);
       if (timeA !== timeB) return timeB - timeA;
 
-      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (createA !== createB) return createB - createA;
+      // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+      if (createB !== createA) return createB - createA;
 
-      return String(b.id || "").localeCompare(String(a.id || ""));
+      // 3. Tertiary: payment number / id (Descending)
+      return (b.paymentNumber || b.payment_number || b.id || "").toString().localeCompare((a.paymentNumber || a.payment_number || a.id || "").toString());
     });
   }, [offlineTransactions]);
   
@@ -226,13 +224,17 @@ export default function PaymentInPage() {
       const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-IN");
 
+      const now = new Date();
+      const finalDate = setDateToCurrentTime(formDate);
+
       const payload = {
         paymentNumber: paymentNo,
         payment_number: paymentNo,
         customerId: formCustomerId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: formDate,
+        date: finalDate.toISOString(),
+        payment_date: finalDate.toISOString(),
         type: "payment-in"
       };
 
@@ -242,7 +244,8 @@ export default function PaymentInPage() {
         ...payload,
         customerName: customer?.name || "",
         paymentMethodName: paymentMethod?.name || formPaymentMethodId,
-        created_at: new Date().toISOString()
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
       };
 
       await db.party_transactions.add(localTransaction);
@@ -287,13 +290,17 @@ export default function PaymentInPage() {
       const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-IN");
 
+      const now = new Date();
+      const finalDate = setDateToCurrentTime(formDate);
+
       const payload = {
         paymentNumber: paymentNo,
         payment_number: paymentNo,
         customerId: formCustomerId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: formDate,
+        date: finalDate.toISOString(),
+        payment_date: finalDate.toISOString(),
         type: "payment-in"
       };
 
@@ -302,6 +309,8 @@ export default function PaymentInPage() {
         ...payload,
         customerName: customer?.name || "",
         paymentMethodName: paymentMethod?.name || formPaymentMethodId,
+        created_at: oldTransaction?.created_at || now.toISOString(),
+        updated_at: now.toISOString(),
       };
 
       await db.party_transactions.put(localTransaction);
@@ -389,7 +398,7 @@ export default function PaymentInPage() {
     setFormCustomerId(item.customerId);
     setFormPaymentAmount(item.paymentAmount.toString());
     setFormPaymentMethodId(item.paymentMethodId);
-    setFormDate(item.date || new Date().toISOString().split("T")[0]);
+    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setShowEditDialog(true);
   };
 
