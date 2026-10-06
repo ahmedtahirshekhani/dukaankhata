@@ -758,10 +758,22 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
         return matches;
       })
       .sort((a, b) => {
-        // Sort by created_at descending
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return dateB - dateA;
+        // 1. Primary: Compare Bill / Purchase Date (Descending)
+        const getBillTime = (bill: any) => {
+          const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
+          return raw ? new Date(raw).getTime() : 0;
+        };
+        const dateA = getBillTime(a);
+        const dateB = getBillTime(b);
+        if (dateB !== dateA) return dateB - dateA;
+
+        // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
+        const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+        const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+        if (createB !== createA) return createB - createA;
+
+        // 3. Tertiary: Purchase Number or ID
+        return (b.purchase_number || b.purchase_no || b.id || "").toString().localeCompare((a.purchase_number || a.purchase_no || a.id || "").toString());
       });
   }, [searchQuery]);
 }
