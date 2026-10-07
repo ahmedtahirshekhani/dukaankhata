@@ -724,7 +724,7 @@ export default function PurchaseReportPage() {
       <Card className="border border-border/50 bg-card shadow-sm">
         <CardContent className="p-3.5 sm:p-4 space-y-3">
           {/* Row 1: Primary Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">
                 {t("fromDate")}:
@@ -749,7 +749,7 @@ export default function PurchaseReportPage() {
               />
             </div>
 
-            <div>
+            {/* <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">
                 {t("supplier")}:
               </label>
@@ -766,7 +766,7 @@ export default function PurchaseReportPage() {
                 placeholder={t("allSuppliers")}
                 className="w-full h-8 text-xs"
               />
-            </div>
+            </div> */}
 
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">
