@@ -127,7 +127,17 @@ export async function GET(request: Request) {
 
     const pipeline: any[] = [
       { $match: matchQuery },
-      { $sort: { created_at: -1 } },
+      {
+        $addFields: {
+          effective_date: {
+            $ifNull: [
+              "$bill_date",
+              { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] }
+            ]
+          }
+        }
+      },
+      { $sort: { effective_date: -1, created_at: -1 } },
       {
         $facet: {
           metadata: [{ $count: "total" }],
@@ -159,6 +169,9 @@ export async function GET(request: Request) {
       payment_method_id: bill.payment_method_id || null,
       payment_method_name: bill.payment_method_name || null,
       description: bill.description || null,
+      bill_date: bill.bill_date || bill.date || bill.purchase_date || bill.created_at,
+      purchase_date: bill.purchase_date || bill.bill_date || bill.created_at,
+      date: bill.date || bill.bill_date || bill.created_at,
       created_at: bill.created_at,
       updated_at: bill.updated_at || null,
     }));
@@ -301,8 +314,9 @@ export async function POST(request: Request) {
     const finalPurchaseNo = purchase_number || purchase_no || bill_number || generateReferenceNumber("PUR");
     const now = new Date();
 
-    const rawDateInput = customBillDate || customDate || customCreatedAt;
-    const finalBillDate = rawDateInput ? new Date(rawDateInput) : now;
+    const rawDateInput = customBillDate || customDate;
+    const finalBillDate = rawDateInput ? new Date(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
+    const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt) : now;
 
     const billResult = await purchaseBillsCollection.insertOne({
       user_id: userObjId,
@@ -326,7 +340,7 @@ export async function POST(request: Request) {
       bill_date: finalBillDate,
       purchase_date: finalBillDate,
       date: finalBillDate,
-      created_at: finalBillDate,
+      created_at: finalCreatedAt,
       updated_at: now,
     });
 
@@ -446,6 +460,9 @@ export async function PUT(request: Request) {
     payment_method_id: paymentMethodId,
     payment_method_name: paymentMethodName,
     description,
+    bill_date: customBillDate,
+    date: customDate,
+    purchase_date: customPurchaseDate,
   } = await request.json();
 
   try {
@@ -540,6 +557,14 @@ export async function PUT(request: Request) {
       payment_method_name: paymentMethodName || null,
       description: description || null,
     };
+
+    const rawBillDate = customBillDate || customDate || customPurchaseDate;
+    if (rawBillDate) {
+      const bDate = new Date(rawBillDate);
+      updateData.bill_date = bDate;
+      updateData.purchase_date = bDate;
+      updateData.date = bDate;
+    }
 
     if (purchase_number || purchase_no || bill_number) {
       const pNo = purchase_number || purchase_no || bill_number;

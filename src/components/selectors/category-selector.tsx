@@ -46,8 +46,19 @@ export function CategorySelector({
   const placeholder = translations?.placeholder ?? t("selectOrCreateCategory");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
   const categories = useOfflineCategories(searchTerm) || [];
   const [isOpen, setIsOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 30);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -130,10 +141,20 @@ export function CategorySelector({
             <div className="relative">
               <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 placeholder={t("searchCategory")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key !== "Escape") e.stopPropagation();
+                }}
+                onKeyDownCapture={(e) => {
+                  if (e.key !== "Escape") e.stopPropagation();
+                }}
+                onKeyUpCapture={(e) => {
+                  if (e.key !== "Escape") e.stopPropagation();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="pl-8 pr-8 h-8 text-sm"
                 onClick={(e) => e.stopPropagation()}
               />

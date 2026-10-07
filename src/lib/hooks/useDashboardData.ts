@@ -151,7 +151,7 @@ export function useDashboardData(
       const rangeDates = getRangeDates(purchasesRange);
       let totalPurchases = 0;
       for (const purchase of allPurchases) {
-        const purchaseDate = new Date(purchase.created_at || purchase.date || 0);
+        const purchaseDate = new Date(purchase.bill_date || purchase.purchase_date || purchase.date || purchase.created_at || 0);
         if (purchaseDate >= rangeDates.start && purchaseDate <= rangeDates.end) {
           totalPurchases += Number(purchase.total_amount || purchase.amount || 0);
         }

@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ChevronDownIcon } from "lucide-react";
 import { formatCurrencyString, getYearsFromDates, maskPaymentNo } from "@/lib/utils";
-import { formatReadableDate } from "@/lib/date-utils";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -76,7 +76,11 @@ interface PurchaseBill {
   payment_method_id?: string;
   payment_method_name?: string;
   description?: string;
+  bill_date?: string;
+  purchase_date?: string;
+  date?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export default function PurchaseBillPage() {
@@ -103,7 +107,9 @@ export default function PurchaseBillPage() {
 
   // Extract unique years for the filter
   const availableYears = useMemo(() => {
-    return getYearsFromDates(rawOfflineBills?.map((b) => b.created_at) || []);
+    return getYearsFromDates(
+      rawOfflineBills?.map((b) => b.bill_date || b.date || b.purchase_date || b.created_at) || []
+    );
   }, [rawOfflineBills]);
 
   // Apply client-side filters (year, status, amount range)
@@ -112,8 +118,9 @@ export default function PurchaseBillPage() {
 
     if (selectedYear) {
       result = result.filter(bill => {
-        if (!bill.created_at) return false;
-        return new Date(bill.created_at).getFullYear() === selectedYear;
+        const rawDate = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
+        if (!rawDate) return false;
+        return new Date(rawDate).getFullYear() === selectedYear;
       });
     }
 
@@ -131,9 +138,21 @@ export default function PurchaseBillPage() {
     }
 
     return [...result].sort((a, b) => {
-      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return dateB - dateA;
+      const getBillDayTime = (bill: any) => {
+        const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
+        if (!raw) return 0;
+        const parsed = safeDate(raw, new Date(0));
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+      };
+      const dateA = getBillDayTime(a);
+      const dateB = getBillDayTime(b);
+      if (dateB !== dateA) return dateB - dateA;
+
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+      if (createB !== createA) return createB - createA;
+
+      return (b.purchase_number || b.purchase_no || b.id || "").toString().localeCompare((a.purchase_number || a.purchase_no || a.id || "").toString());
     });
   }, [rawOfflineBills, selectedYear, statusFilter, amountRange]);
 
@@ -310,13 +329,11 @@ export default function PurchaseBillPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
-
-
           {bills.length === 0 ? (
             <div className="text-center text-muted-foreground py-20 flex flex-col items-center justify-center gap-2">
               <SearchIcon className="h-10 w-10 opacity-20" />
-              <p>{searchTerm ? t("common.noResults") || "No results found" : t("noBills") || "No purchase bills found"}</p>
-              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{t("common.clearSearch") || "Clear search"}</Button>}
+              <p>{searchTerm ? tCommon("noResults") : t("noBills")}</p>
+              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{tCommon("clearSearch")}</Button>}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -372,7 +389,7 @@ export default function PurchaseBillPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {formatReadableDate(bill.created_at)}
+                          {formatReadableDate(bill.bill_date || bill.date || bill.purchase_date || bill.created_at)}
                         </TableCell>
                         <TableCell className="text-right pr-4">
                           <div className="flex items-center justify-end gap-2">
@@ -555,7 +572,7 @@ function PurchaseBillCard({
         {/* Row 1: Date (date-month-year) on Left & Light Sky Blue Status Box on Right */}
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground text-xs font-medium">
-            {formatReadableDate(bill.created_at)}
+            {formatReadableDate(bill.bill_date || bill.date || bill.purchase_date || bill.created_at)}
           </span>
           <Badge
             variant="outline"

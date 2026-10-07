@@ -404,8 +404,8 @@ export default function QuotationListPage() {
             <div className="text-center py-20 text-muted-foreground bg-muted/5">
               <div className="flex flex-col items-center gap-2">
                 <SearchIcon className="h-10 w-10 opacity-20" />
-                <p className="font-medium">{searchTerm ? (t("common.noResults") || tCommon("noResults")) : tInv("no_quotations_found")}</p>
-                {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{t("common.clearSearch") || "Clear search"}</Button>}
+                <p className="font-medium">{searchTerm ? tCommon("noResults") : tInv("no_quotations_found")}</p>
+                {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{tCommon("clearSearch")}</Button>}
               </div>
             </div>
           ) : (

@@ -130,7 +130,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   // Sub-menu Permission Checks
   const hasSalesSub = can('sales', 'view_quotations') || can('sales', 'view_invoice') || can('sales', 'view_payment_in') || can('sales', 'view_sale_return') || (enableCounterSale && can('sales', 'view_counter_sale'));
   const hasPurchaseSub = can('purchase', 'view_purchase_bill') || can('purchase', 'view_payment_out');
-  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability') || can('reports', 'view_item_wise_sales') || can('reports', 'view_sale_report') || can('reports', 'view_purchase_report');
+  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability') || can('reports', 'view_item_wise_sales') || can('reports', 'view_sale_report') || can('reports', 'view_purchase_report') || can('reports', 'view_party_wise_sale_purchase_report');
 
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
@@ -1078,6 +1078,20 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                         }`}
                     >
                       {tNav("purchaseReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_party_wise_sale_purchase_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/party-wise-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/party-wise-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/party-wise-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("partyWiseReport")}
                     </Link>
                   )}
                 </div>

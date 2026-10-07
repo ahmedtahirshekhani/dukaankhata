@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, SearchIcon, X, Tag } from "lucide-react";
@@ -51,7 +51,18 @@ export function ExpenseCategorySelector({
   const tCommon = useTranslations("common");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 30);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
 
@@ -104,10 +115,20 @@ export function ExpenseCategorySelector({
             <div className="relative">
               <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 placeholder={tCommon("search") || "Search category..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key !== "Escape") e.stopPropagation();
+                }}
+                onKeyDownCapture={(e) => {
+                  if (e.key !== "Escape") e.stopPropagation();
+                }}
+                onKeyUpCapture={(e) => {
+                  if (e.key !== "Escape") e.stopPropagation();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="pl-8 pr-8 h-8 text-xs bg-background"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -151,7 +172,7 @@ export function ExpenseCategorySelector({
             <Button
               type="button"
               variant="ghost"
-              className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium bg-primary text-white hover:bg-accent rounded-none justify-center"
+              className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
               onClick={() => {
                 setIsOpen(false);
                 setNewCategoryName(searchTerm);

@@ -39,7 +39,7 @@ import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
 import { exportPurchaseReportToExcel } from "@/lib/excel";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -436,16 +436,7 @@ export default function PurchaseReportPage() {
         accessorKey: "bill_date",
         sortable: true,
         className: "whitespace-nowrap text-xs font-medium text-foreground",
-        cell: (row) => {
-          const d = row.bill_date || row.created_at;
-          return d
-            ? new Date(d).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })
-            : "-";
-        },
+        cell: (row) => formatStatementDate(row.bill_date || row.created_at),
       },
       {
         id: "purchase_number",
@@ -551,67 +542,67 @@ export default function PurchaseReportPage() {
   const pdfColumns: PdfTableColumn<PurchaseReportBill>[] = useMemo(
     () => [
       {
-        header: "#",
-        align: "center",
-        width: "35px",
-        render: (_, idx) => idx + 1,
-      },
-      {
         header: t("date"),
         align: "left",
-        width: "80px",
-        render: (row) => {
-          const d = row.bill_date || row.created_at;
-          return d
-            ? new Date(d).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "-";
-        },
+        width: "90px",
+        render: (row) => formatStatementDate(row.bill_date || row.created_at),
       },
       {
         header: t("billNo"),
         align: "left",
-        width: "100px",
+        width: "110px",
         render: (row) => row.purchase_number || row.bill_number || "-",
       },
       {
         header: t("supplierName"),
         align: "left",
-        width: "140px",
+        width: "160px",
         render: (row) => row.party_name || "-",
       },
       {
         header: t("items"),
         align: "center",
-        width: "50px",
+        width: "55px",
         render: (row) => row.items_count || row.items?.length || 0,
       },
       {
         header: t("totalAmount"),
         align: "right",
-        width: "90px",
+        width: "100px",
         render: (row) => formatCurrency(row.total_amount),
       },
       {
         header: t("paidAmount"),
         align: "right",
-        width: "85px",
+        width: "95px",
         render: (row) => formatCurrency(row.paid_amount),
       },
       {
         header: t("balance"),
         align: "right",
-        width: "85px",
+        width: "95px",
         render: (row) => formatCurrency(row.balance_due),
       },
       {
         header: t("status"),
         align: "center",
-        width: "70px",
-        render: (row) => row.status.toUpperCase(),
+        width: "80px",
+        render: (row) => (
+          <span
+            style={{
+              display: "inline-block",
+              padding: "1px 6px",
+              borderRadius: "12px",
+              fontSize: "9px",
+              fontWeight: 600,
+              border: "1px solid #cbd5e1",
+              backgroundColor: "#f1f5f9",
+              color: "#0f172a",
+            }}
+          >
+            {t(row.status)}
+          </span>
+        ),
       },
     ],
     [t]
@@ -622,19 +613,18 @@ export default function PurchaseReportPage() {
       {
         label: t("totalPurchases"),
         value: formatCurrency(summary.totalPurchases),
+        subValue: `${summary.totalBillsCount} ${t("totalBills")}`,
       },
       {
         label: t("totalPaid"),
         value: formatCurrency(summary.totalPaid),
+        subValue: `${summary.fullyPaidCount} ${t("paidBills")}`,
       },
       {
         label: t("balanceDue"),
         value: formatCurrency(summary.totalBalanceDue),
+        subValue: `${summary.unpaidCount + summary.partialCount} ${t("unpaidBills")}`,
         highlight: summary.totalBalanceDue > 0,
-      },
-      {
-        label: t("totalBills"),
-        value: String(summary.totalBillsCount),
       },
     ],
     [summary, t]
@@ -653,13 +643,13 @@ export default function PurchaseReportPage() {
 
   const pdfFooterCells: PdfTableFooterCell[] = useMemo(
     () => [
-      { content: "Total", colSpan: 5, align: "left" },
+      { content: tCommon("total") || "Total", colSpan: 4, align: "left" },
       { content: formatCurrency(summary.totalPurchases), align: "right" },
       { content: formatCurrency(summary.totalPaid), align: "right" },
       { content: formatCurrency(summary.totalBalanceDue), align: "right" },
       { content: "", align: "center" },
     ],
-    [summary]
+    [summary, tCommon]
   );
 
   return (
@@ -734,7 +724,7 @@ export default function PurchaseReportPage() {
       <Card className="border border-border/50 bg-card shadow-sm">
         <CardContent className="p-3.5 sm:p-4 space-y-3">
           {/* Row 1: Primary Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">
                 {t("fromDate")}:
@@ -759,7 +749,7 @@ export default function PurchaseReportPage() {
               />
             </div>
 
-            <div>
+            {/* <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">
                 {t("supplier")}:
               </label>
@@ -776,7 +766,7 @@ export default function PurchaseReportPage() {
                 placeholder={t("allSuppliers")}
                 className="w-full h-8 text-xs"
               />
-            </div>
+            </div> */}
 
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">
@@ -926,8 +916,8 @@ export default function PurchaseReportPage() {
         </CardContent>
       </Card>
 
-      {/* KPI Summary StatCards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* KPI Summary StatCards (3 Cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           title={t("totalPurchases")}
           value={formatCurrency(summary.totalPurchases)}
@@ -950,14 +940,6 @@ export default function PurchaseReportPage() {
           icon={<AlertCircle className="h-4 w-4 text-rose-600" />}
           subValue={`${summary.unpaidCount + summary.partialCount} ${t("unpaidBills")}`}
           isExpense={summary.totalBalanceDue > 0}
-          isLoading={loading}
-        />
-
-        <StatCard
-          title={t("totalItems")}
-          value={summary.totalItemsPurchased.toLocaleString()}
-          icon={<Package className="h-4 w-4 text-violet-600" />}
-          subValue={`${t("avgBillValue")}: ${formatCurrency(summary.averageBillValue)}`}
           isLoading={loading}
         />
       </div>
@@ -988,13 +970,7 @@ export default function PurchaseReportPage() {
                 <span className="font-mono font-bold text-foreground">{row.purchase_number || row.bill_number}</span>
                 <p className="font-semibold text-foreground text-sm mt-0.5">{row.party_name}</p>
                 <p className="text-[11px] text-foreground/75">
-                  {row.bill_date || row.created_at
-                    ? new Date(row.bill_date || row.created_at).toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : "-"}
+                  {formatStatementDate(row.bill_date || row.created_at)}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -1059,9 +1035,9 @@ export default function PurchaseReportPage() {
                 <div>
                   <span className="text-muted-foreground block text-[11px]">{t("date")}:</span>
                   <span className="font-medium text-foreground">
-                    {selectedBillForDetails.created_at
-                      ? new Date(selectedBillForDetails.created_at).toLocaleDateString("en-GB")
-                      : "-"}
+                    {formatStatementDate(
+                      selectedBillForDetails.bill_date || selectedBillForDetails.created_at
+                    )}
                   </span>
                 </div>
                 <div>
