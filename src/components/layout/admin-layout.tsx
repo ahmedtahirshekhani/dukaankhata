@@ -1080,6 +1080,20 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       {tNav("purchaseReport")}
                     </Link>
                   )}
+                  {can('reports', 'view_party_wise_sale_purchase_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/party-wise-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/party-wise-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/party-wise-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("partyWiseReport")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>

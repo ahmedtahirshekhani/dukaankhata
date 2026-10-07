@@ -262,3 +262,53 @@ export interface SaleReportSummary {
   unpaidCount: number;
   partialCount: number;
 }
+
+// --- Party Wise Report Interfaces ---
+export interface PartyWiseSummaryItem {
+  party_id: string;
+  party_name: string;
+  party_phone?: string;
+  party_type?: "customer" | "supplier" | "both" | string;
+  total_sales: number;
+  total_purchases: number;
+  total_received: number;
+  total_paid: number;
+  net_receivable: number;
+  net_payable: number;
+  net_balance: number;
+  invoices_count: number;
+  bills_count: number;
+  last_transaction_date?: string;
+}
+
+export interface PartyWiseReportSummary {
+  totalSales: number;
+  totalPurchases: number;
+  totalReceived: number;
+  totalPaid: number;
+  totalNetReceivable: number;
+  totalNetPayable: number;
+  totalPartiesCount: number;
+  totalInvoicesCount: number;
+  totalBillsCount: number;
+}
+
+export interface PartyWiseRowItem {
+  party_id: string;
+  party_name: string;
+  party_phone?: string;
+  total_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  transactions_count: number;
+  last_date?: string;
+}
+
+export interface PartyWiseTabSummary {
+  totalAmount: number;
+  totalPaid: number;
+  totalBalanceDue: number;
+  totalPartiesCount: number;
+  totalTransactionsCount: number;
+}
+

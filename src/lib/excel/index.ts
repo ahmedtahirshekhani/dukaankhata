@@ -14,6 +14,10 @@ import {
   PurchaseReportSummary,
   SaleReportInvoice,
   SaleReportSummary,
+  PartyWiseSummaryItem,
+  PartyWiseReportSummary,
+  PartyWiseRowItem,
+  PartyWiseTabSummary,
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
 import { formatStatementDate } from "../utils";
@@ -634,6 +638,127 @@ export function exportSaleReportToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports Party Wise Report to an Excel file with Summary and Party details
+ */
+export function exportPartyWiseReportToExcel(
+  items: PartyWiseSummaryItem[],
+  summary: PartyWiseReportSummary,
+  filename: string = `party-wise-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. KPI Summary Sheet
+  const summaryData = [
+    { Metric: "Total Sales", Value: `Rs. ${Math.round(summary.totalSales || 0).toLocaleString()}` },
+    { Metric: "Total Purchases", Value: `Rs. ${Math.round(summary.totalPurchases || 0).toLocaleString()}` },
+    { Metric: "Total Received", Value: `Rs. ${Math.round(summary.totalReceived || 0).toLocaleString()}` },
+    { Metric: "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Net Receivables (Parties Owe Us)", Value: `Rs. ${Math.round(summary.totalNetReceivable || 0).toLocaleString()}` },
+    { Metric: "Net Payables (We Owe Parties)", Value: `Rs. ${Math.round(summary.totalNetPayable || 0).toLocaleString()}` },
+    { Metric: "Total Parties Active", Value: summary.totalPartiesCount || 0 },
+    { Metric: "Total Invoices Count", Value: summary.totalInvoicesCount || 0 },
+    { Metric: "Total Bills Count", Value: summary.totalBillsCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 35 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Overall Summary");
+
+  // 2. Party Breakdown Sheet
+  const partiesData = items.map((p, index) => ({
+    "#": index + 1,
+    "Party Name": p.party_name,
+    "Phone": p.party_phone || "-",
+    "Party Type": p.party_type === "both" ? "Customer & Supplier" : p.party_type === "supplier" ? "Supplier" : "Customer",
+    "Total Sales (Rs.)": Math.round(p.total_sales || 0),
+    "Total Purchases (Rs.)": Math.round(p.total_purchases || 0),
+    "Received (Rs.)": Math.round(p.total_received || 0),
+    "Paid (Rs.)": Math.round(p.total_paid || 0),
+    "Net Balance (Rs.)": Math.round(p.net_balance || 0),
+    "Balance Status": p.net_balance > 0 ? "Receivable" : p.net_balance < 0 ? "Payable" : "Settled",
+    "Invoices Count": p.invoices_count || 0,
+    "Bills Count": p.bills_count || 0,
+    "Last Transaction Date": p.last_transaction_date ? formatStatementDate(p.last_transaction_date) : "-",
+  }));
+
+  const partiesSheet = XLSX.utils.json_to_sheet(partiesData);
+  partiesSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 26 }, // Party Name
+    { wch: 16 }, // Phone
+    { wch: 20 }, // Party Type
+    { wch: 18 }, // Total Sales
+    { wch: 18 }, // Total Purchases
+    { wch: 16 }, // Received
+    { wch: 16 }, // Paid
+    { wch: 18 }, // Net Balance
+    { wch: 16 }, // Balance Status
+    { wch: 14 }, // Invoices Count
+    { wch: 14 }, // Bills Count
+    { wch: 20 }, // Last Transaction Date
+  ];
+  XLSX.utils.book_append_sheet(workbook, partiesSheet, "Parties Summary");
+
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports Sale by Party or Purchase by Party to Excel (Vyapar style)
+ */
+export function exportPartyWiseByModeToExcel(
+  items: PartyWiseRowItem[],
+  summary: PartyWiseTabSummary,
+  mode: "sales" | "purchases",
+  filename?: string
+): void {
+  const isSale = mode === "sales";
+  const title = isSale ? "Sale by Party" : "Purchase by Party";
+  const defaultFilename = `${isSale ? "sale-by-party" : "purchase-by-party"}-${new Date().toISOString().split("T")[0]}.xlsx`;
+
+  const workbook = XLSX.utils.book_new();
+
+  // Summary Sheet
+  const summaryData = [
+    { Metric: isSale ? "Total Sales" : "Total Purchases", Value: `Rs. ${Math.round(summary.totalAmount || 0).toLocaleString()}` },
+    { Metric: isSale ? "Total Received" : "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Total Balance Due", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Parties", Value: summary.totalPartiesCount || 0 },
+    { Metric: isSale ? "Total Invoices" : "Total Bills", Value: summary.totalTransactionsCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // Party Rows Sheet
+  const data = items.map((item, index) => ({
+    "#": index + 1,
+    "Party Name": item.party_name,
+    "Phone": item.party_phone || "-",
+    [isSale ? "Total Sales (Rs.)" : "Total Purchases (Rs.)"]: Math.round(item.total_amount || 0),
+    [isSale ? "Received (Rs.)" : "Paid (Rs.)"]: Math.round(item.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(item.balance_due || 0),
+    [isSale ? "Invoices Count" : "Bills Count"]: item.transactions_count || 0,
+    "Last Transaction Date": item.last_date ? formatStatementDate(item.last_date) : "-",
+  }));
+
+  const sheet = XLSX.utils.json_to_sheet(data);
+  sheet["!cols"] = [
+    { wch: 6 },
+    { wch: 26 },
+    { wch: 16 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 20 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, title);
+
+  XLSX.writeFile(workbook, filename || defaultFilename);
+}
+
+
 
 
 
