@@ -101,7 +101,7 @@ export default function PurchaseBillPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending">("all");
   const [amountRange, setAmountRange] = useState({ min: "", max: "" });
 
-  const debouncedSearch = useDebounce(searchTerm, 500);
+  const debouncedSearch = useDebounce(searchTerm, 150);
 
   const rawOfflineBills = useOfflinePurchaseBills(debouncedSearch);
 
@@ -112,9 +112,37 @@ export default function PurchaseBillPage() {
     );
   }, [rawOfflineBills]);
 
-  // Apply client-side filters (year, status, amount range)
+  // Apply client-side filters (search, year, status, amount range)
   const filteredBills = useMemo(() => {
     let result = rawOfflineBills || [];
+
+    // Instant search matching for Purchase Number, Party Name, Amount, Description, and Items
+    if (searchTerm.trim()) {
+      const lowerSearch = searchTerm.toLowerCase().trim();
+      const cleanSearch = lowerSearch.replace(/[^a-z0-9]/g, "");
+
+      result = result.filter((bill) => {
+        const pNum = (bill.purchase_number || bill.purchase_no || bill.bill_number || "").toString().toLowerCase();
+        const cleanPNum = pNum.replace(/[^a-z0-9]/g, "");
+        const pName = (bill.party_name || "").toString().toLowerCase();
+        const totalAmt = (bill.total_amount ?? "").toString();
+        const desc = (bill.description || "").toString().toLowerCase();
+
+        const numberMatches =
+          pNum.includes(lowerSearch) ||
+          (cleanSearch.length > 0 && cleanPNum.includes(cleanSearch));
+
+        const partyMatches = pName.includes(lowerSearch);
+        const amountMatches = totalAmt.includes(lowerSearch);
+        const descMatches = desc.includes(lowerSearch);
+
+        const itemsMatch = Array.isArray(bill.items) && bill.items.some((item: any) =>
+          (item.product_name || item.name || "").toString().toLowerCase().includes(lowerSearch)
+        );
+
+        return numberMatches || partyMatches || amountMatches || descMatches || itemsMatch;
+      });
+    }
 
     if (selectedYear) {
       result = result.filter(bill => {
@@ -167,7 +195,7 @@ export default function PurchaseBillPage() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, selectedYear, statusFilter, amountRange.min, amountRange.max, pageSize]);
+  }, [searchTerm, debouncedSearch, selectedYear, statusFilter, amountRange.min, amountRange.max, pageSize]);
 
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;

@@ -728,10 +728,14 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
     return bills
       .map((b) => {
         const partyId = (b.party_id || b.partyId)?.toString();
+        const purchaseNumber = (b.purchase_number || b.purchase_no || b.bill_number || "").toString();
 
         return {
           ...b,
           id: b.id || b._id,
+          purchase_number: purchaseNumber,
+          purchase_no: purchaseNumber,
+          bill_number: purchaseNumber,
           party_name:
             b.party_name || b.partyName || partyMap.get(partyId) || "-",
           total_amount: b.total_amount ?? b.totalAmount ?? 0,
@@ -746,15 +750,31 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
 
         let matches = true;
 
-        // Filter by search query (party_name or total_amount)
+        // Filter by search query (purchase_number, party_name, total_amount, description, etc.)
         if (searchQuery) {
-          const lowerSearch = searchQuery.toLowerCase();
-          matches =
-            matches &&
-            ((b.party_name &&
-              b.party_name.toLowerCase().includes(lowerSearch)) ||
-              (b.total_amount &&
-                b.total_amount.toString().includes(searchQuery)));
+          const lowerSearch = searchQuery.toLowerCase().trim();
+          const cleanSearch = lowerSearch.replace(/[^a-z0-9]/g, "");
+
+          const pNum = (b.purchase_number || b.purchase_no || b.bill_number || "").toString().toLowerCase();
+          const cleanPNum = pNum.replace(/[^a-z0-9]/g, "");
+
+          const pName = (b.party_name || "").toString().toLowerCase();
+          const totalAmt = (b.total_amount ?? "").toString();
+          const desc = (b.description || "").toString().toLowerCase();
+
+          const numberMatches =
+            pNum.includes(lowerSearch) ||
+            (cleanSearch.length > 0 && cleanPNum.includes(cleanSearch));
+
+          const partyMatches = pName.includes(lowerSearch);
+          const amountMatches = totalAmt.includes(lowerSearch);
+          const descMatches = desc.includes(lowerSearch);
+
+          const itemsMatch = Array.isArray(b.items) && b.items.some((item: any) =>
+            (item.product_name || item.name || "").toString().toLowerCase().includes(lowerSearch)
+          );
+
+          matches = numberMatches || partyMatches || amountMatches || descMatches || itemsMatch;
         }
 
         return matches;

@@ -120,8 +120,12 @@ export async function GET(request: Request) {
     if (search) {
       const searchRegex = new RegExp(escapeRegex(search), "i");
       matchQuery.$or = [
+        { purchase_number: searchRegex },
+        { purchase_no: searchRegex },
+        { bill_number: searchRegex },
         { party_name: searchRegex },
         { description: searchRegex },
+        { "items.product_name": searchRegex },
       ];
     }
 
