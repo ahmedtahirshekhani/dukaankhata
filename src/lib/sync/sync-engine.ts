@@ -100,7 +100,11 @@ export class SyncEngine {
                 localStorage.setItem("setting_counterSale", String(config.is_counterSale_enable || false));
                 localStorage.setItem("setting_aiChat", String(config.is_AI_Chat_Enable || false));
                 localStorage.setItem("setting_wa", String(config.is_Whatsapp_enable || false));
-                if (typeof window !== "undefined") window.dispatchEvent(new Event("featureSettingsUpdated"));
+                localStorage.setItem("setting_stockValuationMethod", String(config.stock_valuation_method || "average"));
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new Event("featureSettingsUpdated"));
+                  window.dispatchEvent(new Event("stockValuationMethodUpdated"));
+                }
               }
             }));
           }

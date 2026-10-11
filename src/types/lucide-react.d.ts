@@ -57,6 +57,7 @@ declare module 'lucide-react' {
   export const Printer: Icon;
   export const Replace: Icon;
   export const Calculator: Icon;
+  export const Layers: Icon;
   export const MinusIcon: Icon;
   export const Edit: Icon;
   export const EditIcon: Icon;
