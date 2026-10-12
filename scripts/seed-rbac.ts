@@ -67,7 +67,9 @@ const MODULE_SPECIFIC_ACTIONS: Record<string, string[]> = {
     'view_sale_report',
     'export_sale_report',
     'view_purchase_report',
-    'export_purchase_report'
+    'export_purchase_report',
+    'view_party_wise_sale_purchase_report',
+    'export_party_wise_sale_purchase_report'
   ],
   staff: ['view', 'create', 'edit', 'delete'],
   payment_methods: ['view', 'create', 'edit', 'delete'],

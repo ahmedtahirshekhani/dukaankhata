@@ -98,7 +98,7 @@ function AddPurchaseBillPageInner() {
             setSelectedPartyId(String(bill.party_id || bill.partyId || ""));
             setSelectedPartyName(bill.party_name || bill.partyName || "");
 
-            const rawBillDate = bill.created_at || bill.date || bill.bill_date || bill.purchase_date;
+            const rawBillDate = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
             setSelectedDate(toHTMLDateString(rawBillDate) || getTodayDateString());
 
             let items = bill.items;
@@ -429,7 +429,8 @@ function AddPurchaseBillPageInner() {
 
     setIsSaving(true);
     try {
-      const now = new Date().toISOString();
+      const now = new Date();
+      const nowIso = now.toISOString();
       const localBillId = editingId || `local_pb_${Date.now()}`;
       const finalPurchaseNo = purchaseNumber || generateReferenceNumber("PUR");
       const { adjustOfflineStock } = await import("@/lib/db/offline-stock-manager");
@@ -438,9 +439,10 @@ function AddPurchaseBillPageInner() {
       const finalBalanceDue = Math.max(0, calculations.totalAmount - finalPaidAmount);
       const isPaid = finalBalanceDue === 0;
 
+      let oldBill: any = null;
       // 1. If editing, revert old stock and old balance
       if (editingId) {
-        const oldBill = await db.purchase_bills.get(editingId);
+        oldBill = await db.purchase_bills.get(editingId);
         if (oldBill) {
           if (oldBill.balance_due !== undefined) {
             await updateOfflinePartyBalance(oldBill.party_id, oldBill.balance_due);
@@ -458,7 +460,16 @@ function AddPurchaseBillPageInner() {
         }
       }
 
-      // 2. Prepare bill payload
+      let billDateTime: string;
+      if (selectedDate) {
+        const [year, month, day] = selectedDate.split("-").map(Number);
+        const d = new Date(now.getTime());
+        d.setFullYear(year, month - 1, day);
+        billDateTime = d.toISOString();
+      } else {
+        billDateTime = nowIso;
+      }
+
       const billData: any = {
         id: localBillId,
         purchase_number: finalPurchaseNo,
@@ -486,10 +497,11 @@ function AddPurchaseBillPageInner() {
         payment_method_id: paymentMethod || null,
         description: description || null,
         user_id: (session?.user as any)?.id || "",
-        bill_date: selectedDate ? new Date(selectedDate).toISOString() : now,
-        date: selectedDate ? new Date(selectedDate).toISOString() : now,
-        created_at: selectedDate ? new Date(selectedDate).toISOString() : now,
-        updated_at: now,
+        bill_date: billDateTime,
+        purchase_date: billDateTime,
+        date: billDateTime,
+        created_at: editingId ? (oldBill?.created_at || nowIso) : nowIso,
+        updated_at: nowIso,
       };
 
       // 3. Save to local IndexedDB

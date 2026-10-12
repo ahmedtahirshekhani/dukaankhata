@@ -58,10 +58,20 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [isOpen, setIsOpen] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [selectedProductForDialog, setSelectedProductForDialog] = useState<Product | null>(null);
     const [selectResetKey, setSelectResetKey] = useState(0);
     const [optimisticProduct, setOptimisticProduct] = useState<Product | null>(null);
+
+    useEffect(() => {
+      if (isOpen) {
+        const timer = setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 30);
+        return () => clearTimeout(timer);
+      }
+    }, [isOpen]);
     
     // Reset internal select if parent explicitly clears the value
     useEffect(() => {
@@ -217,11 +227,21 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                   <div className="relative">
                     <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       type="text"
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyDownCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyUpCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />

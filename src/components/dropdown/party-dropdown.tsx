@@ -89,10 +89,20 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Reduced debounce to 100ms for instant local search feel
     const debouncedSearchTerm = useDebounce(searchTerm, 100);
     const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+      if (isOpen) {
+        const timer = setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 30);
+        return () => clearTimeout(timer);
+      }
+    }, [isOpen]);
 
     const [page, setPage] = useState(1);
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -323,11 +333,21 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                   <div className="relative">
                     <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       type="text"
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyDownCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyUpCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />

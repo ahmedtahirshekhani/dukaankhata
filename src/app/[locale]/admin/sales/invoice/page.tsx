@@ -802,18 +802,19 @@ export default function OrdersPage() {
         });
       } else {
         processedOrders.sort((a, b) => {
-          const getOrderTime = (order: any) => {
+          const getOrderDayTime = (order: any) => {
             const raw = order.sale_date || order.order_date || order.date || order.created_at;
             if (!raw) return 0;
             const parsed = safeDate(raw, new Date(0));
-            return parsed.getTime();
+            return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
           };
-          const dateA = getOrderTime(a);
-          const dateB = getOrderTime(b);
+          const dateA = getOrderDayTime(a);
+          const dateB = getOrderDayTime(b);
           if (dateB !== dateA) return dateB - dateA;
-          const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return createB - createA;
+          const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+          const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+          if (createB !== createA) return createB - createA;
+          return (b.invoice_no || b.id || "").toString().localeCompare((a.invoice_no || a.id || "").toString());
         });
       }
 

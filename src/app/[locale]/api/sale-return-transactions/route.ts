@@ -156,7 +156,10 @@ export async function GET(req: NextRequest) {
         paymentRefNo: item.payment_ref_no ?? "",
         invoiceNo: item.invoice_no ?? "",
         invoiceDate: item.invoice_date ? new Date(item.invoice_date).toISOString().split("T")[0] : "",
-        date: item.date ? new Date(item.date).toISOString().split("T")[0] : "",
+        date: item.date ? (typeof item.date === "string" ? item.date : new Date(item.date).toISOString()) : "",
+        return_date: item.return_date || item.date || "",
+        created_at: item.created_at ? new Date(item.created_at).toISOString() : undefined,
+        updated_at: item.updated_at ? new Date(item.updated_at).toISOString() : undefined,
       };
     });
 

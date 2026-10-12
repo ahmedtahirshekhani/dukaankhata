@@ -25,7 +25,8 @@ export default function ReportsModulePage() {
                         can('reports', 'view_profitability') ||
                         can('reports', 'view_item_wise_sales') ||
                         can('reports', 'view_sale_report') ||
-                        can('reports', 'view_purchase_report');
+                        can('reports', 'view_purchase_report') ||
+                        can('reports', 'view_party_wise_sale_purchase_report');
 
   useEffect(() => {
     if (!hasReportsSub) {
@@ -90,6 +91,14 @@ export default function ReportsModulePage() {
       color: "bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/20",
       isComingSoon: false,
     },
+    {
+      title: tNav("partyWiseReport"),
+      description: tNav("partyWiseReportDescription") || "Comprehensive party-wise sale and purchase analysis",
+      href: `/${locale}/admin/reports/party-wise-report`,
+      icon: Users,
+      color: "bg-purple-500/10 text-purple-500 dark:bg-purple-500/20",
+      isComingSoon: false,
+    },
   ];
 
   return (
@@ -109,6 +118,7 @@ export default function ReportsModulePage() {
             if (report.href.includes('item-wise-sales') && !can('reports', 'view_item_wise_sales')) return false;
             if (report.href.includes('sale-report') && !can('reports', 'view_sale_report')) return false;
             if (report.href.includes('purchase-report') && !can('reports', 'view_purchase_report')) return false;
+            if (report.href.includes('party-wise-report') && !can('reports', 'view_party_wise_sale_purchase_report')) return false;
             return true;
           })
           .map((report, idx) => {

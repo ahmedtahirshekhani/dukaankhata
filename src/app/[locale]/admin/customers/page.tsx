@@ -472,7 +472,7 @@ export default function PartiesPage() {
                     )} />
                   )}
                   <span>
-                    {f === "all" ? "All" : f === "receive" ? "Receive" : "Pay"}
+                    {f === "all" ? (t("filterAll") || "All") : f === "receive" ? (t("receive")) : (t("pay"))}
                   </span>
                 </button>
               ))}

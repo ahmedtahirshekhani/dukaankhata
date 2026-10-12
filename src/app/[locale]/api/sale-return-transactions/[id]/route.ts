@@ -35,6 +35,7 @@ interface SaleReturnDoc {
   invoice_no?: string;
   invoice_date?: Date | null;
   date: Date;
+  return_date?: Date | string | null;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -139,7 +140,10 @@ export async function GET(
       invoiceDate: item.invoice_date
         ? new Date(item.invoice_date).toISOString().split("T")[0]
         : "",
-      date: new Date(item.date).toISOString().split("T")[0],
+      date: item.date ? (typeof item.date === "string" ? item.date : new Date(item.date).toISOString()) : "",
+      return_date: item.return_date || item.date || "",
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : undefined,
+      updated_at: item.updated_at ? new Date(item.updated_at).toISOString() : undefined,
     });
   } catch (err: unknown) {
     console.error("sale-return-transactions GET [id] error", err);

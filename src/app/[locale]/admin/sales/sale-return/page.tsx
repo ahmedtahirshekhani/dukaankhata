@@ -60,6 +60,7 @@ import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-drop
 import { DatePicker } from "@/components/ui/date-picker";
 import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
+import { setDateToCurrentTime } from "@/lib/utils";
 
 type Customer = {
   id: string;
@@ -114,6 +115,9 @@ type SaleReturnTransaction = {
   invoiceNo: string;
   invoiceDate: string;
   date: string;
+  return_date?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 function generateReturnNumber() {
@@ -227,30 +231,25 @@ export default function SaleReturnPage() {
   const allOfflineTransactions = useMemo(() => {
     if (!rawOfflineTransactions) return [];
     return [...rawOfflineTransactions].sort((a: any, b: any) => {
-      const getTxnTime = (item: any): number => {
-        if (item.date) {
-          const parsed = safeDate(item.date, new Date(0));
-          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) return parsed.getTime();
-        }
-        if (item.created_at) {
-          const t = new Date(item.created_at).getTime();
-          if (!isNaN(t) && t > 0) return t;
-        }
-        if (item.createdAt) {
-          const t = new Date(item.createdAt).getTime();
-          if (!isNaN(t) && t > 0) return t;
+      const getTxnDayTime = (item: any): number => {
+        const raw = item.date || item.return_date || item.raw_date || item.created_at || item.createdAt;
+        if (raw) {
+          const parsed = safeDate(raw, new Date(0));
+          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+            return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+          }
         }
         return 0;
       };
-      const timeA = getTxnTime(a);
-      const timeB = getTxnTime(b);
+      const timeA = getTxnDayTime(a);
+      const timeB = getTxnDayTime(b);
       if (timeA !== timeB) return timeB - timeA;
 
-      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (createA !== createB) return createB - createA;
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+      if (createB !== createA) return createB - createA;
 
-      return String(b.id || "").localeCompare(String(a.id || ""));
+      return String(b.returnNumber || b.return_number || b.id || "").localeCompare(String(a.returnNumber || a.return_number || a.id || ""));
     });
   }, [rawOfflineTransactions]);
   const totalPages = Math.ceil(allOfflineTransactions.length / pageSize) || 1;
@@ -395,25 +394,29 @@ export default function SaleReturnPage() {
     return true;
   };
 
-  const buildPayload = () => ({
-    returnNumber: formReturnNumber.trim(),
-    customerId: formCustomerId,
-    date: formDate,
-    invoiceDate: formInvoiceDate || undefined,
-    invoiceNo: formInvoiceNo.trim(),
-    items: formItems.map((item) => ({
-      id: item.id,
-      productId: item.productId || undefined,
-      itemName: item.itemName.trim(),
-      quantity: Number(parseNumericInput(item.quantity).toFixed(2)),
-      rate: Number(parseNumericInput(item.rate).toFixed(2)),
-      amount: Number(getLineAmount(item).toFixed(2)),
-    })),
-    totalAmount,
-    paidAmount,
-    paymentMethodId: formPaymentMethodId,
-    paymentRefNo: formPaymentRefNo.trim(),
-  });
+  const buildPayload = () => {
+    const finalDate = setDateToCurrentTime(formDate);
+    return {
+      returnNumber: formReturnNumber.trim(),
+      customerId: formCustomerId,
+      date: finalDate.toISOString(),
+      return_date: finalDate.toISOString(),
+      invoiceDate: formInvoiceDate || undefined,
+      invoiceNo: formInvoiceNo.trim(),
+      items: formItems.map((item) => ({
+        id: item.id,
+        productId: item.productId || undefined,
+        itemName: item.itemName.trim(),
+        quantity: Number(parseNumericInput(item.quantity).toFixed(2)),
+        rate: Number(parseNumericInput(item.rate).toFixed(2)),
+        amount: Number(getLineAmount(item).toFixed(2)),
+      })),
+      totalAmount,
+      paidAmount,
+      paymentMethodId: formPaymentMethodId,
+      paymentRefNo: formPaymentRefNo.trim(),
+    };
+  };
 
   const handleAdd = useCallback(async () => {
     if (!validateForm()) return;
@@ -424,6 +427,7 @@ export default function SaleReturnPage() {
       const customer = customers.find((c) => c.id === formCustomerId);
       const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
       const newId = Date.now().toString();
+      const now = new Date().toISOString();
 
       await db.sale_return_transactions.put({
         ...payload,
@@ -439,7 +443,8 @@ export default function SaleReturnPage() {
         customerName: customer?.name ?? "",
         paymentMethodName: pm?.name ?? "",
         is_delete: 0,
-        created_at: new Date().toISOString()
+        created_at: now,
+        updated_at: now,
       });
 
       const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
@@ -530,6 +535,7 @@ export default function SaleReturnPage() {
           balanceDue: balanceDue,
           customerName: customer?.name ?? "",
           paymentMethodName: pm?.name ?? "",
+          created_at: existing.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
         
@@ -665,8 +671,8 @@ export default function SaleReturnPage() {
     setSelectedId(item.id);
     setFormReturnNumber(item.returnNumber || generateReturnNumber());
     setFormCustomerId(item.customerId);
-    setFormDate(item.date || new Date().toISOString().split("T")[0]);
-    setFormInvoiceDate(item.invoiceDate || "");
+    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setFormInvoiceDate(item.invoiceDate ? item.invoiceDate.split("T")[0] : "");
     setFormInvoiceNo(item.invoiceNo || "");
     
     // Parse items if they are stored as string (some legacy offline data might be)

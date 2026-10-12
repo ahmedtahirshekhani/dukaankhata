@@ -39,7 +39,7 @@ import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-drop
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
-import { generateReferenceNumber } from "@/lib/utils";
+import { generateReferenceNumber, setDateToCurrentTime } from "@/lib/utils";
 
 import { DatePicker } from "@/components/ui/date-picker";
 import { toHTMLDateString } from "@/lib/date-utils";
@@ -901,6 +901,8 @@ export default function NewInvoicePage() {
         }
       }
 
+      const finalSaleDate = selectedDate ? setDateToCurrentTime(selectedDate).toISOString() : now;
+
       // 2. Insert or Update Order locally
       const orderData: any = {
         id: localOrderId,
@@ -908,7 +910,9 @@ export default function NewInvoicePage() {
         total_amount: finalTotal,
         subtotal: total,
         invoice_no: invoiceNo || null,
-        sale_date: selectedDate || now,
+        sale_date: finalSaleDate,
+        order_date: finalSaleDate,
+        date: finalSaleDate,
         due_date: addDueDate ? dueDate : null,
         charges: displayCharges,
         overallDiscount: overallDiscountAmount,
