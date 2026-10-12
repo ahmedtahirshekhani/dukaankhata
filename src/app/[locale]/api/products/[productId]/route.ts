@@ -87,6 +87,10 @@ export async function PUT(
       ]
     };
 
+    if (updatedProduct.quantity !== undefined && updatedProduct.in_stock === undefined) {
+      updatedProduct.in_stock = updatedProduct.quantity;
+    }
+
     const updateResult = await productsCollection.updateOne(filter, { 
       $set: {
         ...updatedProduct,

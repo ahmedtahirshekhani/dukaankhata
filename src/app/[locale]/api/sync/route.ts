@@ -25,6 +25,8 @@ export async function GET(request: Request) {
       if (mapped.user_id && typeof mapped.user_id === 'object') mapped.user_id = mapped.user_id.toString();
       if (mapped.owner_id && typeof mapped.owner_id === 'object') mapped.owner_id = mapped.owner_id.toString();
       if (mapped.party_id && typeof mapped.party_id === 'object') mapped.party_id = mapped.party_id.toString();
+      if (mapped.product_id && typeof mapped.product_id === 'object') mapped.product_id = mapped.product_id.toString();
+      if (mapped.source_id && typeof mapped.source_id === 'object') mapped.source_id = mapped.source_id.toString();
       return mapped;
     });
 
@@ -46,6 +48,7 @@ export async function GET(request: Request) {
       { name: 'transactions', key: COLLECTIONS.TRANSACTIONS },
       { name: 'subscriptions', key: COLLECTIONS.SUBSCRIPTIONS },
       { name: 'configurations', key: COLLECTIONS.CONFIGURATIONS },
+      { name: 'inventory_batches', key: COLLECTIONS.INVENTORY_BATCHES },
       { name: 'users', key: COLLECTIONS.USERS, scope: 'users_and_staff' },
       { name: 'modules', key: COLLECTIONS.MODULES, scope: 'global_active' },
       { name: 'permissions', key: COLLECTIONS.PERMISSIONS, scope: 'global_active' },

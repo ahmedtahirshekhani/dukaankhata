@@ -61,6 +61,7 @@ export class SyncEngine {
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.branches, db.payment_methods,
         db.vendor_transactions, db.sale_return_transactions,
         db.transactions, db.subscriptions, db.configurations,
+        db.inventory_batches,
         db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
         async () => {
           const promises = [];
@@ -79,6 +80,7 @@ export class SyncEngine {
           if (data.sale_return_transactions?.length) promises.push(db.sale_return_transactions.bulkPut(data.sale_return_transactions));
           if (data.transactions?.length) promises.push(db.transactions.bulkPut(data.transactions));
           if (data.subscriptions?.length) promises.push(db.subscriptions.bulkPut(data.subscriptions));
+          if (data.inventory_batches?.length) promises.push(db.inventory_batches.bulkPut(data.inventory_batches));
           if (data.users?.length) promises.push(db.users.bulkPut(data.users));
           if (data.modules?.length) promises.push(db.modules.bulkPut(data.modules));
           

@@ -131,14 +131,24 @@ export function ProductDialog({
       setProductName(selectedProduct.name);
       setProductDescription(selectedProduct.description || "");
       if (selectedProduct.type === "goods") {
-        setSellPrice(selectedProduct.sell_price_str ?? formatInitialPrice(selectedProduct.sell_price));
-        setCostPrice(selectedProduct.cost_price_str ?? formatInitialPrice(selectedProduct.cost_price));
-        setProductInStock(selectedProduct.quantity_str ?? formatInitialQuantity(selectedProduct.quantity));
-        setDamagedQuantity(selectedProduct.damaged_quantity_str ?? formatInitialQuantity(selectedProduct.damaged_quantity));
+        const liveSellPrice = selectedProduct.sell_price !== undefined ? formatInitialPrice(selectedProduct.sell_price) : (selectedProduct.sell_price_str || "");
+        const liveCostPrice = selectedProduct.cost_price !== undefined ? formatInitialPrice(selectedProduct.cost_price) : (selectedProduct.cost_price_str || "");
+        const liveQuantity = (selectedProduct.quantity ?? selectedProduct.in_stock) !== undefined
+          ? formatInitialQuantity(selectedProduct.quantity ?? selectedProduct.in_stock)
+          : (selectedProduct.quantity_str || "");
+        const liveDamagedQty = selectedProduct.damaged_quantity !== undefined
+          ? formatInitialQuantity(selectedProduct.damaged_quantity)
+          : (selectedProduct.damaged_quantity_str || "");
+
+        setSellPrice(liveSellPrice);
+        setCostPrice(liveCostPrice);
+        setProductInStock(liveQuantity);
+        setDamagedQuantity(liveDamagedQty);
         setUnitOfMeasurement(selectedProduct.unit_of_measurement || "");
         setBranch(selectedProduct.branch || "");
       } else {
-        setSellPrice(selectedProduct.sell_price_str ?? formatInitialPrice(selectedProduct.sell_price));
+        const liveSellPrice = selectedProduct.sell_price !== undefined ? formatInitialPrice(selectedProduct.sell_price) : (selectedProduct.sell_price_str || "");
+        setSellPrice(liveSellPrice);
       }
       setProductCategory(selectedProduct.category || "");
     } else {
@@ -189,6 +199,27 @@ export function ProductDialog({
       const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const addedProduct = { ...newProduct, id: tempId, _id: tempId, is_delete: 0 };
       await db.products.add(addedProduct);
+
+      // Create opening stock batch in local IndexedDB if initial quantity exists
+      if (addedProduct.quantity && Number(addedProduct.quantity) > 0) {
+        const openingQty = Number(addedProduct.quantity);
+        const openingCost = Number(addedProduct.cost_price || 0);
+        await db.inventory_batches.put({
+          id: `batch_opening_${tempId}`,
+          product_id: tempId,
+          source_type: "opening_stock",
+          source_id: tempId,
+          batch_number: "OPENING",
+          initial_quantity: openingQty,
+          remaining_quantity: openingQty,
+          cost_price: openingCost,
+          status: "active",
+          batch_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+
       await SyncEngine.queueOperation("products", "POST", "/api/products", newProduct, tempId);
       
       onSuccess(addedProduct as any, false);
@@ -231,6 +262,7 @@ export function ProductDialog({
           cost_price_str: costPrice === "" ? "" : String(costPrice),
           quantity: productInStock === "" ? 0 : Number(productInStock),
           quantity_str: productInStock === "" ? "" : String(productInStock),
+          in_stock: productInStock === "" ? 0 : Number(productInStock),
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,

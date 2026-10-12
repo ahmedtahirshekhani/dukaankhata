@@ -99,6 +99,7 @@ export const COLLECTIONS = {
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
   CONFIGURATIONS: "configurations",
   ORDER_ITEMS: "order_items",
+  INVENTORY_BATCHES: "inventory_batches",
   WAITLIST: "waitlist",
 } as const;
 
@@ -286,6 +287,13 @@ export async function createIndexes() {
     // WhatsApp verification codes collection indexes
     await safeIndex(COLLECTIONS.WHATSAPP_VERIFICATION_CODES, { user_id: 1, whatsapp_number: 1 });
     await safeIndex(COLLECTIONS.WHATSAPP_VERIFICATION_CODES, { expires_at: 1 }, { expireAfterSeconds: 0 });
+
+    // Inventory Batches collection indexes
+    await safeIndex(COLLECTIONS.INVENTORY_BATCHES, { user_id: 1, product_id: 1, status: 1, batch_date: 1 });
+    await safeIndex(COLLECTIONS.INVENTORY_BATCHES, { user_id: 1, source_id: 1 });
+
+    // Configurations collection indexes
+    await safeIndex(COLLECTIONS.CONFIGURATIONS, { user_id: 1 }, { unique: true });
 
     console.log("MongoDB indexes processed successfully");
   } catch (error) {

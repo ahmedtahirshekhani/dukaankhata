@@ -111,14 +111,14 @@ export function ProductsTable({
                   </div>
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.sell_price_str ? `Rs. ${product.sell_price_str}` : formatPrice(product.sell_price)}
+                  {formatPrice(product.sell_price ?? product.sell_price_str)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {product.cost_price_str ? `Rs. ${product.cost_price_str}` : formatPrice(product.cost_price)}
+                  {formatPrice(product.cost_price ?? product.cost_price_str)}
                 </TableCell>
 
                 <TableCell className="text-xs">
-                  {formatQuantity(product.quantity ?? product.in_stock)}
+                  {formatQuantity(product.quantity ?? product.in_stock ?? product.quantity_str)}
                 </TableCell>
                 <TableCell className="text-xs">
                   {formatQuantity(product.damaged_quantity)}
@@ -201,19 +201,19 @@ export function ProductsTable({
                   <span className="text-muted-foreground">
                     {sellPriceLabel}:
                   </span>{" "}
-                  {product.sell_price_str ? `Rs. ${product.sell_price_str}` : formatPrice(product.sell_price)}
+                  {formatPrice(product.sell_price ?? product.sell_price_str)}
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">
                     {costPriceLabel}:
                   </span>{" "}
-                  {product.cost_price_str ? `Rs. ${product.cost_price_str}` : formatPrice(product.cost_price)}
+                  {formatPrice(product.cost_price ?? product.cost_price_str)}
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">
                     {quantityLabel}:
                   </span>{" "}
-                  {formatQuantity(product.quantity ?? product.in_stock)}
+                  {formatQuantity(product.quantity ?? product.in_stock ?? product.quantity_str)}
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">
