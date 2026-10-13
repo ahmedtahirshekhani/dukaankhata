@@ -469,6 +469,17 @@ export async function DELETE(
       }
     }
 
+    // Delete inventory batches created by this sale return
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.deleteMany({
+        user_id: toObjectId(user.id),
+        source_id: id.toString(),
+      });
+    } catch (delBatchErr) {
+      console.error("Failed to delete inventory batches for sale return:", delBatchErr);
+    }
+
     if (customerId && isValidObjectId(customerId)) {
       if (paymentAmount > 0) {
         await appendCustomerLedgerEntry({

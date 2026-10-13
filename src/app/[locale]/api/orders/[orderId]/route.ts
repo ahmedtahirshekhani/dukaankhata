@@ -37,6 +37,18 @@ async function reverseStockItem(
   } else {
     const { adjustStock } = await import('@/lib/db/stock-manager');
     await adjustStock(item.product_id.toString(), userId, qty);
+
+    if (item.batch_splits && Array.isArray(item.batch_splits) && item.batch_splits.length > 0) {
+      try {
+        const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+        await restoreBatchesOnSaleRevertServer({
+          userId,
+          consumedBatches: item.batch_splits,
+        });
+      } catch (err) {
+        console.error("Failed to restore batch splits on revert:", err);
+      }
+    }
   }
 }
 
@@ -65,6 +77,29 @@ async function applyStockItem(
   } else {
     const { adjustStock } = await import('@/lib/db/stock-manager');
     await adjustStock(item.product_id.toString(), userId, -qty);
+
+    try {
+      const { getValuationMethod, consumeBatchesOnSaleServer } = await import('@/lib/inventory/valuation-engine');
+      const valuationMethod = await getValuationMethod(userId);
+      const fallbackCost = Number((productDoc as any).cost_price) || 0;
+
+      if (valuationMethod === "fifo") {
+        const consumption = await consumeBatchesOnSaleServer({
+          userId,
+          productId: item.product_id.toString(),
+          saleQty: qty,
+          fallbackCostPrice: fallbackCost,
+        });
+        item.batch_splits = consumption.consumed_batches;
+        item.cost_price = consumption.effective_unit_cost;
+        item.total_cogs = consumption.total_cogs;
+      } else {
+        item.cost_price = fallbackCost;
+        item.total_cogs = Math.round(qty * fallbackCost * 100) / 100;
+      }
+    } catch (fifoErr) {
+      console.error("Error consuming FIFO batches on sale edit:", fifoErr);
+    }
   }
 
   // Update product master with latest selling price used during sale
@@ -335,6 +370,17 @@ export async function DELETE(
           );
         } else {
           await adjustStock(item.product_id.toString(), user.id, qty);
+          if (item.batch_splits && Array.isArray(item.batch_splits) && item.batch_splits.length > 0) {
+            try {
+              const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+              await restoreBatchesOnSaleRevertServer({
+                userId: user.id,
+                consumedBatches: item.batch_splits,
+              });
+            } catch (err) {
+              console.error("Failed to restore batch splits on order delete:", err);
+            }
+          }
         }
       }
     }

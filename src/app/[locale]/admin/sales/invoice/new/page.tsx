@@ -848,6 +848,7 @@ export default function NewInvoicePage() {
           discount: p.discount || 0,
           discountType: p.discountType || "value",
           unit_of_measurement: p.unit_of_measurement,
+          cost_price: Number((p as any).cost_price ?? (p as any).purchase_price ?? 0),
         })),
         subtotal: total,
         charges: displayCharges.map((c) => ({
@@ -939,6 +940,7 @@ export default function NewInvoicePage() {
           discount: p.discount || 0,
           discountType: p.discountType || "value",
           unit_of_measurement: p.unit_of_measurement,
+          cost_price: Number((p as any).cost_price ?? (p as any).purchase_price ?? 0),
         }))
       };
 
@@ -947,13 +949,23 @@ export default function NewInvoicePage() {
         if (oldOrder) {
           orderData.created_at = oldOrder.created_at;
           orderData.status = oldOrder.status;
+
+          // Revert old consumed batches if present
+          if (oldOrder.items && Array.isArray(oldOrder.items)) {
+            const { restoreOfflineBatchesOnSaleRevert } = await import('@/lib/db/offline-stock-manager');
+            for (const oldItem of oldOrder.items) {
+              if (oldItem.batch_splits && Array.isArray(oldItem.batch_splits)) {
+                await restoreOfflineBatchesOnSaleRevert({ consumedBatches: oldItem.batch_splits });
+              }
+            }
+          }
         }
         await db.orders.put(orderData);
       } else {
         await db.orders.add(orderData);
       }
 
-      // 3. Update stock & missing UOM locally (optimistic)
+      // 3. Update stock, FIFO batches & missing UOM locally (optimistic)
       for (const p of selectedProducts) {
         const prodId = (p.id || (p as any)._id || "").toString();
         if (prodId) {
@@ -971,6 +983,27 @@ export default function NewInvoicePage() {
                 await db.products.update(actualKey, { damaged_quantity: newQty });
               } else {
                 await adjustOfflineStock(actualKey, -(Number(p.quantity) || 0));
+
+                // Offline FIFO consumption
+                const valuationMethod = typeof window !== "undefined"
+                  ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+                  : "average";
+                if (valuationMethod === "fifo") {
+                  const { consumeOfflineBatchesOnSale } = await import('@/lib/db/offline-stock-manager');
+                  const fallbackCost = Number(productDoc.cost_price || productDoc.purchase_price) || 0;
+                  const consumption = await consumeOfflineBatchesOnSale({
+                    productId: actualKey,
+                    saleQty: Number(p.quantity) || 0,
+                    fallbackCostPrice: fallbackCost,
+                  });
+                  (p as any).batch_splits = consumption.consumed_batches;
+                  (p as any).cost_price = consumption.effective_unit_cost;
+                  (p as any).total_cogs = consumption.total_cogs;
+                } else {
+                  const avgCost = Number(productDoc.cost_price ?? productDoc.purchase_price ?? (p as any).cost_price) || 0;
+                  (p as any).cost_price = avgCost;
+                  (p as any).total_cogs = Math.round((Number(p.quantity) || 0) * avgCost * 100) / 100;
+                }
               }
             }
 
@@ -998,6 +1031,25 @@ export default function NewInvoicePage() {
           }
         }
       }
+
+      // Update local order document with attached batch_splits and COGS
+      orderData.items = selectedProducts.map(p => ({
+        product_id: (p.id || (p as any)._id || "").toString(),
+        name: p.name,
+        description: p.description,
+        quantity: p.quantity,
+        quantity_str: p.quantityInput || String(p.quantity),
+        quantityType: p.quantityType || "prime",
+        price: p.sell_price,
+        discount: p.discount || 0,
+        discountType: p.discountType || "value",
+        unit_of_measurement: p.unit_of_measurement,
+        batch_splits: (p as any).batch_splits,
+        cost_price: (p as any).cost_price,
+        total_cogs: (p as any).total_cogs,
+      }));
+      await db.orders.put(orderData);
+      (payload as any).items = orderData.items;
 
       // 4. Update balance locally (optimistic)
       const netAmount = finalTotal - (paymentDetails.noPaymentAtAll ? 0 : paymentDetails.paidAmount);

@@ -218,3 +218,189 @@ export async function reversePurchaseInwardServer(options: {
     );
   }
 }
+
+/**
+ * Consumes stock from active lots using FIFO (First-In, First-Out) rule:
+ * 1. Queries active lots sorted by batch_date and created_at ascending.
+ * 2. Consumes quantities lot-by-lot until saleQty is met.
+ * 3. Returns split details, total COGS, and effective unit cost.
+ */
+export async function consumeBatchesOnSaleServer(options: {
+  userId: string;
+  productId: string;
+  saleQty: number;
+  orderId?: string;
+  fallbackCostPrice?: number;
+}): Promise<{
+  consumed_batches: Array<{
+    batch_id: any;
+    batch_number?: string;
+    quantity: number;
+    cost_price: number;
+    total_cost: number;
+  }>;
+  total_cogs: number;
+  remaining_unfulfilled_qty: number;
+  effective_unit_cost: number;
+}> {
+  const { userId, productId, saleQty, fallbackCostPrice = 0 } = options;
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+
+  if (saleQty <= 0) {
+    return {
+      consumed_batches: [],
+      total_cogs: 0,
+      remaining_unfulfilled_qty: 0,
+      effective_unit_cost: fallbackCostPrice,
+    };
+  }
+
+  // Find active batches for this product, sorted FIFO (earliest batch_date first)
+  const activeBatches = await batchesCollection
+    .find({
+      user_id: toObjectId(userId),
+      product_id: toObjectId(productId),
+      status: "active",
+      remaining_quantity: { $gt: 0 },
+    })
+    .sort({ batch_date: 1, created_at: 1 })
+    .toArray();
+
+  let unfulfilledQty = saleQty;
+  let totalCogs = 0;
+  const consumedBatches: Array<{
+    batch_id: any;
+    batch_number?: string;
+    quantity: number;
+    cost_price: number;
+    total_cost: number;
+  }> = [];
+
+  for (const batch of activeBatches) {
+    if (unfulfilledQty <= 0) break;
+
+    const available = Number(batch.remaining_quantity) || 0;
+    if (available <= 0) continue;
+
+    const takeQty = Math.min(available, unfulfilledQty);
+    const newRemaining = roundToPrecision(available - takeQty, 5);
+    const costPrice = Number(batch.cost_price) || 0;
+    const splitCost = roundToPrecision(takeQty * costPrice, 2);
+
+    consumedBatches.push({
+      batch_id: batch._id ? toObjectId(batch._id) : batch._id,
+      batch_number: batch.batch_number || "BATCH",
+      quantity: takeQty,
+      cost_price: costPrice,
+      total_cost: splitCost,
+    });
+
+    totalCogs += splitCost;
+    unfulfilledQty = roundToPrecision(unfulfilledQty - takeQty, 5);
+
+    await batchesCollection.updateOne(
+      { _id: batch._id },
+      {
+        $set: {
+          remaining_quantity: newRemaining,
+          status: newRemaining <= 0 ? "depleted" : "active",
+          updated_at: new Date(),
+        },
+      }
+    );
+  }
+
+  // If sale quantity exceeded available batches (e.g. overselling), use fallback cost
+  if (unfulfilledQty > 0) {
+    const unfulfilledCost = roundToPrecision(unfulfilledQty * fallbackCostPrice, 2);
+    totalCogs += unfulfilledCost;
+  }
+
+  const effectiveUnitCost = saleQty > 0 ? roundToPrecision(totalCogs / saleQty, 2) : fallbackCostPrice;
+
+  return {
+    consumed_batches: consumedBatches,
+    total_cogs: roundToPrecision(totalCogs, 2),
+    remaining_unfulfilled_qty: unfulfilledQty,
+    effective_unit_cost: effectiveUnitCost,
+  };
+}
+
+/**
+ * Restores consumed quantities back to their original batches (when order is edited or cancelled).
+ */
+export async function restoreBatchesOnSaleRevertServer(options: {
+  userId: string;
+  consumedBatches: Array<{
+    batch_id: string;
+    quantity: number;
+  }>;
+}): Promise<void> {
+  const { userId, consumedBatches } = options;
+  if (!consumedBatches || !Array.isArray(consumedBatches) || consumedBatches.length === 0) return;
+
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+
+  for (const split of consumedBatches) {
+    if (!split.batch_id || !isValidObjectId(split.batch_id)) continue;
+    const returnQty = Number(split.quantity) || 0;
+    if (returnQty <= 0) continue;
+
+    const batch = await batchesCollection.findOne({
+      _id: toObjectId(split.batch_id),
+      user_id: toObjectId(userId),
+    });
+
+    if (batch) {
+      const curRemaining = Number(batch.remaining_quantity) || 0;
+      const newRemaining = roundToPrecision(curRemaining + returnQty, 5);
+      await batchesCollection.updateOne(
+        { _id: batch._id },
+        {
+          $set: {
+            remaining_quantity: newRemaining,
+            status: "active",
+            updated_at: new Date(),
+          },
+        }
+      );
+    }
+  }
+}
+
+/**
+ * Re-inwards returned goods into the inventory batches queue at the original purchase cost.
+ */
+export async function reInwardBatchOnSaleReturnServer(options: {
+  userId: string;
+  returnId: string;
+  returnNumber: string;
+  productId: string;
+  quantity: number;
+  costPrice: number;
+  returnDate: Date;
+}): Promise<void> {
+  const { userId, returnId, returnNumber, productId, quantity, costPrice, returnDate } = options;
+  if (!productId || !isValidObjectId(productId) || quantity <= 0) return;
+
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+
+  try {
+    await batchesCollection.insertOne({
+      user_id: toObjectId(userId),
+      product_id: toObjectId(productId),
+      source_type: "sale_return",
+      source_id: returnId.toString(),
+      batch_number: `RET-${returnNumber || "SR"}`,
+      initial_quantity: quantity,
+      remaining_quantity: quantity,
+      cost_price: costPrice,
+      status: "active",
+      batch_date: returnDate,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  } catch (err) {
+    console.error("Failed to insert inventory batch on sale return:", err);
+  }
+}
