@@ -66,6 +66,22 @@ async function applyStockItem(
     const { adjustStock } = await import('@/lib/db/stock-manager');
     await adjustStock(item.product_id.toString(), userId, -qty);
   }
+
+  // Update product master with latest selling price used during sale
+  if (item.price !== undefined && item.price !== null && Number(item.price) > 0) {
+    const salePriceNum = Number(item.price);
+    await productsCollection.updateOne(
+      { _id: item.product_id },
+      {
+        $set: {
+          sell_price: salePriceNum,
+          sell_price_str: salePriceNum.toString(),
+          price: salePriceNum,
+          updated_at: new Date(),
+        },
+      }
+    );
+  }
 }
 
 export async function PUT(
