@@ -362,8 +362,14 @@ export function ProductStockLedgerModal({
                                 <td className="py-2.5 px-3 whitespace-nowrap">
                                   <div className="font-semibold text-foreground">{m.refNo}</div>
                                   {m.batchNumber && (
-                                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-mono block">
-                                      Batch: {m.batchNumber}
+                                    <span
+                                      className={`text-[10px] font-mono block ${
+                                        m.batchNumber === "DEFICIT"
+                                          ? "text-rose-600 dark:text-rose-400 font-semibold"
+                                          : "text-sky-600 dark:text-sky-400"
+                                      }`}
+                                    >
+                                      {m.batchNumber === "DEFICIT" ? "Oversold Deficit" : `Batch: ${m.batchNumber}`}
                                     </span>
                                   )}
                                 </td>

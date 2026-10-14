@@ -86,6 +86,10 @@ export async function adjustOfflineStockWithValuation(
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+
+        if (valuationMethod === "fifo") {
+          await reconcileOfflineUnfulfilledSales(prodIdStr);
+        }
       } catch (err) {
         console.error("Failed to save offline inventory batch:", err);
       }
@@ -302,7 +306,126 @@ export async function reInwardOfflineBatchOnSaleReturn(options: {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    const valuationMethod = typeof window !== "undefined"
+      ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+      : "average";
+
+    if (valuationMethod === "fifo") {
+      await reconcileOfflineUnfulfilledSales(prodIdStr);
+    }
   } catch (err) {
     console.error("Failed to save offline sale return batch:", err);
+  }
+}
+
+/**
+ * Auto-reconciles unfulfilled sales in Dexie offline database when a new batch is added offline.
+ */
+export async function reconcileOfflineUnfulfilledSales(productId: string | number): Promise<void> {
+  const prodIdStr = String(productId);
+  if (!prodIdStr) return;
+
+  try {
+    const valuationMethod = typeof window !== "undefined"
+      ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+      : "average";
+
+    if (valuationMethod !== "fifo") return;
+
+    const batches = await db.inventory_batches.where("product_id").equals(prodIdStr).toArray();
+    const activeBatches = batches
+      .filter((b: any) => (b.status === "active" || !b.status) && Number(b.remaining_quantity) > 0)
+      .sort((a: any, b: any) => new Date(a.batch_date || a.created_at).getTime() - new Date(b.batch_date || b.created_at).getTime());
+
+    if (activeBatches.length === 0) return;
+
+    const allOrders = await db.orders.toArray();
+    const candidateOrders = allOrders
+      .filter((o: any) => o.status !== "cancelled" && Array.isArray(o.items) && o.items.some((it: any) => String(it.product_id) === prodIdStr))
+      .sort((a: any, b: any) => new Date(a.sale_date || a.created_at).getTime() - new Date(b.sale_date || b.created_at).getTime());
+
+    for (const order of candidateOrders) {
+      let orderModified = false;
+      const items = order.items || [];
+
+      for (const item of items) {
+        if (String(item.product_id) !== prodIdStr) continue;
+
+        const itemQty = Number(item.quantity) || 0;
+        if (itemQty <= 0) continue;
+
+        const currentSplits = Array.isArray(item.batch_splits) ? [...item.batch_splits] : [];
+        const fulfilledQty = currentSplits.reduce((acc: number, sp: any) => acc + (Number(sp.quantity) || 0), 0);
+        let deficitQty = Math.max(0, roundToPrecision(itemQty - fulfilledQty, 5));
+
+        if (deficitQty <= 0) {
+          if (item.unfulfilled_quantity !== 0 || item.is_oversold !== false) {
+            item.unfulfilled_quantity = 0;
+            item.is_oversold = false;
+            orderModified = true;
+          }
+          continue;
+        }
+
+        let unitsFulfilled = 0;
+
+        for (const batch of activeBatches) {
+          if (deficitQty <= 0) break;
+          const available = Number(batch.remaining_quantity) || 0;
+          if (available <= 0) continue;
+
+          const takeQty = Math.min(available, deficitQty);
+          const newRemaining = roundToPrecision(available - takeQty, 5);
+          const bCost = Number(batch.cost_price) || 0;
+          const splitCost = roundToPrecision(takeQty * bCost, 2);
+
+          batch.remaining_quantity = newRemaining;
+          batch.status = newRemaining <= 0 ? "depleted" : "active";
+          if (batch.id) {
+            await db.inventory_batches.update(batch.id, {
+              remaining_quantity: newRemaining,
+              status: batch.status,
+              updated_at: new Date().toISOString(),
+            });
+          }
+
+          currentSplits.push({
+            batch_id: batch.id || batch._id,
+            batch_number: batch.batch_number || "BATCH",
+            quantity: takeQty,
+            cost_price: bCost,
+            total_cost: splitCost,
+            reconciled_at: new Date().toISOString(),
+          });
+
+          deficitQty = roundToPrecision(deficitQty - takeQty, 5);
+          unitsFulfilled += takeQty;
+        }
+
+        if (unitsFulfilled > 0) {
+          item.batch_splits = currentSplits;
+          item.unfulfilled_quantity = deficitQty;
+          item.is_oversold = deficitQty > 0;
+
+          const splitsCostTotal = currentSplits.reduce((acc: number, sp: any) => acc + (Number(sp.total_cost) || 0), 0);
+          const fallback = Number(item.cost_price) || 0;
+          const newTotalCogs = roundToPrecision(splitsCostTotal + (deficitQty * fallback), 2);
+          item.total_cogs = newTotalCogs;
+          item.cost_price = itemQty > 0 ? roundToPrecision(newTotalCogs / itemQty, 2) : fallback;
+
+          orderModified = true;
+        }
+      }
+
+      if (orderModified && order.id) {
+        await db.orders.update(order.id, {
+          items,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to reconcile offline unfulfilled sales:", err);
   }
 }

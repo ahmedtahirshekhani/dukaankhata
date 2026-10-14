@@ -115,6 +115,14 @@ export async function applyPurchaseInwardServer(options: {
         created_at: new Date(),
         updated_at: new Date(),
       });
+
+      // Auto-reconcile past unfulfilled/oversold sales in chronological FIFO order (Vyapar style)
+      if (valuationMethod === "fifo") {
+        await reconcileUnfulfilledSalesForProduct({
+          userId,
+          productId: prodIdStr,
+        });
+      }
     } catch (batchErr) {
       console.error("Failed to insert inventory batch:", batchErr);
     }
@@ -122,9 +130,170 @@ export async function applyPurchaseInwardServer(options: {
 }
 
 /**
+ * Auto-reconciles unfulfilled / oversold past sales in chronological FIFO order
+ * whenever a new purchase batch arrives or stock is replenished.
+ */
+export async function reconcileUnfulfilledSalesForProduct(options: {
+  userId: string;
+  productId: string;
+}): Promise<{
+  reconciledOrdersCount: number;
+  unitsReconciled: number;
+}> {
+  const { userId, productId } = options;
+  if (!productId || !isValidObjectId(productId)) {
+    return { reconciledOrdersCount: 0, unitsReconciled: 0 };
+  }
+
+  const valuationMethod = await getValuationMethod(userId);
+  if (valuationMethod !== "fifo") {
+    return { reconciledOrdersCount: 0, unitsReconciled: 0 };
+  }
+
+  const uId = toObjectId(userId);
+  const pId = toObjectId(productId);
+
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+  const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+  const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+
+  const product = await productsCollection.findOne({ _id: pId, user_id: uId });
+  const fallbackCost = Number(product?.cost_price ?? product?.purchase_price) || 0;
+
+  // Find candidate orders containing this product sorted chronologically (earliest sale first)
+  const candidateOrders = await ordersCollection
+    .find({
+      user_id: uId,
+      status: { $ne: "cancelled" },
+      "items.product_id": { $in: [pId, productId] },
+    })
+    .sort({ sale_date: 1, created_at: 1 })
+    .toArray();
+
+  let reconciledOrdersCount = 0;
+  let totalUnitsReconciled = 0;
+
+  for (const order of candidateOrders) {
+    let orderModified = false;
+    const items = order.items || [];
+
+    for (const item of items) {
+      const itProdId = item.product_id?.toString();
+      if (itProdId !== productId && itProdId !== pId.toString()) continue;
+
+      const itemQty = Number(item.quantity) || 0;
+      if (itemQty <= 0) continue;
+
+      const currentSplits = Array.isArray(item.batch_splits) ? [...item.batch_splits] : [];
+      const fulfilledQty = currentSplits.reduce((acc: number, sp: any) => acc + (Number(sp.quantity) || 0), 0);
+      let deficitQty = Math.max(0, roundToPrecision(itemQty - fulfilledQty, 5));
+
+      // Check if item was marked as having unfulfilled quantity
+      if (deficitQty <= 0) {
+        if (item.unfulfilled_quantity !== 0 || item.is_oversold !== false) {
+          item.unfulfilled_quantity = 0;
+          item.is_oversold = false;
+          orderModified = true;
+        }
+        continue;
+      }
+
+      // Find active batches for this product
+      const activeBatches = await batchesCollection
+        .find({
+          user_id: uId,
+          product_id: pId,
+          status: "active",
+          remaining_quantity: { $gt: 0 },
+        })
+        .sort({ batch_date: 1, created_at: 1 })
+        .toArray();
+
+      if (activeBatches.length === 0) {
+        continue;
+      }
+
+      let unitsFulfilledForThisItem = 0;
+
+      for (const batch of activeBatches) {
+        if (deficitQty <= 0) break;
+        const available = Number(batch.remaining_quantity) || 0;
+        if (available <= 0) continue;
+
+        const takeQty = Math.min(available, deficitQty);
+        const newRemaining = roundToPrecision(available - takeQty, 5);
+        const bCost = Number(batch.cost_price) || 0;
+        const splitCost = roundToPrecision(takeQty * bCost, 2);
+
+        // Update batch remaining quantity
+        await batchesCollection.updateOne(
+          { _id: batch._id },
+          {
+            $set: {
+              remaining_quantity: newRemaining,
+              status: newRemaining <= 0 ? "depleted" : "active",
+              updated_at: new Date(),
+            },
+          }
+        );
+
+        // Append to item's batch splits
+        currentSplits.push({
+          batch_id: batch._id ? toObjectId(batch._id) : batch._id,
+          batch_number: batch.batch_number || "BATCH",
+          quantity: takeQty,
+          cost_price: bCost,
+          total_cost: splitCost,
+          reconciled_at: new Date(),
+        });
+
+        deficitQty = roundToPrecision(deficitQty - takeQty, 5);
+        unitsFulfilledForThisItem += takeQty;
+        totalUnitsReconciled += takeQty;
+      }
+
+      if (unitsFulfilledForThisItem > 0) {
+        item.batch_splits = currentSplits;
+        item.unfulfilled_quantity = deficitQty;
+        item.is_oversold = deficitQty > 0;
+
+        // Recalculate total_cogs
+        const splitsCostTotal = currentSplits.reduce((acc: number, sp: any) => acc + (Number(sp.total_cost) || 0), 0);
+        const unfulfilledFallback = roundToPrecision(deficitQty * fallbackCost, 2);
+        const newTotalCogs = roundToPrecision(splitsCostTotal + unfulfilledFallback, 2);
+
+        item.total_cogs = newTotalCogs;
+        item.cost_price = itemQty > 0 ? roundToPrecision(newTotalCogs / itemQty, 2) : fallbackCost;
+
+        orderModified = true;
+      }
+    }
+
+    if (orderModified) {
+      await ordersCollection.updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            items,
+            updated_at: new Date(),
+          },
+        }
+      );
+      reconciledOrdersCount++;
+    }
+  }
+
+  return {
+    reconciledOrdersCount,
+    unitsReconciled: totalUnitsReconciled,
+  };
+}
+
+/**
  * Reverses purchase inward items (when a bill is edited or deleted):
  * 1. Decrements physical stock quantity.
- * 2. Removes associated lots from `inventory_batches`.
+ * 2. Unlinks batches from reconciled orders and restores unfulfilled deficits.
+ * 3. Removes associated lots from `inventory_batches`.
  */
 export async function reversePurchaseInwardServer(options: {
   userId: string;
@@ -140,9 +309,56 @@ export async function reversePurchaseInwardServer(options: {
 
   const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
   const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+  const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
 
-  // 1. Remove batches created by this purchase bill
+  // 1. Find batches created by this purchase bill
   try {
+    const billBatches = await batchesCollection
+      .find({
+        user_id: toObjectId(userId),
+        source_id: billId.toString(),
+      })
+      .toArray();
+
+    const billBatchIdStrs = new Set(billBatches.map(b => b._id.toString()));
+
+    if (billBatchIdStrs.size > 0) {
+      // Find orders that had batch splits referencing these batches
+      const affectedOrders = await ordersCollection
+        .find({
+          user_id: toObjectId(userId),
+          status: { $ne: "cancelled" },
+          "items.batch_splits.batch_id": { $in: billBatches.map(b => b._id) },
+        })
+        .toArray();
+
+      for (const ord of affectedOrders) {
+        let ordModified = false;
+        for (const it of (ord.items || [])) {
+          if (!Array.isArray(it.batch_splits)) continue;
+          const matchingSplits = it.batch_splits.filter((sp: any) => billBatchIdStrs.has(sp.batch_id?.toString()));
+          if (matchingSplits.length > 0) {
+            const removedQty = matchingSplits.reduce((acc: number, sp: any) => acc + (Number(sp.quantity) || 0), 0);
+            it.batch_splits = it.batch_splits.filter((sp: any) => !billBatchIdStrs.has(sp.batch_id?.toString()));
+            it.unfulfilled_quantity = roundToPrecision((Number(it.unfulfilled_quantity) || 0) + removedQty, 5);
+            it.is_oversold = true;
+
+            const remainingSplitsCost = it.batch_splits.reduce((acc: number, sp: any) => acc + (Number(sp.total_cost) || 0), 0);
+            const fallback = Number(it.cost_price) || 0;
+            it.total_cogs = roundToPrecision(remainingSplitsCost + (it.unfulfilled_quantity * fallback), 2);
+            ordModified = true;
+          }
+        }
+        if (ordModified) {
+          await ordersCollection.updateOne(
+            { _id: ord._id },
+            { $set: { items: ord.items, updated_at: new Date() } }
+          );
+        }
+      }
+    }
+
+    // Remove batches created by this purchase bill
     await batchesCollection.deleteMany({
       user_id: toObjectId(userId),
       source_id: billId.toString(),
@@ -400,6 +616,14 @@ export async function reInwardBatchOnSaleReturnServer(options: {
       created_at: new Date(),
       updated_at: new Date(),
     });
+
+    const valuationMethod = await getValuationMethod(userId);
+    if (valuationMethod === "fifo") {
+      await reconcileUnfulfilledSalesForProduct({
+        userId,
+        productId,
+      });
+    }
   } catch (err) {
     console.error("Failed to insert inventory batch on sale return:", err);
   }

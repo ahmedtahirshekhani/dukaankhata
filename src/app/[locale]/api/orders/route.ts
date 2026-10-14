@@ -423,9 +423,13 @@ export async function POST(request: Request) {
             item.batch_splits = consumption.consumed_batches;
             item.cost_price = consumption.effective_unit_cost;
             item.total_cogs = consumption.total_cogs;
+            item.unfulfilled_quantity = consumption.remaining_unfulfilled_qty;
+            item.is_oversold = consumption.remaining_unfulfilled_qty > 0;
           } else {
             item.cost_price = fallbackCost;
             item.total_cogs = Math.round(orderQty * fallbackCost * 100) / 100;
+            item.unfulfilled_quantity = 0;
+            item.is_oversold = false;
           }
         } catch (fifoErr) {
           console.error("Error consuming FIFO batches on sale:", fifoErr);

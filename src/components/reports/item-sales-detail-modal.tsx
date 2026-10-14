@@ -368,9 +368,13 @@ export function ItemSalesDetailModal({
                                     <div className="flex items-center gap-1 mt-0.5">
                                       <Badge
                                         variant="outline"
-                                        className="text-[9px] px-1.5 py-0 h-4 bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 font-mono"
+                                        className={`text-[9px] px-1.5 py-0 h-4 font-mono ${
+                                          s.batchNumber === "DEFICIT"
+                                            ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                                            : "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30"
+                                        }`}
                                       >
-                                        Batch: {s.batchNumber}
+                                        {s.batchNumber === "DEFICIT" ? "Oversold Deficit" : `Batch: ${s.batchNumber}`}
                                         {s.isBatchSplit ? ` (${s.batchIndex}/${s.totalBatches})` : ""}
                                       </Badge>
                                     </div>

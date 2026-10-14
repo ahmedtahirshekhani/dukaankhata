@@ -999,10 +999,14 @@ export default function NewInvoicePage() {
                   (p as any).batch_splits = consumption.consumed_batches;
                   (p as any).cost_price = consumption.effective_unit_cost;
                   (p as any).total_cogs = consumption.total_cogs;
+                  (p as any).unfulfilled_quantity = consumption.remaining_unfulfilled_qty;
+                  (p as any).is_oversold = consumption.remaining_unfulfilled_qty > 0;
                 } else {
                   const avgCost = Number(productDoc.cost_price ?? productDoc.purchase_price ?? (p as any).cost_price) || 0;
                   (p as any).cost_price = avgCost;
                   (p as any).total_cogs = Math.round((Number(p.quantity) || 0) * avgCost * 100) / 100;
+                  (p as any).unfulfilled_quantity = 0;
+                  (p as any).is_oversold = false;
                 }
               }
             }

@@ -198,6 +198,10 @@ export async function GET(request: NextRequest) {
         const splits = Array.isArray(it.batch_splits) && it.batch_splits.length > 0 ? it.batch_splits : null;
 
         if (splits && splits.length > 0) {
+          const fulfilledQty = splits.reduce((acc: number, s: any) => acc + (Number(s.quantity) || 0), 0);
+          const unfulfilledQty = Math.max(0, Math.round((qty - fulfilledQty) * 100000) / 100000);
+          const totalRowsCount = splits.length + (unfulfilledQty > 0 ? 1 : 0);
+
           // Vyapar FIFO style: separate entry for each batch consumed
           splits.forEach((split: any, sIdx: number) => {
             const splitQty = Number(split.quantity) || 0;
@@ -206,7 +210,7 @@ export async function GET(request: NextRequest) {
               ? split.total_cost
               : Math.round(splitQty * splitCost * 100) / 100;
 
-            const ratio = qty > 0 ? (splitQty / qty) : (1 / splits.length);
+            const ratio = qty > 0 ? (splitQty / qty) : (1 / totalRowsCount);
             const splitGross = Math.round(splitQty * price * 100) / 100;
             const splitDiscount = Math.round(lineDiscount * ratio * 100) / 100;
             const splitRevenue = Math.max(0, Math.round((splitGross - splitDiscount) * 100) / 100);
@@ -233,11 +237,47 @@ export async function GET(request: NextRequest) {
               profitMargin: splitMargin,
               batchNumber: split.batch_number || "BATCH",
               batchSplits: [split],
-              isBatchSplit: splits.length > 1,
+              isBatchSplit: totalRowsCount > 1,
               batchIndex: sIdx + 1,
-              totalBatches: splits.length,
+              totalBatches: totalRowsCount,
             });
           });
+
+          if (unfulfilledQty > 0) {
+            const fallbackUnitCost = Number(it.cost_price ?? product.cost_price) || 0;
+            const unfulfilledCogs = Math.round(unfulfilledQty * fallbackUnitCost * 100) / 100;
+            const ratio = qty > 0 ? (unfulfilledQty / qty) : 0;
+            const splitGross = Math.round(unfulfilledQty * price * 100) / 100;
+            const splitDiscount = Math.round(lineDiscount * ratio * 100) / 100;
+            const splitRevenue = Math.max(0, Math.round((splitGross - splitDiscount) * 100) / 100);
+            const splitProfit = Math.round((splitRevenue - unfulfilledCogs) * 100) / 100;
+            const splitMargin = splitRevenue > 0 ? Math.round(((splitProfit / splitRevenue) * 100) * 10) / 10 : 0;
+
+            salesList.push({
+              orderId: order._id.toString(),
+              invoiceNo: order.invoice_no || `INV-${order._id.toString().slice(-6)}`,
+              date: new Date(orderDate).toISOString(),
+              customerId: order.customer_id?.toString() || "",
+              customerName: cInfo.name,
+              customerPhone: cInfo.phone,
+              quantity: unfulfilledQty,
+              price,
+              discount: splitDiscount,
+              discountType,
+              lineGross: splitGross,
+              lineDiscount: splitDiscount,
+              lineRevenue: splitRevenue,
+              unitCost: Math.round(fallbackUnitCost * 100) / 100,
+              totalCogs: unfulfilledCogs,
+              profit: splitProfit,
+              profitMargin: splitMargin,
+              batchNumber: "DEFICIT",
+              batchSplits: [],
+              isBatchSplit: totalRowsCount > 1,
+              batchIndex: totalRowsCount,
+              totalBatches: totalRowsCount,
+            });
+          }
         } else {
           const profit = Math.round((lineRevenue - lineCogs) * 100) / 100;
           const margin = lineRevenue > 0 ? Math.round(((profit / lineRevenue) * 100) * 10) / 10 : 0;

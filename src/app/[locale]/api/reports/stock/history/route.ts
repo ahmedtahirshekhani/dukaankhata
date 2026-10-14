@@ -163,6 +163,9 @@ export async function GET(request: NextRequest) {
         const splits = Array.isArray(it.batch_splits) && it.batch_splits.length > 0 ? it.batch_splits : null;
 
         if (splits && splits.length > 0) {
+          const fulfilledQty = splits.reduce((acc: number, s: any) => acc + (Number(s.quantity) || 0), 0);
+          const unfulfilledQty = Math.max(0, Math.round((qty - fulfilledQty) * 100000) / 100000);
+
           splits.forEach((split: any, sIdx: number) => {
             const splitQty = Number(split.quantity) || 0;
             const splitCost = Number(split.cost_price) || 0;
@@ -181,6 +184,23 @@ export async function GET(request: NextRequest) {
               batchSplits: [split],
             });
           });
+
+          if (unfulfilledQty > 0) {
+            rawMovements.push({
+              id: `so-${order._id}-${it.product_id}-deficit`,
+              date: isNaN(d.getTime()) ? new Date(order.created_at || Date.now()) : d,
+              type: "sale",
+              refNo: order.invoice_no || `INV-${order._id.toString().slice(-6)}`,
+              partyName: customerName,
+              inwardQty: 0,
+              outwardQty: unfulfilledQty,
+              unitRate: price,
+              costPrice: costPrice,
+              totalAmount: Math.round(unfulfilledQty * price * 100) / 100,
+              batchNumber: "DEFICIT",
+              batchSplits: [],
+            });
+          }
         } else {
           rawMovements.push({
             id: `so-${order._id}-${it.product_id}`,
