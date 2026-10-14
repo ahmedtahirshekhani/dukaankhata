@@ -113,7 +113,16 @@ export async function GET(request: NextRequest) {
               onNull: 0
             }
           },
-          discountType: { $ifNull: ["$items.discountType", "value"] }
+          discountType: { $ifNull: ["$items.discountType", "value"] },
+          batchSplits: { $ifNull: ["$items.batch_splits", []] },
+          totalCogs: {
+            $convert: {
+              input: "$items.total_cogs",
+              to: "double",
+              onError: null,
+              onNull: null,
+            }
+          }
         }
       },
 
@@ -135,7 +144,9 @@ export async function GET(request: NextRequest) {
           netRevenue: {
             $max: [0, { $subtract: ["$grossAmount", "$discountAmount"] }]
           },
-          totalCost: { $multiply: ["$qty", "$costPrice"] }
+          totalCost: {
+            $ifNull: ["$totalCogs", { $multiply: ["$qty", "$costPrice"] }]
+          }
         }
       },
       {
@@ -160,7 +171,8 @@ export async function GET(request: NextRequest) {
           totalProfit: { $sum: "$profit" },
           invoicesCount: { $sum: 1 },
           minSellPrice: { $min: "$price" },
-          maxSellPrice: { $max: "$price" }
+          maxSellPrice: { $max: "$price" },
+          batchSplits: { $push: "$batchSplits" }
         }
       },
 
@@ -220,7 +232,15 @@ export async function GET(request: NextRequest) {
               { $round: [{ $multiply: [{ $divide: ["$totalProfit", "$totalRevenue"] }, 100] }, 1] },
               0
             ]
-          }
+          },
+          avgCostPrice: {
+            $cond: [
+              { $gt: ["$totalQuantitySold", 0] },
+              { $round: [{ $divide: ["$totalCost", "$totalQuantitySold"] }, 2] },
+              0
+            ]
+          },
+          batchSplits: "$batchSplits"
         }
       }
     ];
@@ -356,7 +376,9 @@ export async function GET(request: NextRequest) {
         minSellPrice: item.minSellPrice,
         maxSellPrice: item.maxSellPrice,
         avgSellingPrice,
-        profitMargin
+        avgCostPrice: Math.round(unitCost * 100) / 100,
+        profitMargin,
+        batchSplits: (item.batchSplits || []).flat().filter(Boolean),
       });
     }
 

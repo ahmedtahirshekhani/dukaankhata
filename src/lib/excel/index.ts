@@ -297,10 +297,10 @@ export function exportStockReportToExcel(
 ): void {
   const excelData = items.map((item) => {
     const qty = item.quantity || 0;
-    const cost = item.cost_price || 0;
+    const cost = item.effective_cost_price ?? item.cost_price ?? 0;
     const sell = item.sell_price || 0;
     const damagedQty = item.damaged_quantity || 0;
-    const totalCostVal = qty * cost;
+    const totalCostVal = item.total_cost_value ?? (qty * cost);
     const totalRetailVal = qty * sell;
     const profitPotential = totalRetailVal - totalCostVal;
 
@@ -309,13 +309,13 @@ export function exportStockReportToExcel(
       Category: item.category || "-",
       Branch: item.branch || "-",
       Quantity: qty,
-      "Cost Price (Rs.)": Math.floor(cost),
-      "Sell Price (Rs.)": Math.floor(sell),
-      "Total Cost Valuation (Rs.)": Math.floor(totalCostVal),
-      "Total Retail Valuation (Rs.)": Math.floor(totalRetailVal),
-      "Profit Potential (Rs.)": Math.floor(profitPotential),
+      "Cost Price (Rs.)": Math.round(cost * 100) / 100,
+      "Sell Price (Rs.)": Math.round(sell * 100) / 100,
+      "Total Cost Valuation (Rs.)": Math.round(totalCostVal * 100) / 100,
+      "Total Retail Valuation (Rs.)": Math.round(totalRetailVal * 100) / 100,
+      "Profit Potential (Rs.)": Math.round(profitPotential * 100) / 100,
       "Damaged Quantity": damagedQty,
-      "Damaged Valuation (Rs.)": Math.floor(damagedQty * cost),
+      "Damaged Valuation (Rs.)": Math.round(damagedQty * cost * 100) / 100,
     };
   });
 
@@ -487,6 +487,7 @@ export function exportItemWiseSalesToExcel(
     "Gross Sales (Rs.)": Math.round(item.totalGrossAmount || 0),
     "Discount (Rs.)": Math.round(item.totalDiscount || 0),
     "Net Revenue (Rs.)": Math.round(item.totalRevenue || 0),
+    "Cost / COGS (Rs.)": Math.round((item as any).totalCost || 0),
     "Profit (Rs.)": Math.round(item.totalProfit || 0),
     "Profit Margin (%)": `${item.profitMargin || 0}%`,
     "Current Stock": item.currentStock || 0,

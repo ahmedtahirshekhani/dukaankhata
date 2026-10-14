@@ -36,6 +36,7 @@ import { ItemSaleRecord, ItemWiseSaleSummary } from "@/types/item-wise-sales";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
+import { ItemSalesDetailModal } from "@/components/reports/item-sales-detail-modal";
 import { getUomShortcut } from "@/lib/uom";
 
 export default function ItemWiseSaleReportPage() {
@@ -44,6 +45,10 @@ export default function ItemWiseSaleReportPage() {
   const tCommon = useTranslations("common");
   const t = useTranslations("itemWiseSaleReportPage");
   const { can } = usePermissions();
+
+  // Selected Product for Item Sales Detail Modal
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedProductName, setSelectedProductName] = useState<string>("");
 
   // Date States (default: Last 30 Days)
   const [fromDate, setFromDate] = useState<string>(() => {
@@ -415,8 +420,8 @@ export default function ItemWiseSaleReportPage() {
         sortable: true,
         className: "min-w-[180px]",
         cell: (row) => (
-          <div>
-            <div className="font-semibold text-xs text-foreground">{row.productName}</div>
+          <div className="cursor-pointer group">
+            <div className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">{row.productName}</div>
             {row.sku && row.sku !== "-" && (
               <span className="text-[10px] text-muted-foreground">SKU: {row.sku}</span>
             )}
@@ -501,8 +506,16 @@ export default function ItemWiseSaleReportPage() {
             <div className={`text-xs font-semibold ${row.totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
               {formatCurrency(row.totalProfit)}
             </div>
-            <div className="text-[9px] text-muted-foreground">
-              {row.profitMargin}% margin
+            <div className="text-[9px] text-muted-foreground flex items-center justify-end gap-1">
+              <span>{row.profitMargin}% margin</span>
+              {row.batchSplits && row.batchSplits.length > 0 ? (
+                <span
+                  className="text-[9px] text-sky-600 dark:text-sky-400 font-medium cursor-help"
+                  title={`FIFO Batches: ${row.batchSplits.map((b: any) => `${b.quantity} pcs @ Rs. ${b.cost_price}`).join(", ")}`}
+                >
+                  • FIFO
+                </span>
+              ) : null}
             </div>
           </div>
         ),
@@ -958,8 +971,18 @@ export default function ItemWiseSaleReportPage() {
         searchPlaceholder={t("searchPlaceholder")}
         emptyMessage={t("noData")}
         keyExtractor={(row, index) => row.productId || row._id || index.toString()}
+        onRowClick={(row) => {
+          setSelectedProductId(String(row.productId || (row as any)._id || ""));
+          setSelectedProductName(row.productName || "");
+        }}
         renderMobileCard={(row) => (
-          <div className="border rounded-lg p-3 shadow-xs bg-card space-y-2 text-xs">
+          <div
+            onClick={() => {
+              setSelectedProductId(String(row.productId || (row as any)._id || ""));
+              setSelectedProductName(row.productName || "");
+            }}
+            className="border rounded-lg p-3 shadow-xs bg-card space-y-2 text-xs cursor-pointer hover:border-primary/50 transition-colors"
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="font-bold text-foreground">{row.productName}</div>
@@ -998,6 +1021,16 @@ export default function ItemWiseSaleReportPage() {
             </div>
           </div>
         )}
+      />
+
+      {/* Item Sales Drilldown Ledger Modal */}
+      <ItemSalesDetailModal
+        productId={selectedProductId}
+        productName={selectedProductName}
+        initialFromDate={fromDate}
+        initialToDate={toDate}
+        open={!!selectedProductId}
+        onOpenChange={(open) => !open && setSelectedProductId(null)}
       />
 
       {/* PDF Export Modal */}
