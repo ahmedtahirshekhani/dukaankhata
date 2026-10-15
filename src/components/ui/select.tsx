@@ -76,8 +76,11 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", onKeyDown, ...props }, ref) => {
+  const contentNodeRef = React.useRef<HTMLDivElement | null>(null);
+
   const handleRef = React.useCallback(
     (node: HTMLDivElement | null) => {
+      contentNodeRef.current = node;
       if (node && !(node as any)._focusProtected) {
         (node as any)._focusProtected = true;
         const origFocus = node.focus.bind(node);
@@ -96,6 +99,46 @@ const SelectContent = React.forwardRef<
     },
     [ref]
   );
+
+  React.useEffect(() => {
+    const handleResize = (event: UIEvent) => {
+      const node = contentNodeRef.current;
+      const active = document.activeElement;
+      const isInputFocused =
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          node?.contains(active));
+      const hasInput = node?.querySelector("input, textarea");
+
+      if (isInputFocused || hasInput) {
+        event.stopImmediatePropagation();
+      }
+    };
+
+    const handleBlur = (event: FocusEvent) => {
+      const node = contentNodeRef.current;
+      const active = document.activeElement;
+      const isInputFocused =
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          node?.contains(active));
+      const hasInput = node?.querySelector("input, textarea");
+
+      if (isInputFocused || hasInput) {
+        event.stopImmediatePropagation();
+      }
+    };
+
+    window.addEventListener("resize", handleResize, true);
+    window.addEventListener("blur", handleBlur, true);
+
+    return () => {
+      window.removeEventListener("resize", handleResize, true);
+      window.removeEventListener("blur", handleBlur, true);
+    };
+  }, []);
 
   return (
     <SelectPrimitive.Portal>
