@@ -86,10 +86,15 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
 
     React.useEffect(() => {
       if (isOpen) {
-        const timer = setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 30);
-        return () => clearTimeout(timer);
+        const isTouch =
+          typeof window !== "undefined" &&
+          (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+        if (!isTouch) {
+          const timer = setTimeout(() => {
+            searchInputRef.current?.focus();
+          }, 30);
+          return () => clearTimeout(timer);
+        }
       }
     }, [isOpen]);
 
