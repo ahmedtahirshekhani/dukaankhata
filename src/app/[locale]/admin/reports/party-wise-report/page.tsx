@@ -5,10 +5,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useTranslations, useLocale } from "next-intl";
 import { PageHeader } from "@/components/layout/page-header";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +32,14 @@ import {
   X,
 } from "lucide-react";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { ReportDatePresets, getPresetDateRange } from "@/components/reports/report-date-presets";
+import { type ReportSortOption } from "@/components/reports/report-search-and-advanced-filters";
+import { ReportFilterCard } from "@/components/reports/report-filter-card";
+import { ReportKpiSummary, type ReportKpiCardItem } from "@/components/reports/report-kpi-summary";
+import { ReportMobileCard } from "@/components/reports/report-mobile-card";
+import { ReportExportActions } from "@/components/reports/report-export-actions";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
+import { toast } from "sonner";
 import {
   ReportPdfHeader,
   type ReportPdfKpi,
@@ -47,6 +51,7 @@ import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/da
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
 import { exportPartyWiseByModeToExcel } from "@/lib/excel";
+import { exportReportToPdf } from "@/lib/report-pdf-generator";
 import { PartyWiseRowItem, PartyWiseTabSummary } from "@/types/reports";
 
 type Mode = "sales" | "purchases";
@@ -76,15 +81,20 @@ export default function PartyWiseReportPage() {
   const [mode, setMode] = useState<Mode>("sales");
 
   // Filters (Default to 'thisMonth' like purchase-report and sale-report)
-  const [fromDate, setFromDate] = useState<string>(() => {
-    const now = new Date();
-    return toHTMLDateString(new Date(now.getFullYear(), now.getMonth(), 1));
-  });
-  const [toDate, setToDate] = useState<string>(() => getTodayHTMLDate());
+  const defaultDateRange = useMemo(() => getPresetDateRange("thisMonth"), []);
+  const [fromDate, setFromDate] = useState<string>(defaultDateRange.fromDate);
+  const [toDate, setToDate] = useState<string>(defaultDateRange.toDate);
   const [activePreset, setActivePreset] = useState<string>("thisMonth");
   const [selectedPartyId, setSelectedPartyId] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
   const debouncedSearch = useDebounce(search, 400);
+
+  // Advanced Filters & Sorting
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+  const [minAmount, setMinAmount] = useState<string>("");
+  const [maxAmount, setMaxAmount] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("total_amount");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -145,71 +155,11 @@ export default function PartyWiseReportPage() {
     loadBranding();
   }, [locale]);
 
-  // Date Presets Helper (Consistent with purchase-report & sale-report)
-  const applyPreset = (preset: string) => {
+  // Preset Date Range Handler using Standard Component
+  const handleSelectPreset = (preset: string, newFrom: string, newTo: string) => {
     setActivePreset(preset);
-    const now = new Date();
-
-    switch (preset) {
-      case "today": {
-        const today = toHTMLDateString(now);
-        setFromDate(today);
-        setToDate(today);
-        break;
-      }
-      case "yesterday": {
-        const y = new Date(now);
-        y.setDate(y.getDate() - 1);
-        const yDate = toHTMLDateString(y);
-        setFromDate(yDate);
-        setToDate(yDate);
-        break;
-      }
-      case "thisWeek": {
-        const first = new Date(now);
-        const day = first.getDay();
-        const diff = first.getDate() - day + (day === 0 ? -6 : 1);
-        first.setDate(diff);
-        setFromDate(toHTMLDateString(first));
-        setToDate(toHTMLDateString(now));
-        break;
-      }
-      case "lastWeek": {
-        const lastSun = new Date(now);
-        const day = lastSun.getDay();
-        const diffToLastSun = day === 0 ? 7 : day;
-        lastSun.setDate(now.getDate() - diffToLastSun);
-        const lastMon = new Date(lastSun);
-        lastMon.setDate(lastSun.getDate() - 6);
-        setFromDate(toHTMLDateString(lastMon));
-        setToDate(toHTMLDateString(lastSun));
-        break;
-      }
-      case "thisMonth": {
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        setFromDate(toHTMLDateString(firstDay));
-        setToDate(toHTMLDateString(now));
-        break;
-      }
-      case "lastMonth": {
-        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-        setFromDate(toHTMLDateString(firstDayLastMonth));
-        setToDate(toHTMLDateString(lastDayLastMonth));
-        break;
-      }
-      case "thisYear": {
-        const firstDayYear = new Date(now.getFullYear(), 0, 1);
-        setFromDate(toHTMLDateString(firstDayYear));
-        setToDate(toHTMLDateString(now));
-        break;
-      }
-      case "allTime": {
-        setFromDate("");
-        setToDate("");
-        break;
-      }
-    }
+    setFromDate(newFrom);
+    setToDate(newTo);
     setCurrentPage(1);
   };
 
@@ -227,14 +177,60 @@ export default function PartyWiseReportPage() {
 
   // Reset Filters (Default to 'thisMonth')
   const handleResetFilters = () => {
-    const now = new Date();
-    setFromDate(toHTMLDateString(new Date(now.getFullYear(), now.getMonth(), 1)));
-    setToDate(getTodayHTMLDate());
+    const range = getPresetDateRange("thisMonth");
+    setActivePreset("thisMonth");
+    setFromDate(range.fromDate);
+    setToDate(range.toDate);
     setSelectedPartyId("all");
     setSearch("");
-    setActivePreset("thisMonth");
+    setMinAmount("");
+    setMaxAmount("");
+    setSortBy("total_amount");
+    setSortOrder("desc");
     setCurrentPage(1);
   };
+
+  // Table Column Header Sort Handler
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      const isDescDefault = [
+        "total_amount",
+        "paid_amount",
+        "balance_due",
+        "transactions_count",
+        "last_date",
+      ].includes(key);
+      setSortOrder(isDescDefault ? "desc" : "asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const activeAdvancedFilterCount = useMemo(() => {
+    let count = 0;
+    if (minAmount) count++;
+    if (maxAmount) count++;
+    if (sortBy !== "total_amount" || sortOrder !== "desc") count++;
+    return count;
+  }, [minAmount, maxAmount, sortBy, sortOrder]);
+
+  const sortOptions: ReportSortOption[] = useMemo(
+    () => [
+      { value: "total_amount-desc", label: t("sortAmountDesc") },
+      { value: "total_amount-asc", label: t("sortAmountAsc") },
+      { value: "party_name-asc", label: t("sortPartyAsc") },
+      { value: "party_name-desc", label: t("sortPartyDesc") },
+      { value: "paid_amount-desc", label: t("sortPaidDesc") },
+      { value: "paid_amount-asc", label: t("sortPaidAsc") },
+      { value: "balance_due-desc", label: t("sortBalanceDesc") },
+      { value: "balance_due-asc", label: t("sortBalanceAsc") },
+      { value: "transactions_count-desc", label: t("sortTransactionsDesc") },
+      { value: "transactions_count-asc", label: t("sortTransactionsAsc") },
+    ],
+    [t]
+  );
 
   // Fetch Report Data
   const fetchData = useCallback(async () => {
@@ -246,10 +242,14 @@ export default function PartyWiseReportPage() {
       if (toDate) params.set("toDate", toDate);
       if (selectedPartyId && selectedPartyId !== "all") params.set("partyId", selectedPartyId);
       if (debouncedSearch) params.set("search", debouncedSearch);
+      if (minAmount) params.set("minAmount", minAmount);
+      if (maxAmount) params.set("maxAmount", maxAmount);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
       params.set("page", currentPage.toString());
       params.set("limit", pageSize.toString());
 
-      const res = await fetch(`/api/reports/party-wise-report?${params.toString()}`);
+      const res = await fetch(`/${locale}/api/reports/party-wise-report?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch report data");
 
       const json = await res.json();
@@ -261,7 +261,20 @@ export default function PartyWiseReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [mode, fromDate, toDate, selectedPartyId, debouncedSearch, currentPage, pageSize]);
+  }, [
+    mode,
+    fromDate,
+    toDate,
+    selectedPartyId,
+    debouncedSearch,
+    minAmount,
+    maxAmount,
+    sortBy,
+    sortOrder,
+    currentPage,
+    pageSize,
+    locale,
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -274,8 +287,14 @@ export default function PartyWiseReportPage() {
     setModalSearch("");
     setDetailsLoading(true);
     try {
+      const params = new URLSearchParams();
+      params.set("mode", mode);
+      params.set("detailsPartyId", item.party_id);
+      if (fromDate) params.set("fromDate", fromDate);
+      if (toDate) params.set("toDate", toDate);
+
       const res = await fetch(
-        `/api/reports/party-wise-report?mode=${mode}&detailsPartyId=${item.party_id}`
+        `/${locale}/api/reports/party-wise-report?${params.toString()}`
       );
       if (res.ok) {
         const json = await res.json();
@@ -337,6 +356,10 @@ export default function PartyWiseReportPage() {
 
   // Excel Export
   const handleExportExcel = async () => {
+    if (data.length === 0) {
+      toast.error(t("noData"));
+      return;
+    }
     try {
       setIsExportingExcel(true);
       const params = new URLSearchParams();
@@ -345,9 +368,13 @@ export default function PartyWiseReportPage() {
       if (toDate) params.set("toDate", toDate);
       if (selectedPartyId && selectedPartyId !== "all") params.set("partyId", selectedPartyId);
       if (debouncedSearch) params.set("search", debouncedSearch);
+      if (minAmount) params.set("minAmount", minAmount);
+      if (maxAmount) params.set("maxAmount", maxAmount);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
       params.set("limit", "-1");
 
-      const res = await fetch(`/api/reports/party-wise-report?${params.toString()}`);
+      const res = await fetch(`/${locale}/api/reports/party-wise-report?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
         exportPartyWiseByModeToExcel(json.data || data, json.summary || summary, mode);
@@ -363,6 +390,10 @@ export default function PartyWiseReportPage() {
 
   // PDF Export Trigger
   const handleExportPdf = async () => {
+    if (data.length === 0) {
+      toast.error(t("noData"));
+      return;
+    }
     setIsExportingPdf(true);
     try {
       const params = new URLSearchParams();
@@ -371,9 +402,13 @@ export default function PartyWiseReportPage() {
       if (toDate) params.set("toDate", toDate);
       if (selectedPartyId && selectedPartyId !== "all") params.set("partyId", selectedPartyId);
       if (debouncedSearch) params.set("search", debouncedSearch);
+      if (minAmount) params.set("minAmount", minAmount);
+      if (maxAmount) params.set("maxAmount", maxAmount);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
       params.set("limit", "-1");
 
-      const res = await fetch(`/api/reports/party-wise-report?${params.toString()}`);
+      const res = await fetch(`/${locale}/api/reports/party-wise-report?${params.toString()}`);
       let itemsToExport = data;
       if (res.ok) {
         const json = await res.json();
@@ -384,53 +419,17 @@ export default function PartyWiseReportPage() {
       setPdfData(itemsToExport);
 
       // Give React DOM time to render the reportRef container inside ReportPdfModal
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
+      await new Promise((resolve) => setTimeout(resolve, 400));
       if (!reportRef.current) return;
 
-      const mod = await import("html2pdf.js");
-      const html2pdf = (mod as any).default || mod;
-
-      await html2pdf()
-        .set({
-          margin: [6, 6, 16, 6],
-          filename: `${mode === "sales" ? "sale" : "purchase"}-by-party-${fromDate || "all"}_to_${toDate || "all"}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            scrollY: 0,
-            scrollX: 0,
-          },
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "landscape",
-          },
-          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".pdf-avoid-break"] },
-        })
-        .from(reportRef.current)
-        .toPdf()
-        .get("pdf")
-        .then((pdf: any) => {
-          const totalPages = pdf.internal.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFont("helvetica", "italic");
-            pdf.setFontSize(8);
-            pdf.setTextColor(148, 163, 184);
-            pdf.text(
-              tCommon("pdfWatermarkText") || "",
-              297 / 2,
-              210 - 5,
-              { align: "center" }
-            );
-          }
-        })
-        .save();
+      await exportReportToPdf({
+        element: reportRef.current,
+        filename: `${mode === "sales" ? "sale" : "purchase"}-by-party-${fromDate || "all"}_to_${toDate || "all"}.pdf`,
+        watermarkText: tCommon("pdfWatermarkText"),
+      });
     } catch (err) {
       console.error("PDF export error:", err);
+      toast.error(tCommon("exportError"));
     } finally {
       setIsExportingPdf(false);
     }
@@ -642,7 +641,7 @@ export default function PartyWiseReportPage() {
   const pdfMetaItems: ReportPdfMetaItem[] = useMemo(() => {
     const meta: ReportPdfMetaItem[] = [];
     meta.push({
-      label: "Mode",
+      label: t("mode"),
       value: isSaleMode ? t("salesTab") : t("purchasesTab"),
     });
     if (selectedPartyId && selectedPartyId !== "all") {
@@ -650,6 +649,41 @@ export default function PartyWiseReportPage() {
     }
     return meta;
   }, [isSaleMode, selectedPartyId, t]);
+
+  const kpiItems: ReportKpiCardItem[] = useMemo(
+    () => [
+      {
+        title: isSaleMode ? t("totalSales") : t("totalPurchases"),
+        value: formatCurrency(summary.totalAmount),
+        icon: isSaleMode ? (
+          <TrendingUp className="h-4 w-4 text-emerald-600" />
+        ) : (
+          <ShoppingCart className="h-4 w-4 text-cyan-600" />
+        ),
+        subValue: `${summary.totalTransactionsCount} ${isSaleMode ? t("invoicesCount") : t("billsCount")}`,
+      },
+      {
+        title: isSaleMode ? t("receivedAmount") : t("paidAmount"),
+        value: formatCurrency(summary.totalPaid),
+        icon: <CreditCard className="h-4 w-4 text-blue-600" />,
+        subValue: `${summary.totalAmount > 0 ? Math.round((summary.totalPaid / summary.totalAmount) * 100) : 0}% ${isSaleMode ? t("receivedAmount") : t("paidAmount")}`,
+      },
+      {
+        title: t("balanceDue"),
+        value: formatCurrency(summary.totalBalanceDue),
+        icon: <AlertCircle className="h-4 w-4 text-rose-600" />,
+        subValue: isSaleMode ? t("toReceive") : t("toPay"),
+        isExpense: summary.totalBalanceDue > 0,
+      },
+      {
+        title: t("totalParties"),
+        value: String(summary.totalPartiesCount),
+        icon: <Users className="h-4 w-4 text-violet-600" />,
+        subValue: isSaleMode ? t("customersOnly") : t("suppliersOnly"),
+      },
+    ],
+    [isSaleMode, summary, t]
+  );
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pb-10">
@@ -659,38 +693,16 @@ export default function PartyWiseReportPage() {
         title={t("title")}
         description={t("description")}
         actions={
-          can("reports", "export_party_wise_sale_purchase_report") && data.length > 0 ? (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportExcel}
-                disabled={isExportingExcel || loading}
-                className="h-8 text-xs px-2.5 gap-1.5 flex-1 sm:flex-initial"
-              >
-                {isExportingExcel ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                )}
-                <span>{t("exportExcel")}</span>
-              </Button>
-
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleExportPdf}
-                disabled={isExportingPdf || loading || data.length === 0}
-                className="h-8 text-xs px-2.5 gap-1.5 flex-1 sm:flex-initial bg-sky-600 hover:bg-sky-700 text-white"
-              >
-                {isExportingPdf ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Printer className="h-3.5 w-3.5" />
-                )}
-                <span>{t("downloadPdf")}</span>
-              </Button>
-            </div>
+          can("reports", "export_party_wise_sale_purchase_report") ? (
+            <ReportExportActions
+              onExportExcel={handleExportExcel}
+              onExportPdf={handleExportPdf}
+              isExportingExcel={isExportingExcel}
+              isExportingPdf={isExportingPdf}
+              excelLabel={t("exportExcel")}
+              pdfLabel={t("downloadPdf")}
+              disabled={loading}
+            />
           ) : undefined
         }
       />
@@ -734,171 +746,91 @@ export default function PartyWiseReportPage() {
         </div>
       </div>
 
-      {/* KPI Cards (Compact StatCards) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-        <StatCard
-          title={isSaleMode ? t("totalSales") : t("totalPurchases")}
-          value={formatCurrency(summary.totalAmount)}
-          icon={
-            isSaleMode ? (
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <ShoppingCart className="h-4 w-4 text-cyan-600" />
-            )
-          }
-          subValue={`${summary.totalTransactionsCount} ${isSaleMode ? t("invoicesCount") : t("billsCount")}`}
-          isLoading={loading}
-        />
+      {/* Date Presets Row (Standard Reusable Component) */}
+      <ReportDatePresets
+        activePreset={activePreset}
+        onSelectPreset={handleSelectPreset}
+      />
 
-        <StatCard
-          title={isSaleMode ? t("receivedAmount") : t("paidAmount")}
-          value={formatCurrency(summary.totalPaid)}
-          icon={<CreditCard className="h-4 w-4 text-blue-600" />}
-          isLoading={loading}
-        />
 
-        <StatCard
-          title={t("balanceDue")}
-          value={formatCurrency(summary.totalBalanceDue)}
-          icon={<AlertCircle className="h-4 w-4 text-rose-600" />}
-          subValue={isSaleMode ? "To Receive" : "To Pay"}
-          isExpense={summary.totalBalanceDue > 0}
-          isLoading={loading}
-        />
 
-        <StatCard
-          title={t("totalParties")}
-          value={summary.totalPartiesCount}
-          icon={<Users className="h-4 w-4 text-violet-600" />}
-          subValue={isSaleMode ? "Customers" : "Suppliers"}
-          isLoading={loading}
-        />
-      </div>
-
-      {/* Date Presets Row (Just like purchase & sale report) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {[
-          { key: "today", label: tCommon("today") || "Today" },
-          { key: "yesterday", label: tCommon("yesterday") || "Yesterday" },
-          { key: "thisWeek", label: tCommon("thisWeek") || "This Week" },
-          { key: "lastWeek", label: tCommon("lastWeek") || "Last Week" },
-          { key: "thisMonth", label: tCommon("thisMonth") || "This Month" },
-          { key: "lastMonth", label: tCommon("lastMonth") || "Last Month" },
-          { key: "thisYear", label: tCommon("thisYear") || "This Year" },
-          { key: "allTime", label: tCommon("allTime") || "All Time" },
-        ].map((preset) => (
-          <Button
-            key={preset.key}
-            variant={activePreset === preset.key ? "default" : "outline"}
-            size="sm"
-            onClick={() => applyPreset(preset.key)}
-            className="h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap"
-          >
-            {preset.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Main Filters Card */}
-      <Card className="border border-border/50 bg-card shadow-sm">
-        <CardContent className="p-3.5 sm:p-4 space-y-3">
-          {/* Row 1: Primary Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* From Date */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("fromDate")}:
-              </label>
-              <DatePicker
-                value={fromDate}
-                max={toDate}
-                onChange={handleFromDateChange}
-                className="w-full h-8 text-xs"
-              />
-            </div>
-
-            {/* To Date */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("toDate")}:
-              </label>
-              <DatePicker
-                value={toDate}
-                min={fromDate}
-                onChange={handleToDateChange}
-                className="w-full h-8 text-xs"
-              />
-            </div>
-
-            {/* Party Dropdown */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("party")}:
-              </label>
-              <PartyDropdown
-                value={selectedPartyId}
-                onValueChange={(val: string) => {
-                  setSelectedPartyId(val || "all");
-                  setCurrentPage(1);
-                }}
-                includeAllOption={true}
-                allOptionLabel={t("allParties")}
-                enableSearch={true}
-                placeholder={t("allParties")}
-                className="w-full h-8 text-xs"
-                showAddButton={false}
-              />
-            </div>
+      {/* Main Filters Card (Standard ReportFilterCard Component) */}
+      <ReportFilterCard
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={handleFromDateChange}
+        onToDateChange={handleToDateChange}
+        fromDateLabel={t("fromDate")}
+        toDateLabel={t("toDate")}
+        primaryFilterSlot={
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">
+              {t("party")}:
+            </label>
+            <PartyDropdown
+              value={selectedPartyId}
+              onValueChange={(val: string) => {
+                setSelectedPartyId(val || "all");
+                setCurrentPage(1);
+              }}
+              includeAllOption={true}
+              allOptionLabel={t("allParties")}
+              enableSearch={true}
+              placeholder={t("allParties")}
+              className="w-full h-8 text-xs"
+              showAddButton={false}
+            />
           </div>
-
-          {/* Row 2: Search and Reset */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-border/40">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder={t("searchPlaceholder")}
-                className="h-8 text-xs pl-8 pr-7 w-full"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch("");
-                    setCurrentPage(1);
-                  }}
-                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetFilters}
-                className="h-8 text-xs px-2 text-muted-foreground hover:text-foreground gap-1"
-                title={t("resetFilters")}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("resetFilters")}</span>
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        }
+        searchTerm={search}
+        onSearchTermChange={(val) => {
+          setSearch(val);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder={t("searchPlaceholder")}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        activeAdvancedFilterCount={activeAdvancedFilterCount}
+        onResetFilters={handleResetFilters}
+        minAmount={minAmount}
+        onMinAmountChange={(val) => {
+          setMinAmount(val);
+          setCurrentPage(1);
+        }}
+        maxAmount={maxAmount}
+        onMaxAmountChange={(val) => {
+          setMaxAmount(val);
+          setCurrentPage(1);
+        }}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(field, order) => {
+          setSortBy(field);
+          setSortOrder(order);
+          setCurrentPage(1);
+        }}
+        sortOptions={sortOptions}
+        advancedLabels={{
+          filters: t("filters"),
+          resetFilters: t("resetFilters"),
+          minAmount: t("minAmount"),
+          maxAmount: t("maxAmount"),
+          sortBy: t("sortBy"),
+        }}
+      />
+      {/* KPI Cards (Standard ReportKpiSummary Component) */}
+      <ReportKpiSummary
+        items={kpiItems}
+        isLoading={loading}
+      />
 
       {/* Main Data Table */}
       <DataTable<PartyWiseRowItem>
         columns={columns}
         data={data}
         isLoading={loading}
+        sortConfig={{ key: sortBy, direction: sortOrder }}
+        onSort={handleSort}
         currentPage={currentPage}
         pageSize={pageSize}
         totalCount={totalCount}
@@ -911,55 +843,23 @@ export default function PartyWiseReportPage() {
         keyExtractor={(row: PartyWiseRowItem) => row.party_id}
         className="border border-border/50 bg-card shadow-xs"
         renderMobileCard={(row: PartyWiseRowItem) => (
-          <div
+          <ReportMobileCard
+            partyName={row.party_name}
+            phone={row.party_phone && row.party_phone !== "-" ? row.party_phone : undefined}
+            badgeText={`${row.transactions_count} ${isSaleMode ? t("invoicesCount") : t("billsCount")}`}
+            totalAmount={formatCurrency(row.total_amount)}
+            totalAmountLabel={isSaleMode ? t("salesAmount") : t("purchasesAmount")}
+            paidAmount={formatCurrency(row.paid_amount)}
+            paidAmountLabel={isSaleMode ? t("receivedAmount") : t("paidAmount")}
+            balanceDue={formatCurrency(row.balance_due)}
+            balanceDueLabel={t("balanceDue")}
+            highlightAmountClass={
+              isSaleMode
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-cyan-600 dark:text-cyan-400"
+            }
             onClick={() => handleOpenPartyTransactions(row)}
-            className="p-3 border rounded-lg bg-card shadow-xs space-y-2 text-xs cursor-pointer hover:border-primary/50 transition-colors"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-bold text-foreground text-xs">{row.party_name}</p>
-                {row.party_phone && row.party_phone !== "-" && (
-                  <p className="text-[11px] text-muted-foreground">{row.party_phone}</p>
-                )}
-              </div>
-              <span className="text-[11px] font-semibold text-muted-foreground px-1.5 py-0.5 rounded bg-muted/60">
-                {row.transactions_count} {isSaleMode ? t("invoicesCount") : t("billsCount")}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/40 text-[11px]">
-              <div>
-                <span className="text-muted-foreground block text-[10px]">
-                  {isSaleMode ? t("salesAmount") : t("purchasesAmount")}
-                </span>
-                <span
-                  className={`font-bold ${
-                    isSaleMode
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-cyan-600 dark:text-cyan-400"
-                  }`}
-                >
-                  {formatCurrency(row.total_amount)}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px]">
-                  {isSaleMode ? t("receivedAmount") : t("paidAmount")}
-                </span>
-                <span className="font-semibold text-foreground">
-                  {formatCurrency(row.paid_amount)}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-muted-foreground block text-[10px]">
-                  {t("balanceDue")}
-                </span>
-                <span className="font-bold text-rose-600 dark:text-rose-400">
-                  {formatCurrency(row.balance_due)}
-                </span>
-              </div>
-            </div>
-          </div>
+          />
         )}
       />
 
@@ -1036,9 +936,16 @@ export default function PartyWiseReportPage() {
                     </span>
                   )}
                 </div>
-                <DialogDescription className="text-xs text-muted-foreground text-left pt-0.5">
-                  {isSaleMode ? "All invoices for this customer" : "All bills from this supplier"}
-                </DialogDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-0.5">
+                  <DialogDescription className="text-xs text-muted-foreground text-left">
+                    {isSaleMode ? t("invoicesForCustomer") : t("billsFromSupplier")}
+                  </DialogDescription>
+                  {(fromDate || toDate) && (
+                    <span className="text-[11px] font-medium text-muted-foreground bg-muted/60 border border-border/50 px-2 py-0.5 rounded w-fit">
+                      📅 {fromDate || t("start")} → {toDate || t("end")}
+                    </span>
+                  )}
+                </div>
               </DialogHeader>
 
               {/* Party Summary Pills */}
@@ -1102,6 +1009,23 @@ export default function PartyWiseReportPage() {
                 emptyMessage={t("noData")}
                 keyExtractor={(row: PartyTransaction) => row.id}
                 className="border border-border/50 shadow-none p-2 sm:p-3"
+                renderMobileCard={(row: PartyTransaction) => (
+                  <ReportMobileCard
+                    number={isSaleMode ? (row.invoice_number || row.invoice_no) : row.bill_number}
+                    partyName={selectedParty.party_name}
+                    formattedDate={formatStatementDate(row.date)}
+                    status={row.status}
+                    statusLabel={t(row.status)}
+                    itemsCount={row.items_count}
+                    itemsLabel={t("items")}
+                    totalAmount={formatCurrency(row.total_amount)}
+                    totalAmountLabel={t("totalAmount")}
+                    paidAmount={formatCurrency(row.paid_amount)}
+                    paidAmountLabel={isSaleMode ? t("receivedAmount") : t("paidAmount")}
+                    balanceDue={formatCurrency(row.balance_due)}
+                    balanceDueLabel={t("balanceDue")}
+                  />
+                )}
               />
             </div>
           )}
@@ -1112,8 +1036,8 @@ export default function PartyWiseReportPage() {
       <ReportPdfModal
         isOpen={isExportingPdf}
         onOpenChange={setIsExportingPdf}
-        title={isSaleMode ? "Sale by Party PDF" : "Purchase by Party PDF"}
-        description={`Preparing ${isSaleMode ? "Sale by Party" : "Purchase by Party"} Report PDF...`}
+        title={isSaleMode ? t("saleByPartyPdf") : t("purchaseByPartyPdf")}
+        description={isSaleMode ? t("preparingSalePdf") : t("preparingPurchasePdf")}
         reportRef={reportRef}
         width="1050px"
         isPortrait={false}
@@ -1121,7 +1045,7 @@ export default function PartyWiseReportPage() {
         <div className="space-y-5">
           <ReportPdfHeader
             branding={branding}
-            title={isSaleMode ? "SALE BY PARTY REPORT" : "PURCHASE BY PARTY REPORT"}
+            title={isSaleMode ? t("saleReportPdfTitle") : t("purchaseReportPdfTitle")}
             fromDate={fromDate}
             toDate={toDate}
             metaItems={pdfMetaItems}

@@ -23,13 +23,14 @@ export interface ReportFilterCardProps {
   onToDateChange: (val: string) => void;
   fromDateLabel: string;
   toDateLabel: string;
-  paymentStatus: string;
-  onPaymentStatusChange: (val: string) => void;
-  paymentStatusLabel: string;
-  allStatusesLabel: string;
-  paidLabel: string;
-  partialLabel: string;
-  unpaidLabel: string;
+  paymentStatus?: string;
+  onPaymentStatusChange?: (val: string) => void;
+  paymentStatusLabel?: string;
+  allStatusesLabel?: string;
+  paidLabel?: string;
+  partialLabel?: string;
+  unpaidLabel?: string;
+  primaryFilterSlot?: React.ReactNode;
   extraFilterSlot?: React.ReactNode;
 
   // Search & Advanced Filters Props
@@ -71,6 +72,7 @@ export function ReportFilterCard({
   paidLabel,
   partialLabel,
   unpaidLabel,
+  primaryFilterSlot,
   extraFilterSlot,
   searchTerm,
   onSearchTermChange,
@@ -89,13 +91,16 @@ export function ReportFilterCard({
   sortOptions,
   advancedLabels,
 }: ReportFilterCardProps) {
+  const showPaymentStatus = Boolean(paymentStatus !== undefined && onPaymentStatusChange);
+  const totalSlots = 2 + (primaryFilterSlot ? 1 : 0) + (showPaymentStatus ? 1 : 0) + (extraFilterSlot ? 1 : 0);
+
   return (
     <Card className="border border-border/50 bg-card shadow-sm">
       <CardContent className="p-3.5 sm:p-4 space-y-3">
         {/* Row 1: Primary Filters */}
         <div
           className={`grid grid-cols-1 ${
-            extraFilterSlot
+            totalSlots > 3
               ? "sm:grid-cols-2 lg:grid-cols-4"
               : "sm:grid-cols-3"
           } gap-3`}
@@ -124,24 +129,27 @@ export function ReportFilterCard({
             />
           </div>
 
+          {primaryFilterSlot && <div>{primaryFilterSlot}</div>}
           {extraFilterSlot && <div>{extraFilterSlot}</div>}
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
-              {paymentStatusLabel}:
-            </label>
-            <Select value={paymentStatus} onValueChange={onPaymentStatusChange}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder={allStatusesLabel} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{allStatusesLabel}</SelectItem>
-                <SelectItem value="paid">{paidLabel}</SelectItem>
-                <SelectItem value="partial">{partialLabel}</SelectItem>
-                <SelectItem value="unpaid">{unpaidLabel}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {showPaymentStatus && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">
+                {paymentStatusLabel}:
+              </label>
+              <Select value={paymentStatus!} onValueChange={onPaymentStatusChange}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder={allStatusesLabel} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{allStatusesLabel}</SelectItem>
+                  <SelectItem value="paid">{paidLabel}</SelectItem>
+                  <SelectItem value="partial">{partialLabel}</SelectItem>
+                  <SelectItem value="unpaid">{unpaidLabel}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Row 2: Search & Advanced Filters */}
