@@ -288,8 +288,22 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         setShowBlockedCard(true);
       }
     };
+    const handleUnblocked = (event: any) => {
+      setBlockedSubscriptionData(null);
+      setShowBlockedCard(false);
+      if (typeof window !== "undefined") {
+        if (event?.detail?.userId) {
+          localStorage.removeItem("hasSeenBlockedCard_" + event.detail.userId);
+        }
+        localStorage.removeItem("hasSeenBlockedCard");
+      }
+    };
     window.addEventListener("subscriptionLoginBlocked", handleBlocked);
-    return () => window.removeEventListener("subscriptionLoginBlocked", handleBlocked);
+    window.addEventListener("subscriptionUnblocked", handleUnblocked);
+    return () => {
+      window.removeEventListener("subscriptionLoginBlocked", handleBlocked);
+      window.removeEventListener("subscriptionUnblocked", handleUnblocked);
+    };
   }, []);
 
   // Remove locale and /admin from pathname to get current page
@@ -1034,17 +1048,32 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 {!sidebarMinimized && (
                   <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-2">
                     <Link
-                      href={`/${locale}/admin/whatsapp-integration`}
+                      href={`/${locale}/admin/whatsapp-integration?tab=campaigns`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
-                      aria-current={pathWithoutLocale === "/admin/whatsapp-integration" ? "page" : undefined}
                       className={`block rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/whatsapp-integration"
                           ? "bg-accent/80 font-medium text-foreground"
                           : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      Send Reminders
+                      Marketing Campaigns
+                    </Link>
+                    <Link
+                      href={`/${locale}/admin/whatsapp-integration?tab=connection`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      className="block rounded-md px-2 py-0.5 text-[11px] text-muted-foreground transition-all hover:bg-accent/50 hover:text-foreground"
+                    >
+                      Device Connection
+                    </Link>
+                    <Link
+                      href={`/${locale}/admin/whatsapp-integration?tab=reminders`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      className="block rounded-md px-2 py-0.5 text-[11px] text-muted-foreground transition-all hover:bg-accent/50 hover:text-foreground"
+                    >
+                      Udhaar Reminders
                     </Link>
                   </div>
                 )}

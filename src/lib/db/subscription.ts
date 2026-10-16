@@ -5,8 +5,8 @@ export interface Subscription {
   _id?: ObjectId;
   user_id: ObjectId;
   email: string;
-  plan: "trial" | "pro";
-  status: "pending" | "active" | "expired" | "cancelled";
+  plan: "trial" | "pro" | string;
+  status: "pending" | "active" | "expired" | "cancelled" | "in_trial" | "trial" | "payment_expire" | "login_blocked" | string;
   amount: number;
   trial_days?: number;
   created_at: Date;
@@ -25,25 +25,47 @@ export interface Subscription {
 export async function getUserActiveSubscription(userId: string | ObjectId): Promise<Subscription | null> {
   const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
   const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
+  const now = new Date();
 
-  const subscription = await subscriptionsCollection.findOne({
-    user_id: userObjectId,
-    status: "active",
-  });
+  const subscription = await subscriptionsCollection.findOne(
+    {
+      user_id: userObjectId,
+      status: { $in: ["active", "in_trial", "trial"] },
+      expiry_date: { $gt: now },
+    },
+    { sort: { expiry_date: -1 } }
+  );
 
   return subscription || null;
 }
 
 /**
- * Get user's latest subscription (regardless of status)
+ * Get user's latest subscription (regardless of status).
+ * Prioritizes an active, unexpired subscription if one exists.
  */
 export async function getUserLatestSubscription(userId: string | ObjectId): Promise<Subscription | null> {
   const subscriptionsCollection = await getCollection<Subscription>(COLLECTIONS.SUBSCRIPTIONS);
   const userObjectId = typeof userId === "string" ? toObjectId(userId) : userId;
+  const now = new Date();
 
+  // 1. If user has an active, unexpired subscription, that IS their current subscription
+  const activeSub = await subscriptionsCollection.findOne(
+    {
+      user_id: userObjectId,
+      status: { $in: ["active", "in_trial", "trial"] },
+      expiry_date: { $gt: now },
+    },
+    { sort: { expiry_date: -1 } }
+  );
+
+  if (activeSub) {
+    return activeSub;
+  }
+
+  // 2. Otherwise get the latest subscription by expiry_date, updated_at, or created_at
   const subscription = await subscriptionsCollection.findOne(
     { user_id: userObjectId },
-    { sort: { created_at: -1 } }
+    { sort: { expiry_date: -1, updated_at: -1, created_at: -1 } }
   );
 
   return subscription || null;

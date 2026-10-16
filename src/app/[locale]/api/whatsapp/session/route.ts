@@ -4,6 +4,9 @@ import { getCurrentUser } from "@/lib/auth/utils";
 import { baileysEngine } from "@/lib/whatsapp/baileys-engine";
 import { DEFAULT_REMINDER_TEMPLATE } from "@/lib/whatsapp/template-utils";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Allow up to 60s on Vercel for QR generation & live scan detection
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -12,8 +15,20 @@ export async function GET(req: NextRequest) {
     }
 
     const shopId = user.id; // active_workspace_id
-    
-    // Always check live Baileys socket state
+    const { searchParams } = new URL(req.url);
+    const shouldWait = searchParams.get("wait") === "true";
+
+    // Long-poll waiting mode for Vercel: keeps lambda execution alive while waiting for mobile QR scan
+    if (shouldWait) {
+      const waitResult = await baileysEngine.waitForScanOrConnection(shopId, 24000);
+      return NextResponse.json({
+        status: waitResult.status,
+        qrcode: waitResult.qrcode || null,
+        connected_phone: waitResult.connectedPhone || null,
+      });
+    }
+
+    // Standard session check
     const liveState = await baileysEngine.getOrStartShopSession(shopId);
 
     const sessionsCol = await getCollection(COLLECTIONS.WHATSAPP_SESSIONS);
@@ -58,7 +73,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "connect" || action === "refresh") {
-      const sessionState = await baileysEngine.getOrStartShopSession(shopId, true);
+      // Force refresh and await QR code generation so it's ready in this very HTTP response
+      const sessionState = await baileysEngine.getOrStartShopSession(shopId, true, true);
 
       return NextResponse.json({
         success: true,

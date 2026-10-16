@@ -103,6 +103,8 @@ export const COLLECTIONS = {
   WHATSAPP_SESSIONS: "whatsapp_sessions",
   WHATSAPP_REMINDER_LOGS: "whatsapp_reminder_logs",
   WHATSAPP_AUTH_KEYS: "whatsapp_auth_keys",
+  WHATSAPP_CAMPAIGNS: "whatsapp_campaigns",
+  WHATSAPP_CAMPAIGN_LOGS: "whatsapp_campaign_logs",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -289,6 +291,14 @@ export async function createIndexes() {
     // WhatsApp verification codes collection indexes
     await safeIndex(COLLECTIONS.WHATSAPP_VERIFICATION_CODES, { user_id: 1, whatsapp_number: 1 });
     await safeIndex(COLLECTIONS.WHATSAPP_VERIFICATION_CODES, { expires_at: 1 }, { expireAfterSeconds: 0 });
+
+    // WhatsApp auth & campaigns indexes
+    await safeIndex(COLLECTIONS.WHATSAPP_AUTH_KEYS, { shop_id: 1, key_id: 1 });
+    await safeIndex(COLLECTIONS.WHATSAPP_SESSIONS, { shop_id: 1 });
+    await safeIndex(COLLECTIONS.WHATSAPP_CAMPAIGNS, { shop_id: 1, created_at: -1 });
+    await safeIndex(COLLECTIONS.WHATSAPP_CAMPAIGN_LOGS, { shop_id: 1, customer_id: 1 });
+    await safeIndex(COLLECTIONS.WHATSAPP_CAMPAIGN_LOGS, { campaign_id: 1, sent_at: -1 });
+    await safeIndex(COLLECTIONS.PARTIES, { user_id: 1, last_marketing_sent_at: 1 });
 
     console.log("MongoDB indexes processed successfully");
   } catch (error) {
