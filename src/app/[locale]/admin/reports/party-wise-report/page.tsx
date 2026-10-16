@@ -846,6 +846,7 @@ export default function PartyWiseReportPage() {
                 enableSearch={true}
                 placeholder={t("allParties")}
                 className="w-full h-8 text-xs"
+                showAddButton={false}
               />
             </div>
           </div>

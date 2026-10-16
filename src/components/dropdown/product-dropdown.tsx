@@ -31,6 +31,8 @@ interface ProductDropdownProps {
   noResultsText?: string;
   addButtonPosition?: "top" | "bottom";
   resetOnChange?: boolean;
+  showAddButton?: boolean;
+  allowAdd?: boolean;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -48,12 +50,15 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
       noResultsText = "No products found",
       addButtonPosition = "bottom",
       resetOnChange = false,
+      showAddButton = true,
+      allowAdd,
     },
     ref
   ) => {
     const t = useTranslations("products");
     const { can } = usePermissions();
     const canCreate = can("products", "create");
+    const canShowAdd = (allowAdd ?? showAddButton) ?? true;
 
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -225,7 +230,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
             className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden"
             collisionPadding={10}
           >
-            {canCreate && addButtonPosition === "top" && <AddButtonTop />}
+            {canCreate && canShowAdd && addButtonPosition === "top" && <AddButtonTop />}
 
               {enableSearch && (
                 <div className="sticky top-0 bg-popover z-10 border-b p-2">
@@ -304,14 +309,12 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                 </div>
               </div>
 
-              {canCreate && addButtonPosition === "bottom" && <AddButton />}
+              {canCreate && canShowAdd && addButtonPosition === "bottom" && <AddButton />}
             </SelectContent>
           </Select>
-
-
         </div>
 
-        {canCreate && (
+        {canCreate && canShowAdd && (
           <ProductDialog
             open={isProductDialogOpen}
             onOpenChange={setIsProductDialogOpen}

@@ -60,6 +60,8 @@ interface PartyDropdownProps {
   searchPlaceholder?: string;
   noResultsText?: string;
   autoSelectCash?: boolean;
+  showAddButton?: boolean;
+  allowAdd?: boolean;
 }
 
 export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
@@ -78,6 +80,8 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
       searchPlaceholder = "Search party...",
       noResultsText = "No parties found",
       autoSelectCash = false,
+      showAddButton = true,
+      allowAdd,
     },
     ref
   ) => {
@@ -85,6 +89,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
     const tCommon = useTranslations("common");
     const { can } = usePermissions();
     const canCreate = can("customers", "create");
+    const canShowAdd = (allowAdd ?? showAddButton) ?? true;
 
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -465,7 +470,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
                 </div>
               </div>
 
-              {canCreate && (
+              {canCreate && canShowAdd && (
                 <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
                   <Button
                     type="button"
@@ -491,7 +496,7 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           )}
         </div>
 
-        {canCreate && (
+        {canCreate && canShowAdd && (
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
               <DialogHeader>
