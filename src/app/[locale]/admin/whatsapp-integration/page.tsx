@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { toast } from "sonner";
 import { useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -45,13 +45,45 @@ import { WhatsappCampaignBuilder } from "@/components/whatsapp/whatsapp-campaign
 import { WhatsappCampaignRunner } from "@/components/whatsapp/whatsapp-campaign-runner";
 import { WhatsappCampaignsList } from "@/components/whatsapp/whatsapp-campaigns-list";
 
-export default function WhatsappIntegrationPage() {
+function WhatsappIntegrationContent() {
   const locale = useLocale();
   const searchParams = useSearchParams();
 
   // Active Tab: "connection" | "campaigns" | "reminders"
-  const initialTab = searchParams.get("tab") === "campaigns" ? "campaigns" : searchParams.get("tab") === "reminders" ? "reminders" : "campaigns";
+  const tabParam = searchParams.get("tab");
+  const initialTab: "connection" | "campaigns" | "reminders" =
+    tabParam === "connection" ? "connection" : tabParam === "reminders" ? "reminders" : "campaigns";
   const [activeTab, setActiveTab] = useState<"connection" | "campaigns" | "reminders">(initialTab);
+
+  // Sync tab with URL search params changes
+  useEffect(() => {
+    const currentTab = searchParams.get("tab");
+    if (currentTab === "connection" || currentTab === "campaigns" || currentTab === "reminders") {
+      setActiveTab(currentTab);
+    }
+  }, [searchParams]);
+
+  // Sync tab with custom event from sidebar
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      const tab = e.detail?.tab;
+      if (tab === "connection" || tab === "campaigns" || tab === "reminders") {
+        setActiveTab(tab);
+      }
+    };
+    window.addEventListener("whatsappTabChanged", handleSync);
+    return () => window.removeEventListener("whatsappTabChanged", handleSync);
+  }, []);
+
+  const handleTabChange = (tab: "connection" | "campaigns" | "reminders") => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.pushState({}, "", url.toString());
+      window.dispatchEvent(new CustomEvent("whatsappTabChanged", { detail: { tab } }));
+    }
+  };
 
   // Marketing campaign sub-view: "list" | "create" | "runner"
   const [campaignView, setCampaignView] = useState<"list" | "create" | "runner">("list");
@@ -352,7 +384,7 @@ export default function WhatsappIntegrationPage() {
       <div className="border-b">
         <div className="flex space-x-2 sm:space-x-4 overflow-x-auto">
           <button
-            onClick={() => setActiveTab("campaigns")}
+            onClick={() => handleTabChange("campaigns")}
             className={`py-2.5 px-4 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === "campaigns"
                 ? "border-primary text-primary"
@@ -364,7 +396,7 @@ export default function WhatsappIntegrationPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab("connection")}
+            onClick={() => handleTabChange("connection")}
             className={`py-2.5 px-4 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === "connection"
                 ? "border-primary text-primary"
@@ -379,7 +411,7 @@ export default function WhatsappIntegrationPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab("reminders")}
+            onClick={() => handleTabChange("reminders")}
             className={`py-2.5 px-4 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === "reminders"
                 ? "border-primary text-primary"
@@ -417,7 +449,7 @@ export default function WhatsappIntegrationPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setActiveTab("connection")}
+                onClick={() => handleTabChange("connection")}
                 className="bg-white dark:bg-slate-900 border-amber-300 text-amber-900 dark:text-amber-100 font-semibold text-xs shrink-0"
               >
                 Connect WhatsApp Device →
@@ -773,5 +805,19 @@ export default function WhatsappIntegrationPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function WhatsappIntegrationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-[80vh] flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <WhatsappIntegrationContent />
+    </Suspense>
   );
 }
