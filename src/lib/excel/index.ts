@@ -1,49 +1,26 @@
 import * as XLSX from "xlsx";
-
-interface Transaction {
-  id: number;
-  productId?: number | string;
-  productName?: string;
-  productDescription?: string;
-  type: "income" | "expense";
-  created_at: string;
-  amount: number;
-  customerName?: string;
-  customerNumber?: string;
-}
-
-interface ProfitabilitySummary {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  profitMargin: number;
-  totalOrders: number;
-  totalExpenseItems: number;
-  avgOrderValue?: number;
-  avgExpenseValue?: number;
-}
-
-interface ProfitabilityBreakdown {
-  category: string;
-  revenue: number;
-  orders: number;
-}
-
-interface ProfitabilityExpense {
-  _id?: string;
-  id?: string;
-  category: string;
-  description: string;
-  amount: number;
-  date: string;
-  paymentMethod?: string;
-}
-
-interface ProfitabilityReportData {
-  summary: ProfitabilitySummary;
-  breakdown: ProfitabilityBreakdown[];
-  expenses: ProfitabilityExpense[];
-}
+import { ItemWiseSaleExportItem, ItemWiseSaleSummary } from "@/types/item-wise-sales";
+import {
+  ExcelTransaction,
+  ProfitabilityReportData,
+  ProfitabilitySummary,
+  ProfitabilityBreakdown,
+  ProfitabilityExpense,
+  ExcelProduct,
+  ExcelCustomer,
+  StockProduct,
+  ReceivableDebtorItem,
+  PurchaseReportBill,
+  PurchaseReportSummary,
+  SaleReportInvoice,
+  SaleReportSummary,
+  PartyWiseSummaryItem,
+  PartyWiseReportSummary,
+  PartyWiseRowItem,
+  PartyWiseTabSummary,
+} from "@/types/reports";
+import { formatLocalizedUom, getUomShortcut } from "../uom";
+import { formatStatementDate } from "../utils";
 
 /**
  * Exports transactions to an Excel file
@@ -51,7 +28,7 @@ interface ProfitabilityReportData {
  * @param filename Name of the file to download
  */
 export function exportTransactionsToExcel(
-  transactions: Transaction[],
+  transactions: ExcelTransaction[],
   filename: string = "counter-sale-transactions.xlsx"
 ): void {
   // Prepare data for Excel
@@ -149,27 +126,8 @@ export function exportTransactionsTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface Product {
-  id: number;
-  type?: string;
-  name: string;
-  description?: string;
-  sell_price?: number;
-  cost_price?: number;
-  quantity?: number;
-  in_stock?: number;
-  category?: string;
-  unit_of_measurement?: string;
-  branch?: string;
-}
-
-/**
- * Exports products to an Excel file
- * @param products Array of products to export
- * @param filename Name of the file to download
- */
 export function exportProductsToExcel(
-  products: Product[],
+  products: ExcelProduct[],
   filename: string = "products.xlsx"
 ): void {
   // Prepare data for Excel
@@ -180,7 +138,7 @@ export function exportProductsToExcel(
     "Sell Price (Rs.)": product.sell_price !== undefined && product.sell_price !== null ? Math.floor(product.sell_price) : "-",
     "Cost Price (Rs.)": product.cost_price !== undefined && product.cost_price !== null ? Math.floor(product.cost_price) : "-",
     Quantity: product.quantity !== undefined ? product.quantity : (product.in_stock !== undefined ? product.in_stock : "-"),
-    "Unit of Measurement": product.unit_of_measurement || "-",
+    "Unit of Measurement": formatLocalizedUom(product.unit_of_measurement) || "-",
     Category: product.category || "-",
     Branch: product.branch || "-",
   }));
@@ -259,23 +217,8 @@ export function exportProductsTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  status?: "active" | "inactive";
-  company_name?: string;
-  balance?: number;
-}
-
-/**
- * Exports customers to an Excel file
- * @param customers Array of customers to export
- * @param filename Name of the file to download
- */
 export function exportCustomersToExcel(
-  customers: Customer[],
+  customers: ExcelCustomer[],
   filename: string = "customers.xlsx"
 ): void {
   // Prepare data for Excel
@@ -345,22 +288,11 @@ export function exportCustomersTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
-interface StockReportItem {
-  sku?: string;
-  name: string;
-  category?: string;
-  branch?: string;
-  quantity?: number;
-  cost_price?: number;
-  sell_price?: number;
-  damaged_quantity?: number;
-}
-
 /**
  * Exports Stock Report items to an Excel file with detailed valuations
  */
 export function exportStockReportToExcel(
-  items: StockReportItem[],
+  items: StockProduct[],
   filename: string = "stock-report.xlsx"
 ): void {
   const excelData = items.map((item) => {
@@ -407,15 +339,6 @@ export function exportStockReportToExcel(
 
   XLSX.utils.book_append_sheet(workbook, worksheet, "Stock Report");
   XLSX.writeFile(workbook, filename);
-}
-
-interface ReceivableDebtorItem {
-  name: string;
-  company_name?: string;
-  email?: string;
-  phone?: string;
-  balance: number;
-  status: string;
 }
 
 /**
@@ -521,6 +444,324 @@ export function exportProfitabilityToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+
+export function exportItemWiseSalesToExcel(
+  items: ItemWiseSaleExportItem[],
+  summary: ItemWiseSaleSummary,
+  fromDate: string,
+  toDate: string,
+  filename: string = "item-wise-sales-report.xlsx"
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    ["Item Wise Sale Report Summary"],
+    [`Period: ${fromDate} to ${toDate}`],
+    [],
+    ["Metric", "Value"],
+    ["Total Products Sold (Count)", summary.totalProductsCount || 0],
+    ["Total Units Sold (Quantity)", summary.totalItemsSold || 0],
+    ["Total Gross Sales (Rs.)", Math.round(summary.totalGrossRevenue || 0)],
+    ["Total Discounts Given (Rs.)", Math.round(summary.totalDiscountGiven || 0)],
+    ["Total Returns (Rs.)", Math.round(summary.totalReturnedAmount || 0)],
+    ["Total Net Revenue (Rs.)", Math.round(summary.totalNetRevenue || 0)],
+    ["Total Gross Profit (Rs.)", Math.round(summary.totalProfitEarned || 0)],
+    ["Profit Margin (%)", `${summary.overallProfitMargin || 0}%`],
+  ];
+
+  const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+  summaryWorksheet["!cols"] = [{ wch: 30 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Summary");
+
+  // 2. Items Detail Sheet
+  const itemsExcelData = items.map((item, index) => ({
+    "Rank (#)": index + 1,
+    "Item Name": item.productName || "-",
+    SKU: item.sku || "-",
+    Category: item.category || "-",
+    "Qty Sold": item.totalQuantitySold || 0,
+    Unit: getUomShortcut(item.uom) || "pcs",
+    "Avg Sell Price (Rs.)": Math.round(item.avgSellingPrice || 0),
+    "Gross Sales (Rs.)": Math.round(item.totalGrossAmount || 0),
+    "Discount (Rs.)": Math.round(item.totalDiscount || 0),
+    "Net Revenue (Rs.)": Math.round(item.totalRevenue || 0),
+    "Profit (Rs.)": Math.round(item.totalProfit || 0),
+    "Profit Margin (%)": `${item.profitMargin || 0}%`,
+    "Current Stock": item.currentStock || 0,
+  }));
+
+  if (itemsExcelData.length > 0) {
+    const itemsWorksheet = XLSX.utils.json_to_sheet(itemsExcelData);
+    itemsWorksheet["!cols"] = [
+      { wch: 10 },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 15 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, itemsWorksheet, "Item Sales");
+  }
+
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports Purchase Report to an Excel file with Summary and Bills sheets
+ */
+export function exportPurchaseReportToExcel(
+  bills: PurchaseReportBill[],
+  summary: PurchaseReportSummary,
+  filename: string = `purchase-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    { Metric: "Total Purchases", Value: `Rs. ${Math.round(summary.totalPurchases || 0).toLocaleString()}` },
+    { Metric: "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Balance Due (Outstanding)", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Bills Count", Value: summary.totalBillsCount || 0 },
+    { Metric: "Total Items Purchased", Value: summary.totalItemsPurchased || 0 },
+    { Metric: "Average Bill Value", Value: `Rs. ${Math.round(summary.averageBillValue || 0).toLocaleString()}` },
+    { Metric: "Fully Paid Bills", Value: summary.fullyPaidCount || 0 },
+    { Metric: "Partially Paid Bills", Value: summary.partialCount || 0 },
+    { Metric: "Unpaid Bills", Value: summary.unpaidCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // 2. Bills Sheet
+  const billsData = bills.map((bill, index) => ({
+    "#": index + 1,
+    "Bill #": bill.purchase_number || bill.bill_number || "-",
+    Date: formatStatementDate(bill.bill_date || bill.created_at),
+    "Party": bill.party_name || "-",
+    "Items Count": bill.items_count || (bill.items?.length ?? 0),
+    "Items List": bill.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
+    "Total Amount (Rs.)": Math.round(bill.total_amount || 0),
+    "Paid Amount (Rs.)": Math.round(bill.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(bill.balance_due || 0),
+    Status: bill.status.toUpperCase(),
+    "Payment Method": bill.payment_method_name || "-",
+    Note: bill.description || "-",
+  }));
+
+  const billsSheet = XLSX.utils.json_to_sheet(billsData);
+  billsSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 18 }, // Bill #
+    { wch: 14 }, // Date
+    { wch: 24 }, // Party
+    { wch: 12 }, // Items Count
+    { wch: 35 }, // Items List
+    { wch: 18 }, // Total
+    { wch: 18 }, // Paid
+    { wch: 18 }, // Balance
+    { wch: 12 }, // Status
+    { wch: 18 }, // Payment Method
+    { wch: 25 }, // Note
+  ];
+  XLSX.utils.book_append_sheet(workbook, billsSheet, "Purchase Bills");
+
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports Sale Report to an Excel file with Summary and Invoices sheets
+ */
+export function exportSaleReportToExcel(
+  invoices: SaleReportInvoice[],
+  summary: SaleReportSummary,
+  filename: string = `sale-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Summary Sheet
+  const summaryData = [
+    { Metric: "Total Sales", Value: `Rs. ${Math.round(summary.totalSales || 0).toLocaleString()}` },
+    { Metric: "Total Received", Value: `Rs. ${Math.round(summary.totalReceived || 0).toLocaleString()}` },
+    { Metric: "Balance Due (Outstanding)", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Invoices Count", Value: summary.totalInvoicesCount || 0 },
+    { Metric: "Total Items Sold", Value: summary.totalItemsSold || 0 },
+    { Metric: "Average Invoice Value", Value: `Rs. ${Math.round(summary.averageInvoiceValue || 0).toLocaleString()}` },
+    { Metric: "Fully Paid Invoices", Value: summary.fullyPaidCount || 0 },
+    { Metric: "Partially Paid Invoices", Value: summary.partialCount || 0 },
+    { Metric: "Unpaid Invoices", Value: summary.unpaidCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // 2. Invoices Sheet
+  const invoicesData = invoices.map((inv, index) => ({
+    "#": index + 1,
+    "Invoice #": inv.invoice_number || "-",
+    Date: formatStatementDate(inv.invoice_date || inv.created_at),
+    "Party": inv.customer_name || "-",
+    "Items Count": inv.items_count || (inv.items?.length ?? 0),
+    "Items List": inv.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
+    "Total Amount (Rs.)": Math.round(inv.total_amount || 0),
+    "Received Amount (Rs.)": Math.round(inv.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(inv.balance_due || 0),
+    Status: inv.status.toUpperCase(),
+    "Payment Method": inv.payment_method_name || "-",
+    Note: inv.notes || "-",
+  }));
+
+  const invoicesSheet = XLSX.utils.json_to_sheet(invoicesData);
+  invoicesSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 18 }, // Invoice #
+    { wch: 14 }, // Date
+    { wch: 24 }, // Party
+    { wch: 12 }, // Items Count
+    { wch: 35 }, // Items List
+    { wch: 18 }, // Total
+    { wch: 18 }, // Received
+    { wch: 18 }, // Balance
+    { wch: 12 }, // Status
+    { wch: 18 }, // Payment Method
+    { wch: 25 }, // Note
+  ];
+  XLSX.utils.book_append_sheet(workbook, invoicesSheet, "Sale Invoices");
+
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports Party Wise Report to an Excel file with Summary and Party details
+ */
+export function exportPartyWiseReportToExcel(
+  items: PartyWiseSummaryItem[],
+  summary: PartyWiseReportSummary,
+  filename: string = `party-wise-report-${new Date().toISOString().split("T")[0]}.xlsx`
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // 1. KPI Summary Sheet
+  const summaryData = [
+    { Metric: "Total Sales", Value: `Rs. ${Math.round(summary.totalSales || 0).toLocaleString()}` },
+    { Metric: "Total Purchases", Value: `Rs. ${Math.round(summary.totalPurchases || 0).toLocaleString()}` },
+    { Metric: "Total Received", Value: `Rs. ${Math.round(summary.totalReceived || 0).toLocaleString()}` },
+    { Metric: "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Net Receivables (Parties Owe Us)", Value: `Rs. ${Math.round(summary.totalNetReceivable || 0).toLocaleString()}` },
+    { Metric: "Net Payables (We Owe Parties)", Value: `Rs. ${Math.round(summary.totalNetPayable || 0).toLocaleString()}` },
+    { Metric: "Total Parties Active", Value: summary.totalPartiesCount || 0 },
+    { Metric: "Total Invoices Count", Value: summary.totalInvoicesCount || 0 },
+    { Metric: "Total Bills Count", Value: summary.totalBillsCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 35 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Overall Summary");
+
+  // 2. Party Breakdown Sheet
+  const partiesData = items.map((p, index) => ({
+    "#": index + 1,
+    "Party Name": p.party_name,
+    "Phone": p.party_phone || "-",
+    "Party Type": p.party_type === "both" ? "Customer & Supplier" : p.party_type === "supplier" ? "Supplier" : "Customer",
+    "Total Sales (Rs.)": Math.round(p.total_sales || 0),
+    "Total Purchases (Rs.)": Math.round(p.total_purchases || 0),
+    "Received (Rs.)": Math.round(p.total_received || 0),
+    "Paid (Rs.)": Math.round(p.total_paid || 0),
+    "Net Balance (Rs.)": Math.round(p.net_balance || 0),
+    "Balance Status": p.net_balance > 0 ? "Receivable" : p.net_balance < 0 ? "Payable" : "Settled",
+    "Invoices Count": p.invoices_count || 0,
+    "Bills Count": p.bills_count || 0,
+    "Last Transaction Date": p.last_transaction_date ? formatStatementDate(p.last_transaction_date) : "-",
+  }));
+
+  const partiesSheet = XLSX.utils.json_to_sheet(partiesData);
+  partiesSheet["!cols"] = [
+    { wch: 6 },  // #
+    { wch: 26 }, // Party Name
+    { wch: 16 }, // Phone
+    { wch: 20 }, // Party Type
+    { wch: 18 }, // Total Sales
+    { wch: 18 }, // Total Purchases
+    { wch: 16 }, // Received
+    { wch: 16 }, // Paid
+    { wch: 18 }, // Net Balance
+    { wch: 16 }, // Balance Status
+    { wch: 14 }, // Invoices Count
+    { wch: 14 }, // Bills Count
+    { wch: 20 }, // Last Transaction Date
+  ];
+  XLSX.utils.book_append_sheet(workbook, partiesSheet, "Parties Summary");
+
+  XLSX.writeFile(workbook, filename);
+}
+
+/**
+ * Exports Sale by Party or Purchase by Party to Excel (Vyapar style)
+ */
+export function exportPartyWiseByModeToExcel(
+  items: PartyWiseRowItem[],
+  summary: PartyWiseTabSummary,
+  mode: "sales" | "purchases",
+  filename?: string
+): void {
+  const isSale = mode === "sales";
+  const title = isSale ? "Sale by Party" : "Purchase by Party";
+  const defaultFilename = `${isSale ? "sale-by-party" : "purchase-by-party"}-${new Date().toISOString().split("T")[0]}.xlsx`;
+
+  const workbook = XLSX.utils.book_new();
+
+  // Summary Sheet
+  const summaryData = [
+    { Metric: isSale ? "Total Sales" : "Total Purchases", Value: `Rs. ${Math.round(summary.totalAmount || 0).toLocaleString()}` },
+    { Metric: isSale ? "Total Received" : "Total Paid", Value: `Rs. ${Math.round(summary.totalPaid || 0).toLocaleString()}` },
+    { Metric: "Total Balance Due", Value: `Rs. ${Math.round(summary.totalBalanceDue || 0).toLocaleString()}` },
+    { Metric: "Total Parties", Value: summary.totalPartiesCount || 0 },
+    { Metric: isSale ? "Total Invoices" : "Total Bills", Value: summary.totalTransactionsCount || 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // Party Rows Sheet
+  const data = items.map((item, index) => ({
+    "#": index + 1,
+    "Party Name": item.party_name,
+    "Phone": item.party_phone || "-",
+    [isSale ? "Total Sales (Rs.)" : "Total Purchases (Rs.)"]: Math.round(item.total_amount || 0),
+    [isSale ? "Received (Rs.)" : "Paid (Rs.)"]: Math.round(item.paid_amount || 0),
+    "Balance Due (Rs.)": Math.round(item.balance_due || 0),
+    [isSale ? "Invoices Count" : "Bills Count"]: item.transactions_count || 0,
+    "Last Transaction Date": item.last_date ? formatStatementDate(item.last_date) : "-",
+  }));
+
+  const sheet = XLSX.utils.json_to_sheet(data);
+  sheet["!cols"] = [
+    { wch: 6 },
+    { wch: 26 },
+    { wch: 16 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 20 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, title);
+
+  XLSX.writeFile(workbook, filename || defaultFilename);
+}
+
+
+
+
+
 
 
 

@@ -39,6 +39,7 @@ import { db } from "@/lib/db/offline-db";
 import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { sendWhatsAppReminder } from "@/lib/whatsapp";
 
 // New Reusable Components
 import { DataTable } from "@/components/ui/data-table";
@@ -129,24 +130,15 @@ export default function PartiesPage() {
 
   // Actions
   const handleWhatsAppClick = (customer: Customer) => {
-    const cleanPhone = (customer.phone || "").replace(/\D/g, "");
-    if (!cleanPhone || cleanPhone.length < 5) {
-      const baseMsg = tInvoice("whatsappNumberUnavailable");
-      const instructMsg = t("missingPhoneForWhatsapp");
-      toast.error(baseMsg + "\n\n" + instructMsg, { duration: 5000 });
-      return;
-    }
-
-    let whatsappPhone = cleanPhone;
-    if (cleanPhone.startsWith("0")) whatsappPhone = `92${cleanPhone.slice(1)}`;
-    else if (cleanPhone.length === 10) whatsappPhone = `92${cleanPhone}`;
-
-    const currency = t("currencySymbol") || "Rs.";
-    const roundedBalance = Math.round(customer.balance || 0);
-
-    const message = t("whatsappReminder", { name: customer.name, currency, balance: roundedBalance });
-
-    window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+    sendWhatsAppReminder(customer, {
+      locale,
+      currencySymbol: t("currencySymbol") || "Rs.",
+      customMessage: t("whatsappReminder", {
+        name: customer.name,
+        currency: t("currencySymbol") || "Rs.",
+        balance: Math.round(customer.balance || 0),
+      }),
+    });
   };
 
   const handleBulkWhatsApp = async () => {
@@ -258,19 +250,19 @@ export default function PartiesPage() {
     if (!customerToDelete) return;
 
     const isDefaultParty = Boolean(
-      customerToDelete.is_default ||
+      customerToDelete.is_default === true ||
+      (customerToDelete as any).is_default === 1 ||
+      String(customerToDelete.is_default).toLowerCase() === "true" ||
       customerToDelete.type === "cash" ||
-      customerToDelete.name?.toLowerCase() === "cash sale" ||
-      customerToDelete.name?.toLowerCase() === "cash party"
+      customerToDelete.name?.trim().toLowerCase() === "cash sale" ||
+      customerToDelete.name?.trim().toLowerCase() === "cash party" ||
+      customerToDelete.name?.trim().toLowerCase() === "cash customer"
     );
 
     if (isDefaultParty) {
-      setErrorDialog({
-        open: true,
-        title: t("cannotDelete") || "Cannot Delete",
-        message: t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.",
-      });
       setIsDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+      toast.error(t("cannotDeleteDefaultParty") || "This is a default Cash Sale party and cannot be deleted.");
       return;
     }
 
@@ -375,30 +367,40 @@ export default function PartiesPage() {
                   <span className="whitespace-nowrap">{t("addCustomer")}</span>
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Import / Export</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleDownloadExcel} disabled={isDownloading}>
-                    {isDownloading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                    {t("downloadExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDownloadTemplate}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {t("downloadTemplate")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-                    {isImporting ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    {t("import")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} />
+              {(canCreate || canView) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>Import / Export</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {canView && (
+                      <DropdownMenuItem onClick={handleDownloadExcel} disabled={isDownloading}>
+                        {isDownloading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                        {t("downloadExcel")}
+                      </DropdownMenuItem>
+                    )}
+                    {canView && (
+                      <DropdownMenuItem onClick={handleDownloadTemplate}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t("downloadTemplate")}
+                      </DropdownMenuItem>
+                    )}
+                    {canCreate && (
+                      <DropdownMenuItem onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                        {isImporting ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {t("import")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {canCreate && (
+                <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} />
+              )}
           </>
         }
       />
@@ -414,11 +416,7 @@ export default function PartiesPage() {
           onSelectAll={tableState.onSelectAll}
           bulkActions={
             <div className="flex items-center gap-2 flex-wrap">
-              {/* <Button variant="outline" size="sm" onClick={handleBulkWhatsApp}>
-                <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
-                {tInvoice("sendOnWhatsApp")}
-              </Button> */}
-              <Button variant="outline" size="sm" onClick={handleBulkExport} disabled={isDownloading}>
+              <Button variant="outline" size="sm" onClick={handleBulkExport} disabled={isDownloading || !canView}>
                 <FileDown className="mr-2 h-4 w-4" />
                 {tCommon("export")}
               </Button>
@@ -474,7 +472,7 @@ export default function PartiesPage() {
                     )} />
                   )}
                   <span>
-                    {f === "all" ? "All" : f === "receive" ? "Receive" : "Pay"}
+                    {f === "all" ? (t("filterAll") || "All") : f === "receive" ? (t("receive")) : (t("pay"))}
                   </span>
                 </button>
               ))}

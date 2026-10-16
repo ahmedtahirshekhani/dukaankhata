@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const [items, totalCount] = await Promise.all([
       collection
         .find(filter)
-        .sort({ date: -1 })
+        .sort({ date: -1, created_at: -1, _id: -1 })
         .skip(limit === -1 ? 0 : skip)
         .limit(limit === -1 ? 0 : limit)
         .toArray(),
@@ -84,8 +84,10 @@ export async function GET(req: NextRequest) {
       paymentAmount: item.payment_amount ?? 0,
       paymentMethodId: item.payment_method_id?.toString() ?? '',
       paymentMethodName: item.payment_method_id ? paymentMethodMap[item.payment_method_id.toString()] ?? '' : '',
-      date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
+      date: item.date ? (typeof item.date === 'string' ? item.date : new Date(item.date).toISOString()) : '',
       type: item.type ?? 'payment-in',
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : undefined,
+      updated_at: item.updated_at ? new Date(item.updated_at).toISOString() : undefined,
     }));
 
     await updateUserLastActivity();

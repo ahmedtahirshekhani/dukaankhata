@@ -14,6 +14,7 @@ declare module 'lucide-react' {
   // Since lucide-react exports hundreds of icons, we'll use a more flexible approach
 
   // Common icons used in the project
+  export const WhatsAppIcon: Icon;
   export const Loader2Icon: Icon;
   export const Loader2: Icon;
   export const ArrowUpDown: Icon;

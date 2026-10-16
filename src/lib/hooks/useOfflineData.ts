@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { liveQuery } from "dexie";
 import { db } from "../db/offline-db";
+import { safeDate } from "@/lib/date-utils";
 
 // Custom hook to replace useLiveQuery from dexie-react-hooks
 // This fixes the Next.js App Router bug where navigating back returns an empty/stale state
@@ -165,42 +166,74 @@ export function useOfflineOrders(
   statusFilter: string = "all",
 ) {
   return useSafeLiveQuery(async () => {
-    const allOrders = await db.orders.orderBy("created_at").reverse().toArray();
+    const [allOrders, allParties] = await Promise.all([
+      db.orders.orderBy("created_at").reverse().toArray(),
+      db.parties.toArray(),
+    ]);
 
-    let filtered = allOrders;
+    const partyMap = new Map(
+      allParties.map((p) => [(p.id || p._id)?.toString(), p]),
+    );
+
+    const withCustomers = allOrders.map((o) => {
+      const customer = o.customer_id ? partyMap.get(o.customer_id.toString()) : null;
+      return {
+        ...o,
+        customer: customer
+          ? {
+              id: customer.id || customer._id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              company_name: customer.company_name,
+              company_address: customer.company_address,
+            }
+          : (o.customer || null),
+      };
+    });
+
+    let filtered = withCustomers.filter(
+      (o) => o.is_delete !== 1 && !o.is_deleted && o.status !== "cancelled" && o.status !== "deleted"
+    );
     if (statusFilter !== "all") {
       filtered = filtered.filter((o) => o.status === statusFilter);
     }
 
     if (searchQuery) {
-      const term = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (o) =>
-          o.invoice_no?.toLowerCase().includes(term) ||
-          o.id?.toString().toLowerCase().includes(term),
-      );
+      const term = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((o) => {
+        const invoiceNoMatch = o.invoice_no?.toLowerCase().includes(term);
+        const idMatch = o.id?.toString().toLowerCase().includes(term);
+        const customerNameMatch = o.customer?.name?.toLowerCase().includes(term);
+        const customerPhoneMatch = o.customer?.phone?.toLowerCase().includes(term);
+        const companyNameMatch = o.customer?.company_name?.toLowerCase().includes(term);
+        return Boolean(
+          invoiceNoMatch ||
+          idMatch ||
+          customerNameMatch ||
+          customerPhoneMatch ||
+          companyNameMatch
+        );
+      });
     }
 
-    const withCustomers = await Promise.all(
-      filtered.map(async (o) => {
-        const customer = o.customer_id ? await db.parties.get(o.customer_id.toString()) : null;
-        return {
-          ...o,
-          customer: customer
-            ? {
-                id: customer.id,
-                name: customer.name,
-                email: customer.email,
-                phone: customer.phone,
-                company_name: customer.company_name,
-                company_address: customer.company_address,
-              }
-            : (o.customer || null),
-        };
-      }),
-    );
+    filtered.sort((a, b) => {
+      const getOrderDayTime = (order: any) => {
+        const raw = order.sale_date || order.order_date || order.date || order.created_at;
+        if (!raw) return 0;
+        const parsed = safeDate(raw, new Date(0));
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+      };
+      const dateA = getOrderDayTime(a);
+      const dateB = getOrderDayTime(b);
+      if (dateB !== dateA) return dateB - dateA;
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+      if (createB !== createA) return createB - createA;
+      return (b.invoice_no || b.id || "").toString().localeCompare((a.invoice_no || a.id || "").toString());
+    });
 
-    return withCustomers;
+    return filtered;
   }, [searchQuery, statusFilter]);
 }
 
@@ -299,7 +332,11 @@ export function useOfflineCustomerTransactions(
           customerId,
           paymentMethodId,
           paymentAmount,
+          raw_date: t.date,
+          payment_date: t.payment_date || t.date,
           date: formattedDate,
+          created_at: t.created_at || t.createdAt,
+          updated_at: t.updated_at || t.updatedAt,
           customerName: t.customerName || partyMap.get(customerId) || "-",
           paymentMethodName:
             t.paymentMethodName ||
@@ -312,6 +349,10 @@ export function useOfflineCustomerTransactions(
         };
       })
       .filter((t) => {
+        if (t.is_delete === 1 || t.is_deleted || t.status === "cancelled" || t.status === "deleted") {
+          return false;
+        }
+
         let matches = t.type === type;
 
         if (filterPaymentMethodId && filterPaymentMethodId !== "all") {
@@ -340,18 +381,32 @@ export function useOfflineCustomerTransactions(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by date descending
-        const dateA = a.date
-          ? new Date(a.date).getTime()
-          : a.created_at
-            ? new Date(a.created_at).getTime()
-            : 0;
-        const dateB = b.date
-          ? new Date(b.date).getTime()
-          : b.created_at
-            ? new Date(b.created_at).getTime()
-            : 0;
-        return dateB - dateA;
+        // 1. Primary: Compare Transaction Date at Day level (Descending)
+        const getTxnDayTime = (item: any): number => {
+          const raw = item.raw_date || item.payment_date || item.date || item.created_at || item.createdAt;
+          if (raw) {
+            const parsed = safeDate(raw, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+            }
+          }
+          return 0;
+        };
+
+        const timeA = getTxnDayTime(a);
+        const timeB = getTxnDayTime(b);
+
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+
+        // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
+        const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+        const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+        if (createB !== createA) return createB - createA;
+
+        // 3. Tertiary: Payment number / ID (Descending)
+        return (b.paymentNumber || b.payment_number || b.id || "").toString().localeCompare((a.paymentNumber || a.payment_number || a.id || "").toString());
       });
   }, [type, searchQuery, filterPaymentMethodId, filterPartyId]);
 }
@@ -509,7 +564,11 @@ export function useOfflineSaleReturns(
           invoiceNo: t.invoiceNo || t.invoice_no || "",
           invoiceDate: t.invoiceDate || t.invoice_date || "",
           paymentRefNo: t.paymentRefNo || t.payment_ref_no || "",
+          raw_date: t.date,
+          return_date: t.return_date || t.date,
           date: formattedDate,
+          created_at: t.created_at || t.createdAt,
+          updated_at: t.updated_at || t.updatedAt,
           customerName: t.customerName || partyMap.get(customerId) || "-",
           paymentMethodName:
             t.paymentMethodName ||
@@ -552,28 +611,29 @@ export function useOfflineSaleReturns(
         return matches;
       })
       .sort((a, b) => {
-        // Sort by creation time / date descending (latest created on top)
-        const timeA = a.created_at
-          ? new Date(a.created_at).getTime()
-          : a.date
-            ? new Date(a.date).getTime()
-            : 0;
-        const timeB = b.created_at
-          ? new Date(b.created_at).getTime()
-          : b.date
-            ? new Date(b.date).getTime()
-            : 0;
+        const getReturnDayTime = (item: any): number => {
+          const raw = item.raw_date || item.return_date || item.date || item.created_at || item.createdAt;
+          if (raw) {
+            const parsed = safeDate(raw, new Date(0));
+            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+            }
+          }
+          return 0;
+        };
+
+        const timeA = getReturnDayTime(a);
+        const timeB = getReturnDayTime(b);
 
         if (timeA !== timeB) {
           return timeB - timeA;
         }
 
-        const numA = Number(a.id);
-        const numB = Number(b.id);
-        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-          return numB - numA;
-        }
-        return String(b.id || "").localeCompare(String(a.id || ""));
+        const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+        const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+        if (createB !== createA) return createB - createA;
+
+        return String(b.returnNumber || b.return_number || b.id || "").localeCompare(String(a.returnNumber || a.return_number || a.id || ""));
       });
   }, [searchQuery, filterPaymentMethodId, filterPartyId]);
 }
@@ -668,10 +728,14 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
     return bills
       .map((b) => {
         const partyId = (b.party_id || b.partyId)?.toString();
+        const purchaseNumber = (b.purchase_number || b.purchase_no || b.bill_number || "").toString();
 
         return {
           ...b,
           id: b.id || b._id,
+          purchase_number: purchaseNumber,
+          purchase_no: purchaseNumber,
+          bill_number: purchaseNumber,
           party_name:
             b.party_name || b.partyName || partyMap.get(partyId) || "-",
           total_amount: b.total_amount ?? b.totalAmount ?? 0,
@@ -686,24 +750,54 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
 
         let matches = true;
 
-        // Filter by search query (party_name or total_amount)
+        // Filter by search query (purchase_number, party_name, total_amount, description, etc.)
         if (searchQuery) {
-          const lowerSearch = searchQuery.toLowerCase();
-          matches =
-            matches &&
-            ((b.party_name &&
-              b.party_name.toLowerCase().includes(lowerSearch)) ||
-              (b.total_amount &&
-                b.total_amount.toString().includes(searchQuery)));
+          const lowerSearch = searchQuery.toLowerCase().trim();
+          const cleanSearch = lowerSearch.replace(/[^a-z0-9]/g, "");
+
+          const pNum = (b.purchase_number || b.purchase_no || b.bill_number || "").toString().toLowerCase();
+          const cleanPNum = pNum.replace(/[^a-z0-9]/g, "");
+
+          const pName = (b.party_name || "").toString().toLowerCase();
+          const totalAmt = (b.total_amount ?? "").toString();
+          const desc = (b.description || "").toString().toLowerCase();
+
+          const numberMatches =
+            pNum.includes(lowerSearch) ||
+            (cleanSearch.length > 0 && cleanPNum.includes(cleanSearch));
+
+          const partyMatches = pName.includes(lowerSearch);
+          const amountMatches = totalAmt.includes(lowerSearch);
+          const descMatches = desc.includes(lowerSearch);
+
+          const itemsMatch = Array.isArray(b.items) && b.items.some((item: any) =>
+            (item.product_name || item.name || "").toString().toLowerCase().includes(lowerSearch)
+          );
+
+          matches = numberMatches || partyMatches || amountMatches || descMatches || itemsMatch;
         }
 
         return matches;
       })
       .sort((a, b) => {
-        // Sort by created_at descending
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return dateB - dateA;
+        // 1. Primary: Compare Bill / Purchase Date at Day level (Descending)
+        const getBillDayTime = (bill: any) => {
+          const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
+          if (!raw) return 0;
+          const parsed = safeDate(raw, new Date(0));
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+        };
+        const dateA = getBillDayTime(a);
+        const dateB = getBillDayTime(b);
+        if (dateB !== dateA) return dateB - dateA;
+
+        // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
+        const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+        const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+        if (createB !== createA) return createB - createA;
+
+        // 3. Tertiary: Purchase Number or ID
+        return (b.purchase_number || b.purchase_no || b.id || "").toString().localeCompare((a.purchase_number || a.purchase_no || a.id || "").toString());
       });
   }, [searchQuery]);
 }

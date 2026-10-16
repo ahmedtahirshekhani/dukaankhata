@@ -59,7 +59,9 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
-import { generateReferenceNumber, maskPaymentNo } from "@/lib/utils";
+import { generateReferenceNumber, maskPaymentNo, setDateToCurrentTime } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 
 type Party = {
   id: string;
@@ -84,6 +86,8 @@ type PartyTransaction = {
   paymentMethodName: string;
   date: string;
   type: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export default function PaymentOutPage() {
@@ -140,7 +144,33 @@ export default function PaymentOutPage() {
   // Replace API fetching with offline hook
   const offlineTransactions = useOfflineCustomerTransactions("payment-out", searchTerm, filters.paymentMethod, filters.party);
   const loading = offlineTransactions === undefined;
-  const allOfflineTransactions = offlineTransactions || [];
+  const allOfflineTransactions = useMemo(() => {
+    if (!offlineTransactions) return [];
+    return [...offlineTransactions].sort((a: any, b: any) => {
+      // 1. Primary: Compare Transaction Date at Day level (Descending)
+      const getTxnDayTime = (item: any): number => {
+        const raw = item.date || item.payment_date || item.raw_date || item.created_at || item.createdAt;
+        if (raw) {
+          const parsed = safeDate(raw, new Date(0));
+          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+            return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+          }
+        }
+        return 0;
+      };
+      const timeA = getTxnDayTime(a);
+      const timeB = getTxnDayTime(b);
+      if (timeA !== timeB) return timeB - timeA;
+
+      // 2. Secondary (Tie-Breaker): System creation timestamp (Descending)
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+      if (createB !== createA) return createB - createA;
+
+      // 3. Tertiary: payment number / id (Descending)
+      return (b.paymentNumber || b.payment_number || b.id || "").toString().localeCompare((a.paymentNumber || a.payment_number || a.id || "").toString());
+    });
+  }, [offlineTransactions]);
   
   const totalCount = allOfflineTransactions.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -197,13 +227,17 @@ export default function PaymentOutPage() {
       const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-OUT");
 
+      const now = new Date();
+      const finalDate = setDateToCurrentTime(formDate);
+
       const payload = {
         paymentNumber: paymentNo,
         payment_number: paymentNo,
         customerId: formPartyId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: formDate,
+        date: finalDate.toISOString(),
+        payment_date: finalDate.toISOString(),
         type: "payment-out"
       };
 
@@ -213,7 +247,8 @@ export default function PaymentOutPage() {
         ...payload,
         customerName: party?.name || "",
         paymentMethodName: paymentMethod?.name || formPaymentMethodId,
-        created_at: new Date().toISOString()
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
       };
 
       await db.party_transactions.add(localTransaction);
@@ -258,13 +293,17 @@ export default function PaymentOutPage() {
       const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-OUT");
 
+      const now = new Date();
+      const finalDate = setDateToCurrentTime(formDate);
+
       const payload = {
         paymentNumber: paymentNo,
         payment_number: paymentNo,
         customerId: formPartyId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: formDate,
+        date: finalDate.toISOString(),
+        payment_date: finalDate.toISOString(),
         type: "payment-out"
       };
 
@@ -273,6 +312,8 @@ export default function PaymentOutPage() {
         ...payload,
         customerName: party?.name || "",
         paymentMethodName: paymentMethod?.name || formPaymentMethodId,
+        created_at: oldTransaction?.created_at || now.toISOString(),
+        updated_at: now.toISOString(),
       };
 
       await db.party_transactions.put(localTransaction);
@@ -360,7 +401,7 @@ export default function PaymentOutPage() {
     setFormPartyId(item.customerId);
     setFormPaymentAmount(item.paymentAmount.toString());
     setFormPaymentMethodId(item.paymentMethodId);
-    setFormDate(item.date || new Date().toISOString().split("T")[0]);
+    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setShowEditDialog(true);
   };
 
@@ -556,7 +597,7 @@ export default function PaymentOutPage() {
                         Rs. {Math.round(item.paymentAmount).toLocaleString()}
                       </TableCell>
                       <TableCell>{item.paymentMethodName || "-"}</TableCell>
-                      <TableCell>{item.date || "-"}</TableCell>
+                      <TableCell>{formatReadableDate(item.date)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {can("purchase", "edit_payment_out") && (
@@ -711,10 +752,9 @@ export default function PaymentOutPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+                onChange={(val) => setFormDate(val)}
               />
             </div>
           </div>
@@ -783,10 +823,9 @@ export default function PaymentOutPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+                onChange={(val) => setFormDate(val)}
               />
             </div>
           </div>
@@ -917,7 +956,7 @@ function PaymentOutCard({
       <div className="space-y-2 text-xs sm:text-sm">
         {/* Row 1: Date on Left & Method on Right in theme grey without labels */}
         <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
-          <span>{formatDateDMY(transaction.date)}</span>
+          <span>{formatReadableDate(transaction.date)}</span>
           <span>{transaction.paymentMethodName || "-"}</span>
         </div>
 

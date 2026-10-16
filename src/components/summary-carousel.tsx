@@ -3,20 +3,22 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SummaryCarouselProps {
   cards: React.ReactNode[];
   className?: string;
   itemClassName?: string;
+  isLoading?: boolean;
 }
 
-export function SummaryCarousel({ cards, className, itemClassName }: SummaryCarouselProps) {
+export function SummaryCarousel({ cards, className, itemClassName, isLoading }: SummaryCarouselProps) {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   const sliderRef = useRef<HTMLDivElement>(null);
   const [cardWidth, setCardWidth] = useState(280);
-  const [totalDots, setTotalDots] = useState(cards.length);
+  const [totalDots, setTotalDots] = useState(cards?.length || 0);
 
   const handleScroll = useCallback(() => {
     if (sliderRef.current) {
@@ -25,18 +27,16 @@ export function SummaryCarousel({ cards, className, itemClassName }: SummaryCaro
       setShowLeftArrow(scrollLeft > 20);
       setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 20);
       
-      // Calculate dynamic card width based on first child
       if (sliderRef.current.firstElementChild) {
         const cWidth = (sliderRef.current.firstElementChild as HTMLElement).offsetWidth || 280;
         setCardWidth(cWidth);
         
-        // Calculate how many dots to show based on visible cards
         const gap = 16;
         const visibleCards = Math.max(1, Math.floor(clientWidth / (cWidth + gap)));
-        setTotalDots(Math.max(1, cards.length - visibleCards + 1));
+        setTotalDots(Math.max(1, (cards?.length || 0) - visibleCards + 1));
       }
     }
-  }, [cards.length]);
+  }, [cards?.length]);
 
   const scrollLeftBtn = () => {
     if (sliderRef.current) {
@@ -57,7 +57,6 @@ export function SummaryCarousel({ cards, className, itemClassName }: SummaryCaro
       handleScroll();
       window.addEventListener("resize", handleScroll);
       
-      // Delay one check to ensure layout is computed
       setTimeout(handleScroll, 100);
       
       return () => {
@@ -67,7 +66,29 @@ export function SummaryCarousel({ cards, className, itemClassName }: SummaryCaro
     }
   }, [handleScroll, cards]);
 
-  if (!cards || cards.length === 0) return null;
+  // If loading or cards array is empty, render persistent skeleton cards to prevent layout collapse
+  if (isLoading || !cards || cards.length === 0) {
+    return (
+      <div className={cn("relative w-full min-w-0 max-w-full", className)}>
+        <div className="flex overflow-x-hidden gap-4 pb-4 w-full">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className={cn("basis-[45%] sm:basis-1/3 md:basis-1/4 lg:basis-1/5 shrink-0", itemClassName)}
+            >
+              <div className="flex flex-col p-3 gap-2 border rounded-xl bg-card shadow-sm h-[88px] justify-between">
+                <div className="flex justify-between items-center">
+                  <Skeleton className="h-3 w-20 rounded" />
+                  <Skeleton className="h-6 w-6 rounded-md" />
+                </div>
+                <Skeleton className="h-5 w-24 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative w-full min-w-0 max-w-full", className)}>
@@ -100,47 +121,15 @@ export function SummaryCarousel({ cards, className, itemClassName }: SummaryCaro
           msOverflowStyle: "none",
         }}
       >
-        <style jsx>{`
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-        `}</style>
-        
-        {cards.map((card, index) => (
-          <div 
-            key={index} 
-            className={cn("flex-shrink-0 snap-start min-w-0", itemClassName)}
+        {cards.map((card, idx) => (
+          <div
+            key={idx}
+            className={cn("shrink-0 snap-start", itemClassName)}
           >
             {card}
           </div>
         ))}
       </div>
-
-      {/* Scroll Indicator Dots */}
-      {totalDots > 1 && (
-        <div className="flex justify-center gap-1.5 mt-3">
-          {Array.from({ length: totalDots }).map((_, idx) => {
-            const gap = 16;
-            const totalWidth = cardWidth + gap;
-            const currentIndex = Math.max(0, Math.min(totalDots - 1, Math.round(scrollPosition / totalWidth)));
-            const isActive = currentIndex === idx;
-            return (
-              <button
-                key={idx}
-                onClick={() => {
-                  if (sliderRef.current) {
-                    sliderRef.current.scrollTo({ left: idx * totalWidth, behavior: "smooth" });
-                  }
-                }}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  isActive ? "w-6 bg-primary" : "w-2 bg-primary/20 hover:bg-primary/50"
-                }`}
-                aria-label={`Go to slide ${idx + 1}`}
-              />
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

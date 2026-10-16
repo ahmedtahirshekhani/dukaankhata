@@ -20,7 +20,8 @@
     "migrate:configs": "tsx --env-file=.env.local scripts/migrate-configs.ts",
     "seed:payment-methods": "tsx --env-file=.env.local scripts/seed-payment-methods.ts",
     "migrate:walkin-to-cash-sale": "tsx --env-file=.env.local scripts/migrate-walkin-to-cash-sale.ts",
-    "migrate:settings-to-configuration": "tsx --env-file=.env.local scripts/migrate-settings-to-configuration.ts"
+    "migrate:settings-to-configuration": "tsx --env-file=.env.local scripts/migrate-settings-to-configuration.ts",
+    "seed:rbac": "tsx --env-file=.env.local scripts/seed-rbac.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.82",

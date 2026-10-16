@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 export interface TableRowActionItem {
   label: string;
@@ -25,6 +26,8 @@ interface TableRowActionsProps {
   canEdit?: boolean;
   canDelete?: boolean;
   extraActions?: TableRowActionItem[];
+  align?: "left" | "right" | "center";
+  className?: string;
 }
 
 export function TableRowActions({
@@ -33,13 +36,23 @@ export function TableRowActions({
   canEdit = true,
   canDelete = true,
   extraActions = [],
+  align = "right",
+  className,
 }: TableRowActionsProps) {
   const t = useTranslations("common");
   
   const visibleExtraActions = extraActions.filter((action) => !action.hidden);
 
   return (
-    <div className="flex items-center gap-1 justify-end">
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        align === "left" && "justify-start",
+        align === "center" && "justify-center",
+        align === "right" && "justify-end",
+        className
+      )}
+    >
       {canEdit && onEdit && (
         <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-primary hover:bg-primary/10" onClick={onEdit} title={t("edit") || "Edit"}>
           <FilePenIcon className="w-4 h-4" />

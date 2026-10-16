@@ -18,6 +18,7 @@ import { db } from "@/lib/db/offline-db";
 import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useDebounce } from "@/hooks/use-debounce";
+import { formatCurrencyString } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -56,7 +57,10 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
+import { DatePicker } from "@/components/ui/date-picker";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
+import { setDateToCurrentTime } from "@/lib/utils";
 
 type Customer = {
   id: string;
@@ -111,6 +115,9 @@ type SaleReturnTransaction = {
   invoiceNo: string;
   invoiceDate: string;
   date: string;
+  return_date?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 function generateReturnNumber() {
@@ -221,7 +228,30 @@ export default function SaleReturnPage() {
 
   const rawOfflineTransactions = useOfflineSaleReturns(debouncedSearch, filters.paymentMethod, filters.customer);
   const loading = rawOfflineTransactions === undefined;
-  const allOfflineTransactions = rawOfflineTransactions || [];
+  const allOfflineTransactions = useMemo(() => {
+    if (!rawOfflineTransactions) return [];
+    return [...rawOfflineTransactions].sort((a: any, b: any) => {
+      const getTxnDayTime = (item: any): number => {
+        const raw = item.date || item.return_date || item.raw_date || item.created_at || item.createdAt;
+        if (raw) {
+          const parsed = safeDate(raw, new Date(0));
+          if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+            return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+          }
+        }
+        return 0;
+      };
+      const timeA = getTxnDayTime(a);
+      const timeB = getTxnDayTime(b);
+      if (timeA !== timeB) return timeB - timeA;
+
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0));
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0));
+      if (createB !== createA) return createB - createA;
+
+      return String(b.returnNumber || b.return_number || b.id || "").localeCompare(String(a.returnNumber || a.return_number || a.id || ""));
+    });
+  }, [rawOfflineTransactions]);
   const totalPages = Math.ceil(allOfflineTransactions.length / pageSize) || 1;
   const transactions = allOfflineTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize) as SaleReturnTransaction[];
 
@@ -364,25 +394,29 @@ export default function SaleReturnPage() {
     return true;
   };
 
-  const buildPayload = () => ({
-    returnNumber: formReturnNumber.trim(),
-    customerId: formCustomerId,
-    date: formDate,
-    invoiceDate: formInvoiceDate || undefined,
-    invoiceNo: formInvoiceNo.trim(),
-    items: formItems.map((item) => ({
-      id: item.id,
-      productId: item.productId || undefined,
-      itemName: item.itemName.trim(),
-      quantity: Number(parseNumericInput(item.quantity).toFixed(2)),
-      rate: Number(parseNumericInput(item.rate).toFixed(2)),
-      amount: Number(getLineAmount(item).toFixed(2)),
-    })),
-    totalAmount,
-    paidAmount,
-    paymentMethodId: formPaymentMethodId,
-    paymentRefNo: formPaymentRefNo.trim(),
-  });
+  const buildPayload = () => {
+    const finalDate = setDateToCurrentTime(formDate);
+    return {
+      returnNumber: formReturnNumber.trim(),
+      customerId: formCustomerId,
+      date: finalDate.toISOString(),
+      return_date: finalDate.toISOString(),
+      invoiceDate: formInvoiceDate || undefined,
+      invoiceNo: formInvoiceNo.trim(),
+      items: formItems.map((item) => ({
+        id: item.id,
+        productId: item.productId || undefined,
+        itemName: item.itemName.trim(),
+        quantity: Number(parseNumericInput(item.quantity).toFixed(2)),
+        rate: Number(parseNumericInput(item.rate).toFixed(2)),
+        amount: Number(getLineAmount(item).toFixed(2)),
+      })),
+      totalAmount,
+      paidAmount,
+      paymentMethodId: formPaymentMethodId,
+      paymentRefNo: formPaymentRefNo.trim(),
+    };
+  };
 
   const handleAdd = useCallback(async () => {
     if (!validateForm()) return;
@@ -393,15 +427,24 @@ export default function SaleReturnPage() {
       const customer = customers.find((c) => c.id === formCustomerId);
       const pm = paymentMethods.find((p) => p.id === formPaymentMethodId);
       const newId = Date.now().toString();
+      const now = new Date().toISOString();
 
       await db.sale_return_transactions.put({
         ...payload,
         id: newId,
+        customer_id: formCustomerId,
+        customerId: formCustomerId,
+        total_amount: totalAmount,
+        totalAmount: totalAmount,
+        paid_amount: paidAmount,
+        paidAmount: paidAmount,
+        balance_due: balanceDue,
+        balanceDue: balanceDue,
         customerName: customer?.name ?? "",
         paymentMethodName: pm?.name ?? "",
-        balanceDue,
         is_delete: 0,
-        created_at: new Date().toISOString()
+        created_at: now,
+        updated_at: now,
       });
 
       const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
@@ -410,7 +453,8 @@ export default function SaleReturnPage() {
 
       const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
       for (const item of payload.items) {
-        if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
+        const pId = (item.productId || (item as any).product_id)?.toString();
+        if (pId) await adjustOfflineStock(pId, item.quantity);
       }
 
       await SyncEngine.queueOperation(
@@ -473,25 +517,46 @@ export default function SaleReturnPage() {
         // Revert old stock
         if (existing.items && Array.isArray(existing.items)) {
           for (const item of existing.items) {
-            if (item.productId) await adjustOfflineStock(item.productId, -(item.quantity || 0));
+            const pId = (item.productId || item.product_id)?.toString();
+            const qty = Number(item.quantity) || 0;
+            if (pId && qty > 0) await adjustOfflineStock(pId, -qty);
           }
         }
         await db.sale_return_transactions.update(selectedId, {
           ...existing,
           ...payload,
+          customer_id: formCustomerId,
+          customerId: formCustomerId,
+          total_amount: totalAmount,
+          totalAmount: totalAmount,
+          paid_amount: paidAmount,
+          paidAmount: paidAmount,
+          balance_due: balanceDue,
+          balanceDue: balanceDue,
           customerName: customer?.name ?? "",
           paymentMethodName: pm?.name ?? "",
-          balanceDue,
+          created_at: existing.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
         
         const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
-        const oldNetAmount = (existing.paidAmount || 0) - (existing.totalAmount || 0);
+        const oldPaid = Number(existing.paidAmount ?? existing.paid_amount ?? existing.paymentAmount ?? existing.payment_amount ?? 0);
+        const oldTotal = Number(existing.totalAmount ?? existing.total_amount ?? 0);
+        const oldCustomerId = (existing.customerId || existing.customer_id)?.toString() || formCustomerId;
+        const oldNetAmount = oldPaid - oldTotal;
         const newNetAmount = paidAmount - totalAmount;
-        await updateOfflinePartyBalance(formCustomerId, newNetAmount - oldNetAmount);
+
+        if (oldCustomerId !== formCustomerId) {
+          await updateOfflinePartyBalance(oldCustomerId, -oldNetAmount);
+          await updateOfflinePartyBalance(formCustomerId, newNetAmount);
+        } else {
+          await updateOfflinePartyBalance(formCustomerId, newNetAmount - oldNetAmount);
+        }
+
         // Apply new stock
         for (const item of payload.items) {
-          if (item.productId) await adjustOfflineStock(item.productId, item.quantity);
+          const pId = (item.productId || (item as any).product_id)?.toString();
+          if (pId) await adjustOfflineStock(pId, item.quantity);
         }
 
         await SyncEngine.queueOperation(
@@ -550,7 +615,9 @@ export default function SaleReturnPage() {
         // Revert stock
         if (existing.items && Array.isArray(existing.items)) {
           for (const item of existing.items) {
-            if (item.productId) await adjustOfflineStock(item.productId, -(item.quantity || 0));
+            const pId = (item.productId || (item as any).product_id)?.toString();
+            const qty = Number(item.quantity) || 0;
+            if (pId && qty > 0) await adjustOfflineStock(pId, -qty);
           }
         }
         await db.sale_return_transactions.update(transactionToDelete.id, {
@@ -560,8 +627,13 @@ export default function SaleReturnPage() {
         });
 
         const { updateOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
-        const oldNetAmount = (existing.paidAmount || 0) - (existing.totalAmount || 0);
-        await updateOfflinePartyBalance(existing.customerId, -oldNetAmount);
+        const oldPaid = Number(existing.paidAmount ?? existing.paid_amount ?? existing.paymentAmount ?? existing.payment_amount ?? 0);
+        const oldTotal = Number(existing.totalAmount ?? existing.total_amount ?? 0);
+        const targetCustomerId = (existing.customerId || existing.customer_id || transactionToDelete.customerId)?.toString();
+        const oldNetAmount = oldPaid - oldTotal;
+        if (targetCustomerId) {
+          await updateOfflinePartyBalance(targetCustomerId, -oldNetAmount);
+        }
 
         await SyncEngine.queueOperation(
           "sale_return_transactions", 
@@ -599,8 +671,8 @@ export default function SaleReturnPage() {
     setSelectedId(item.id);
     setFormReturnNumber(item.returnNumber || generateReturnNumber());
     setFormCustomerId(item.customerId);
-    setFormDate(item.date || new Date().toISOString().split("T")[0]);
-    setFormInvoiceDate(item.invoiceDate || "");
+    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setFormInvoiceDate(item.invoiceDate ? item.invoiceDate.split("T")[0] : "");
     setFormInvoiceNo(item.invoiceNo || "");
     
     // Parse items if they are stored as string (some legacy offline data might be)
@@ -639,10 +711,9 @@ export default function SaleReturnPage() {
         </div>
         <div className="space-y-2">
           <Label>{t("date")}</Label>
-          <Input
-            type="daute"
+          <DatePicker
             value={formDate}
-            onChange={(e) => setFormDate(e.target.value)}
+            onChange={(val) => setFormDate(val)}
           />
         </div>
         <div className="space-y-2">
@@ -670,10 +741,9 @@ export default function SaleReturnPage() {
         </div>
         <div className="space-y-2">
           <Label>{t("invoiceDate")}</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={formInvoiceDate}
-            onChange={(e) => setFormInvoiceDate(e.target.value)}
+            onChange={(val) => setFormInvoiceDate(val)}
           />
         </div>
         <div className="space-y-2">
@@ -742,7 +812,7 @@ export default function SaleReturnPage() {
                         onChange={(e) => updateFormItem(item.id, "rate", e.target.value)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap text-primary">Rs. {lineTotals[index]?.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap text-primary">{formatCurrencyString(lineTotals[index] || 0)}</TableCell>
                     <TableCell>
                       <Button
                         type="button"
@@ -815,7 +885,7 @@ export default function SaleReturnPage() {
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t text-sm font-medium">
                     <span className="text-muted-foreground">{t("amount")}:</span>
-                    <span className="text-primary font-bold text-base">Rs. {lineTotals[index]?.toFixed(2)}</span>
+                    <span className="text-primary font-bold text-base">{formatCurrencyString(lineTotals[index] || 0)}</span>
                   </div>
                 </div>
               </div>
@@ -827,7 +897,7 @@ export default function SaleReturnPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("totalAmount")}</Label>
-          <div className="text-xl font-bold text-primary">Rs. {totalAmount.toFixed(2)}</div>
+          <div className="text-xl font-bold text-primary">{formatCurrencyString(totalAmount)}</div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paidAmount")}</Label>
@@ -836,12 +906,12 @@ export default function SaleReturnPage() {
             value={formPaidAmount}
             onChange={(e) => setFormPaidAmount(e.target.value)}
             className="h-10 text-lg font-semibold"
-            placeholder="0.00"
+            placeholder="0"
           />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("balanceDue")}</Label>
-          <div className="text-xl font-bold text-orange-600">Rs. {balanceDue.toFixed(2)}</div>
+          <div className="text-xl font-bold text-orange-600">{formatCurrencyString(balanceDue)}</div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("paymentRefNo")}</Label>
@@ -1022,10 +1092,10 @@ export default function SaleReturnPage() {
                         {item.returnNumber || "-"}
                       </TableCell>
                       <TableCell>{item.customerName || "-"}</TableCell>
-                      <TableCell>{item.date || "-"}</TableCell>
-                      <TableCell>Rs. {item.totalAmount?.toFixed(2)}</TableCell>
-                      <TableCell>Rs. {item.paidAmount?.toFixed(2)}</TableCell>
-                      <TableCell>Rs. {item.balanceDue?.toFixed(2)}</TableCell>
+                      <TableCell>{formatReadableDate(item.date)}</TableCell>
+                      <TableCell>{formatCurrencyString(item.totalAmount)}</TableCell>
+                      <TableCell>{formatCurrencyString(item.paidAmount)}</TableCell>
+                      <TableCell>{formatCurrencyString(item.balanceDue)}</TableCell>
                       <TableCell className="text-right pr-4">
                         <div className="flex items-center justify-end gap-2">
                           {can("sales", "edit_sale_return") && (
@@ -1261,7 +1331,7 @@ function SaleReturnCard({
         {/* Row 1: ID number & Date without 'ID:' and 'Date:' text in theme grey */}
         <div className="flex justify-between items-center text-muted-foreground text-xs font-medium">
           <span>{transaction.returnNumber || transaction.id || "-"}</span>
-          <span>{transaction.date || "-"}</span>
+          <span>{formatReadableDate(transaction.date)}</span>
         </div>
 
         {/* Row 2: Total & Paid without 'Amount' text */}

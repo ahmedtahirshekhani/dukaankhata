@@ -13,7 +13,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const ownerId = user.id;
+    const ownerId = (user as any).active_workspace_id || user.id;
 
     const authCheck = await requirePermission("staff.view");
     if (!authCheck.allowed) return authCheck.response!;
@@ -21,67 +21,85 @@ export async function GET(req: Request) {
     const usersCollection = await getCollection(COLLECTIONS.USERS);
     const userRolesColl = await getCollection(COLLECTIONS.USER_ROLES);
     const rolesColl = await getCollection(COLLECTIONS.ROLES);
+    const invColl = await getCollection(COLLECTIONS.INVITATIONS);
 
-    // 1. Get all roles belonging to this shop
-    const shopRoles = await rolesColl.find({ owner_id: toObjectId(ownerId) }).toArray();
+    // 1. Fetch shop roles and pending invitations in parallel
+    const [shopRoles, pendingInvites] = await Promise.all([
+      rolesColl.find(
+        { owner_id: toObjectId(ownerId) },
+        { projection: { name: 1, permissions: 1 } }
+      ).toArray(),
+      invColl.find(
+        {
+          owner_id: toObjectId(ownerId),
+          status: "pending",
+          expires_at: { $gt: new Date() }
+        },
+        { projection: { name: 1, email: 1, role_id: 1, token: 1, last_sent_at: 1, created_at: 1 } }
+      ).toArray()
+    ]);
+
     const shopRoleIds = shopRoles.map(r => r._id);
+    const roleNameMap = new Map(shopRoles.map(r => [r._id.toString(), r.name]));
 
-    // 2. Find all user_roles linking users to these shop roles
-    const shopUserRoles = await userRolesColl.find({ role_id: { $in: shopRoleIds } }).toArray();
+    // 2. Find user_roles linking users to these shop roles
+    const shopUserRoles = shopRoleIds.length > 0
+      ? await userRolesColl.find(
+          { role_id: { $in: shopRoleIds } },
+          { projection: { user_id: 1, role_id: 1 } }
+        ).toArray()
+      : [];
+
     const staffIds = shopUserRoles.map(ur => ur.user_id);
+    const userToRoleMap = new Map();
+    for (const ur of shopUserRoles) {
+      userToRoleMap.set(ur.user_id.toString(), ur.role_id.toString());
+    }
 
-    // 3. Find the users
+    // 3. Find the users with lean projection (exclude passwords and internal metadata)
     const staff = await usersCollection.find({
       $or: [
         { _id: { $in: staffIds } },
         { owner_id: toObjectId(ownerId), role: "staff" } // backward compatibility
       ],
       isDeleted: { $ne: true }
-    }, { projection: { password_hash: 0 } }).toArray();
-
-    // Attach roles to staff members
-    const allUserIds = staff.map(s => s._id);
-    const allUserRoles = await userRolesColl.find({ user_id: { $in: allUserIds } }).toArray();
-
-    const staffWithRoles = staff.map(s => {
-      // Find the user_role for THIS specific shop's roles
-      const myUserRole = allUserRoles.find(ur => 
-        ur.user_id.toString() === s._id.toString() && 
-        shopRoleIds.some(rId => rId.toString() === ur.role_id.toString())
-      );
-      
-      const roleObj = myUserRole ? shopRoles.find(r => r._id.toString() === myUserRole.role_id.toString()) : null;
-      
-      return {
-        ...s,
-        role_id: myUserRole?.role_id || null,
-        role_name: roleObj?.name || null
-      };
-    });
-
-    // Fetch pending invitations for this shop
-    const invColl = await getCollection(COLLECTIONS.INVITATIONS);
-    const pendingInvites = await invColl.find({
-      owner_id: toObjectId(ownerId),
-      status: "pending"
+    }, {
+      projection: { name: 1, email: 1, role: 1, phone: 1, createdAt: 1, created_at: 1 }
     }).toArray();
 
-    const pendingStaff = pendingInvites.map(inv => {
-      const roleObj = inv.role_id ? shopRoles.find(r => r._id.toString() === inv.role_id.toString()) : null;
-      const invId = `inv-${inv._id.toString()}`;
+    const staffWithRoles = staff.map(s => {
+      const sId = s._id.toString();
+      const rId = userToRoleMap.get(sId) || null;
+      const roleName = rId ? roleNameMap.get(rId) || null : null;
+
       return {
-        _id: invId,
-        id: invId,
-        name: "Pending Invite",
-        email: inv.email,
-        role: "staff",
-        is_pending: true,
-        role_id: inv.role_id || null,
-        role_name: roleObj?.name || null,
-        roles: roleObj?.name ? [roleObj.name] : [],
-        created_at: inv.created_at || new Date()
+        ...s,
+        id: sId,
+        role_id: rId,
+        role_name: roleName
       };
     });
+
+    const existingEmails = new Set(staff.map(s => s.email?.toLowerCase()));
+
+    const pendingStaff = pendingInvites
+      .filter(inv => !existingEmails.has(inv.email?.toLowerCase()))
+      .map(inv => {
+        const rId = inv.role_id ? inv.role_id.toString() : null;
+        const roleName = rId ? roleNameMap.get(rId) || "Staff" : "Staff";
+        return {
+          _id: inv._id.toString(),
+          id: inv._id.toString(),
+          name: inv.name || "Pending Invite",
+          email: inv.email,
+          role: "staff",
+          role_id: rId,
+          role_name: roleName,
+          is_pending: true,
+          token: inv.token,
+          created_at: inv.last_sent_at || inv.created_at
+        };
+      });
 
     return NextResponse.json([...staffWithRoles, ...pendingStaff]);
   } catch (error) {
@@ -99,7 +117,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const ownerId = user.id;
+    const ownerId = (user as any).active_workspace_id || user.id;
 
     const authCheck = await requirePermission("staff.create");
     if (!authCheck.allowed) return authCheck.response!;

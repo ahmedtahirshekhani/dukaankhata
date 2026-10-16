@@ -56,6 +56,8 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toast } from "sonner";
 import { proAccessPaymentInfo } from "@/lib/contact-info";
 import { QuickActions } from "@/components/layout/quick-actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // useSearchParams() opts the whole route out of static prerendering unless
 // isolated behind its own Suspense boundary — without this, every page that
@@ -82,7 +84,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
   const { user, updateSession } = useUserProfile();
-  const { hasModuleAccess, can } = usePermissions();
+  const { hasModuleAccess, can, isLoading: isPermissionsLoading } = usePermissions();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const showSidebarSkeleton = !isMounted || isPermissionsLoading || isInitialSyncing || !user;
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [highlightHamburger, setHighlightHamburger] = useState(false);
 
@@ -107,6 +117,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
+  const [showOfflineStaffAlert, setShowOfflineStaffAlert] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [blockedSubscriptionData, setBlockedSubscriptionData] = useState<any>(null);
   const [showBlockedCard, setShowBlockedCard] = useState(false);
@@ -119,7 +130,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   // Sub-menu Permission Checks
   const hasSalesSub = can('sales', 'view_quotations') || can('sales', 'view_invoice') || can('sales', 'view_payment_in') || can('sales', 'view_sale_return') || (enableCounterSale && can('sales', 'view_counter_sale'));
   const hasPurchaseSub = can('purchase', 'view_purchase_bill') || can('purchase', 'view_payment_out');
-  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability');
+  const hasReportsSub = can('reports', 'view_account_statement') || can('reports', 'view_stock') || can('reports', 'view_receivable_summary') || can('reports', 'view_profitability') || can('reports', 'view_item_wise_sales') || can('reports', 'view_sale_report') || can('reports', 'view_purchase_report') || can('reports', 'view_party_wise_sale_purchase_report');
 
   // Offline and Syncing state tracking
   const syncStatus = useLiveQuery(
@@ -324,6 +335,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     "/admin/reports/stock",
     "/admin/reports/receivable-summary",
     "/admin/reports/profitability",
+    "/admin/reports/item-wise-sales",
+    "/admin/reports/sale-report",
+    "/admin/reports/purchase-report",
   ];
   const isSalesSectionActive =
     pathWithoutLocale === "/admin/sales" || salesSubRoutes.includes(pathWithoutLocale);
@@ -369,6 +383,9 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     "/admin/reports/stock": tNav("stockReport"),
     "/admin/reports/receivable-summary": tNav("receivableSummary"),
     "/admin/reports/profitability": tNav("profitability"),
+    "/admin/reports/item-wise-sales": tNav("itemWiseSaleReport"),
+    "/admin/reports/sale-report": tNav("saleReport"),
+    "/admin/reports/purchase-report": tNav("purchaseReport"),
     "/admin/ai-chat": tNav("aiChat"),
   };
 
@@ -594,6 +611,20 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Workspace Switcher at the very top */}
             <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} onClose={() => setSidebarOpen(false)} />
 
+            {showSidebarSkeleton ? (
+              <div className="space-y-2 py-2 px-1">
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <Skeleton
+                    key={i}
+                    className={cn(
+                      "h-7 rounded-lg",
+                      sidebarMinimized ? "w-7 mx-auto" : "w-full"
+                    )}
+                  />
+                ))}
+              </div>
+            ) : (
+              <>
             {/* Home */}
             <div>
               <Link
@@ -657,7 +688,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
 
 
             {/* Parties / Customers */}
-            {hasModuleAccess("customers") && (
+            {can("customers", "view") && (
             <div>
               <Link
                 href={`/${locale}/admin/customers`}
@@ -676,7 +707,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             )}
 
             {/* Items / Products */}
-            {hasModuleAccess("products") && (
+            {can("products", "view") && (
             <div>
               <Link
                 href={`/${locale}/admin/products`}
@@ -905,7 +936,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             )}
 
             {/* Bank Accounts */}
-            {hasModuleAccess("payment_methods") && (
+            {can("payment_methods", "view") && (
             <div>
               <Link
                 href={`/${locale}/admin/bank-accounts`}
@@ -1021,6 +1052,62 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       {tNav("profitability")}
                     </Link>
                   )}
+                  {can('reports', 'view_item_wise_sales') && (
+                    <Link
+                      href={`/${locale}/admin/reports/item-wise-sales`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/item-wise-sales" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/item-wise-sales"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("itemWiseSaleReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_sale_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/sale-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/sale-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/sale-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("saleReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_purchase_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/purchase-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/purchase-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/purchase-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("purchaseReport")}
+                    </Link>
+                  )}
+                  {can('reports', 'view_party_wise_sale_purchase_report') && (
+                    <Link
+                      href={`/${locale}/admin/reports/party-wise-report`}
+                      prefetch={false}
+                      onClick={() => setSidebarOpen(false)}
+                      aria-current={pathWithoutLocale === "/admin/reports/party-wise-report" ? "page" : undefined}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/party-wise-report"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        }`}
+                    >
+                      {tNav("partyWiseReport")}
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -1084,18 +1171,47 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {hasModuleAccess("staff") && (
               <div>
                 <Link
-                  href={`/${locale}/admin/staff`}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} ${pathWithoutLocale === "/admin/staff" ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? "Staff" : ""}
+                  href={isOnline ? `/${locale}/admin/staff` : "#"}
+                  prefetch={false}
+                  onClick={(e) => {
+                    if (!isOnline) {
+                      e.preventDefault();
+                      setShowOfflineStaffAlert(true);
+                      return;
+                    }
+                    setSidebarOpen(false);
+                  }}
+                  className={`${navItemBase} ${
+                    !isOnline
+                      ? "opacity-50 cursor-not-allowed select-none text-foreground/50 hover:bg-transparent"
+                      : pathWithoutLocale === "/admin/staff"
+                      ? navItemActive
+                      : navItemInactive
+                  } ${navItemCompact}`}
+                  title={
+                    sidebarMinimized
+                      ? !isOnline
+                        ? `${tNav("staffManagement") || "Staff"} (${tCommon("offline")})`
+                        : (tNav("staffManagement") || "Staff")
+                      : !isOnline
+                      ? tCommon("offlineTooltip")
+                      : ""
+                  }
+                  aria-disabled={!isOnline}
                 >
                   <Users className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("staffManagement")}
                   </span>
+                  {!isOnline && !sidebarMinimized && (
+                    <span className="ml-auto flex-shrink-0">
+                      <WifiOff className="h-3 w-3 text-muted-foreground opacity-70" />
+                    </span>
+                  )}
                 </Link>
               </div>
+            )}
+              </>
             )}
           </nav>
         </aside>
@@ -1131,7 +1247,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       <span className="font-medium capitalize">{blockedSubscriptionData.plan || 'N/A'}</span>
                       
                       <span className="text-muted-foreground">Status</span>
-                      <span className="font-medium capitalize text-red-500 font-bold">{blockedSubscriptionData.status?.replace('_', ' ') || 'N/A'}</span>
+                      <span className="font-medium capitalize text-red-500">{blockedSubscriptionData.status?.replace('_', ' ') || 'N/A'}</span>
                       
                       {blockedSubscriptionData.expiryDate && (
                         <>
@@ -1221,6 +1337,16 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           }
         }}
         variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={showOfflineStaffAlert}
+        onOpenChange={setShowOfflineStaffAlert}
+        title={tCommon("offlineWorkspaceSwitchErrorTitle")}
+        description={tCommon("offlineWorkspaceSwitchErrorDesc")}
+        confirmLabel={tCommon("understood")}
+        onConfirm={() => setShowOfflineStaffAlert(false)}
+        variant="warning"
       />
     </div>
   );

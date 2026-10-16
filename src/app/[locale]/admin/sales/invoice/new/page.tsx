@@ -7,14 +7,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
@@ -24,11 +16,6 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -52,7 +39,10 @@ import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-drop
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
-import { generateReferenceNumber } from "@/lib/utils";
+import { generateReferenceNumber, setDateToCurrentTime } from "@/lib/utils";
+
+import { DatePicker } from "@/components/ui/date-picker";
+import { toHTMLDateString } from "@/lib/date-utils";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -67,6 +57,8 @@ export type Product = {
   name: string;
   description?: string;
   sell_price: number;
+  cost_price?: number;
+  price?: number;
   unit_of_measurement?: string;
   quantity?: number;
   in_stock?: number;
@@ -91,6 +83,7 @@ export interface POSProduct extends Product {
   discountType?: "value" | "percentage";
   discountInput?: string;
   sellPriceInput?: string;
+  hadNoUomOriginally?: boolean;
 }
 
 export default function NewInvoicePage() {
@@ -195,29 +188,68 @@ export default function NewInvoicePage() {
     const loadEditOrder = async () => {
       if (editOrderId) {
         try {
-          const order = await db.orders.get(editOrderId);
+          let order = await db.orders.get(editOrderId);
+          if (!order) {
+            order = await db.orders.where("id").equals(editOrderId).first() ||
+                    await db.orders.where("_id").equals(editOrderId).first();
+          }
+          if (!order) {
+            try {
+              const res = await fetch(`/api/orders/${editOrderId}`);
+              if (res.ok) {
+                order = await res.json();
+              }
+            } catch (err) {
+              console.error("Failed to fetch order from API:", err);
+            }
+          }
+
           if (order) {
             if (!order.invoice_no) {
               setInvoiceNo(generateReferenceNumber("INV"));
             } else {
               setInvoiceNo(order.invoice_no);
             }
-            setSelectedDate(order.sale_date?.split("T")[0] || getTodayDateString());
+
+            const rawSaleDate = order.sale_date || order.created_at || order.date || order.order_date;
+            const parsedDate = toHTMLDateString(rawSaleDate) || getTodayDateString();
+            setSelectedDate(parsedDate);
+
             if (order.due_date) {
-              setAddDueDate(true);
-              setDueDate(order.due_date.split("T")[0]);
+              const parsedDueDate = toHTMLDateString(order.due_date);
+              if (parsedDueDate) {
+                setAddDueDate(true);
+                setDueDate(parsedDueDate);
+              } else {
+                setAddDueDate(false);
+              }
             } else {
               setAddDueDate(false);
             }
 
-            const customer = await db.parties.get(order.customer_id);
+            let customer = await db.parties.get(order.customer_id);
+            if (!customer && order.customer_id) {
+              customer = await db.parties.where("id").equals(order.customer_id).first() ||
+                         await db.parties.where("_id").equals(order.customer_id).first();
+            }
+            if (!customer && order.customer) {
+              customer = {
+                id: order.customer_id,
+                _id: order.customer_id,
+                name: order.customer.name,
+                phone: order.customer.phone,
+                email: order.customer.email,
+                type: order.customer.type
+              };
+            }
             if (customer) {
               setSelectedCustomer({
-                id: customer.id,
+                id: customer.id || customer._id,
                 _id: customer._id || customer.id,
                 name: customer.name,
                 phone: customer.phone,
-                email: customer.email
+                email: customer.email,
+                type: customer.type
               });
             }
 
@@ -299,6 +331,12 @@ export default function NewInvoicePage() {
     const productId = product.id;
     if (!product) return;
     setSaveError("");
+    const hadNoUom =
+      !product.unit_of_measurement ||
+      product.unit_of_measurement.trim() === "" ||
+      product.unit_of_measurement === "-" ||
+      product.unit_of_measurement === "none";
+
     if (selectedProducts.some((p) => p.id === productId)) {
       setSelectedProducts(
         selectedProducts.map((p) =>
@@ -324,6 +362,8 @@ export default function NewInvoicePage() {
           discount: 0,
           discountType: "value",
           discountInput: "0",
+          hadNoUomOriginally: hadNoUom,
+          unit_of_measurement: product.unit_of_measurement || "",
         },
       ]);
     }
@@ -331,6 +371,11 @@ export default function NewInvoicePage() {
 
   const handleRowProductChange = (oldId: number | string, newProduct: Product, isSync?: boolean) => {
     if (!newProduct) return;
+    const hadNoUom =
+      !newProduct.unit_of_measurement ||
+      newProduct.unit_of_measurement.trim() === "" ||
+      newProduct.unit_of_measurement === "-" ||
+      newProduct.unit_of_measurement === "none";
     
     setSelectedProducts((current) => {
       return current.map((p) => {
@@ -341,7 +386,8 @@ export default function NewInvoicePage() {
             id: newProduct.id,
             name: newProduct.name,
             description: newProduct.description,
-            unit_of_measurement: newProduct.unit_of_measurement,
+            unit_of_measurement: newProduct.unit_of_measurement || "",
+            hadNoUomOriginally: hadNoUom,
             ...(isSameProduct ? {} : {
               sell_price: newProduct.sell_price ?? 0,
               sellPriceInput: String(newProduct.sell_price ?? 0)
@@ -351,6 +397,19 @@ export default function NewInvoicePage() {
         return p;
       });
     });
+  };
+
+  const handleUomChange = (productId: number | string, newUom: string) => {
+    setSelectedProducts((current) =>
+      current.map((p) =>
+        p.id === productId
+          ? {
+              ...p,
+              unit_of_measurement: newUom,
+            }
+          : p
+      )
+    );
   };
 
   const handleSelectCustomer = (customerId: string, customer?: Customer) => {
@@ -606,11 +665,12 @@ export default function NewInvoicePage() {
   };
 
   const executeCreateOrder = async () => {
+    const saleDateISO = selectedDate ? (selectedDate.includes('T') ? selectedDate : `${selectedDate}T12:00:00.000Z`) : new Date().toISOString();
     if (isCashSale) {
       await handleCreateOrder({
         paidAmount: Math.floor(finalTotal),
         paymentMethod: paymentMethod || "cash",
-        paidDate: new Date().toISOString(),
+        paidDate: saleDateISO,
         noPaymentAtAll: false,
       });
     } else {
@@ -618,7 +678,7 @@ export default function NewInvoicePage() {
       await handleCreateOrder({
         paidAmount: pAmount > 0 ? pAmount : 0,
         paymentMethod: pAmount > 0 ? paymentMethod : "",
-        paidDate: new Date().toISOString(),
+        paidDate: saleDateISO,
         noPaymentAtAll: pAmount === 0,
       });
     }
@@ -841,6 +901,8 @@ export default function NewInvoicePage() {
         }
       }
 
+      const finalSaleDate = selectedDate ? setDateToCurrentTime(selectedDate).toISOString() : now;
+
       // 2. Insert or Update Order locally
       const orderData: any = {
         id: localOrderId,
@@ -848,7 +910,9 @@ export default function NewInvoicePage() {
         total_amount: finalTotal,
         subtotal: total,
         invoice_no: invoiceNo || null,
-        sale_date: selectedDate || now,
+        sale_date: finalSaleDate,
+        order_date: finalSaleDate,
+        date: finalSaleDate,
         due_date: addDueDate ? dueDate : null,
         charges: displayCharges,
         overallDiscount: overallDiscountAmount,
@@ -889,18 +953,33 @@ export default function NewInvoicePage() {
         await db.orders.add(orderData);
       }
 
-      // 3. Update stock locally (optimistic)
+      // 3. Update stock & missing UOM locally (optimistic)
       for (const p of selectedProducts) {
-        if (!p.type || p.type === "goods" || p.type === "good") {
-          const prodId = (p.id || (p as any)._id || "").toString();
+        const prodId = (p.id || (p as any)._id || "").toString();
+        if (prodId) {
           const productDoc = await db.products.get(prodId);
           if (productDoc) {
-            if (p.quantityType === "damaged") {
-              const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
-              const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
-              await db.products.update(prodId, { damaged_quantity: newQty });
-            } else {
-              await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+            // Update stock if goods
+            if (!p.type || p.type === "goods" || p.type === "good") {
+              if (p.quantityType === "damaged") {
+                const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
+                const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
+                await db.products.update(prodId, { damaged_quantity: newQty });
+              } else {
+                await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+              }
+            }
+
+            // If product originally had no UOM and user selected a UOM, update product permanently
+            if (p.unit_of_measurement && (!productDoc.unit_of_measurement || productDoc.unit_of_measurement.trim() === "" || productDoc.unit_of_measurement === "-" || productDoc.unit_of_measurement === "none" || p.hadNoUomOriginally)) {
+              await db.products.update(prodId, { unit_of_measurement: p.unit_of_measurement });
+              await SyncEngine.queueOperation(
+                "products",
+                "PUT",
+                `/api/products/${prodId}`,
+                { unit_of_measurement: p.unit_of_measurement },
+                prodId
+              );
             }
           }
         }
@@ -942,7 +1021,7 @@ export default function NewInvoicePage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/${locale}/admin/sales/invoice`)}
             className="shrink-0 h-8 w-8 text-gray-500 hover:text-gray-900"
           >
             <ArrowLeftIcon className="h-5 w-5" />
@@ -1034,13 +1113,10 @@ export default function NewInvoicePage() {
                   <Label htmlFor="sale-date" className="text-xs font-semibold text-gray-700">
                     {t("invoiceDate")} <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="sale-date"
-                    type="date"
+                  <DatePicker
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    max={todayIso || undefined}
-                    className="h-8 text-xs"
+                    onChange={(val) => setSelectedDate(val)}
+                    className="h-8 text-xs bg-white"
                   />
                 </div>
 
@@ -1048,14 +1124,11 @@ export default function NewInvoicePage() {
                   <Label htmlFor="due-date-section" className="text-xs font-semibold text-gray-700">
                     {t("dueDate")}
                   </Label>
-                  <Input
-                    id="due-date"
-                    type="date"
+                  <DatePicker
                     value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    min={todayIso || undefined}
-                    className="h-10 text-xs mb-3"
+                    onChange={(val) => setDueDate(val)}
                     disabled={!addDueDate}
+                    className="h-8 text-xs bg-white"
                   />
                   <div className="flex items-center gap-3">
                     <input
@@ -1093,6 +1166,7 @@ export default function NewInvoicePage() {
                 handleSellPriceBlur={handleSellPriceBlur}
                 handleDiscountChange={handleDiscountChange}
                 handleDiscountTypeChange={handleDiscountTypeChange}
+                handleUomChange={handleUomChange}
                 handleRemoveProduct={handleRemoveProduct}
                 handleSelectProduct={handleSelectProduct}
                 handleRowProductChange={handleRowProductChange}

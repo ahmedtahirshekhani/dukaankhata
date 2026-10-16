@@ -214,21 +214,25 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
 DateTimePicker.displayName = "DateTimePicker";
 
 /**
- * Format date to 12-hour format string (e.g., "Dec 7, 2025, 2:30 PM")
+ * Format date to Pakistani 12-hour format string (e.g., "07-12-2025, 02:30 PM")
  */
 export function formatDateTime12Hour(date: string | Date): string {
+  if (!date) return "";
   const dateObj = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return "";
 
-  const options: Intl.DateTimeFormatOptions = {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  };
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const year = dateObj.getFullYear();
 
-  return dateObj.toLocaleString("en-US", options);
+  let hours = dateObj.getHours();
+  const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursFormatted = String(hours).padStart(2, "0");
+
+  return `${day}-${month}-${year}, ${hoursFormatted}:${minutes} ${ampm}`;
 }
 
 export { DateTimePicker };

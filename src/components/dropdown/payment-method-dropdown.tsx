@@ -28,11 +28,14 @@ import { cn } from "@/lib/utils";
 import { useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface PaymentMethod {
   id: string;
   name: string;
   bankDetails?: string;
+  is_default?: boolean | number | string;
+  isDefault?: boolean | number | string;
 }
 
 interface PaymentMethodDropdownProps {
@@ -46,12 +49,12 @@ interface PaymentMethodDropdownProps {
   noResultsText?: string;
   addButtonPosition?: "top" | "bottom";
   includeDefaultMethods?: boolean; // include Cash & Cheque
-  defaultToCash?: boolean; // auto-select cash method if available
+  defaultToCash?: boolean; // auto-select cash/default method if available
 }
 
 const DEFAULT_METHODS: PaymentMethod[] = [
-  { id: "cash", name: "Cash", bankDetails: "" },
-  { id: "cheque", name: "Cheque", bankDetails: "" },
+  { id: "cash", name: "Cash", bankDetails: "", is_default: true },
+  { id: "cheque", name: "Cheque", bankDetails: "", is_default: false },
 ];
 
 export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethodDropdownProps>(
@@ -74,9 +77,27 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     const t = useTranslations("configurationPage");
     const tCommon = useTranslations("common");
     const tBank = useTranslations("bankAccounts");
+    const { can } = usePermissions();
+    const canCreate = can("payment_methods", "create");
 
     const [searchTerm, setSearchTerm] = useState("");
+    const searchInputRef = React.useRef<HTMLInputElement>(null);
     const [isOpen, setIsOpen] = useState(false);
+
+    React.useEffect(() => {
+      if (isOpen) {
+        const isTouch =
+          typeof window !== "undefined" &&
+          (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+        if (!isTouch) {
+          const timer = setTimeout(() => {
+            searchInputRef.current?.focus();
+          }, 30);
+          return () => clearTimeout(timer);
+        }
+      }
+    }, [isOpen]);
+
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [bankName, setBankName] = useState("");
@@ -99,6 +120,12 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
         id: item.id || item._id,
         name: item.bankName || item.name || item.bank_name,
         bankDetails: item.bankDetails || item.bank_details,
+        is_default: Boolean(
+          item.is_default === true ||
+          item.is_default === 1 ||
+          String(item.is_default).toLowerCase() === "true" ||
+          item.isDefault === true
+        ),
       }));
 
       for (const m of apiMethods) {
@@ -119,11 +146,22 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       );
     }, [methods, searchTerm]);
 
+    // Auto-select default payment method (is_default)
     React.useEffect(() => {
       if (defaultToCash && !value && methods.length > 0) {
-        const cashMethod = methods.find((m) => m.name?.toLowerCase().includes("cash"));
-        if (cashMethod) {
-          onValueChange(cashMethod.id, cashMethod);
+        const defaultMethod =
+          methods.find(
+            (m: any) =>
+              m.is_default === true ||
+              m.is_default === 1 ||
+              String(m.is_default).toLowerCase() === "true" ||
+              m.isDefault === true
+          ) ||
+          methods.find((m) => m.id === "cash") ||
+          methods[0];
+
+        if (defaultMethod) {
+          onValueChange(defaultMethod.id, defaultMethod);
         }
       }
     }, [methods, value, defaultToCash, onValueChange]);
@@ -150,6 +188,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     };
 
     const handleAddMethod = async () => {
+      if (!canCreate && !editingId) return;
       const name = bankName.trim();
       if (!name) {
         setErrorDialog({
@@ -225,6 +264,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     };
 
     const openAddDialog = () => {
+      if (!canCreate) return;
       resetForm();
       setShowAddDialog(true);
       setIsOpen(false);
@@ -284,18 +324,28 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent className="min-w-[280px] max-w-[90vw] p-0">
-              {addButtonPosition === "top" && <AddButtonTop />}
+              {canCreate && addButtonPosition === "top" && <AddButtonTop />}
 
               {enableSearch && (
                 <div className="sticky top-0 bg-popover z-10 border-b p-2">
                   <div className="relative">
                     <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       type="text"
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyDownCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyUpCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />
@@ -335,63 +385,65 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
                 ))}
               </div>
 
-              {addButtonPosition === "bottom" && <AddButton />}
+              {canCreate && addButtonPosition === "bottom" && <AddButton />}
             </SelectContent>
           </Select>
         </div>
 
         {/* Add/Edit Payment Method Modal */}
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingId ? tCommon("edit") : t("paymentMethodSave")}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="bank-name" className="required">
-                  {t("paymentMethodBankName")} <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="bank-name"
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                  placeholder={t("paymentMethodBankNamePlaceholder")}
-                />
+        {(canCreate || editingId) && (
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingId ? tCommon("edit") : t("paymentMethodSave")}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bank-name" className="required">
+                    {t("paymentMethodBankName")} <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="bank-name"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder={t("paymentMethodBankNamePlaceholder")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bank-details">{t("paymentMethodBankDetails")}</Label>
+                  <Textarea
+                    id="bank-details"
+                    value={bankDetails}
+                    onChange={(e) => setBankDetails(e.target.value)}
+                    placeholder={t("paymentMethodBankDetailsPlaceholder")}
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opening-balance">{tBank("openingBalance")}</Label>
+                  <NumericInput
+                    id="opening-balance"
+                    min="0"
+                    value={openingBalance}
+                    onChange={(e) => setOpeningBalance(e.target.value)}
+                    placeholder="0.00"
+                    step="0.01"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="bank-details">{t("paymentMethodBankDetails")}</Label>
-                <Textarea
-                  id="bank-details"
-                  value={bankDetails}
-                  onChange={(e) => setBankDetails(e.target.value)}
-                  placeholder={t("paymentMethodBankDetailsPlaceholder")}
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="opening-balance">{tBank("openingBalance")}</Label>
-                <NumericInput
-                  id="opening-balance"
-                  min="0"
-                  value={openingBalance}
-                  onChange={(e) => setOpeningBalance(e.target.value)}
-                  placeholder="0.00"
-                  step="0.01"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-                {tCommon("cancel")}
-              </Button>
-              <Button onClick={handleAddMethod} disabled={isSaving || !bankName.trim()}>
-                {isSaving ? tCommon("loading") : tCommon("addPaymentMethod")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                  {tCommon("cancel")}
+                </Button>
+                <Button onClick={handleAddMethod} disabled={isSaving || !bankName.trim()}>
+                  {isSaving ? tCommon("loading") : tCommon("addPaymentMethod")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <ErrorDialog
           open={errorDialog.open}

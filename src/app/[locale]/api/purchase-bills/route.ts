@@ -11,7 +11,7 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { setDateToCurrentTime, generateReferenceNumber } from "@/lib/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { ObjectId } from "mongodb";
 
@@ -120,14 +120,28 @@ export async function GET(request: Request) {
     if (search) {
       const searchRegex = new RegExp(escapeRegex(search), "i");
       matchQuery.$or = [
+        { purchase_number: searchRegex },
+        { purchase_no: searchRegex },
+        { bill_number: searchRegex },
         { party_name: searchRegex },
         { description: searchRegex },
+        { "items.product_name": searchRegex },
       ];
     }
 
     const pipeline: any[] = [
       { $match: matchQuery },
-      { $sort: { created_at: -1 } },
+      {
+        $addFields: {
+          effective_date: {
+            $ifNull: [
+              "$bill_date",
+              { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] }
+            ]
+          }
+        }
+      },
+      { $sort: { effective_date: -1, created_at: -1 } },
       {
         $facet: {
           metadata: [{ $count: "total" }],
@@ -142,6 +156,9 @@ export async function GET(request: Request) {
 
     const formattedBills = bills.map((bill: any) => ({
       id: bill._id.toString(),
+      purchase_number: bill.purchase_number || bill.purchase_no || bill.bill_number || null,
+      purchase_no: bill.purchase_no || bill.purchase_number || bill.bill_number || null,
+      bill_number: bill.bill_number || bill.purchase_number || null,
       party_id: bill.party_id.toString(),
       party_name: bill.party_name,
       items: bill.items || [],
@@ -156,6 +173,9 @@ export async function GET(request: Request) {
       payment_method_id: bill.payment_method_id || null,
       payment_method_name: bill.payment_method_name || null,
       description: bill.description || null,
+      bill_date: bill.bill_date || bill.date || bill.purchase_date || bill.created_at,
+      purchase_date: bill.purchase_date || bill.bill_date || bill.created_at,
+      date: bill.date || bill.bill_date || bill.created_at,
       created_at: bill.created_at,
       updated_at: bill.updated_at || null,
     }));
@@ -192,6 +212,9 @@ export async function POST(request: Request) {
   const {
     party_id: partyId,
     party_name: partyName,
+    purchase_number,
+    purchase_no,
+    bill_number,
     items,
     discount,
     discount_type: discountType,
@@ -204,6 +227,9 @@ export async function POST(request: Request) {
     payment_method_id: paymentMethodId,
     payment_method_name: paymentMethodName,
     description,
+    bill_date: customBillDate,
+    date: customDate,
+    created_at: customCreatedAt,
   } = await request.json();
 
   try {
@@ -289,10 +315,18 @@ export async function POST(request: Request) {
     const finalBalanceDue = totalAmount - finalPaidAmount;
     const finalIsPaid = finalBalanceDue === 0;
 
+    const finalPurchaseNo = purchase_number || purchase_no || bill_number || generateReferenceNumber("PUR");
     const now = new Date();
+
+    const rawDateInput = customBillDate || customDate;
+    const finalBillDate = rawDateInput ? new Date(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
+    const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt) : now;
 
     const billResult = await purchaseBillsCollection.insertOne({
       user_id: userObjId,
+      purchase_number: finalPurchaseNo,
+      purchase_no: finalPurchaseNo,
+      bill_number: finalPurchaseNo,
       party_id: partyObjId,
       party_name: partyName,
       items: enrichedItems,
@@ -307,7 +341,10 @@ export async function POST(request: Request) {
       payment_method_id: paymentMethodId || null,
       payment_method_name: paymentMethodName || null,
       description: description || null,
-      created_at: now,
+      bill_date: finalBillDate,
+      purchase_date: finalBillDate,
+      date: finalBillDate,
+      created_at: finalCreatedAt,
       updated_at: now,
     });
 
@@ -324,11 +361,13 @@ export async function POST(request: Request) {
           eventType: "purchase_bill_debit",
           eventSource: "party_transaction",
           eventSourceId: billResult.insertedId.toString(),
-          amountDelta: totalAmount,
+          amountDelta: -totalAmount,
           effectiveAt: now,
           metadata: {
             bill_id: billResult.insertedId.toString(),
+            purchase_number: finalPurchaseNo,
             party_name: partyName,
+            total_amount: totalAmount,
           },
         });
       } catch (ledgerError) {
@@ -345,11 +384,13 @@ export async function POST(request: Request) {
           eventType: "purchase_bill_credit",
           eventSource: "party_transaction",
           eventSourceId: billResult.insertedId.toString(),
-          amountDelta: -finalPaidAmount,
+          amountDelta: finalPaidAmount,
           effectiveAt: now,
           metadata: {
             bill_id: billResult.insertedId.toString(),
+            purchase_number: finalPurchaseNo,
             party_name: partyName,
+            paid_amount: finalPaidAmount,
             note: "Payment recorded with bill",
           },
         });
@@ -408,6 +449,9 @@ export async function PUT(request: Request) {
     id,
     party_id: partyId,
     party_name: partyName,
+    purchase_number,
+    purchase_no,
+    bill_number,
     items,
     discount,
     discount_type: discountType,
@@ -420,6 +464,9 @@ export async function PUT(request: Request) {
     payment_method_id: paymentMethodId,
     payment_method_name: paymentMethodName,
     description,
+    bill_date: customBillDate,
+    date: customDate,
+    purchase_date: customPurchaseDate,
   } = await request.json();
 
   try {
@@ -515,6 +562,21 @@ export async function PUT(request: Request) {
       description: description || null,
     };
 
+    const rawBillDate = customBillDate || customDate || customPurchaseDate;
+    if (rawBillDate) {
+      const bDate = new Date(rawBillDate);
+      updateData.bill_date = bDate;
+      updateData.purchase_date = bDate;
+      updateData.date = bDate;
+    }
+
+    if (purchase_number || purchase_no || bill_number) {
+      const pNo = purchase_number || purchase_no || bill_number;
+      updateData.purchase_number = pNo;
+      updateData.purchase_no = pNo;
+      updateData.bill_number = pNo;
+    }
+
     if (partyId && isValidObjectId(partyId)) {
       updateData.party_id = toObjectId(partyId);
     }
@@ -535,7 +597,7 @@ export async function PUT(request: Request) {
           eventType: "manual_adjustment",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: -oldBill.total_amount,
+          amountDelta: oldBill.total_amount, // Revert negative by adding positive
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
@@ -556,7 +618,7 @@ export async function PUT(request: Request) {
           eventType: "manual_adjustment",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: oldBill.paid_amount, // Revert negative by adding positive
+          amountDelta: -oldBill.paid_amount, // Revert positive by adding negative
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
@@ -604,7 +666,9 @@ export async function PUT(request: Request) {
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
+            purchase_number: updateData.purchase_number || oldBill.purchase_number || oldBill.purchase_no || oldBill.bill_number,
             party_name: partyName,
+            total_amount: totalAmount,
             note: "Updated bill amount",
           },
         });
@@ -626,7 +690,9 @@ export async function PUT(request: Request) {
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
+            purchase_number: updateData.purchase_number || oldBill.purchase_number || oldBill.purchase_no || oldBill.bill_number,
             party_name: partyName,
+            paid_amount: finalPaidAmount,
             note: "Updated payment amount",
           },
         });
@@ -736,7 +802,7 @@ export async function DELETE(request: Request) {
           eventType: "manual_adjustment",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: -oldBill.total_amount,
+          amountDelta: oldBill.total_amount,
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),
@@ -758,7 +824,7 @@ export async function DELETE(request: Request) {
           eventType: "manual_adjustment",
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
-          amountDelta: oldBill.paid_amount,
+          amountDelta: -oldBill.paid_amount,
           effectiveAt: new Date(),
           metadata: {
             bill_id: billObjId.toString(),

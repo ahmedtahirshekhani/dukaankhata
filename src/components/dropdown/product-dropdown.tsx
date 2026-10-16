@@ -16,6 +16,7 @@ import { PlusCircle, Loader2Icon, SearchIcon, X } from "lucide-react";
 import { ProductDialog } from "@/components/dialogs/product-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useOfflineProducts } from "@/lib/hooks/useOfflineData";
+import { usePermissions } from "@/hooks/use-permissions";
 
 import { Product } from "@/types/product";
 
@@ -51,14 +52,31 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     ref
   ) => {
     const t = useTranslations("products");
+    const { can } = usePermissions();
+    const canCreate = can("products", "create");
 
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [isOpen, setIsOpen] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [selectedProductForDialog, setSelectedProductForDialog] = useState<Product | null>(null);
     const [selectResetKey, setSelectResetKey] = useState(0);
     const [optimisticProduct, setOptimisticProduct] = useState<Product | null>(null);
+
+    useEffect(() => {
+      if (isOpen) {
+        const isTouch =
+          typeof window !== "undefined" &&
+          (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+        if (!isTouch) {
+          const timer = setTimeout(() => {
+            searchInputRef.current?.focus();
+          }, 30);
+          return () => clearTimeout(timer);
+        }
+      }
+    }, [isOpen]);
     
     // Reset internal select if parent explicitly clears the value
     useEffect(() => {
@@ -153,6 +171,7 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
     };
 
     const openAddProductDialog = () => {
+      if (!canCreate) return;
       setIsOpen(false);
       setSelectedProductForDialog(null);
       setIsProductDialogOpen(true);
@@ -201,23 +220,33 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent 
-              position="popper" 
-              sideOffset={5} 
-              className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden"
-              collisionPadding={10}
-            >
-              {addButtonPosition === "top" && <AddButtonTop />}
+            position="popper" 
+            sideOffset={5} 
+            className="min-w-[280px] max-w-[90vw] p-0 overflow-hidden"
+            collisionPadding={10}
+          >
+            {canCreate && addButtonPosition === "top" && <AddButtonTop />}
 
               {enableSearch && (
                 <div className="sticky top-0 bg-popover z-10 border-b p-2">
                   <div className="relative">
                     <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       type="text"
                       placeholder={searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyDownCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onKeyUpCapture={(e) => {
+                        if (e.key !== "Escape") e.stopPropagation();
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="pl-8 pr-8 h-8 text-sm"
                       onClick={(e) => e.stopPropagation()}
                     />
@@ -275,19 +304,21 @@ export const ProductDropdown = forwardRef<HTMLButtonElement, ProductDropdownProp
                 </div>
               </div>
 
-              {addButtonPosition === "bottom" && <AddButton />}
+              {canCreate && addButtonPosition === "bottom" && <AddButton />}
             </SelectContent>
           </Select>
 
 
         </div>
 
-        <ProductDialog
-          open={isProductDialogOpen}
-          onOpenChange={setIsProductDialogOpen}
-          selectedProduct={selectedProductForDialog}
-          onSuccess={handleProductDialogSuccess}
-        />
+        {canCreate && (
+          <ProductDialog
+            open={isProductDialogOpen}
+            onOpenChange={setIsProductDialogOpen}
+            selectedProduct={selectedProductForDialog}
+            onSuccess={handleProductDialogSuccess}
+          />
+        )}
       </>
     );
   }

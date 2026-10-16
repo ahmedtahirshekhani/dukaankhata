@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Loader2, Edit2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ChevronDownIcon } from "lucide-react";
-import { formatCurrencyString } from "@/lib/utils";
+import { formatCurrencyString, getYearsFromDates, maskPaymentNo } from "@/lib/utils";
+import { formatReadableDate, safeDate } from "@/lib/date-utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,6 @@ import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import React, { useMemo } from "react";
-import { getYearsFromDates } from "@/lib/utils";
 import { usePermissions } from "@/hooks/use-permissions";
 
 interface PurchaseBillItem {
@@ -59,6 +59,9 @@ interface PurchaseBillItem {
 
 interface PurchaseBill {
   id?: string;
+  purchase_number?: string;
+  purchase_no?: string;
+  bill_number?: string;
   party_id: string;
   party_name: string;
   items: PurchaseBillItem[];
@@ -73,7 +76,11 @@ interface PurchaseBill {
   payment_method_id?: string;
   payment_method_name?: string;
   description?: string;
+  bill_date?: string;
+  purchase_date?: string;
+  date?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export default function PurchaseBillPage() {
@@ -94,23 +101,54 @@ export default function PurchaseBillPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending">("all");
   const [amountRange, setAmountRange] = useState({ min: "", max: "" });
 
-  const debouncedSearch = useDebounce(searchTerm, 500);
+  const debouncedSearch = useDebounce(searchTerm, 150);
 
   const rawOfflineBills = useOfflinePurchaseBills(debouncedSearch);
 
   // Extract unique years for the filter
   const availableYears = useMemo(() => {
-    return getYearsFromDates(rawOfflineBills?.map((b) => b.created_at) || []);
+    return getYearsFromDates(
+      rawOfflineBills?.map((b) => b.bill_date || b.date || b.purchase_date || b.created_at) || []
+    );
   }, [rawOfflineBills]);
 
-  // Apply client-side filters (year, status, amount range)
+  // Apply client-side filters (search, year, status, amount range)
   const filteredBills = useMemo(() => {
     let result = rawOfflineBills || [];
 
+    // Instant search matching for Purchase Number, Party Name, Amount, Description, and Items
+    if (searchTerm.trim()) {
+      const lowerSearch = searchTerm.toLowerCase().trim();
+      const cleanSearch = lowerSearch.replace(/[^a-z0-9]/g, "");
+
+      result = result.filter((bill) => {
+        const pNum = (bill.purchase_number || bill.purchase_no || bill.bill_number || "").toString().toLowerCase();
+        const cleanPNum = pNum.replace(/[^a-z0-9]/g, "");
+        const pName = (bill.party_name || "").toString().toLowerCase();
+        const totalAmt = (bill.total_amount ?? "").toString();
+        const desc = (bill.description || "").toString().toLowerCase();
+
+        const numberMatches =
+          pNum.includes(lowerSearch) ||
+          (cleanSearch.length > 0 && cleanPNum.includes(cleanSearch));
+
+        const partyMatches = pName.includes(lowerSearch);
+        const amountMatches = totalAmt.includes(lowerSearch);
+        const descMatches = desc.includes(lowerSearch);
+
+        const itemsMatch = Array.isArray(bill.items) && bill.items.some((item: any) =>
+          (item.product_name || item.name || "").toString().toLowerCase().includes(lowerSearch)
+        );
+
+        return numberMatches || partyMatches || amountMatches || descMatches || itemsMatch;
+      });
+    }
+
     if (selectedYear) {
       result = result.filter(bill => {
-        if (!bill.created_at) return false;
-        return new Date(bill.created_at).getFullYear() === selectedYear;
+        const rawDate = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
+        if (!rawDate) return false;
+        return new Date(rawDate).getFullYear() === selectedYear;
       });
     }
 
@@ -127,7 +165,23 @@ export default function PurchaseBillPage() {
       });
     }
 
-    return result;
+    return [...result].sort((a, b) => {
+      const getBillDayTime = (bill: any) => {
+        const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
+        if (!raw) return 0;
+        const parsed = safeDate(raw, new Date(0));
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+      };
+      const dateA = getBillDayTime(a);
+      const dateB = getBillDayTime(b);
+      if (dateB !== dateA) return dateB - dateA;
+
+      const createA = a.created_at ? new Date(a.created_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+      const createB = b.created_at ? new Date(b.created_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+      if (createB !== createA) return createB - createA;
+
+      return (b.purchase_number || b.purchase_no || b.id || "").toString().localeCompare((a.purchase_number || a.purchase_no || a.id || "").toString());
+    });
   }, [rawOfflineBills, selectedYear, statusFilter, amountRange]);
 
   const totalPages = Math.ceil(filteredBills.length / pageSize) || 1;
@@ -141,7 +195,7 @@ export default function PurchaseBillPage() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, selectedYear, statusFilter, amountRange.min, amountRange.max, pageSize]);
+  }, [searchTerm, debouncedSearch, selectedYear, statusFilter, amountRange.min, amountRange.max, pageSize]);
 
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -303,13 +357,11 @@ export default function PurchaseBillPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
-
-
           {bills.length === 0 ? (
             <div className="text-center text-muted-foreground py-20 flex flex-col items-center justify-center gap-2">
               <SearchIcon className="h-10 w-10 opacity-20" />
-              <p>{searchTerm ? t("common.noResults") || "No results found" : t("noBills") || "No purchase bills found"}</p>
-              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{t("common.clearSearch") || "Clear search"}</Button>}
+              <p>{searchTerm ? tCommon("noResults") : t("noBills")}</p>
+              {searchTerm && <Button variant="link" onClick={() => setSearchTerm("")}>{tCommon("clearSearch")}</Button>}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -318,6 +370,7 @@ export default function PurchaseBillPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>{t("purchaseNo") || "Purchase No"}</TableHead>
                       <TableHead>{t("partyName") || "Party"}</TableHead>
                       <TableHead className="text-right">{t("totalAmount") || "Total"}</TableHead>
                       <TableHead className="text-right">{t("paidAmount") || "Paid"}</TableHead>
@@ -330,6 +383,20 @@ export default function PurchaseBillPage() {
                   <TableBody>
                     {bills.map((bill) => (
                       <TableRow key={bill.id}>
+                        <TableCell>
+                          {bill.purchase_number || bill.purchase_no || bill.bill_number ? (
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="font-mono text-xs font-medium text-foreground">
+                                {maskPaymentNo(bill.purchase_number || bill.purchase_no || bill.bill_number || "")}
+                              </span>
+                              <span className="bg-[hsl(var(--soft-gray-bg))] text-[10px] text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                                {bill.purchase_number || bill.purchase_no || bill.bill_number}
+                              </span>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">
                           {bill.party_name}
                         </TableCell>
@@ -350,9 +417,7 @@ export default function PurchaseBillPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {bill.created_at
-                            ? new Date(bill.created_at).toLocaleDateString(locale)
-                            : "-"}
+                          {formatReadableDate(bill.bill_date || bill.date || bill.purchase_date || bill.created_at)}
                         </TableCell>
                         <TableCell className="text-right pr-4">
                           <div className="flex items-center justify-end gap-2">
@@ -474,17 +539,6 @@ export default function PurchaseBillPage() {
   );
 }
 
-// Helper function to format date as date-month-year (DD-MM-YYYY)
-function formatDateDMY(dateStr?: string) {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-}
-
 // Mobile Card Component for Purchase Bill
 function PurchaseBillCard({
   bill,
@@ -506,9 +560,16 @@ function PurchaseBillCard({
   return (
     <div className="bg-card border rounded-lg p-3.5 shadow-sm">
       <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
-        <h3 className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[65%]">
-          {bill.party_name || "-"}
-        </h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
+            {bill.party_name || "-"}
+          </h3>
+          {(bill.purchase_number || bill.purchase_no || bill.bill_number) && (
+            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
+              {maskPaymentNo(bill.purchase_number || bill.purchase_no || bill.bill_number || "")}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           {onEdit && (
             <Button
@@ -539,7 +600,7 @@ function PurchaseBillCard({
         {/* Row 1: Date (date-month-year) on Left & Light Sky Blue Status Box on Right */}
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground text-xs font-medium">
-            {formatDateDMY(bill.created_at)}
+            {formatReadableDate(bill.bill_date || bill.date || bill.purchase_date || bill.created_at)}
           </span>
           <Badge
             variant="outline"
