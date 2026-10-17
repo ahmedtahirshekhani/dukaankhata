@@ -67,11 +67,12 @@ export function SubscriptionStatusBadge() {
           setSubscriptionStatus(data);
 
           if (data.status === "login_blocked") {
-            // clearUserDatabase().then(() =>
-            //   signOut({ callbackUrl: `/${locale}/login?error=login_blocked` })
-            // );
             if (typeof window !== "undefined") {
               window.dispatchEvent(new CustomEvent("subscriptionLoginBlocked", { detail: data }));
+            }
+          } else {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("subscriptionUnblocked", { detail: data }));
             }
           }
         }
