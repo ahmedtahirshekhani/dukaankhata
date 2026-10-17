@@ -640,6 +640,7 @@ export default function AccountStatementPage() {
                 className="w-full bg-background border-input h-9 sm:h-10 rounded-md text-xs sm:text-sm"
                 filterActiveOnly={true}
                 enableSearch={true}
+                showAddButton={false}
               />
             </div>
 

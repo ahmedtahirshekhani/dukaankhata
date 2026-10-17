@@ -133,6 +133,7 @@ declare module 'lucide-react' {
   export const PhoneIcon: Icon;
   export const Lock: Icon;
   export const LockIcon: Icon;
+  export const ShieldCheck: Icon;
   export const Unlock: Icon;
   export const Key: Icon;
   export const KeyIcon: Icon;
@@ -222,6 +223,12 @@ declare module 'lucide-react' {
   export const Building2: Icon;
   export const Landmark: Icon;
   export const ArrowLeftIcon: Icon;
+  export const Smartphone: Icon;
+  export const Layers: Icon;
+  export const History: Icon;
+  export const Shuffle: Icon;
+  export const Play: Icon;
+  export const Pause: Icon;
 
   // Catch-all for any other icons that might be used
   const lucideReact: {

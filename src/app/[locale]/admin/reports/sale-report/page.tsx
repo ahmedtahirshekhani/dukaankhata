@@ -5,64 +5,26 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/layout/page-header";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
-import { DatePicker } from "@/components/ui/date-picker";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
+import { ReportDatePresets, getPresetDateRange } from "@/components/reports/report-date-presets";
+import { ReportSortOption } from "@/components/reports/report-search-and-advanced-filters";
+import { ReportFilterCard } from "@/components/reports/report-filter-card";
+import { ReportExportActions } from "@/components/reports/report-export-actions";
+import { ReportKpiSummary } from "@/components/reports/report-kpi-summary";
+import { ReportStatusBadge } from "@/components/reports/report-status-badge";
+import { ReportMobileCard } from "@/components/reports/report-mobile-card";
+import { exportReportToPdf } from "@/lib/report-pdf-generator";
 import { exportSaleReportToExcel } from "@/lib/excel";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
-import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
+import { toHTMLDateString } from "@/lib/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
 import { SaleReportInvoice, SaleReportSummary } from "@/types/reports";
-import {
-  TrendingUp,
-  CreditCard,
-  AlertCircle,
-  Package,
-  FileSpreadsheet,
-  Printer,
-  Loader2,
-  Search,
-  Filter,
-  RotateCcw,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  CheckCircle2,
-  Clock,
-  X,
-  Receipt,
-} from "lucide-react";
+import { toast } from "sonner";
+import { TrendingUp, CreditCard, AlertCircle, Package } from "lucide-react";
 
 export default function SaleReportPage() {
   const locale = useLocale();
@@ -71,9 +33,10 @@ export default function SaleReportPage() {
   const t = useTranslations("saleReportPage");
   const { can } = usePermissions();
 
-  // Date States
-  const [fromDate, setFromDate] = useState<string>(() => getDaysAgoHTMLDate(30));
-  const [toDate, setToDate] = useState<string>(() => getTodayHTMLDate());
+  // Date States (defaults to thisMonth)
+  const defaultDateRange = useMemo(() => getPresetDateRange("thisMonth"), []);
+  const [fromDate, setFromDate] = useState<string>(defaultDateRange.fromDate);
+  const [toDate, setToDate] = useState<string>(defaultDateRange.toDate);
   const [activePreset, setActivePreset] = useState<string>("thisMonth");
 
   // Filter States
@@ -86,16 +49,7 @@ export default function SaleReportPage() {
   const [minAmount, setMinAmount] = useState<string>("");
   const [maxAmount, setMaxAmount] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("invoice_date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-
-  // Active advanced filters counter
-  const activeAdvancedFilterCount = useMemo(() => {
-    let count = 0;
-    if (minAmount) count++;
-    if (maxAmount) count++;
-    if (sortBy !== "invoice_date" || sortOrder !== "asc") count++;
-    return count;
-  }, [minAmount, maxAmount, sortBy, sortOrder]);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Pagination & Data States
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -231,71 +185,11 @@ export default function SaleReportPage() {
     fetchReportData();
   }, [fetchReportData]);
 
-  // Preset Date Range Helper
-  const applyPreset = (preset: string) => {
+  // Preset Date Range Handler using Standard Component
+  const handleSelectPreset = (preset: string, newFrom: string, newTo: string) => {
     setActivePreset(preset);
-    const now = new Date();
-
-    switch (preset) {
-      case "today": {
-        const today = toHTMLDateString(now);
-        setFromDate(today);
-        setToDate(today);
-        break;
-      }
-      case "yesterday": {
-        const y = new Date(now);
-        y.setDate(y.getDate() - 1);
-        const yDate = toHTMLDateString(y);
-        setFromDate(yDate);
-        setToDate(yDate);
-        break;
-      }
-      case "thisWeek": {
-        const first = new Date(now);
-        const day = first.getDay();
-        const diff = first.getDate() - day + (day === 0 ? -6 : 1);
-        first.setDate(diff);
-        setFromDate(toHTMLDateString(first));
-        setToDate(toHTMLDateString(now));
-        break;
-      }
-      case "lastWeek": {
-        const lastSun = new Date(now);
-        const day = lastSun.getDay();
-        const diffToLastSun = day === 0 ? 7 : day;
-        lastSun.setDate(now.getDate() - diffToLastSun);
-        const lastMon = new Date(lastSun);
-        lastMon.setDate(lastSun.getDate() - 6);
-        setFromDate(toHTMLDateString(lastMon));
-        setToDate(toHTMLDateString(lastSun));
-        break;
-      }
-      case "thisMonth": {
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        setFromDate(toHTMLDateString(firstDay));
-        setToDate(toHTMLDateString(now));
-        break;
-      }
-      case "lastMonth": {
-        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-        setFromDate(toHTMLDateString(firstDayLastMonth));
-        setToDate(toHTMLDateString(lastDayLastMonth));
-        break;
-      }
-      case "thisYear": {
-        const firstDayYear = new Date(now.getFullYear(), 0, 1);
-        setFromDate(toHTMLDateString(firstDayYear));
-        setToDate(toHTMLDateString(now));
-        break;
-      }
-      case "allTime": {
-        setFromDate("");
-        setToDate("");
-        break;
-      }
-    }
+    setFromDate(newFrom);
+    setToDate(newTo);
     setCurrentPage(1);
   };
 
@@ -312,21 +206,78 @@ export default function SaleReportPage() {
   };
 
   const handleResetFilters = () => {
-    applyPreset("thisMonth");
+    const range = getPresetDateRange("thisMonth");
+    setActivePreset("thisMonth");
+    setFromDate(range.fromDate);
+    setToDate(range.toDate);
     setPaymentStatus("all");
     setSearchTerm("");
     setMinAmount("");
     setMaxAmount("");
     setSortBy("invoice_date");
-    setSortOrder("asc");
+    setSortOrder("desc");
     setCurrentPage(1);
   };
 
+  // Table Column Header Sort Handler
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      // For financial/date metrics, default first click to "desc" (highest / latest first)
+      const isDescDefault = [
+        "invoice_date",
+        "date",
+        "created_at",
+        "total_amount",
+        "paid_amount",
+        "balance_due",
+        "invoice_number",
+      ].includes(key);
+      setSortOrder(isDescDefault ? "desc" : "asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const activeAdvancedFilterCount = useMemo(() => {
+    let count = 0;
+    if (minAmount) count++;
+    if (maxAmount) count++;
+    if (sortBy !== "invoice_date" || sortOrder !== "desc") count++;
+    return count;
+  }, [minAmount, maxAmount, sortBy, sortOrder]);
+
+  const sortOptions: ReportSortOption[] = useMemo(
+    () => [
+      { value: "invoice_date-desc", label: t("sortDateDesc") },
+      { value: "invoice_date-asc", label: t("sortDateAsc") },
+      { value: "invoice_number-desc", label: t("sortInvoiceDesc") },
+      { value: "invoice_number-asc", label: t("sortInvoiceAsc") },
+      { value: "customer_name-asc", label: t("sortCustomer") },
+      { value: "total_amount-desc", label: t("sortAmountDesc") },
+      { value: "total_amount-asc", label: t("sortAmountAsc") },
+      { value: "paid_amount-desc", label: t("sortPaidDesc") },
+      { value: "paid_amount-asc", label: t("sortPaidAsc") },
+      { value: "balance_due-desc", label: t("sortBalanceDesc") },
+      { value: "balance_due-asc", label: t("sortBalanceAsc") },
+    ],
+    [t]
+  );
+
   const handleExportExcel = async () => {
+    if (invoices.length === 0 || totalCount === 0) {
+      toast.error(t("noData"));
+      return;
+    }
     try {
       setIsExportingExcel(true);
       const allData = await fetchReportData(-1);
       const invoicesToExport = allData?.invoices || invoices;
+      if (!invoicesToExport || invoicesToExport.length === 0) {
+        toast.error(t("noData"));
+        return;
+      }
       const summaryToExport = allData?.summary || summary;
       exportSaleReportToExcel(
         invoicesToExport,
@@ -335,103 +286,40 @@ export default function SaleReportPage() {
       );
     } catch (err) {
       console.error("Export Excel error:", err);
+      toast.error(tCommon("exportError"));
     } finally {
       setIsExportingExcel(false);
     }
   };
 
   const handleExportPdf = async () => {
+    if (invoices.length === 0 || totalCount === 0) {
+      toast.error(t("noData"));
+      return;
+    }
     setIsExportingPdf(true);
     try {
       const fullData = await fetchReportData(-1);
       const itemsToExport = fullData?.invoices && fullData.invoices.length > 0 ? fullData.invoices : invoices;
+      if (!itemsToExport || itemsToExport.length === 0) {
+        toast.error(t("noData"));
+        return;
+      }
       setPdfInvoices(itemsToExport);
 
       await new Promise((resolve) => setTimeout(resolve, 400));
-
       if (!reportRef.current) return;
 
-      const mod = await import("html2pdf.js");
-      const html2pdf = (mod as any).default || mod;
-
-      await html2pdf()
-        .set({
-          margin: [6, 6, 16, 6],
-          filename: `sale-report-${fromDate || "all"}_to_${toDate || "all"}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            scrollY: 0,
-            scrollX: 0,
-          },
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "landscape",
-          },
-          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".pdf-avoid-break"] },
-        })
-        .from(reportRef.current)
-        .toPdf()
-        .get("pdf")
-        .then((pdf: any) => {
-          const totalPages = pdf.internal.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFont("helvetica", "italic");
-            pdf.setFontSize(8);
-            pdf.setTextColor(148, 163, 184);
-            pdf.text(
-              tCommon("pdfWatermarkText") || "",
-              297 / 2,
-              210 - 5,
-              { align: "center" }
-            );
-          }
-        })
-        .save();
+      await exportReportToPdf({
+        element: reportRef.current,
+        filename: `sale-report-${fromDate || "all"}_to_${toDate || "all"}.pdf`,
+        watermarkText: tCommon("pdfWatermarkText"),
+      });
     } catch (err) {
       console.error("Failed to generate PDF:", err);
+      toast.error(tCommon("exportError"));
     } finally {
       setIsExportingPdf(false);
-    }
-  };
-
-  // Status Badge Rendering Helper (neutral & consistent styling)
-  const renderStatusBadge = (status: "paid" | "partial" | "unpaid", isTable: boolean = false) => {
-    const baseClasses = isTable
-      ? "text-[11px] font-semibold px-2 py-0.5 rounded-full border"
-      : "text-xs font-semibold px-2.5 py-0.5 rounded-full border";
-
-    switch (status) {
-      case "paid":
-        return (
-          <span
-            className={`${baseClasses} bg-zinc-100 text-foreground border-zinc-300 dark:bg-zinc-800 dark:border-zinc-700`}
-          >
-            {t("paid")}
-          </span>
-        );
-      case "partial":
-        return (
-          <span
-            className={`${baseClasses} bg-zinc-100 text-foreground border-zinc-300 dark:bg-zinc-800 dark:border-zinc-700`}
-          >
-            {t("partial")}
-          </span>
-        );
-      case "unpaid":
-        return (
-          <span
-            className={`${baseClasses} bg-zinc-100 text-foreground border-zinc-300 dark:bg-zinc-800 dark:border-zinc-700`}
-          >
-            {t("unpaid")}
-          </span>
-        );
-      default:
-        return null;
     }
   };
 
@@ -450,7 +338,6 @@ export default function SaleReportPage() {
         id: "invoice_number",
         header: t("invoiceNo"),
         accessorKey: "invoice_number",
-        sortable: true,
         className: "whitespace-nowrap font-mono text-xs font-semibold text-foreground",
         cell: (row) => (
           // View Modal trigger - To re-enable, uncomment the button below and remove the span:
@@ -475,25 +362,22 @@ export default function SaleReportPage() {
         cell: (row) => row.customer_name || "-",
       },
       {
-        id: "items",
-        header: t("items"),
+        id: "quantity",
+        header: t("quantity"),
         className: "text-center text-xs text-foreground whitespace-nowrap",
-        cell: (row) => (
-          // View Modal trigger - To re-enable, uncomment the Button below and remove the div:
-          // <Button
-          //   variant="ghost"
-          //   size="sm"
-          //   onClick={() => setSelectedInvoiceForDetails(row)}
-          //   className="h-6 px-2 text-[11px] font-medium gap-1 hover:bg-accent text-foreground"
-          // >
-          //   <Package className="h-3 w-3 text-foreground" />
-          //   <span className="text-foreground">{row.items_count || row.items?.length || 0}</span>
-          // </Button>
-          <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
-            <Package className="h-3 w-3 text-foreground" />
-            <span>{row.items_count || row.items?.length || 0}</span>
-          </div>
-        ),
+        cell: (row) => {
+          const totalQty =
+            row.total_quantity ??
+            row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+            row.items_count ??
+            0;
+          return (
+            <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
+              <Package className="h-3 w-3 text-foreground" />
+              <span>{totalQty}</span>
+            </div>
+          );
+        },
       },
       {
         id: "total_amount",
@@ -523,7 +407,11 @@ export default function SaleReportPage() {
         id: "status",
         header: <div className="text-center text-foreground">{t("status")}</div>,
         className: "text-center text-foreground whitespace-nowrap",
-        cell: (row) => <div className="flex justify-center">{renderStatusBadge(row.status, true)}</div>,
+        cell: (row) => (
+          <div className="flex justify-center">
+            <ReportStatusBadge status={row.status} label={t(row.status)} isTable={true} />
+          </div>
+        ),
       },
       // View Modal Actions column - To re-enable, uncomment below:
       // {
@@ -568,10 +456,14 @@ export default function SaleReportPage() {
         render: (row) => row.customer_name || "-",
       },
       {
-        header: t("items"),
+        header: t("quantity"),
         align: "center",
         width: "55px",
-        render: (row) => row.items_count || row.items?.length || 0,
+        render: (row) =>
+          row.total_quantity ??
+          row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+          row.items_count ??
+          0,
       },
       {
         header: t("totalAmount"),
@@ -665,276 +557,114 @@ export default function SaleReportPage() {
         title={t("title")}
         description={t("description")}
         actions={
-          can("reports", "export_sale_report") && invoices.length > 0 ? (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportExcel}
-                disabled={isExportingExcel || loading}
-                className="h-8 text-xs px-2.5 gap-1.5 flex-1 sm:flex-initial"
-              >
-                {isExportingExcel ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                )}
-                <span>{t("exportExcel")}</span>
-              </Button>
-
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleExportPdf}
-                disabled={isExportingPdf || loading || invoices.length === 0}
-                className="h-8 text-xs px-2.5 gap-1.5 flex-1 sm:flex-initial bg-sky-600 hover:bg-sky-700 text-white"
-              >
-                {isExportingPdf ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Printer className="h-3.5 w-3.5" />
-                )}
-                <span>{t("downloadPdf")}</span>
-              </Button>
-            </div>
+          can("reports", "export_sale_report") ? (
+            <ReportExportActions
+              onExportExcel={handleExportExcel}
+              onExportPdf={handleExportPdf}
+              isExportingExcel={isExportingExcel}
+              isExportingPdf={isExportingPdf}
+              excelLabel={t("exportExcel")}
+              pdfLabel={t("downloadPdf")}
+              disabled={loading}
+            />
           ) : undefined
         }
       />
 
-      {/* Date Presets Row */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {[
-          { key: "today", label: tCommon("today") || "Today" },
-          { key: "yesterday", label: tCommon("yesterday") || "Yesterday" },
-          { key: "thisWeek", label: tCommon("thisWeek") || "This Week" },
-          { key: "lastWeek", label: tCommon("lastWeek") || "Last Week" },
-          { key: "thisMonth", label: tCommon("thisMonth") || "This Month" },
-          { key: "lastMonth", label: tCommon("lastMonth") || "Last Month" },
-          { key: "thisYear", label: tCommon("thisYear") || "This Year" },
-          { key: "allTime", label: tCommon("allTime") || "All Time" },
-        ].map((preset) => (
-          <Button
-            key={preset.key}
-            variant={activePreset === preset.key ? "default" : "outline"}
-            size="sm"
-            onClick={() => applyPreset(preset.key)}
-            className="h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap"
-          >
-            {preset.label}
-          </Button>
-        ))}
-      </div>
+      {/* Date Presets Row (Standard Reusable Component) */}
+      <ReportDatePresets
+        activePreset={activePreset}
+        onSelectPreset={handleSelectPreset}
+      />
 
-      {/* Main Filters Card */}
-      <Card className="border border-border/50 bg-card shadow-sm">
-        <CardContent className="p-3.5 sm:p-4 space-y-3">
-          {/* Row 1: Primary Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("fromDate")}:
-              </label>
-              <DatePicker
-                value={fromDate}
-                max={toDate}
-                onChange={handleFromDateChange}
-                className="w-full h-8 text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("toDate")}:
-              </label>
-              <DatePicker
-                value={toDate}
-                min={fromDate}
-                onChange={handleToDateChange}
-                className="w-full h-8 text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("paymentStatus")}:
-              </label>
-              <Select
-                value={paymentStatus}
-                onValueChange={(val) => {
-                  setPaymentStatus(val);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder={t("allStatuses")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                  <SelectItem value="paid">{t("paid")}</SelectItem>
-                  <SelectItem value="partial">{t("partial")}</SelectItem>
-                  <SelectItem value="unpaid">{t("unpaid")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Row 2: Search and Advanced Toggle */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-border/40">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder={t("searchPlaceholder")}
-                className="h-8 text-xs pl-8 pr-7 w-full"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <Button
-                variant={showAdvancedFilters || activeAdvancedFilterCount > 0 ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setShowAdvancedFilters((prev) => !prev)}
-                className="h-8 text-xs px-2.5 gap-1.5"
-              >
-                <Filter className="h-3.5 w-3.5" />
-                <span>{t("filters")}</span>
-                {activeAdvancedFilterCount > 0 && (
-                  <span className="flex items-center justify-center h-4 w-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
-                    {activeAdvancedFilterCount}
-                  </span>
-                )}
-                {showAdvancedFilters ? (
-                  <ChevronUp className="h-3.5 w-3.5 ml-0.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
-                )}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetFilters}
-                className="h-8 text-xs px-2 text-muted-foreground hover:text-foreground gap-1"
-                title={t("resetFilters")}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("resetFilters")}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Expandable Advanced Filters */}
-          {showAdvancedFilters && (
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/50 grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in duration-200">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  {t("minAmount")}:
-                </label>
-                <Input
-                  type="number"
-                  value={minAmount}
-                  onChange={(e) => {
-                    setMinAmount(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="0"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  {t("maxAmount")}:
-                </label>
-                <Input
-                  type="number"
-                  value={maxAmount}
-                  onChange={(e) => {
-                    setMaxAmount(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="e.g. 100000"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  {t("sortBy")}:
-                </label>
-                <Select
-                  value={`${sortBy}-${sortOrder}`}
-                  onValueChange={(val) => {
-                    const [field, order] = val.split("-");
-                    setSortBy(field);
-                    setSortOrder(order as "asc" | "desc");
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder={t("sortBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="invoice_date-asc">{t("sortDateAsc")}</SelectItem>
-                    <SelectItem value="invoice_date-desc">{t("sortDateDesc")}</SelectItem>
-                    <SelectItem value="total_amount-desc">{t("sortAmountDesc")}</SelectItem>
-                    <SelectItem value="total_amount-asc">{t("sortAmountAsc")}</SelectItem>
-                    <SelectItem value="balance_due-desc">{t("sortBalanceDesc")}</SelectItem>
-                    <SelectItem value="customer_name-asc">{t("sortCustomer")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Main Filters Card (Standard Component) */}
+      <ReportFilterCard
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={handleFromDateChange}
+        onToDateChange={handleToDateChange}
+        fromDateLabel={t("fromDate")}
+        toDateLabel={t("toDate")}
+        paymentStatus={paymentStatus}
+        onPaymentStatusChange={(val) => {
+          setPaymentStatus(val);
+          setCurrentPage(1);
+        }}
+        paymentStatusLabel={t("paymentStatus")}
+        allStatusesLabel={t("allStatuses")}
+        paidLabel={t("paid")}
+        partialLabel={t("partial")}
+        unpaidLabel={t("unpaid")}
+        searchTerm={searchTerm}
+        onSearchTermChange={(val) => {
+          setSearchTerm(val);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder={t("searchPlaceholder")}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        activeAdvancedFilterCount={activeAdvancedFilterCount}
+        onResetFilters={handleResetFilters}
+        minAmount={minAmount}
+        onMinAmountChange={(val) => {
+          setMinAmount(val);
+          setCurrentPage(1);
+        }}
+        maxAmount={maxAmount}
+        onMaxAmountChange={(val) => {
+          setMaxAmount(val);
+          setCurrentPage(1);
+        }}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(field, order) => {
+          setSortBy(field);
+          setSortOrder(order);
+          setCurrentPage(1);
+        }}
+        sortOptions={sortOptions}
+        advancedLabels={{
+          filters: t("filters"),
+          resetFilters: t("resetFilters"),
+          minAmount: t("minAmount"),
+          maxAmount: t("maxAmount"),
+          sortBy: t("sortBy"),
+        }}
+      />
 
       {/* KPI Summary StatCards (3 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <StatCard
-          title={t("totalSales")}
-          value={formatCurrency(summary.totalSales)}
-          icon={<TrendingUp className="h-4 w-4 text-emerald-600" />}
-          subValue={`${summary.totalInvoicesCount} ${t("totalInvoices")}`}
-          isLoading={loading}
-        />
-
-        <StatCard
-          title={t("totalReceived")}
-          value={formatCurrency(summary.totalReceived)}
-          icon={<CreditCard className="h-4 w-4 text-emerald-600" />}
-          subValue={`${summary.fullyPaidCount} ${t("paidInvoices")}`}
-          isLoading={loading}
-        />
-
-        <StatCard
-          title={t("balanceDue")}
-          value={formatCurrency(summary.totalBalanceDue)}
-          icon={<AlertCircle className="h-4 w-4 text-rose-600" />}
-          subValue={`${summary.unpaidCount + summary.partialCount} ${t("unpaidInvoices")}`}
-          isExpense={summary.totalBalanceDue > 0}
-          isLoading={loading}
-        />
-      </div>
+      <ReportKpiSummary
+        isLoading={loading}
+        items={[
+          {
+            title: t("totalSales"),
+            value: formatCurrency(summary.totalSales),
+            icon: <TrendingUp className="h-4 w-4 text-emerald-600" />,
+            subValue: `${summary.totalInvoicesCount} ${t("totalInvoices")}`,
+          },
+          {
+            title: t("totalReceived"),
+            value: formatCurrency(summary.totalReceived),
+            icon: <CreditCard className="h-4 w-4 text-emerald-600" />,
+            subValue: `${summary.fullyPaidCount} ${t("paidInvoices")}`,
+          },
+          {
+            title: t("balanceDue"),
+            value: formatCurrency(summary.totalBalanceDue),
+            icon: <AlertCircle className="h-4 w-4 text-rose-600" />,
+            subValue: `${summary.unpaidCount + summary.partialCount} ${t("unpaidInvoices")}`,
+            isExpense: summary.totalBalanceDue > 0,
+          },
+        ]}
+      />
 
       {/* Main Data Table */}
       <DataTable<SaleReportInvoice>
         columns={columns}
         data={invoices}
         isLoading={loading}
+        sortConfig={{ key: sortBy, direction: sortOrder }}
+        onSort={handleSort}
         pageSize={pageSize}
         currentPage={currentPage}
         totalCount={totalCount}
@@ -946,175 +676,28 @@ export default function SaleReportPage() {
         emptyMessage={t("noData")}
         keyExtractor={(row: SaleReportInvoice) => row.id}
         renderMobileCard={(row: SaleReportInvoice) => (
-          <div
-            // View Modal trigger - To re-enable, uncomment the onClick below:
-            // onClick={() => setSelectedInvoiceForDetails(row)}
-            className="p-3.5 border rounded-lg bg-card shadow-xs space-y-2.5 text-xs transition-colors"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <span className="font-mono font-bold text-foreground">{row.invoice_number}</span>
-                <p className="font-semibold text-foreground text-sm mt-0.5">{row.customer_name}</p>
-                <p className="text-[11px] text-foreground/75">
-                  {formatStatementDate(row.invoice_date || row.created_at)}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                {renderStatusBadge(row.status, true)}
-                <span className="text-[11px] text-foreground">
-                  {row.items_count} {t("items")}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-[11px]">
-              <div>
-                <span className="text-muted-foreground block text-[10px]">{t("totalAmount")}</span>
-                <span className="font-bold text-foreground">{formatCurrency(row.total_amount)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px]">{t("paidAmount")}</span>
-                <span className="font-semibold text-foreground">{formatCurrency(row.paid_amount)}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-muted-foreground block text-[10px]">{t("balance")}</span>
-                <span className="font-bold text-foreground">{formatCurrency(row.balance_due)}</span>
-              </div>
-            </div>
-          </div>
+          <ReportMobileCard
+            number={row.invoice_number}
+            partyName={row.customer_name}
+            formattedDate={formatStatementDate(row.invoice_date || row.created_at)}
+            status={row.status}
+            statusLabel={t(row.status)}
+            itemsCount={
+              row.total_quantity ??
+              row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+              row.items_count ??
+              0
+            }
+            itemsLabel={t("quantity")}
+            totalAmount={formatCurrency(row.total_amount)}
+            totalAmountLabel={t("totalAmount")}
+            paidAmount={formatCurrency(row.paid_amount)}
+            paidAmountLabel={t("paidAmount")}
+            balanceDue={formatCurrency(row.balance_due)}
+            balanceDueLabel={t("balance")}
+          />
         )}
       />
-
-      {/* ========================================================
-          INVOICE DETAILS MODAL (VIEW MODAL)
-          Currently commented out safely.
-          To re-enable: Remove the `{/*` above <Dialog and `* /}` below </Dialog>
-          ======================================================== */}
-      {/*
-      <Dialog
-        open={Boolean(selectedInvoiceForDetails)}
-        onOpenChange={(open) => !open && setSelectedInvoiceForDetails(null)}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedInvoiceForDetails && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center justify-between pr-4">
-                  <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                    <Receipt className="h-5 w-5 text-primary" />
-                    <span>{t("invoiceDetails")}</span>
-                  </DialogTitle>
-                  {renderStatusBadge(selectedInvoiceForDetails.status)}
-                </div>
-                <DialogDescription className="text-xs text-muted-foreground text-left">
-                  {t("invoiceDetailsDescription")}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-2 text-xs">
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("invoiceNo")}:</span>
-                  <span className="font-mono font-bold text-foreground">
-                    {selectedInvoiceForDetails.invoice_number}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("date")}:</span>
-                  <span className="font-medium text-foreground">
-                    {formatStatementDate(
-                      selectedInvoiceForDetails.invoice_date || selectedInvoiceForDetails.created_at
-                    )}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("customerName")}:</span>
-                  <span className="font-bold text-foreground truncate block">
-                    {selectedInvoiceForDetails.customer_name}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("paymentMethod")}:</span>
-                  <span className="font-medium text-foreground">
-                    {selectedInvoiceForDetails.payment_method_name || "-"}
-                  </span>
-                </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-3 py-2 font-semibold text-foreground border-b flex justify-between items-center">
-                    <span>{t("itemsList")}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {selectedInvoiceForDetails.items?.length || 0} items
-                    </Badge>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="text-[11px]">
-                        <TableHead className="h-8">#</TableHead>
-                        <TableHead className="h-8">{t("productName")}</TableHead>
-                        <TableHead className="h-8 text-center">{t("quantity")}</TableHead>
-                        <TableHead className="h-8 text-right">{t("unitPrice")}</TableHead>
-                        <TableHead className="h-8 text-right">{t("amount")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedInvoiceForDetails.items?.length ? (
-                        selectedInvoiceForDetails.items.map((item, idx) => (
-                          <TableRow key={idx} className="text-xs">
-                            <TableCell className="py-2 text-foreground">{idx + 1}</TableCell>
-                            <TableCell className="py-2 font-medium text-foreground">{item.product_name}</TableCell>
-                            <TableCell className="py-2 text-center text-foreground">{item.quantity}</TableCell>
-                            <TableCell className="py-2 text-right text-foreground">{formatCurrency(item.unit_price)}</TableCell>
-                            <TableCell className="py-2 text-right font-semibold text-foreground">
-                              {formatCurrency(item.amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                            {t("noData")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="p-3 rounded-lg bg-card border flex flex-col items-end gap-1.5 text-xs text-foreground">
-                  <div className="flex justify-between w-48 text-foreground">
-                    <span className="text-muted-foreground">{t("totalAmount")}:</span>
-                    <span className="font-bold text-foreground">
-                      {formatCurrency(selectedInvoiceForDetails.total_amount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between w-48 text-foreground">
-                    <span className="text-muted-foreground">{t("paidAmount")}:</span>
-                    <span className="font-semibold text-foreground">{formatCurrency(selectedInvoiceForDetails.paid_amount)}</span>
-                  </div>
-                  <div className="flex justify-between w-48 font-bold border-t pt-1.5 text-foreground">
-                    <span>{t("balance")}:</span>
-                    <span>{formatCurrency(selectedInvoiceForDetails.balance_due)}</span>
-                  </div>
-                </div>
-
-                {selectedInvoiceForDetails.notes && (
-                  <div className="p-2.5 rounded-md bg-muted/30 border text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground block mb-0.5">{t("note")}:</span>
-                    {selectedInvoiceForDetails.notes}
-                  </div>
-                )}
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" size="sm" onClick={() => setSelectedInvoiceForDetails(null)}>
-                  {tCommon("cancel") || "Close"}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-      */}
 
       {/* PDF Export Modal */}
       <ReportPdfModal
