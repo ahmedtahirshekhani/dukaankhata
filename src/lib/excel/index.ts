@@ -548,7 +548,7 @@ export function exportPurchaseReportToExcel(
     "Bill #": bill.purchase_number || bill.bill_number || "-",
     Date: formatStatementDate(bill.bill_date || bill.created_at),
     "Party": bill.party_name || "-",
-    "Items Count": bill.items_count || (bill.items?.length ?? 0),
+    Quantity: bill.total_quantity ?? bill.items?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) ?? bill.items_count ?? 0,
     "Items List": bill.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
     "Total Amount (Rs.)": Math.round(bill.total_amount || 0),
     "Paid Amount (Rs.)": Math.round(bill.paid_amount || 0),
@@ -564,7 +564,7 @@ export function exportPurchaseReportToExcel(
     { wch: 18 }, // Bill #
     { wch: 14 }, // Date
     { wch: 24 }, // Party
-    { wch: 12 }, // Items Count
+    { wch: 12 }, // Quantity
     { wch: 35 }, // Items List
     { wch: 18 }, // Total
     { wch: 18 }, // Paid
@@ -610,7 +610,7 @@ export function exportSaleReportToExcel(
     "Invoice #": inv.invoice_number || "-",
     Date: formatStatementDate(inv.invoice_date || inv.created_at),
     "Party": inv.customer_name || "-",
-    "Items Count": inv.items_count || (inv.items?.length ?? 0),
+    Quantity: inv.total_quantity ?? inv.items?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) ?? inv.items_count ?? 0,
     "Items List": inv.items?.map((i) => `${i.product_name} (${i.quantity})`).join(", ") || "-",
     "Total Amount (Rs.)": Math.round(inv.total_amount || 0),
     "Received Amount (Rs.)": Math.round(inv.paid_amount || 0),
@@ -626,7 +626,7 @@ export function exportSaleReportToExcel(
     { wch: 18 }, // Invoice #
     { wch: 14 }, // Date
     { wch: 24 }, // Party
-    { wch: 12 }, // Items Count
+    { wch: 12 }, // Quantity
     { wch: 35 }, // Items List
     { wch: 18 }, // Total
     { wch: 18 }, // Received

@@ -24,18 +24,33 @@ export async function GET(request: Request) {
 
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
   
-  // Build query
+  const userIdObj = toObjectId(user.id);
+  const userIdStr = user.id.toString();
+
+  const userFilter = {
+    $or: [
+      { user_id: userIdObj },
+      { user_id: userIdStr }
+    ]
+  };
+
   const query: any = { 
-    user_id: toObjectId(user.id), 
+    ...userFilter, 
     is_delete: { $ne: 1 } 
   };
 
   if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: "i" } },
-      { phone: { $regex: search, $options: "i" } },
-      { company_name: { $regex: search, $options: "i" } },
+    query.$and = [
+      userFilter,
+      {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } },
+          { company_name: { $regex: search, $options: "i" } },
+        ]
+      }
     ];
+    delete query.$or;
   }
 
   // Get total count for pagination

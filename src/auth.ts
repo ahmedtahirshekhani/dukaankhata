@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { getCollection, COLLECTIONS, toObjectId } from "@/lib/db/mongodb";
+import { getUserLatestSubscription } from "@/lib/db/subscription";
 
 // Determine session max age in seconds from environment variable, defaulting to 30 days
 const SESSION_MAX_AGE_DAYS = Number(process.env.SESSION_MAX_AGE_DAYS) || 30;
@@ -56,11 +57,7 @@ export const authOptions = {
             return null;
           }
 
-          const subscriptionsCollection = await getCollection(COLLECTIONS.SUBSCRIPTIONS);
-          const subscription = await subscriptionsCollection.findOne(
-            { user_id: userData._id },
-            { sort: { created_at: -1 } }
-          );
+          const subscription = await getUserLatestSubscription(userData._id);
 
           if (subscription && subscription.status === "login_blocked") {
             // throw new Error("LOGIN_BLOCKED");

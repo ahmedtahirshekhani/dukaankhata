@@ -50,6 +50,8 @@ interface PaymentMethodDropdownProps {
   addButtonPosition?: "top" | "bottom";
   includeDefaultMethods?: boolean; // include Cash & Cheque
   defaultToCash?: boolean; // auto-select cash/default method if available
+  showAddButton?: boolean;
+  allowAdd?: boolean;
 }
 
 const DEFAULT_METHODS: PaymentMethod[] = [
@@ -71,6 +73,8 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       addButtonPosition = "bottom",
       includeDefaultMethods = false,
       defaultToCash = false,
+      showAddButton = true,
+      allowAdd,
     },
     ref
   ) => {
@@ -79,6 +83,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     const tBank = useTranslations("bankAccounts");
     const { can } = usePermissions();
     const canCreate = can("payment_methods", "create");
+    const canShowAdd = (allowAdd ?? showAddButton) ?? true;
 
     const [searchTerm, setSearchTerm] = useState("");
     const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -324,7 +329,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent className="min-w-[280px] max-w-[90vw] p-0">
-              {canCreate && addButtonPosition === "top" && <AddButtonTop />}
+              {canCreate && canShowAdd && addButtonPosition === "top" && <AddButtonTop />}
 
               {enableSearch && (
                 <div className="sticky top-0 bg-popover z-10 border-b p-2">
@@ -385,7 +390,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
                 ))}
               </div>
 
-              {canCreate && addButtonPosition === "bottom" && <AddButton />}
+              {canCreate && canShowAdd && addButtonPosition === "bottom" && <AddButton />}
             </SelectContent>
           </Select>
         </div>

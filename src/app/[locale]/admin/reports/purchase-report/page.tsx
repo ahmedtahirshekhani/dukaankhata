@@ -4,64 +4,32 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/layout/page-header";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
-import { DatePicker } from "@/components/ui/date-picker";
-import { PartyDropdown } from "@/components/dropdown/party-dropdown";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import { ReportPdfHeader, ReportPdfKpi, ReportPdfMetaItem } from "@/components/reports/report-pdf-header";
 import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
+import { ReportDatePresets, getPresetDateRange } from "@/components/reports/report-date-presets";
+import { ReportSortOption } from "@/components/reports/report-search-and-advanced-filters";
+import { ReportFilterCard } from "@/components/reports/report-filter-card";
+import { ReportExportActions } from "@/components/reports/report-export-actions";
+import { ReportKpiSummary } from "@/components/reports/report-kpi-summary";
+import { ReportStatusBadge } from "@/components/reports/report-status-badge";
+import { ReportMobileCard } from "@/components/reports/report-mobile-card";
+import { exportReportToPdf } from "@/lib/report-pdf-generator";
 import { exportPurchaseReportToExcel } from "@/lib/excel";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
-import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
+import { toHTMLDateString } from "@/lib/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PurchaseReportBill, PurchaseReportSummary } from "@/types/reports";
+import { toast } from "sonner";
 import {
   ShoppingCart,
   CreditCard,
   AlertCircle,
-  Package,
-  FileSpreadsheet,
-  Printer,
-  Loader2,
-  Search,
-  Filter,
-  RotateCcw,
-  ChevronDown,
-  ChevronUp,
   Eye,
-  CheckCircle2,
-  Clock,
-  X,
   Receipt,
+  Package,
 } from "lucide-react";
 
 export default function PurchaseReportPage() {
@@ -71,9 +39,10 @@ export default function PurchaseReportPage() {
   const t = useTranslations("purchaseReportPage");
   const { can } = usePermissions();
 
-  // Date States
-  const [fromDate, setFromDate] = useState<string>(() => getDaysAgoHTMLDate(30));
-  const [toDate, setToDate] = useState<string>(() => getTodayHTMLDate());
+  // Date States (defaults to thisMonth)
+  const defaultDateRange = useMemo(() => getPresetDateRange("thisMonth"), []);
+  const [fromDate, setFromDate] = useState<string>(defaultDateRange.fromDate);
+  const [toDate, setToDate] = useState<string>(defaultDateRange.toDate);
   const [activePreset, setActivePreset] = useState<string>("thisMonth");
 
   // Filter States
@@ -88,7 +57,7 @@ export default function PurchaseReportPage() {
   const [minAmount, setMinAmount] = useState<string>("");
   const [maxAmount, setMaxAmount] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("bill_date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Pagination & Data States
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -223,58 +192,17 @@ export default function PurchaseReportPage() {
     fetchReportData();
   }, [fetchReportData]);
 
-  // Date Preset Handler
-  const applyPreset = (preset: string) => {
+  // Date Preset Handler using Standard Component
+  const handleSelectPreset = (preset: string, newFrom: string, newTo: string) => {
     setActivePreset(preset);
-    const today = new Date();
-
-    if (preset === "today") {
-      const d = toHTMLDateString(today);
-      setFromDate(d);
-      setToDate(d);
-    } else if (preset === "yesterday") {
-      const yest = new Date(today);
-      yest.setDate(yest.getDate() - 1);
-      const d = toHTMLDateString(yest);
-      setFromDate(d);
-      setToDate(d);
-    } else if (preset === "thisWeek") {
-      const dayOfWeek = today.getDay(); // 0 is Sun
-      const start = new Date(today);
-      start.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-      setFromDate(toHTMLDateString(start));
-      setToDate(toHTMLDateString(today));
-    } else if (preset === "lastWeek") {
-      const dayOfWeek = today.getDay();
-      const end = new Date(today);
-      end.setDate(today.getDate() - (dayOfWeek === 0 ? 7 : dayOfWeek));
-      const start = new Date(end);
-      start.setDate(end.getDate() - 6);
-      setFromDate(toHTMLDateString(start));
-      setToDate(toHTMLDateString(end));
-    } else if (preset === "thisMonth") {
-      const start = new Date(today.getFullYear(), today.getMonth(), 1);
-      setFromDate(toHTMLDateString(start));
-      setToDate(toHTMLDateString(today));
-    } else if (preset === "lastMonth") {
-      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const end = new Date(today.getFullYear(), today.getMonth(), 0);
-      setFromDate(toHTMLDateString(start));
-      setToDate(toHTMLDateString(end));
-    } else if (preset === "thisYear") {
-      const start = new Date(today.getFullYear(), 0, 1);
-      setFromDate(toHTMLDateString(start));
-      setToDate(toHTMLDateString(today));
-    } else if (preset === "allTime") {
-      setFromDate("2020-01-01");
-      setToDate(toHTMLDateString(today));
-    }
+    setFromDate(newFrom);
+    setToDate(newTo);
     setCurrentPage(1);
   };
 
   const handleFromDateChange = (val: string) => {
     setFromDate(val);
-    setActivePreset("");
+    setActivePreset("custom");
     if (toDate && val > toDate) {
       setToDate(val);
     }
@@ -282,7 +210,7 @@ export default function PurchaseReportPage() {
   };
 
   const handleToDateChange = (val: string) => {
-    setActivePreset("");
+    setActivePreset("custom");
     if (fromDate && val < fromDate) {
       setToDate(fromDate);
     } else {
@@ -293,7 +221,10 @@ export default function PurchaseReportPage() {
 
   // Reset Filters
   const handleResetFilters = () => {
-    applyPreset("thisMonth");
+    const range = getPresetDateRange("thisMonth");
+    setActivePreset("thisMonth");
+    setFromDate(range.fromDate);
+    setToDate(range.toDate);
     setSelectedPartyId("all");
     setSelectedPartyName("");
     setPaymentStatus("all");
@@ -301,7 +232,28 @@ export default function PurchaseReportPage() {
     setMinAmount("");
     setMaxAmount("");
     setSortBy("bill_date");
-    setSortOrder("asc");
+    setSortOrder("desc");
+    setCurrentPage(1);
+  };
+
+  // Table Column Header Sort Handler
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      // For financial/date metrics, default first click to "desc" (highest / latest first)
+      const isDescDefault = [
+        "bill_date",
+        "date",
+        "created_at",
+        "total_amount",
+        "paid_amount",
+        "balance_due",
+        "purchase_number",
+      ].includes(key);
+      setSortOrder(isDescDefault ? "desc" : "asc");
+    }
     setCurrentPage(1);
   };
 
@@ -309,20 +261,46 @@ export default function PurchaseReportPage() {
     let count = 0;
     if (minAmount) count++;
     if (maxAmount) count++;
-    if (sortBy !== "bill_date" || sortOrder !== "asc") count++;
+    if (sortBy !== "bill_date" || sortOrder !== "desc") count++;
     return count;
   }, [minAmount, maxAmount, sortBy, sortOrder]);
 
+  const sortOptions: ReportSortOption[] = useMemo(
+    () => [
+      { value: "bill_date-desc", label: t("sortDateDesc") },
+      { value: "bill_date-asc", label: t("sortDateAsc") },
+      { value: "purchase_number-desc", label: t("sortBillDesc") },
+      { value: "purchase_number-asc", label: t("sortBillAsc") },
+      { value: "party_name-asc", label: t("sortSupplier") },
+      { value: "total_amount-desc", label: t("sortAmountDesc") },
+      { value: "total_amount-asc", label: t("sortAmountAsc") },
+      { value: "paid_amount-desc", label: t("sortPaidDesc") },
+      { value: "paid_amount-asc", label: t("sortPaidAsc") },
+      { value: "balance_due-desc", label: t("sortBalanceDesc") },
+      { value: "balance_due-asc", label: t("sortBalanceAsc") },
+    ],
+    [t]
+  );
+
   // Export to Excel
   const handleExportExcel = async () => {
+    if (bills.length === 0 || totalCount === 0) {
+      toast.error(t("noData"));
+      return;
+    }
     try {
       setIsExportingExcel(true);
       const fullData = await fetchReportData(true);
       const exportBills = fullData?.bills || bills;
+      if (!exportBills || exportBills.length === 0) {
+        toast.error(t("noData"));
+        return;
+      }
       const exportSummary = fullData?.summary || summary;
       exportPurchaseReportToExcel(exportBills, exportSummary);
     } catch (err) {
       console.error("Failed to export Excel:", err);
+      toast.error(tCommon("exportError") || "Export failed");
     } finally {
       setIsExportingExcel(false);
     }
@@ -330,100 +308,33 @@ export default function PurchaseReportPage() {
 
   // Export to PDF
   const handleExportPdf = async () => {
+    if (bills.length === 0 || totalCount === 0) {
+      toast.error(t("noData"));
+      return;
+    }
     setIsExportingPdf(true);
     try {
       const fullData = await fetchReportData(true);
       const itemsToExport = fullData?.bills && fullData.bills.length > 0 ? fullData.bills : bills;
+      if (!itemsToExport || itemsToExport.length === 0) {
+        toast.error(t("noData"));
+        return;
+      }
       setPdfBills(itemsToExport);
 
       await new Promise((resolve) => setTimeout(resolve, 400));
-
       if (!reportRef.current) return;
 
-      const mod = await import("html2pdf.js");
-      const html2pdf = (mod as any).default || mod;
-
-      await html2pdf()
-        .set({
-          margin: [6, 6, 16, 6],
-          filename: `purchase-report-${fromDate}_to_${toDate}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            scrollY: 0,
-            scrollX: 0,
-          },
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "landscape",
-          },
-          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".pdf-avoid-break"] },
-        })
-        .from(reportRef.current)
-        .toPdf()
-        .get("pdf")
-        .then((pdf: any) => {
-          const totalPages = pdf.internal.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFont("helvetica", "italic");
-            pdf.setFontSize(8);
-            pdf.setTextColor(148, 163, 184);
-            pdf.text(
-              tCommon("pdfWatermarkText") || "",
-              297 / 2,
-              210 - 5,
-              { align: "center" }
-            );
-          }
-        })
-        .save();
+      await exportReportToPdf({
+        element: reportRef.current,
+        filename: `purchase-report-${fromDate}_to_${toDate}.pdf`,
+        watermarkText: tCommon("pdfWatermarkText"),
+      });
     } catch (err) {
       console.error("Failed to generate PDF:", err);
+      toast.error(tCommon("exportError") || "Failed to generate PDF");
     } finally {
       setIsExportingPdf(false);
-    }
-  };
-
-  // Status Badge Helper
-  const renderStatusBadge = (status: "paid" | "partial" | "unpaid", neutral = false) => {
-    if (neutral) {
-      return (
-        <Badge variant="outline" className="border-border text-foreground bg-muted/40 text-[11px] font-medium gap-1 py-0.5">
-          {status === "paid" && <CheckCircle2 className="h-3 w-3 text-foreground" />}
-          {status === "partial" && <Clock className="h-3 w-3 text-foreground" />}
-          {status === "unpaid" && <AlertCircle className="h-3 w-3 text-foreground" />}
-          <span className="text-foreground">{t(status)}</span>
-        </Badge>
-      );
-    }
-
-    switch (status) {
-      case "paid":
-        return (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 text-[11px] font-medium gap-1 py-0.5">
-            <CheckCircle2 className="h-3 w-3" />
-            <span>{t("paid")}</span>
-          </Badge>
-        );
-      case "partial":
-        return (
-          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 text-[11px] font-medium gap-1 py-0.5">
-            <Clock className="h-3 w-3" />
-            <span>{t("partial")}</span>
-          </Badge>
-        );
-      case "unpaid":
-      default:
-        return (
-          <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 text-[11px] font-medium gap-1 py-0.5">
-            <AlertCircle className="h-3 w-3" />
-            <span>{t("unpaid")}</span>
-          </Badge>
-        );
     }
   };
 
@@ -442,7 +353,6 @@ export default function PurchaseReportPage() {
         id: "purchase_number",
         header: t("billNo"),
         accessorKey: "purchase_number",
-        sortable: true,
         className: "whitespace-nowrap font-semibold text-xs text-foreground",
         cell: (row) => (
           // View Modal trigger - To re-enable, uncomment the button below and remove the span:
@@ -467,25 +377,22 @@ export default function PurchaseReportPage() {
         cell: (row) => row.party_name || "-",
       },
       {
-        id: "items",
-        header: t("items"),
+        id: "quantity",
+        header: t("quantity"),
         className: "text-center text-xs text-foreground whitespace-nowrap",
-        cell: (row) => (
-          // View Modal trigger - To re-enable, uncomment the Button below and remove the div:
-          // <Button
-          //   variant="ghost"
-          //   size="sm"
-          //   onClick={() => setSelectedBillForDetails(row)}
-          //   className="h-6 px-2 text-[11px] font-medium gap-1 hover:bg-accent text-foreground"
-          // >
-          //   <Package className="h-3 w-3 text-foreground" />
-          //   <span className="text-foreground">{row.items_count || row.items?.length || 0}</span>
-          // </Button>
-          <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
-            <Package className="h-3 w-3 text-foreground" />
-            <span>{row.items_count || row.items?.length || 0}</span>
-          </div>
-        ),
+        cell: (row) => {
+          const totalQty =
+            row.total_quantity ??
+            row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+            row.items_count ??
+            0;
+          return (
+            <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
+              <Package className="h-3 w-3 text-foreground" />
+              <span>{totalQty}</span>
+            </div>
+          );
+        },
       },
       {
         id: "total_amount",
@@ -515,25 +422,12 @@ export default function PurchaseReportPage() {
         id: "status",
         header: <div className="text-center text-foreground">{t("status")}</div>,
         className: "text-center text-foreground whitespace-nowrap",
-        cell: (row) => <div className="flex justify-center">{renderStatusBadge(row.status, true)}</div>,
+        cell: (row) => (
+          <div className="flex justify-center">
+            <ReportStatusBadge status={row.status} label={t(row.status)} isTable={true} />
+          </div>
+        ),
       },
-      // View Modal Actions column - To re-enable, uncomment below:
-      // {
-      //   id: "actions",
-      //   header: "",
-      //   className: "text-right text-foreground whitespace-nowrap",
-      //   cell: (row) => (
-      //     <Button
-      //       variant="ghost"
-      //       size="icon"
-      //       onClick={() => setSelectedBillForDetails(row)}
-      //       className="h-7 w-7 text-foreground hover:bg-accent"
-      //       title={t("viewDetails")}
-      //     >
-      //       <Eye className="h-4 w-4 text-foreground" />
-      //     </Button>
-      //   ),
-      // },
     ],
     [t]
   );
@@ -560,10 +454,14 @@ export default function PurchaseReportPage() {
         render: (row) => row.party_name || "-",
       },
       {
-        header: t("items"),
+        header: t("quantity"),
         align: "center",
         width: "55px",
-        render: (row) => row.items_count || row.items?.length || 0,
+        render: (row) =>
+          row.total_quantity ??
+          row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+          row.items_count ??
+          0,
       },
       {
         header: t("totalAmount"),
@@ -660,295 +558,114 @@ export default function PurchaseReportPage() {
         title={t("title")}
         description={t("description")}
         actions={
-          can("reports", "export_purchase_report") && bills.length > 0 ? (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportExcel}
-                disabled={isExportingExcel || loading}
-                className="h-8 text-xs px-2.5 gap-1.5 flex-1 sm:flex-initial"
-              >
-                {isExportingExcel ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                )}
-                <span>{t("exportExcel")}</span>
-              </Button>
-
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleExportPdf}
-                disabled={isExportingPdf || loading || bills.length === 0}
-                className="h-8 text-xs px-2.5 gap-1.5 flex-1 sm:flex-initial bg-sky-600 hover:bg-sky-700 text-white"
-              >
-                {isExportingPdf ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Printer className="h-3.5 w-3.5" />
-                )}
-                <span>{t("downloadPdf")}</span>
-              </Button>
-            </div>
+          can("reports", "export_purchase_report") ? (
+            <ReportExportActions
+              onExportExcel={handleExportExcel}
+              onExportPdf={handleExportPdf}
+              isExportingExcel={isExportingExcel}
+              isExportingPdf={isExportingPdf}
+              excelLabel={t("exportExcel")}
+              pdfLabel={t("downloadPdf")}
+              disabled={loading}
+            />
           ) : undefined
         }
       />
 
-      {/* Date Presets Row */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {[
-          { key: "today", label: tCommon("today") || "Today" },
-          { key: "yesterday", label: tCommon("yesterday") || "Yesterday" },
-          { key: "thisWeek", label: tCommon("thisWeek") || "This Week" },
-          { key: "lastWeek", label: tCommon("lastWeek") || "Last Week" },
-          { key: "thisMonth", label: tCommon("thisMonth") || "This Month" },
-          { key: "lastMonth", label: tCommon("lastMonth") || "Last Month" },
-          { key: "thisYear", label: tCommon("thisYear") || "This Year" },
-          { key: "allTime", label: tCommon("allTime") || "All Time" },
-        ].map((preset) => (
-          <Button
-            key={preset.key}
-            variant={activePreset === preset.key ? "default" : "outline"}
-            size="sm"
-            onClick={() => applyPreset(preset.key)}
-            className="h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap"
-          >
-            {preset.label}
-          </Button>
-        ))}
-      </div>
+      {/* Date Presets Row (Standard Reusable Component) */}
+      <ReportDatePresets
+        activePreset={activePreset}
+        onSelectPreset={handleSelectPreset}
+      />
 
-      {/* Main Filters Card */}
-      <Card className="border border-border/50 bg-card shadow-sm">
-        <CardContent className="p-3.5 sm:p-4 space-y-3">
-          {/* Row 1: Primary Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("fromDate")}:
-              </label>
-              <DatePicker
-                value={fromDate}
-                max={toDate}
-                onChange={handleFromDateChange}
-                className="w-full h-8 text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("toDate")}:
-              </label>
-              <DatePicker
-                value={toDate}
-                min={fromDate}
-                onChange={handleToDateChange}
-                className="w-full h-8 text-xs"
-              />
-            </div>
-
-            {/* <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("supplier")}:
-              </label>
-              <PartyDropdown
-                value={selectedPartyId}
-                onValueChange={(val, party) => {
-                  setSelectedPartyId(val);
-                  setSelectedPartyName(party?.name || "");
-                  setCurrentPage(1);
-                }}
-                includeAllOption={true}
-                allOptionLabel={t("allSuppliers")}
-                enableSearch={true}
-                placeholder={t("allSuppliers")}
-                className="w-full h-8 text-xs"
-              />
-            </div> */}
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                {t("paymentStatus")}:
-              </label>
-              <Select
-                value={paymentStatus}
-                onValueChange={(val) => {
-                  setPaymentStatus(val);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder={t("allStatuses")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                  <SelectItem value="paid">{t("paid")}</SelectItem>
-                  <SelectItem value="partial">{t("partial")}</SelectItem>
-                  <SelectItem value="unpaid">{t("unpaid")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Row 2: Search and Advanced Toggle */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-border/40">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder={t("searchPlaceholder")}
-                className="h-8 text-xs pl-8 pr-7 w-full"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <Button
-                variant={showAdvancedFilters || activeAdvancedFilterCount > 0 ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setShowAdvancedFilters((prev) => !prev)}
-                className="h-8 text-xs px-2.5 gap-1.5"
-              >
-                <Filter className="h-3.5 w-3.5" />
-                <span>{t("filters")}</span>
-                {activeAdvancedFilterCount > 0 && (
-                  <span className="flex items-center justify-center h-4 w-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
-                    {activeAdvancedFilterCount}
-                  </span>
-                )}
-                {showAdvancedFilters ? (
-                  <ChevronUp className="h-3.5 w-3.5 ml-0.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
-                )}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetFilters}
-                className="h-8 text-xs px-2 text-muted-foreground hover:text-foreground gap-1"
-                title={t("resetFilters")}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("resetFilters")}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Expandable Advanced Filters */}
-          {showAdvancedFilters && (
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/50 grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in duration-200">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  {t("minAmount")}:
-                </label>
-                <Input
-                  type="number"
-                  value={minAmount}
-                  onChange={(e) => {
-                    setMinAmount(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="0"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  {t("maxAmount")}:
-                </label>
-                <Input
-                  type="number"
-                  value={maxAmount}
-                  onChange={(e) => {
-                    setMaxAmount(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="e.g. 100000"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  {t("sortBy")}:
-                </label>
-                <Select
-                  value={`${sortBy}-${sortOrder}`}
-                  onValueChange={(val) => {
-                    const [field, order] = val.split("-");
-                    setSortBy(field);
-                    setSortOrder(order as "asc" | "desc");
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder={t("sortBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bill_date-asc">{t("sortDateAsc")}</SelectItem>
-                    <SelectItem value="bill_date-desc">{t("sortDateDesc")}</SelectItem>
-                    <SelectItem value="total_amount-desc">{t("sortAmountDesc")}</SelectItem>
-                    <SelectItem value="total_amount-asc">{t("sortAmountAsc")}</SelectItem>
-                    <SelectItem value="balance_due-desc">{t("sortBalanceDesc")}</SelectItem>
-                    <SelectItem value="party_name-asc">{t("sortSupplier")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Main Filters Card (Standard Component) */}
+      <ReportFilterCard
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={handleFromDateChange}
+        onToDateChange={handleToDateChange}
+        fromDateLabel={t("fromDate")}
+        toDateLabel={t("toDate")}
+        paymentStatus={paymentStatus}
+        onPaymentStatusChange={(val) => {
+          setPaymentStatus(val);
+          setCurrentPage(1);
+        }}
+        paymentStatusLabel={t("paymentStatus")}
+        allStatusesLabel={t("allStatuses")}
+        paidLabel={t("paid")}
+        partialLabel={t("partial")}
+        unpaidLabel={t("unpaid")}
+        searchTerm={searchTerm}
+        onSearchTermChange={(val) => {
+          setSearchTerm(val);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder={t("searchPlaceholder")}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        activeAdvancedFilterCount={activeAdvancedFilterCount}
+        onResetFilters={handleResetFilters}
+        minAmount={minAmount}
+        onMinAmountChange={(val) => {
+          setMinAmount(val);
+          setCurrentPage(1);
+        }}
+        maxAmount={maxAmount}
+        onMaxAmountChange={(val) => {
+          setMaxAmount(val);
+          setCurrentPage(1);
+        }}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(field, order) => {
+          setSortBy(field);
+          setSortOrder(order);
+          setCurrentPage(1);
+        }}
+        sortOptions={sortOptions}
+        advancedLabels={{
+          filters: t("filters"),
+          resetFilters: t("resetFilters"),
+          minAmount: t("minAmount"),
+          maxAmount: t("maxAmount"),
+          sortBy: t("sortBy"),
+        }}
+      />
 
       {/* KPI Summary StatCards (3 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <StatCard
-          title={t("totalPurchases")}
-          value={formatCurrency(summary.totalPurchases)}
-          icon={<ShoppingCart className="h-4 w-4 text-cyan-600" />}
-          subValue={`${summary.totalBillsCount} ${t("totalBills")}`}
-          isLoading={loading}
-        />
-
-        <StatCard
-          title={t("totalPaid")}
-          value={formatCurrency(summary.totalPaid)}
-          icon={<CreditCard className="h-4 w-4 text-emerald-600" />}
-          subValue={`${summary.fullyPaidCount} ${t("paidBills")}`}
-          isLoading={loading}
-        />
-
-        <StatCard
-          title={t("balanceDue")}
-          value={formatCurrency(summary.totalBalanceDue)}
-          icon={<AlertCircle className="h-4 w-4 text-rose-600" />}
-          subValue={`${summary.unpaidCount + summary.partialCount} ${t("unpaidBills")}`}
-          isExpense={summary.totalBalanceDue > 0}
-          isLoading={loading}
-        />
-      </div>
+      <ReportKpiSummary
+        isLoading={loading}
+        items={[
+          {
+            title: t("totalPurchases"),
+            value: formatCurrency(summary.totalPurchases),
+            icon: <ShoppingCart className="h-4 w-4 text-cyan-600" />,
+            subValue: `${summary.totalBillsCount} ${t("totalBills")}`,
+          },
+          {
+            title: t("totalPaid"),
+            value: formatCurrency(summary.totalPaid),
+            icon: <CreditCard className="h-4 w-4 text-emerald-600" />,
+            subValue: `${summary.fullyPaidCount} ${t("paidBills")}`,
+          },
+          {
+            title: t("balanceDue"),
+            value: formatCurrency(summary.totalBalanceDue),
+            icon: <AlertCircle className="h-4 w-4 text-rose-600" />,
+            subValue: `${summary.unpaidCount + summary.partialCount} ${t("unpaidBills")}`,
+            isExpense: summary.totalBalanceDue > 0,
+          },
+        ]}
+      />
 
       {/* Data Table */}
       <DataTable
         columns={columns}
         data={bills}
         isLoading={loading}
+        sortConfig={{ key: sortBy, direction: sortOrder }}
+        onSort={handleSort}
         pageSize={pageSize}
         currentPage={currentPage}
         totalCount={totalCount}
@@ -960,175 +677,28 @@ export default function PurchaseReportPage() {
         emptyMessage={t("noData")}
         keyExtractor={(row) => row.id}
         renderMobileCard={(row) => (
-          <div
-            // View Modal trigger - To re-enable, uncomment the onClick below:
-            // onClick={() => setSelectedBillForDetails(row)}
-            className="p-3.5 border rounded-lg bg-card shadow-xs space-y-2.5 text-xs transition-colors"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <span className="font-mono font-bold text-foreground">{row.purchase_number || row.bill_number}</span>
-                <p className="font-semibold text-foreground text-sm mt-0.5">{row.party_name}</p>
-                <p className="text-[11px] text-foreground/75">
-                  {formatStatementDate(row.bill_date || row.created_at)}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                {renderStatusBadge(row.status, true)}
-                <span className="text-[11px] text-foreground">
-                  {row.items_count} {t("items")}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-[11px]">
-              <div>
-                <span className="text-muted-foreground block text-[10px]">{t("totalAmount")}</span>
-                <span className="font-bold text-foreground">{formatCurrency(row.total_amount)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px]">{t("paidAmount")}</span>
-                <span className="font-semibold text-foreground">{formatCurrency(row.paid_amount)}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-muted-foreground block text-[10px]">{t("balance")}</span>
-                <span className="font-bold text-foreground">{formatCurrency(row.balance_due)}</span>
-              </div>
-            </div>
-          </div>
+          <ReportMobileCard
+            number={row.purchase_number || row.bill_number}
+            partyName={row.party_name}
+            formattedDate={formatStatementDate(row.bill_date || row.created_at)}
+            status={row.status}
+            statusLabel={t(row.status)}
+            itemsCount={
+              row.total_quantity ??
+              row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+              row.items_count ??
+              0
+            }
+            itemsLabel={t("quantity")}
+            totalAmount={formatCurrency(row.total_amount)}
+            totalAmountLabel={t("totalAmount")}
+            paidAmount={formatCurrency(row.paid_amount)}
+            paidAmountLabel={t("paidAmount")}
+            balanceDue={formatCurrency(row.balance_due)}
+            balanceDueLabel={t("balance")}
+          />
         )}
       />
-
-      {/* ========================================================
-          BILL DETAILS MODAL (VIEW MODAL)
-          Currently commented out safely.
-          To re-enable: Remove the `{/*` above <Dialog and `* /}` below </Dialog>
-          ======================================================== */}
-      {/*
-      <Dialog
-        open={Boolean(selectedBillForDetails)}
-        onOpenChange={(open) => !open && setSelectedBillForDetails(null)}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedBillForDetails && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center justify-between pr-4">
-                  <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                    <Receipt className="h-5 w-5 text-primary" />
-                    <span>{t("billDetails")}</span>
-                  </DialogTitle>
-                  {renderStatusBadge(selectedBillForDetails.status)}
-                </div>
-                <DialogDescription className="text-xs text-muted-foreground text-left">
-                  {t("billDetailsDescription")}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-2 text-xs">
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("billNo")}:</span>
-                  <span className="font-mono font-bold text-foreground">
-                    {selectedBillForDetails.purchase_number || selectedBillForDetails.bill_number}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("date")}:</span>
-                  <span className="font-medium text-foreground">
-                    {formatStatementDate(
-                      selectedBillForDetails.bill_date || selectedBillForDetails.created_at
-                    )}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("supplierName")}:</span>
-                  <span className="font-bold text-foreground truncate block">
-                    {selectedBillForDetails.party_name}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">{t("paymentMethod")}:</span>
-                  <span className="font-medium text-foreground">
-                    {selectedBillForDetails.payment_method_name || "-"}
-                  </span>
-                </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-3 py-2 font-semibold text-foreground border-b flex justify-between items-center">
-                    <span>{t("itemsList")}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {selectedBillForDetails.items?.length || 0} items
-                    </Badge>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="text-[11px]">
-                        <TableHead className="h-8">#</TableHead>
-                        <TableHead className="h-8">{t("productName")}</TableHead>
-                        <TableHead className="h-8 text-center">{t("quantity")}</TableHead>
-                        <TableHead className="h-8 text-right">{t("costPrice")}</TableHead>
-                        <TableHead className="h-8 text-right">{t("amount")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedBillForDetails.items?.length ? (
-                        selectedBillForDetails.items.map((item, idx) => (
-                          <TableRow key={idx} className="text-xs">
-                            <TableCell className="py-2 text-foreground">{idx + 1}</TableCell>
-                            <TableCell className="py-2 font-medium text-foreground">{item.product_name}</TableCell>
-                            <TableCell className="py-2 text-center text-foreground">{item.quantity}</TableCell>
-                            <TableCell className="py-2 text-right text-foreground">{formatCurrency(item.cost_price)}</TableCell>
-                            <TableCell className="py-2 text-right font-semibold text-foreground">
-                              {formatCurrency(item.amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                            {t("noData")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="p-3 rounded-lg bg-card border flex flex-col items-end gap-1.5 text-xs text-foreground">
-                  <div className="flex justify-between w-48 text-foreground">
-                    <span className="text-muted-foreground">{t("totalAmount")}:</span>
-                    <span className="font-bold text-foreground">
-                      {formatCurrency(selectedBillForDetails.total_amount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between w-48 text-foreground">
-                    <span className="text-muted-foreground">{t("paidAmount")}:</span>
-                    <span className="font-semibold text-foreground">{formatCurrency(selectedBillForDetails.paid_amount)}</span>
-                  </div>
-                  <div className="flex justify-between w-48 font-bold border-t pt-1.5 text-foreground">
-                    <span>{t("balance")}:</span>
-                    <span>{formatCurrency(selectedBillForDetails.balance_due)}</span>
-                  </div>
-                </div>
-
-                {selectedBillForDetails.description && (
-                  <div className="p-2.5 rounded-md bg-muted/30 border text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground block mb-0.5">{t("note")}:</span>
-                    {selectedBillForDetails.description}
-                  </div>
-                )}
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" size="sm" onClick={() => setSelectedBillForDetails(null)}>
-                  {tCommon("cancel") || "Close"}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-      */}
 
       {/* PDF Export Modal */}
       <ReportPdfModal

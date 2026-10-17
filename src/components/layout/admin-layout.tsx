@@ -114,6 +114,8 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   const [salesExpanded, setSalesExpanded] = useState(true);
   const [purchaseExpanded, setPurchaseExpanded] = useState(true);
   const [reportsExpanded, setReportsExpanded] = useState(true);
+  const [whatsappExpanded, setWhatsappExpanded] = useState(true);
+  const [whatsappTab, setWhatsappTab] = useState<string>("campaigns");
   const [companyName, setCompanyName] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
@@ -299,8 +301,22 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         setShowBlockedCard(true);
       }
     };
+    const handleUnblocked = (event: any) => {
+      setBlockedSubscriptionData(null);
+      setShowBlockedCard(false);
+      if (typeof window !== "undefined") {
+        if (event?.detail?.userId) {
+          localStorage.removeItem("hasSeenBlockedCard_" + event.detail.userId);
+        }
+        localStorage.removeItem("hasSeenBlockedCard");
+      }
+    };
     window.addEventListener("subscriptionLoginBlocked", handleBlocked);
-    return () => window.removeEventListener("subscriptionLoginBlocked", handleBlocked);
+    window.addEventListener("subscriptionUnblocked", handleUnblocked);
+    return () => {
+      window.removeEventListener("subscriptionLoginBlocked", handleBlocked);
+      window.removeEventListener("subscriptionUnblocked", handleUnblocked);
+    };
   }, []);
 
   // Remove locale and /admin from pathname to get current page
@@ -350,6 +366,39 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     }
   }, [isReportsSectionActive]);
 
+  useEffect(() => {
+    if (pathWithoutLocale === "/admin/whatsapp-integration") {
+      setWhatsappExpanded(true);
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get("tab");
+        if (tab === "connection" || tab === "campaigns" || tab === "reminders") {
+          setWhatsappTab(tab);
+        } else {
+          setWhatsappTab("campaigns");
+        }
+      }
+    }
+  }, [pathWithoutLocale, pathname]);
+
+  useEffect(() => {
+    const handleTabSync = (e: any) => {
+      if (e.detail?.tab) {
+        setWhatsappTab(e.detail.tab);
+      }
+    };
+    window.addEventListener("whatsappTabChanged", handleTabSync);
+    return () => window.removeEventListener("whatsappTabChanged", handleTabSync);
+  }, []);
+
+  const handleWhatsappTabClick = (targetTab: "campaigns" | "connection" | "reminders") => {
+    setWhatsappTab(targetTab);
+    setSidebarOpen(false);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("whatsappTabChanged", { detail: { tab: targetTab } }));
+    }
+  };
+
   const pageNames: { [key: string]: string } = {
     "/admin": tNav("dashboard"),
     "/admin/sales/payment-in": tNav("paymentIn"),
@@ -372,6 +421,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     "/admin/reports/item-wise-sales": tNav("itemWiseSaleReport"),
     "/admin/reports/sale-report": tNav("saleReport"),
     "/admin/reports/purchase-report": tNav("purchaseReport"),
+    "/admin/whatsapp-integration": tNav("whatsapp"),
     "/admin/ai-chat": tNav("aiChat"),
   };
 
@@ -714,41 +764,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Sale Section */}
             {hasModuleAccess("sales") && (
             <div>
-              <div className="flex items-stretch gap-1">
-                <Link
-                  href={`/${locale}/admin/sales`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  aria-current={pathWithoutLocale === "/admin/sales" ? "page" : undefined}
-                  className={`${navItemBase} flex-1 ${isSalesSectionActive ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("sales") : ""}
-                >
+              <button
+                type="button"
+                onClick={() => setSalesExpanded((prev) => !prev)}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                  isSalesSectionActive ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("sales") : ""}
+                aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
+                aria-expanded={salesExpanded}
+              >
+                <div className="flex items-center gap-2.5 truncate">
                   <ShoppingCartIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("sales")}
                   </span>
-                </Link>
-
+                </div>
                 {!sidebarMinimized && hasSalesSub && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isSalesSectionActive
-                      ? "text-primary hover:bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                      }`}
-                    aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
-                    aria-expanded={salesExpanded}
-                    onClick={() => setSalesExpanded((prev) => !prev)}
-                  >
-                    <ChevronRight
-                      className={`h-3 w-3 transition-transform ${salesExpanded ? "rotate-90" : ""}`}
-                    />
-                  </Button>
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${salesExpanded ? "rotate-90" : ""}`}
+                  />
                 )}
-              </div>
+              </button>
 
               {!sidebarMinimized && salesExpanded && (
                 <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
@@ -831,41 +868,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Purchase Section */}
             {hasModuleAccess("purchase") && (
             <div>
-              <div className="flex items-stretch gap-1">
-                <Link
-                  href={`/${locale}/admin/purchase`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  aria-current={pathWithoutLocale === "/admin/purchase" ? "page" : undefined}
-                  className={`${navItemBase} flex-1 ${isPurchaseSectionActive ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("purchase") : ""}
-                >
+              <button
+                type="button"
+                onClick={() => setPurchaseExpanded((prev) => !prev)}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                  isPurchaseSectionActive ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("purchase") : ""}
+                aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
+                aria-expanded={purchaseExpanded}
+              >
+                <div className="flex items-center gap-2.5 truncate">
                   <ShoppingBagIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("purchase")}
                   </span>
-                </Link>
-
+                </div>
                 {!sidebarMinimized && hasPurchaseSub && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isPurchaseSectionActive
-                      ? "text-primary hover:bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                      }`}
-                    aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
-                    aria-expanded={purchaseExpanded}
-                    onClick={() => setPurchaseExpanded((prev) => !prev)}
-                  >
-                    <ChevronRight
-                      className={`h-3 w-3 transition-transform ${purchaseExpanded ? "rotate-90" : ""}`}
-                    />
-                  </Button>
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${purchaseExpanded ? "rotate-90" : ""}`}
+                  />
                 )}
-              </div>
+              </button>
 
               {!sidebarMinimized && purchaseExpanded && (
                 <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
@@ -943,42 +967,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Reports Section */}
             {hasModuleAccess("reports") && (
             <div>
-              <div className="flex items-stretch gap-1">
-                <Link
-                  href={`/${locale}/admin/reports`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} flex-1 ${isReportsSectionActive ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("reports") : ""}
-                >
+              <button
+                type="button"
+                onClick={() => setReportsExpanded((prev) => !prev)}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                  isReportsSectionActive ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("reports") : ""}
+                aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
+                aria-expanded={reportsExpanded}
+              >
+                <div className="flex items-center gap-2.5 truncate">
                   <BarChart className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("reports")}
                   </span>
-                </Link>
-
+                </div>
                 {!sidebarMinimized && hasReportsSub && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isReportsSectionActive
-                      ? "text-primary hover:bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                      }`}
-                    aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
-                    aria-expanded={reportsExpanded}
-                    onClick={() => setReportsExpanded((prev) => !prev)}
-                  >
-                    <ChevronRight
-                      className={`h-3 w-3 transition-transform ${reportsExpanded ? "rotate-90" : ""}`}
-                    />
-                  </Button>
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${reportsExpanded ? "rotate-90" : ""}`}
+                  />
                 )}
-              </div>
-
-              
+              </button>              
 
               {!sidebarMinimized && reportsExpanded && (
                 <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
@@ -1104,18 +1114,84 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* WhatsApp Integration */}
             {enableWhatsApp && hasModuleAccess("whatsapp") && (
               <div>
-                <Link
-                  href={`/${locale}/admin/whatsapp-integration`}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
+                <button
+                  type="button"
+                  onClick={() => setWhatsappExpanded((prev) => !prev)}
+                  className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                    pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
                   title={sidebarMinimized ? "WhatsApp" : ""}
+                  aria-label={whatsappExpanded ? "Collapse WhatsApp menu" : "Expand WhatsApp menu"}
+                  aria-expanded={whatsappExpanded}
                 >
-                  <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
-                  <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                    {tNav("whatsapp")}
-                  </span>
-                </Link>
+                  <div className="flex items-center gap-2.5 truncate">
+                    <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+                    <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                      {tNav("whatsapp")}
+                    </span>
+                  </div>
+                  {!sidebarMinimized && (
+                    <ChevronRight
+                      className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${whatsappExpanded ? "rotate-90" : ""}`}
+                    />
+                  )}
+                </button>
+
+                {!sidebarMinimized && whatsappExpanded && (
+                  <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
+                    <Link
+                      href={`/${locale}/admin/whatsapp-integration?tab=campaigns`}
+                      prefetch={false}
+                      onClick={() => handleWhatsappTabClick("campaigns")}
+                      aria-current={
+                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
+                          ? "page"
+                          : undefined
+                      }
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                    >
+                      Marketing Campaigns
+                    </Link>
+                    <Link
+                      href={`/${locale}/admin/whatsapp-integration?tab=connection`}
+                      prefetch={false}
+                      onClick={() => handleWhatsappTabClick("connection")}
+                      aria-current={
+                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
+                          ? "page"
+                          : undefined
+                      }
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                    >
+                      Device Connection
+                    </Link>
+                    <Link
+                      href={`/${locale}/admin/whatsapp-integration?tab=reminders`}
+                      prefetch={false}
+                      onClick={() => handleWhatsappTabClick("reminders")}
+                      aria-current={
+                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
+                          ? "page"
+                          : undefined
+                      }
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                    >
+                      Udhaar Reminders
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 

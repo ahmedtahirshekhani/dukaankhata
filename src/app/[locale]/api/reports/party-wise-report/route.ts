@@ -25,6 +25,10 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get("toDate");
     const partyId = searchParams.get("partyId");
     const search = searchParams.get("search")?.trim() || "";
+    const minAmount = searchParams.get("minAmount");
+    const maxAmount = searchParams.get("maxAmount");
+    const sortBy = searchParams.get("sortBy") || "total_amount";
+    const sortOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc";
     const detailsPartyId = searchParams.get("detailsPartyId"); // If set, return that party's individual transactions
     const page = parseInt(searchParams.get("page") || "1");
     const limitParam = searchParams.get("limit");
@@ -45,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const paymentMethodMap = new Map<string, string>();
     paymentMethods.forEach((pm) => {
-      paymentMethodMap.set(pm._id.toString(), pm.bank_name || pm.account_title || "Cash");
+      paymentMethodMap.set(pm._id.toString(), pm.bank_name || pm.account_title);
     });
 
     // --- DRILLDOWN DETAILS FOR A SINGLE PARTY ---
@@ -68,6 +72,37 @@ export async function GET(request: NextRequest) {
           ],
         };
 
+        if (fromDate && toDate) {
+          const from = new Date(fromDate);
+          from.setHours(0, 0, 0, 0);
+          const to = new Date(toDate);
+          to.setHours(23, 59, 59, 999);
+
+          if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+            orderMatch.$and = orderMatch.$and || [];
+            orderMatch.$and.push({
+              $expr: {
+                $let: {
+                  vars: {
+                    rawDate: {
+                      $ifNull: [
+                        "$invoice_date",
+                        { $ifNull: ["$sale_date", { $ifNull: ["$order_date", { $ifNull: ["$date", "$created_at"] }] }] },
+                      ],
+                    },
+                  },
+                  in: {
+                    $and: [
+                      { $gte: [{ $toDate: "$$rawDate" }, from] },
+                      { $lte: [{ $toDate: "$$rawDate" }, to] },
+                    ],
+                  },
+                },
+              },
+            });
+          }
+        }
+
         const invoices = await ordersCollection
           .find(orderMatch)
           .sort({ sale_date: -1, invoice_date: -1, created_at: -1 })
@@ -76,15 +111,27 @@ export async function GET(request: NextRequest) {
 
         const mapped = invoices.map((o) => {
           const total = Number(o.total_amount || o.final_amount || o.grand_total || 0);
-          const paid = Number(
-            o.paid_amount ??
+          let paid = Number(
             o.payment?.paid_amount ??
+            o.payment?.paidAmount ??
+            o.paid_amount ??
+            o.paidAmount ??
             o.received_amount ??
             0
           );
-          const balance = Math.max(0, total - paid);
-          const isPaid = balance <= 0 || o.status === "paid";
-          const isPartial = paid > 0 && balance > 0;
+          const isPaid = Boolean(
+            o.status === "paid" ||
+            o.status === "Paid" ||
+            o.is_paid ||
+            (total > 0 && paid >= total)
+          );
+
+          let balance = isPaid ? 0 : Math.max(0, total - paid);
+          if (isPaid && paid === 0) {
+            paid = total;
+          }
+
+          const isPartial = !isPaid && paid > 0 && balance > 0;
           const status = isPaid ? "paid" : isPartial ? "partial" : "unpaid";
           const pmId = o.payment_method_id?.toString() || o.payment?.method?.toString() || o.payment_method?.toString();
 
@@ -110,6 +157,9 @@ export async function GET(request: NextRequest) {
             status,
             payment_method_name: pmId ? paymentMethodMap.get(pmId) || "Cash" : "Cash",
             items_count: Array.isArray(o.items) ? o.items.length : 0,
+            total_quantity: Array.isArray(o.items)
+              ? o.items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0)
+              : 0,
           };
         });
 
@@ -126,6 +176,37 @@ export async function GET(request: NextRequest) {
           ],
         };
 
+        if (fromDate && toDate) {
+          const from = new Date(fromDate);
+          from.setHours(0, 0, 0, 0);
+          const to = new Date(toDate);
+          to.setHours(23, 59, 59, 999);
+
+          if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+            billMatch.$and = billMatch.$and || [];
+            billMatch.$and.push({
+              $expr: {
+                $let: {
+                  vars: {
+                    rawDate: {
+                      $ifNull: [
+                        "$bill_date",
+                        { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] },
+                      ],
+                    },
+                  },
+                  in: {
+                    $and: [
+                      { $gte: [{ $toDate: "$$rawDate" }, from] },
+                      { $lte: [{ $toDate: "$$rawDate" }, to] },
+                    ],
+                  },
+                },
+              },
+            });
+          }
+        }
+
         const bills = await purchaseBillsCollection
           .find(billMatch)
           .sort({ bill_date: -1, created_at: -1 })
@@ -133,11 +214,25 @@ export async function GET(request: NextRequest) {
           .toArray();
 
         const mapped = bills.map((b) => {
-          const total = Number(b.total_amount || b.grand_total || 0);
-          const paid = Number(b.paid_amount || 0);
-          const balance = Math.max(0, total - paid);
-          const isPaid = balance <= 0 || b.status === "paid";
-          const isPartial = paid > 0 && balance > 0;
+          const total = Number(b.total_amount || b.grand_total || b.final_amount);
+          let paid = Number(b.paid_amount || b.paidAmount || b.payment?.paid_amount);
+          const isPaid = Boolean(
+            b.is_paid ||
+            b.status === "paid" ||
+            b.status === "Paid" ||
+            (total > 0 && paid >= total) ||
+            b.balance_due === 0
+          );
+
+          let balance = isPaid
+            ? 0
+            : Number(b.balance_due ?? Math.max(0, total - paid));
+
+          if (isPaid && paid === 0) {
+            paid = total;
+          }
+
+          const isPartial = !isPaid && paid > 0 && balance > 0;
           const status = isPaid ? "paid" : isPartial ? "partial" : "unpaid";
           const pmId = b.payment_method_id?.toString() || b.payment_method?.toString();
 
@@ -152,13 +247,16 @@ export async function GET(request: NextRequest) {
           return {
             id: b._id.toString(),
             bill_number: billNum,
-            date: b.bill_date || b.created_at,
+            date: b.bill_date || b.purchase_date || b.date || b.created_at,
             total_amount: total,
             paid_amount: paid,
             balance_due: balance,
             status,
             payment_method_name: pmId ? paymentMethodMap.get(pmId) || "Cash" : "Cash",
             items_count: Array.isArray(b.items) ? b.items.length : 0,
+            total_quantity: Array.isArray(b.items)
+              ? b.items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0)
+              : 0,
           };
         });
 
@@ -223,34 +321,144 @@ export async function GET(request: NextRequest) {
         .aggregate([
           { $match: matchQuery },
           {
+            $addFields: {
+              computed_total: {
+                $toDouble: {
+                  $ifNull: [
+                    "$total_amount",
+                    { $ifNull: ["$final_amount", { $ifNull: ["$grand_total", 0] }] }
+                  ]
+                }
+              },
+              raw_paid: {
+                $toDouble: {
+                  $ifNull: [
+                    "$payment.paid_amount",
+                    {
+                      $ifNull: [
+                        "$payment.paidAmount",
+                        {
+                          $ifNull: [
+                            "$paid_amount",
+                            {
+                              $ifNull: [
+                                "$paidAmount",
+                                { $ifNull: ["$received_amount", 0] }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              is_paid_status: {
+                $cond: [
+                  {
+                    $or: [
+                      { $eq: ["$status", "paid"] },
+                      { $eq: ["$status", "Paid"] },
+                      { $eq: ["$is_paid", true] },
+                    ]
+                  },
+                  true,
+                  false
+                ]
+              }
+            }
+          },
+          {
+            $addFields: {
+              computed_paid: {
+                $cond: [
+                  { $eq: ["$is_paid_status", true] },
+                  {
+                    $cond: [
+                      { $gt: ["$raw_paid", 0] },
+                      "$raw_paid",
+                      "$computed_total"
+                    ]
+                  },
+                  "$raw_paid"
+                ]
+              }
+            }
+          },
+          {
+            $addFields: {
+              computed_balance: {
+                $cond: [
+                  { $eq: ["$is_paid_status", true] },
+                  0,
+                  {
+                    $max: [
+                      0,
+                      { $subtract: ["$computed_total", "$computed_paid"] }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
             $group: {
-              _id: { $toString: "$customer_id" },
-              customer_name: { $first: "$customer_name" },
-              customer_phone: { $first: "$customer_phone" },
-              total_sales: { $sum: { $toDouble: { $ifNull: ["$total_amount", "$final_amount", 0] } } },
-              total_received: { $sum: { $toDouble: { $ifNull: ["$paid_amount", "$received_amount", 0] } } },
+              _id: {
+                $toString: {
+                  $ifNull: [
+                    "$customer_id",
+                    { $ifNull: ["$party_id", "$customer._id"] }
+                  ]
+                }
+              },
+              customer_name: {
+                $first: {
+                  $ifNull: [
+                    "$customer_name",
+                    { $ifNull: ["$customer.name", "$party_name"] }
+                  ]
+                }
+              },
+              customer_phone: {
+                $first: {
+                  $ifNull: [
+                    "$customer_phone",
+                    { $ifNull: ["$customer.phone", "$party_phone"] }
+                  ]
+                }
+              },
+              total_sales: { $sum: "$computed_total" },
+              total_received: { $sum: "$computed_paid" },
+              total_balance: { $sum: "$computed_balance" },
               invoices_count: { $sum: 1 },
               last_date: {
                 $max: {
                   $ifNull: [
                     "$invoice_date",
-                    { $ifNull: ["$sale_date", { $ifNull: ["$date", "$created_at"] }] },
-                  ],
-                },
-              },
-            },
-          },
+                    { $ifNull: ["$sale_date", { $ifNull: ["$order_date", { $ifNull: ["$date", "$created_at"] }] }] }
+                  ]
+                }
+              }
+            }
+          }
         ])
         .toArray();
 
       // Fetch customer metadata for phone / proper name if missing
       const customerIds = groupedSales.map((s) => s._id).filter(Boolean);
+      const customerIdFilters: any[] = [];
+      customerIds.forEach((id) => {
+        customerIdFilters.push(id);
+        if (isValidObjectId(id)) {
+          customerIdFilters.push(toObjectId(id));
+        }
+      });
+
       const customerMetaList = await customersCollection
         .find({
-          user_id: userObjId,
-          _id: { $in: customerIds.map((id) => (isValidObjectId(id) ? toObjectId(id) : id)) },
+          _id: { $in: customerIdFilters },
         })
-        .project({ _id: 1, name: 1, phone: 1 })
+        .project({ _id: 1, name: 1, phone: 1, company_name: 1, balance: 1 })
         .toArray();
 
       const customerMetaMap = new Map<string, any>();
@@ -258,14 +466,14 @@ export async function GET(request: NextRequest) {
 
       let rows = groupedSales.map((item) => {
         const meta = customerMetaMap.get(item._id);
-        const name = item.customer_name || meta?.name || "Walk-in Customer";
-        const phone = item.customer_phone || meta?.phone || "-";
+        const name = item.customer_name || meta?.name || meta?.company_name || "Cash Sale";
+        const phone = item.customer_phone || meta?.phone || "";
         const totalSales = Number(item.total_sales || 0);
         const received = Number(item.total_received || 0);
-        const balance = Math.max(0, totalSales - received);
+        const balance = Number(item.total_balance ?? Math.max(0, totalSales - received));
 
         return {
-          party_id: item._id || "unknown",
+          party_id: item._id || "",
           party_name: name,
           party_phone: phone,
           total_amount: totalSales,
@@ -284,8 +492,31 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Sort by total sale amount descending
-      rows.sort((a, b) => b.total_amount - a.total_amount);
+      // Min/Max Amount filter
+      if (minAmount && !isNaN(parseFloat(minAmount))) {
+        const min = parseFloat(minAmount);
+        rows = rows.filter((r) => r.total_amount >= min);
+      }
+      if (maxAmount && !isNaN(parseFloat(maxAmount))) {
+        const max = parseFloat(maxAmount);
+        rows = rows.filter((r) => r.total_amount <= max);
+      }
+
+      // Sorting
+      rows.sort((a, b) => {
+        let valA: any = a[sortBy as keyof typeof a];
+        let valB: any = b[sortBy as keyof typeof b];
+
+        if (typeof valA === "string") {
+          valA = valA.toLowerCase();
+          valB = (valB || "").toLowerCase();
+          return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+
+        valA = Number(valA || 0);
+        valB = Number(valB || 0);
+        return sortOrder === "asc" ? valA - valB : valB - valA;
+      });
 
       // KPIs
       let totalAmount = 0;
@@ -373,33 +604,138 @@ export async function GET(request: NextRequest) {
         .aggregate([
           { $match: matchQuery },
           {
+            $addFields: {
+              computed_total: {
+                $toDouble: {
+                  $ifNull: [
+                    "$total_amount",
+                    { $ifNull: ["$grand_total", { $ifNull: ["$final_amount", 0] }] }
+                  ]
+                }
+              },
+              is_bill_paid: {
+                $cond: [
+                  {
+                    $or: [
+                      { $eq: ["$is_paid", true] },
+                      { $eq: ["$is_paid", 1] },
+                      { $eq: ["$is_paid", "true"] },
+                      { $eq: ["$status", "paid"] },
+                      { $eq: ["$status", "Paid"] },
+                    ]
+                  },
+                  true,
+                  false
+                ]
+              },
+              raw_paid: {
+                $toDouble: {
+                  $ifNull: [
+                    "$paid_amount",
+                    {
+                      $ifNull: [
+                        "$paidAmount",
+                        { $ifNull: ["$payment.paid_amount", 0] }
+                      ]
+                    }
+                  ]
+                }
+              },
+              raw_balance: {
+                $toDouble: {
+                  $ifNull: [
+                    "$balance_due",
+                    { $ifNull: ["$balanceDue", null] }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            $addFields: {
+              computed_paid: {
+                $cond: [
+                  { $eq: ["$is_bill_paid", true] },
+                  {
+                    $cond: [
+                      { $gt: ["$raw_paid", 0] },
+                      "$raw_paid",
+                      "$computed_total"
+                    ]
+                  },
+                  "$raw_paid"
+                ]
+              },
+              computed_balance: {
+                $cond: [
+                  { $eq: ["$is_bill_paid", true] },
+                  0,
+                  {
+                    $cond: [
+                      { $ne: ["$raw_balance", null] },
+                      "$raw_balance",
+                      {
+                        $max: [
+                          0,
+                          { $subtract: ["$computed_total", "$computed_paid"] }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
             $group: {
-              _id: { $toString: "$party_id" },
-              party_name: { $first: "$party_name" },
-              total_purchases: { $sum: { $toDouble: { $ifNull: ["$total_amount", 0] } } },
-              total_paid: { $sum: { $toDouble: { $ifNull: ["$paid_amount", 0] } } },
+              _id: {
+                $toString: {
+                  $ifNull: [
+                    "$party_id",
+                    { $ifNull: ["$party._id", "$supplier_id"] }
+                  ]
+                }
+              },
+              party_name: {
+                $first: {
+                  $ifNull: [
+                    "$party_name",
+                    { $ifNull: ["$party.name", "$supplier_name"] }
+                  ]
+                }
+              },
+              total_purchases: { $sum: "$computed_total" },
+              total_paid: { $sum: "$computed_paid" },
+              total_balance: { $sum: "$computed_balance" },
               bills_count: { $sum: 1 },
               last_date: {
                 $max: {
                   $ifNull: [
                     "$bill_date",
-                    { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] },
-                  ],
-                },
-              },
-            },
-          },
+                    { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] }
+                  ]
+                }
+              }
+            }
+          }
         ])
         .toArray();
 
       // Fetch party phone from customers collection
       const partyIds = groupedPurchases.map((p) => p._id).filter(Boolean);
+      const partyIdFilters: any[] = [];
+      partyIds.forEach((id) => {
+        partyIdFilters.push(id);
+        if (isValidObjectId(id)) {
+          partyIdFilters.push(toObjectId(id));
+        }
+      });
+
       const partyMetaList = await customersCollection
         .find({
-          user_id: userObjId,
-          _id: { $in: partyIds.map((id) => (isValidObjectId(id) ? toObjectId(id) : id)) },
+          _id: { $in: partyIdFilters },
         })
-        .project({ _id: 1, name: 1, phone: 1 })
+        .project({ _id: 1, name: 1, phone: 1, company_name: 1, balance: 1 })
         .toArray();
 
       const partyMetaMap = new Map<string, any>();
@@ -407,11 +743,11 @@ export async function GET(request: NextRequest) {
 
       let rows = groupedPurchases.map((item) => {
         const meta = partyMetaMap.get(item._id);
-        const name = item.party_name || meta?.name || "Supplier";
-        const phone = meta?.phone || "-";
+        const name = item.party_name || meta?.name || meta?.company_name || "Supplier";
+        const phone = item.party_phone || meta?.phone || "";
         const totalPurchases = Number(item.total_purchases || 0);
         const paid = Number(item.total_paid || 0);
-        const balance = Math.max(0, totalPurchases - paid);
+        const balance = Number(item.total_balance ?? Math.max(0, totalPurchases - paid));
 
         return {
           party_id: item._id || "unknown",
@@ -433,8 +769,31 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Sort by total purchase amount descending
-      rows.sort((a, b) => b.total_amount - a.total_amount);
+      // Min/Max Amount filter
+      if (minAmount && !isNaN(parseFloat(minAmount))) {
+        const min = parseFloat(minAmount);
+        rows = rows.filter((r) => r.total_amount >= min);
+      }
+      if (maxAmount && !isNaN(parseFloat(maxAmount))) {
+        const max = parseFloat(maxAmount);
+        rows = rows.filter((r) => r.total_amount <= max);
+      }
+
+      // Sorting
+      rows.sort((a, b) => {
+        let valA: any = a[sortBy as keyof typeof a];
+        let valB: any = b[sortBy as keyof typeof b];
+
+        if (typeof valA === "string") {
+          valA = valA.toLowerCase();
+          valB = (valB || "").toLowerCase();
+          return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+
+        valA = Number(valA || 0);
+        valB = Number(valB || 0);
+        return sortOrder === "asc" ? valA - valB : valB - valA;
+      });
 
       // KPIs
       let totalAmount = 0;

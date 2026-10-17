@@ -78,11 +78,9 @@ export function StatCard({
             </>
           )}
         </div>
-        {subValue && !isLoading && (
-          <p className="text-[10px] text-muted-foreground mt-1 leading-tight">
-            {subValue}
-          </p>
-        )}
+        <p className="text-[10px] text-muted-foreground mt-1 leading-tight min-h-[14px]">
+          {!isLoading && subValue ? subValue : "\u00A0"}
+        </p>
       </div>
     </Card>
   );

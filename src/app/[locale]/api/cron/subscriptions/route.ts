@@ -251,6 +251,28 @@ async function runCronJob() {
         );
 
         if (daysPassed > gracePeriodDays) {
+          // Check if user has an active, unexpired subscription before blocking
+          const activeSubForUser = await subscriptionsCollection.findOne({
+            user_id: pendingSub.user_id,
+            status: { $in: ["active", "in_trial", "trial"] },
+            expiry_date: { $gt: now },
+          });
+
+          if (activeSubForUser) {
+            // User already has an active subscription, cancel this superseded pending subscription
+            await subscriptionsCollection.updateOne(
+              { _id: pendingSub._id },
+              {
+                $set: {
+                  status: "cancelled",
+                  cancellation_reason: "Superseded by active subscription",
+                  updated_at: new Date(),
+                },
+              }
+            );
+            continue;
+          }
+
           // Block login
           await subscriptionsCollection.updateOne(
             { _id: pendingSub._id },
