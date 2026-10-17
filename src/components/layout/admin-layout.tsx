@@ -764,41 +764,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Sale Section */}
             {hasModuleAccess("sales") && (
             <div>
-              <div className="flex items-stretch gap-1">
-                <Link
-                  href={`/${locale}/admin/sales`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  aria-current={pathWithoutLocale === "/admin/sales" ? "page" : undefined}
-                  className={`${navItemBase} flex-1 ${isSalesSectionActive ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("sales") : ""}
-                >
+              <button
+                type="button"
+                onClick={() => setSalesExpanded((prev) => !prev)}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                  isSalesSectionActive ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("sales") : ""}
+                aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
+                aria-expanded={salesExpanded}
+              >
+                <div className="flex items-center gap-2.5 truncate">
                   <ShoppingCartIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("sales")}
                   </span>
-                </Link>
-
+                </div>
                 {!sidebarMinimized && hasSalesSub && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isSalesSectionActive
-                      ? "text-primary hover:bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                      }`}
-                    aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
-                    aria-expanded={salesExpanded}
-                    onClick={() => setSalesExpanded((prev) => !prev)}
-                  >
-                    <ChevronRight
-                      className={`h-3 w-3 transition-transform ${salesExpanded ? "rotate-90" : ""}`}
-                    />
-                  </Button>
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${salesExpanded ? "rotate-90" : ""}`}
+                  />
                 )}
-              </div>
+              </button>
 
               {!sidebarMinimized && salesExpanded && (
                 <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
@@ -881,41 +868,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Purchase Section */}
             {hasModuleAccess("purchase") && (
             <div>
-              <div className="flex items-stretch gap-1">
-                <Link
-                  href={`/${locale}/admin/purchase`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  aria-current={pathWithoutLocale === "/admin/purchase" ? "page" : undefined}
-                  className={`${navItemBase} flex-1 ${isPurchaseSectionActive ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("purchase") : ""}
-                >
+              <button
+                type="button"
+                onClick={() => setPurchaseExpanded((prev) => !prev)}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                  isPurchaseSectionActive ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("purchase") : ""}
+                aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
+                aria-expanded={purchaseExpanded}
+              >
+                <div className="flex items-center gap-2.5 truncate">
                   <ShoppingBagIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("purchase")}
                   </span>
-                </Link>
-
+                </div>
                 {!sidebarMinimized && hasPurchaseSub && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isPurchaseSectionActive
-                      ? "text-primary hover:bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                      }`}
-                    aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
-                    aria-expanded={purchaseExpanded}
-                    onClick={() => setPurchaseExpanded((prev) => !prev)}
-                  >
-                    <ChevronRight
-                      className={`h-3 w-3 transition-transform ${purchaseExpanded ? "rotate-90" : ""}`}
-                    />
-                  </Button>
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${purchaseExpanded ? "rotate-90" : ""}`}
+                  />
                 )}
-              </div>
+              </button>
 
               {!sidebarMinimized && purchaseExpanded && (
                 <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
@@ -993,42 +967,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* Reports Section */}
             {hasModuleAccess("reports") && (
             <div>
-              <div className="flex items-stretch gap-1">
-                <Link
-                  href={`/${locale}/admin/reports`}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`${navItemBase} flex-1 ${isReportsSectionActive ? navItemActive : navItemInactive
-                    } ${navItemCompact}`}
-                  title={sidebarMinimized ? tNav("reports") : ""}
-                >
+              <button
+                type="button"
+                onClick={() => setReportsExpanded((prev) => !prev)}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                  isReportsSectionActive ? navItemActive : navItemInactive
+                } ${navItemCompact}`}
+                title={sidebarMinimized ? tNav("reports") : ""}
+                aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
+                aria-expanded={reportsExpanded}
+              >
+                <div className="flex items-center gap-2.5 truncate">
                   <BarChart className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("reports")}
                   </span>
-                </Link>
-
+                </div>
                 {!sidebarMinimized && hasReportsSub && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-auto px-1.5 rounded-lg border border-transparent ${isReportsSectionActive
-                      ? "text-primary hover:bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                      }`}
-                    aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
-                    aria-expanded={reportsExpanded}
-                    onClick={() => setReportsExpanded((prev) => !prev)}
-                  >
-                    <ChevronRight
-                      className={`h-3 w-3 transition-transform ${reportsExpanded ? "rotate-90" : ""}`}
-                    />
-                  </Button>
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${reportsExpanded ? "rotate-90" : ""}`}
+                  />
                 )}
-              </div>
-
-              
+              </button>              
 
               {!sidebarMinimized && reportsExpanded && (
                 <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
@@ -1154,39 +1114,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             {/* WhatsApp Integration */}
             {enableWhatsApp && hasModuleAccess("whatsapp") && (
               <div>
-                <div className="flex items-stretch gap-1">
-                  <Link
-                    href={`/${locale}/admin/whatsapp-integration`}
-                    onClick={() => handleWhatsappTabClick("campaigns")}
-                    className={`${navItemBase} flex-1 ${pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
-                      } ${navItemCompact}`}
-                    title={sidebarMinimized ? "WhatsApp" : ""}
-                  >
+                <button
+                  type="button"
+                  onClick={() => setWhatsappExpanded((prev) => !prev)}
+                  className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
+                    pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
+                  } ${navItemCompact}`}
+                  title={sidebarMinimized ? "WhatsApp" : ""}
+                  aria-label={whatsappExpanded ? "Collapse WhatsApp menu" : "Expand WhatsApp menu"}
+                  aria-expanded={whatsappExpanded}
+                >
+                  <div className="flex items-center gap-2.5 truncate">
                     <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                     <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                       {tNav("whatsapp")}
                     </span>
-                  </Link>
-
+                  </div>
                   {!sidebarMinimized && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={`h-auto px-1.5 rounded-lg border border-transparent ${pathWithoutLocale === "/admin/whatsapp-integration"
-                        ? "text-primary hover:bg-primary/10"
-                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                        }`}
-                      aria-label={whatsappExpanded ? "Collapse WhatsApp menu" : "Expand WhatsApp menu"}
-                      aria-expanded={whatsappExpanded}
-                      onClick={() => setWhatsappExpanded((prev) => !prev)}
-                    >
-                      <ChevronRight
-                        className={`h-3 w-3 transition-transform ${whatsappExpanded ? "rotate-90" : ""}`}
-                      />
-                    </Button>
+                    <ChevronRight
+                      className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${whatsappExpanded ? "rotate-90" : ""}`}
+                    />
                   )}
-                </div>
+                </button>
 
                 {!sidebarMinimized && whatsappExpanded && (
                   <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">

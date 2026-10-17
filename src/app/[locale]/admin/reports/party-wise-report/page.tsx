@@ -30,6 +30,7 @@ import {
   CreditCard,
   DollarSign,
   X,
+  Package,
 } from "lucide-react";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { ReportDatePresets, getPresetDateRange } from "@/components/reports/report-date-presets";
@@ -68,6 +69,7 @@ interface PartyTransaction {
   status: "paid" | "partial" | "unpaid";
   payment_method_name: string;
   items_count: number;
+  total_quantity?: number;
 }
 
 export default function PartyWiseReportPage() {
@@ -119,6 +121,8 @@ export default function PartyWiseReportPage() {
   const [modalCurrentPage, setModalCurrentPage] = useState<number>(1);
   const [modalPageSize, setModalPageSize] = useState<number>(5);
   const [modalSearch, setModalSearch] = useState<string>("");
+  const [modalSortBy, setModalSortBy] = useState<string>("date");
+  const [modalSortOrder, setModalSortOrder] = useState<"asc" | "desc">("desc");
 
   // Export States
   const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
@@ -285,6 +289,8 @@ export default function PartyWiseReportPage() {
     setSelectedParty(item);
     setModalCurrentPage(1);
     setModalSearch("");
+    setModalSortBy("date");
+    setModalSortOrder("desc");
     setDetailsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -309,26 +315,88 @@ export default function PartyWiseReportPage() {
 
   const isSaleMode = mode === "sales";
 
-  // Filtered & Paginated Party Transactions for Drilldown Modal DataTable
-  const filteredPartyTransactions = useMemo(() => {
-    if (!modalSearch) return partyTransactions;
-    const s = modalSearch.toLowerCase();
-    return partyTransactions.filter((tx) => {
-      const num = (isSaleMode ? tx.invoice_number : tx.bill_number) || "";
-      const status = tx.status || "";
-      const method = tx.payment_method_name || "";
-      return (
-        num.toLowerCase().includes(s) ||
-        status.toLowerCase().includes(s) ||
-        method.toLowerCase().includes(s)
-      );
+  // Modal Table Column Header Sort Handler
+  const handleModalSort = (key: string) => {
+    if (modalSortBy === key) {
+      setModalSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setModalSortBy(key);
+      const isDescDefault = ["date", "total_amount", "paid_amount", "balance_due"].includes(key);
+      setModalSortOrder(isDescDefault ? "desc" : "asc");
+    }
+    setModalCurrentPage(1);
+  };
+
+  // Filtered, Sorted & Paginated Party Transactions for Drilldown Modal DataTable
+  const sortedAndFilteredPartyTransactions = useMemo(() => {
+    let result = partyTransactions;
+    if (modalSearch) {
+      const s = modalSearch.toLowerCase();
+      result = result.filter((tx) => {
+        const num = (isSaleMode ? (tx.invoice_number || tx.invoice_no) : tx.bill_number) || "";
+        const status = tx.status || "";
+        const method = tx.payment_method_name || "";
+        return (
+          num.toLowerCase().includes(s) ||
+          status.toLowerCase().includes(s) ||
+          method.toLowerCase().includes(s)
+        );
+      });
+    }
+
+    if (!modalSortBy) return result;
+
+    return [...result].sort((a, b) => {
+      let comparison = 0;
+      switch (modalSortBy) {
+        case "date": {
+          const timeA = new Date(a.date).getTime() || 0;
+          const timeB = new Date(b.date).getTime() || 0;
+          comparison = timeA - timeB;
+          break;
+        }
+        case "invoice_number":
+        case "bill_number":
+        case "transaction_number": {
+          const numA = (isSaleMode ? (a.invoice_number || a.invoice_no) : a.bill_number) || "";
+          const numB = (isSaleMode ? (b.invoice_number || b.invoice_no) : b.bill_number) || "";
+          comparison = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: "base" });
+          break;
+        }
+        case "total_amount":
+          comparison = (Number(a.total_amount) || 0) - (Number(b.total_amount) || 0);
+          break;
+        case "paid_amount":
+          comparison = (Number(a.paid_amount) || 0) - (Number(b.paid_amount) || 0);
+          break;
+        case "balance_due":
+          comparison = (Number(a.balance_due) || 0) - (Number(b.balance_due) || 0);
+          break;
+        case "status": {
+          const statusA = a.status || "";
+          const statusB = b.status || "";
+          comparison = statusA.localeCompare(statusB);
+          break;
+        }
+        case "items_count":
+        case "quantity":
+        case "total_quantity": {
+          const qtyA = a.total_quantity ?? a.items_count ?? 0;
+          const qtyB = b.total_quantity ?? b.items_count ?? 0;
+          comparison = qtyA - qtyB;
+          break;
+        }
+        default:
+          comparison = 0;
+      }
+      return modalSortOrder === "asc" ? comparison : -comparison;
     });
-  }, [partyTransactions, modalSearch, isSaleMode]);
+  }, [partyTransactions, modalSearch, isSaleMode, modalSortBy, modalSortOrder]);
 
   const paginatedPartyTransactions = useMemo(() => {
     const start = (modalCurrentPage - 1) * modalPageSize;
-    return filteredPartyTransactions.slice(start, start + modalPageSize);
-  }, [filteredPartyTransactions, modalCurrentPage, modalPageSize]);
+    return sortedAndFilteredPartyTransactions.slice(start, start + modalPageSize);
+  }, [sortedAndFilteredPartyTransactions, modalCurrentPage, modalPageSize]);
 
   // Status Badge Helper
   const renderStatusBadge = (status: "paid" | "partial" | "unpaid") => {
@@ -527,14 +595,31 @@ export default function PartyWiseReportPage() {
         cell: (row) => formatStatementDate(row.date),
       },
       {
-        id: "transaction_number",
+        id: isSaleMode ? "invoice_number" : "bill_number",
         header: isSaleMode ? t("invoiceNo") : t("billNo"),
+        accessorKey: (isSaleMode ? "invoice_number" : "bill_number") as keyof PartyTransaction,
         sortable: true,
         className: "whitespace-nowrap font-mono font-semibold text-xs text-foreground",
         cell: (row) =>
           isSaleMode
             ? row.invoice_number || row.invoice_no || "-"
             : row.bill_number || "-",
+      },
+      {
+        id: "quantity",
+        header: t("quantity"),
+        accessorKey: "total_quantity" as keyof PartyTransaction,
+        sortable: true,
+        className: "text-center text-xs text-foreground whitespace-nowrap",
+        cell: (row) => {
+          const qty = row.total_quantity ?? row.items_count ?? 0;
+          return (
+            <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
+              <Package className="h-3 w-3 text-foreground" />
+              <span>{qty}</span>
+            </div>
+          );
+        },
       },
       {
         id: "total_amount",
@@ -563,6 +648,7 @@ export default function PartyWiseReportPage() {
       {
         id: "status",
         header: t("status"),
+        accessorKey: "status",
         sortable: true,
         className: "whitespace-nowrap text-xs text-center",
         cell: (row) => renderStatusBadge(row.status),
@@ -752,8 +838,6 @@ export default function PartyWiseReportPage() {
         onSelectPreset={handleSelectPreset}
       />
 
-
-
       {/* Main Filters Card (Standard ReportFilterCard Component) */}
       <ReportFilterCard
         fromDate={fromDate}
@@ -917,6 +1001,8 @@ export default function PartyWiseReportPage() {
             setSelectedParty(null);
             setModalSearch("");
             setModalCurrentPage(1);
+            setModalSortBy("date");
+            setModalSortOrder("desc");
           }
         }}
       >
@@ -924,27 +1010,11 @@ export default function PartyWiseReportPage() {
           {selectedParty && (
             <div className="flex flex-col gap-3">
               <DialogHeader className="pb-2 border-b border-border/40">
-                <div className="flex items-center justify-between pr-4">
+                <div className="flex items-center justify-between">
                   <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
                     <span>{selectedParty.party_name}</span>
                   </DialogTitle>
-                  {selectedParty.party_phone && selectedParty.party_phone !== "-" && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
-                      <Phone className="h-3 w-3" />
-                      {selectedParty.party_phone}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-0.5">
-                  <DialogDescription className="text-xs text-muted-foreground text-left">
-                    {isSaleMode ? t("invoicesForCustomer") : t("billsFromSupplier")}
-                  </DialogDescription>
-                  {(fromDate || toDate) && (
-                    <span className="text-[11px] font-medium text-muted-foreground bg-muted/60 border border-border/50 px-2 py-0.5 rounded w-fit">
-                      📅 {fromDate || t("start")} → {toDate || t("end")}
-                    </span>
-                  )}
                 </div>
               </DialogHeader>
 
@@ -992,9 +1062,11 @@ export default function PartyWiseReportPage() {
                 columns={modalColumns}
                 data={paginatedPartyTransactions}
                 isLoading={detailsLoading}
+                sortConfig={{ key: modalSortBy, direction: modalSortOrder }}
+                onSort={handleModalSort}
                 currentPage={modalCurrentPage}
                 pageSize={modalPageSize}
-                totalCount={filteredPartyTransactions.length}
+                totalCount={sortedAndFilteredPartyTransactions.length}
                 onPageChange={(p: number) => setModalCurrentPage(p)}
                 onPageSizeChange={(s: number) => {
                   setModalPageSize(s);
@@ -1016,8 +1088,8 @@ export default function PartyWiseReportPage() {
                     formattedDate={formatStatementDate(row.date)}
                     status={row.status}
                     statusLabel={t(row.status)}
-                    itemsCount={row.items_count}
-                    itemsLabel={t("items")}
+                    itemsCount={row.total_quantity ?? row.items_count}
+                    itemsLabel={t("quantity")}
                     totalAmount={formatCurrency(row.total_amount)}
                     totalAmountLabel={t("totalAmount")}
                     paidAmount={formatCurrency(row.paid_amount)}

@@ -157,6 +157,9 @@ export async function GET(request: NextRequest) {
             status,
             payment_method_name: pmId ? paymentMethodMap.get(pmId) || "Cash" : "Cash",
             items_count: Array.isArray(o.items) ? o.items.length : 0,
+            total_quantity: Array.isArray(o.items)
+              ? o.items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0)
+              : 0,
           };
         });
 
@@ -251,6 +254,9 @@ export async function GET(request: NextRequest) {
             status,
             payment_method_name: pmId ? paymentMethodMap.get(pmId) || "Cash" : "Cash",
             items_count: Array.isArray(b.items) ? b.items.length : 0,
+            total_quantity: Array.isArray(b.items)
+              ? b.items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0)
+              : 0,
           };
         });
 
@@ -440,12 +446,19 @@ export async function GET(request: NextRequest) {
 
       // Fetch customer metadata for phone / proper name if missing
       const customerIds = groupedSales.map((s) => s._id).filter(Boolean);
+      const customerIdFilters: any[] = [];
+      customerIds.forEach((id) => {
+        customerIdFilters.push(id);
+        if (isValidObjectId(id)) {
+          customerIdFilters.push(toObjectId(id));
+        }
+      });
+
       const customerMetaList = await customersCollection
         .find({
-          user_id: userObjId,
-          _id: { $in: customerIds.map((id) => (isValidObjectId(id) ? toObjectId(id) : id)) },
+          _id: { $in: customerIdFilters },
         })
-        .project({ _id: 1, name: 1, phone: 1, balance: 1 })
+        .project({ _id: 1, name: 1, phone: 1, company_name: 1, balance: 1 })
         .toArray();
 
       const customerMetaMap = new Map<string, any>();
@@ -453,14 +466,15 @@ export async function GET(request: NextRequest) {
 
       let rows = groupedSales.map((item) => {
         const meta = customerMetaMap.get(item._id);
-        const name = item.customer_name || meta?.name;
-        const phone = item.customer_phone || meta?.phone;
-        const totalSales = Number(item.total_sales);
-        const received = Number(item.total_received);
+        const name = item.customer_name || meta?.name || meta?.company_name || "Cash Sale";
+        const phone = item.customer_phone || meta?.phone || "";
+        const totalSales = Number(item.total_sales || 0);
+        const received = Number(item.total_received || 0);
         const balance = Number(item.total_balance ?? Math.max(0, totalSales - received));
 
         return {
-          party_id: item._id || "",          party_name: name,
+          party_id: item._id || "",
+          party_name: name,
           party_phone: phone,
           total_amount: totalSales,
           paid_amount: received,
@@ -709,12 +723,19 @@ export async function GET(request: NextRequest) {
 
       // Fetch party phone from customers collection
       const partyIds = groupedPurchases.map((p) => p._id).filter(Boolean);
+      const partyIdFilters: any[] = [];
+      partyIds.forEach((id) => {
+        partyIdFilters.push(id);
+        if (isValidObjectId(id)) {
+          partyIdFilters.push(toObjectId(id));
+        }
+      });
+
       const partyMetaList = await customersCollection
         .find({
-          user_id: userObjId,
-          _id: { $in: partyIds.map((id) => (isValidObjectId(id) ? toObjectId(id) : id)) },
+          _id: { $in: partyIdFilters },
         })
-        .project({ _id: 1, name: 1, phone: 1, balance: 1 })
+        .project({ _id: 1, name: 1, phone: 1, company_name: 1, balance: 1 })
         .toArray();
 
       const partyMetaMap = new Map<string, any>();
@@ -722,8 +743,8 @@ export async function GET(request: NextRequest) {
 
       let rows = groupedPurchases.map((item) => {
         const meta = partyMetaMap.get(item._id);
-        const name = item.party_name || meta?.name || "Supplier";
-        const phone = meta?.phone || "-";
+        const name = item.party_name || meta?.name || meta?.company_name || "Supplier";
+        const phone = item.party_phone || meta?.phone || "";
         const totalPurchases = Number(item.total_purchases || 0);
         const paid = Number(item.total_paid || 0);
         const balance = Number(item.total_balance ?? Math.max(0, totalPurchases - paid));

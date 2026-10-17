@@ -479,6 +479,7 @@ export async function GET(request: NextRequest) {
         payment_method_name: paymentMethodName,
         notes: order.customer_notes || order.notes || "",
         items_count: items.length,
+        total_quantity: items.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0),
         items,
         invoice_date: invoiceDate,
         created_at: invoiceDate,

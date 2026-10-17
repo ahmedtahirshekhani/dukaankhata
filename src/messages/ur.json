@@ -880,6 +880,7 @@
     "status": "اسٹیٹس",
     "paymentMethod": "طریقہ ادائیگی",
     "items": "آئٹمز",
+    "quantity": "تعداد",
     "paid": "ادا شدہ",
     "partial": "جزوی",
     "unpaid": "غیر ادا شدہ",

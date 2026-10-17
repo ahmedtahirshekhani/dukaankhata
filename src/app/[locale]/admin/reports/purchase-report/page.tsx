@@ -377,15 +377,22 @@ export default function PurchaseReportPage() {
         cell: (row) => row.party_name || "-",
       },
       {
-        id: "items",
-        header: t("items"),
+        id: "quantity",
+        header: t("quantity"),
         className: "text-center text-xs text-foreground whitespace-nowrap",
-        cell: (row) => (
-          <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
-            <Package className="h-3 w-3 text-foreground" />
-            <span>{row.items_count || row.items?.length || 0}</span>
-          </div>
-        ),
+        cell: (row) => {
+          const totalQty =
+            row.total_quantity ??
+            row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+            row.items_count ??
+            0;
+          return (
+            <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-foreground">
+              <Package className="h-3 w-3 text-foreground" />
+              <span>{totalQty}</span>
+            </div>
+          );
+        },
       },
       {
         id: "total_amount",
@@ -447,10 +454,14 @@ export default function PurchaseReportPage() {
         render: (row) => row.party_name || "-",
       },
       {
-        header: t("items"),
+        header: t("quantity"),
         align: "center",
         width: "55px",
-        render: (row) => row.items_count || row.items?.length || 0,
+        render: (row) =>
+          row.total_quantity ??
+          row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+          row.items_count ??
+          0,
       },
       {
         header: t("totalAmount"),
@@ -672,8 +683,13 @@ export default function PurchaseReportPage() {
             formattedDate={formatStatementDate(row.bill_date || row.created_at)}
             status={row.status}
             statusLabel={t(row.status)}
-            itemsCount={row.items_count}
-            itemsLabel={t("items")}
+            itemsCount={
+              row.total_quantity ??
+              row.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) ??
+              row.items_count ??
+              0
+            }
+            itemsLabel={t("quantity")}
             totalAmount={formatCurrency(row.total_amount)}
             totalAmountLabel={t("totalAmount")}
             paidAmount={formatCurrency(row.paid_amount)}

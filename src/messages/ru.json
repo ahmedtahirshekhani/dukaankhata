@@ -880,6 +880,7 @@
     "status": "Status",
     "paymentMethod": "Payment Method",
     "items": "Items",
+    "quantity": "Quantity",
     "paid": "Paid",
     "partial": "Partial",
     "unpaid": "Unpaid",
