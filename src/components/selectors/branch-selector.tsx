@@ -33,14 +33,19 @@ interface BranchSelectorProps {
     placeholder: string;
     createLabel: (value: string) => string;
   };
+  showAddButton?: boolean;
+  allowAdd?: boolean;
 }
 
 export function BranchSelector({
   value,
   onChange,
   translations,
+  showAddButton = true,
+  allowAdd,
 }: BranchSelectorProps) {
   const t = useTranslations("products");
+  const canShowAdd = (allowAdd ?? showAddButton) ?? true;
   const label = translations?.label ?? t("branch");
   const tooltip = translations?.tooltip ?? t("branchTooltip");
   const placeholder = translations?.placeholder ?? t("selectOrCreateBranch");
@@ -201,25 +206,28 @@ export function BranchSelector({
             ))}
           </div>
           
-          <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
-            <Button
-              type="button"
-              variant="ghost"
-              className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
-              onClick={() => {
-                setIsOpen(false);
-                setNewBranchName(searchTerm);
-                setIsAddDialogOpen(true);
-              }}
-            >
-              <PlusCircle className="h-4 w-4" />
-              {t("addNewBranch")}
-            </Button>
-          </div>
+          {canShowAdd && (
+            <div className="border-t mt-0 pt-1 sticky bottom-0 bg-popover" onClick={(e) => e.stopPropagation()}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
+                onClick={() => {
+                  setIsOpen(false);
+                  setNewBranchName(searchTerm);
+                  setIsAddDialogOpen(true);
+                }}
+              >
+                <PlusCircle className="h-4 w-4" />
+                {t("addNewBranch")}
+              </Button>
+            </div>
+          )}
         </SelectContent>
       </Select>
 
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      {canShowAdd && (
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{t("addNewBranch")}</DialogTitle>
@@ -244,6 +252,7 @@ export function BranchSelector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
 
       <ErrorDialog 
         open={errorDialogOpen} 

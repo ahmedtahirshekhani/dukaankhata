@@ -206,6 +206,7 @@ export interface PurchaseReportBill {
   payment_method_name?: string;
   description?: string;
   items_count: number;
+  total_quantity?: number;
   items: PurchaseReportItem[];
   bill_date?: string;
   created_at: string;
@@ -246,6 +247,7 @@ export interface SaleReportInvoice {
   payment_method_name?: string;
   notes?: string;
   items_count: number;
+  total_quantity?: number;
   items: SaleReportItem[];
   invoice_date?: string;
   created_at: string;

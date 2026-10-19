@@ -39,6 +39,8 @@ interface ExpenseCategorySelectorProps {
   onChange: (value: string) => void;
   categories?: string[];
   onAddCategory?: (category: string) => void;
+  showAddButton?: boolean;
+  allowAdd?: boolean;
 }
 
 export function ExpenseCategorySelector({
@@ -46,9 +48,12 @@ export function ExpenseCategorySelector({
   onChange,
   categories,
   onAddCategory,
+  showAddButton = true,
+  allowAdd,
 }: ExpenseCategorySelectorProps) {
   const t = useTranslations("expenses");
   const tCommon = useTranslations("common");
+  const canShowAdd = (allowAdd ?? showAddButton) ?? true;
 
   const [searchTerm, setSearchTerm] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -170,29 +175,32 @@ export function ExpenseCategorySelector({
             )}
           </div>
 
-          <div
-            className="border-t mt-0 pt-1 sticky bottom-0 bg-popover"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
-              onClick={() => {
-                setIsOpen(false);
-                setNewCategoryName(searchTerm);
-                setIsAddDialogOpen(true);
-              }}
+          {canShowAdd && (
+            <div
+              className="border-t mt-0 pt-1 sticky bottom-0 bg-popover"
+              onClick={(e) => e.stopPropagation()}
             >
-              <PlusCircle className="h-4 w-4" />
-              <span>{tCommon("add") ? `${tCommon("add")} Category` : "Add Category"}</span>
-            </Button>
-          </div>
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-none hover:bg-accent"
+                onClick={() => {
+                  setIsOpen(false);
+                  setNewCategoryName(searchTerm);
+                  setIsAddDialogOpen(true);
+                }}
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>{tCommon("add") ? `${tCommon("add")} Category` : "Add Category"}</span>
+              </Button>
+            </div>
+          )}
         </SelectContent>
       </Select>
 
       {/* Add Category Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      {canShowAdd && (
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[380px] z-[80]">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold">
@@ -237,6 +245,7 @@ export function ExpenseCategorySelector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

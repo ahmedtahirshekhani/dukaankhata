@@ -342,6 +342,7 @@ export async function GET(request: NextRequest) {
         payment_method_name: bill.payment_method_name || (bill.payment_method_id ? "Direct" : "-"),
         description: bill.description || "",
         items_count: items.length,
+        total_quantity: items.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0),
         items,
         bill_date: billDate,
         created_at: billDate,
