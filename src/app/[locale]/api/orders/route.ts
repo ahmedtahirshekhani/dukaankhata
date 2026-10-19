@@ -426,10 +426,12 @@ export async function POST(request: Request) {
             item.unfulfilled_quantity = consumption.remaining_unfulfilled_qty;
             item.is_oversold = consumption.remaining_unfulfilled_qty > 0;
           } else {
+            const curStock = parseFloat((productDoc as any).quantity?.toString() || (productDoc as any).in_stock?.toString() || "0");
+            const isDeficit = (curStock < orderQty) || fallbackCost <= 0;
             item.cost_price = fallbackCost;
             item.total_cogs = Math.round(orderQty * fallbackCost * 100) / 100;
-            item.unfulfilled_quantity = 0;
-            item.is_oversold = false;
+            item.unfulfilled_quantity = isDeficit ? Math.max(0, orderQty - Math.max(0, curStock)) : 0;
+            item.is_oversold = isDeficit;
           }
         } catch (fifoErr) {
           console.error("Error consuming FIFO batches on sale:", fifoErr);

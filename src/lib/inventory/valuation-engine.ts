@@ -81,9 +81,11 @@ export async function applyPurchaseInwardServer(options: {
       updated_at: new Date(),
     };
 
+    let computedAverageCost = purchaseCost;
     if (valuationMethod === "average") {
       // Calculate new moving average cost price
       const newAverageCost = calculateMovingAverage(currentQty, currentCost, purchaseQty, purchaseCost);
+      computedAverageCost = newAverageCost;
       updateFields.cost_price = newAverageCost;
       updateFields.cost_price_str = newAverageCost.toString();
       updateFields.purchase_price = newAverageCost;
@@ -116,11 +118,17 @@ export async function applyPurchaseInwardServer(options: {
         updated_at: new Date(),
       });
 
-      // Auto-reconcile past unfulfilled/oversold sales in chronological FIFO order (Vyapar style)
+      // Auto-reconcile past unfulfilled/oversold sales in chronological order (Vyapar style)
       if (valuationMethod === "fifo") {
         await reconcileUnfulfilledSalesForProduct({
           userId,
           productId: prodIdStr,
+        });
+      } else if (valuationMethod === "average") {
+        await reconcileUnfulfilledSalesForProductAverage({
+          userId,
+          productId: prodIdStr,
+          costPrice: computedAverageCost,
         });
       }
     } catch (batchErr) {
@@ -287,6 +295,79 @@ export async function reconcileUnfulfilledSalesForProduct(options: {
     reconciledOrdersCount,
     unitsReconciled: totalUnitsReconciled,
   };
+}
+
+/**
+ * Auto-reconciles unfulfilled / oversold or zero-cost past sales in Average Costing mode
+ * whenever a new purchase arrives or stock is replenished.
+ */
+export async function reconcileUnfulfilledSalesForProductAverage(options: {
+  userId: string;
+  productId: string;
+  costPrice: number;
+}): Promise<{
+  reconciledOrdersCount: number;
+}> {
+  const { userId, productId, costPrice } = options;
+  if (!productId || !isValidObjectId(productId) || costPrice <= 0) {
+    return { reconciledOrdersCount: 0 };
+  }
+
+  const uId = toObjectId(userId);
+  const pId = toObjectId(productId);
+  const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+
+  const candidateOrders = await ordersCollection
+    .find({
+      user_id: uId,
+      status: { $ne: "cancelled" },
+      "items.product_id": { $in: [pId, productId] },
+    })
+    .sort({ sale_date: 1, created_at: 1 })
+    .toArray();
+
+  let reconciledOrdersCount = 0;
+
+  for (const order of candidateOrders) {
+    let orderModified = false;
+    const items = order.items || [];
+
+    for (const item of items) {
+      const itProdId = item.product_id?.toString();
+      if (itProdId !== productId && itProdId !== pId.toString()) continue;
+
+      const itemQty = Number(item.quantity) || 0;
+      if (itemQty <= 0) continue;
+
+      const currentCost = Number(item.cost_price) || 0;
+      const currentCogs = Number(item.total_cogs) || 0;
+      const isOversold = item.is_oversold === true || Number(item.unfulfilled_quantity) > 0;
+
+      // If item was sold with 0 cost or was oversold, update it with costPrice!
+      if (currentCost <= 0 || currentCogs <= 0 || isOversold) {
+        item.cost_price = costPrice;
+        item.total_cogs = roundToPrecision(itemQty * costPrice, 2);
+        item.unfulfilled_quantity = 0;
+        item.is_oversold = false;
+        orderModified = true;
+      }
+    }
+
+    if (orderModified) {
+      await ordersCollection.updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            items,
+            updated_at: new Date(),
+          },
+        }
+      );
+      reconciledOrdersCount++;
+    }
+  }
+
+  return { reconciledOrdersCount };
 }
 
 /**
@@ -623,6 +704,40 @@ export async function reInwardBatchOnSaleReturnServer(options: {
         userId,
         productId,
       });
+    } else if (valuationMethod === "average") {
+      const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+      const product = await productsCollection.findOne({ _id: toObjectId(productId), user_id: toObjectId(userId) });
+      let finalAvgCost = costPrice;
+      if (product) {
+        const curQty = parseFloat(product.quantity?.toString() || product.in_stock?.toString() || "0");
+        const prevQty = Math.max(0, curQty - quantity);
+        const curCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
+        if (prevQty > 0 && curCost > 0 && costPrice > 0) {
+          finalAvgCost = calculateMovingAverage(prevQty, curCost, quantity, costPrice);
+        } else if (costPrice > 0) {
+          finalAvgCost = costPrice;
+        } else {
+          finalAvgCost = curCost;
+        }
+        await productsCollection.updateOne(
+          { _id: toObjectId(productId), user_id: toObjectId(userId) },
+          {
+            $set: {
+              cost_price: finalAvgCost,
+              cost_price_str: finalAvgCost.toString(),
+              purchase_price: finalAvgCost,
+              updated_at: new Date(),
+            }
+          }
+        );
+      }
+      if (finalAvgCost > 0) {
+        await reconcileUnfulfilledSalesForProductAverage({
+          userId,
+          productId,
+          costPrice: finalAvgCost,
+        });
+      }
     }
   } catch (err) {
     console.error("Failed to insert inventory batch on sale return:", err);

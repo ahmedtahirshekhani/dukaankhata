@@ -202,6 +202,36 @@ export async function GET(request: NextRequest) {
         }
       },
       {
+        $addFields: {
+          liveCostPrice: {
+            $convert: {
+              input: { $ifNull: ["$productInfo.cost_price", { $ifNull: ["$productInfo.purchase_price", 0] }] },
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          resolvedTotalCost: {
+            $cond: [
+              { $gt: ["$totalCost", 0] },
+              "$totalCost",
+              { $multiply: ["$totalQuantitySold", "$liveCostPrice"] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          resolvedTotalProfit: {
+            $subtract: ["$totalRevenue", "$resolvedTotalCost"]
+          }
+        }
+      },
+      {
         $project: {
           _id: 1,
           productId: "$_id",
@@ -214,8 +244,8 @@ export async function GET(request: NextRequest) {
           totalGrossAmount: { $round: ["$totalGrossAmount", 2] },
           totalDiscount: { $round: ["$totalDiscount", 2] },
           totalRevenue: { $round: ["$totalRevenue", 2] },
-          totalCost: { $round: ["$totalCost", 2] },
-          totalProfit: { $round: ["$totalProfit", 2] },
+          totalCost: { $round: ["$resolvedTotalCost", 2] },
+          totalProfit: { $round: ["$resolvedTotalProfit", 2] },
           invoicesCount: 1,
           minSellPrice: { $round: ["$minSellPrice", 2] },
           maxSellPrice: { $round: ["$maxSellPrice", 2] },
@@ -229,14 +259,14 @@ export async function GET(request: NextRequest) {
           profitMargin: {
             $cond: [
               { $gt: ["$totalRevenue", 0] },
-              { $round: [{ $multiply: [{ $divide: ["$totalProfit", "$totalRevenue"] }, 100] }, 1] },
+              { $round: [{ $multiply: [{ $divide: ["$resolvedTotalProfit", "$totalRevenue"] }, 100] }, 1] },
               0
             ]
           },
           avgCostPrice: {
             $cond: [
               { $gt: ["$totalQuantitySold", 0] },
-              { $round: [{ $divide: ["$totalCost", "$totalQuantitySold"] }, 2] },
+              { $round: [{ $divide: ["$resolvedTotalCost", "$totalQuantitySold"] }, 2] },
               0
             ]
           },

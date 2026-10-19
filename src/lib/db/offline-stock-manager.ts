@@ -89,6 +89,8 @@ export async function adjustOfflineStockWithValuation(
 
         if (valuationMethod === "fifo") {
           await reconcileOfflineUnfulfilledSales(prodIdStr);
+        } else if (valuationMethod === "average") {
+          await reconcileOfflineAverageUnfulfilledSales(prodIdStr, newAverageCost);
         }
       } catch (err) {
         console.error("Failed to save offline inventory batch:", err);
@@ -313,6 +315,29 @@ export async function reInwardOfflineBatchOnSaleReturn(options: {
 
     if (valuationMethod === "fifo") {
       await reconcileOfflineUnfulfilledSales(prodIdStr);
+    } else if (valuationMethod === "average") {
+      let finalAvgCost = costPrice;
+      const product = await db.products.get(prodIdStr);
+      if (product) {
+        const curQty = parseFloat(product.quantity?.toString() || product.in_stock?.toString() || "0");
+        const prevQty = Math.max(0, curQty - quantity);
+        const curCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
+        if (prevQty > 0 && curCost > 0 && costPrice > 0) {
+          finalAvgCost = calculateMovingAverage(prevQty, curCost, quantity, costPrice);
+        } else if (costPrice > 0) {
+          finalAvgCost = costPrice;
+        } else {
+          finalAvgCost = curCost;
+        }
+        await db.products.update(prodIdStr, {
+          cost_price: finalAvgCost,
+          cost_price_str: finalAvgCost.toString(),
+          purchase_price: finalAvgCost,
+        });
+      }
+      if (finalAvgCost > 0) {
+        await reconcileOfflineAverageUnfulfilledSales(prodIdStr, finalAvgCost);
+      }
     }
   } catch (err) {
     console.error("Failed to save offline sale return batch:", err);
@@ -429,3 +454,56 @@ export async function reconcileOfflineUnfulfilledSales(productId: string | numbe
     console.error("Failed to reconcile offline unfulfilled sales:", err);
   }
 }
+
+/**
+ * Auto-reconciles past zero-cost or oversold sales in Dexie offline database when a new purchase or return arrives under the Average Method.
+ */
+export async function reconcileOfflineAverageUnfulfilledSales(
+  productId: string | number,
+  newAverageCost: number
+): Promise<void> {
+  const prodIdStr = String(productId);
+  if (!prodIdStr || newAverageCost <= 0) return;
+
+  try {
+    const allOrders = await db.orders.toArray();
+    const candidateOrders = allOrders
+      .filter((o: any) => o.status !== "cancelled" && Array.isArray(o.items) && o.items.some((it: any) => String(it.product_id) === prodIdStr))
+      .sort((a: any, b: any) => new Date(a.sale_date || a.created_at).getTime() - new Date(b.sale_date || b.created_at).getTime());
+
+    for (const order of candidateOrders) {
+      let orderModified = false;
+      const items = order.items || [];
+
+      for (const item of items) {
+        if (String(item.product_id) !== prodIdStr) continue;
+
+        const itemQty = Number(item.quantity) || 0;
+        if (itemQty <= 0) continue;
+
+        const currentCost = Number(item.cost_price) || 0;
+        const currentCogs = Number(item.total_cogs) || 0;
+        const isOversold = item.is_oversold === true || Number(item.unfulfilled_quantity) > 0;
+
+        // If the item was sold with 0 cost, or was marked oversold, update it with newAverageCost!
+        if (currentCost <= 0 || currentCogs <= 0 || isOversold) {
+          item.cost_price = newAverageCost;
+          item.total_cogs = roundToPrecision(itemQty * newAverageCost, 2);
+          item.unfulfilled_quantity = 0;
+          item.is_oversold = false;
+          orderModified = true;
+        }
+      }
+
+      if (orderModified && order.id) {
+        await db.orders.update(order.id, {
+          items,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to reconcile offline average unfulfilled sales:", err);
+  }
+}
+

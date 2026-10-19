@@ -1003,10 +1003,13 @@ export default function NewInvoicePage() {
                   (p as any).is_oversold = consumption.remaining_unfulfilled_qty > 0;
                 } else {
                   const avgCost = Number(productDoc.cost_price ?? productDoc.purchase_price ?? (p as any).cost_price) || 0;
+                  const curStock = parseFloat(productDoc.quantity?.toString() || productDoc.in_stock?.toString() || "0");
+                  const saleQty = Number(p.quantity) || 0;
+                  const isDeficit = (curStock < saleQty) || avgCost <= 0;
                   (p as any).cost_price = avgCost;
-                  (p as any).total_cogs = Math.round((Number(p.quantity) || 0) * avgCost * 100) / 100;
-                  (p as any).unfulfilled_quantity = 0;
-                  (p as any).is_oversold = false;
+                  (p as any).total_cogs = Math.round(saleQty * avgCost * 100) / 100;
+                  (p as any).unfulfilled_quantity = isDeficit ? Math.max(0, saleQty - Math.max(0, curStock)) : 0;
+                  (p as any).is_oversold = isDeficit;
                 }
               }
             }
@@ -1051,6 +1054,8 @@ export default function NewInvoicePage() {
         batch_splits: (p as any).batch_splits,
         cost_price: (p as any).cost_price,
         total_cogs: (p as any).total_cogs,
+        unfulfilled_quantity: (p as any).unfulfilled_quantity,
+        is_oversold: (p as any).is_oversold,
       }));
       await db.orders.put(orderData);
       (payload as any).items = orderData.items;
