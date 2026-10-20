@@ -17,6 +17,7 @@ import {
   MoreVertical,
   PlusCircle,
   XIcon,
+  SlidersHorizontal,
 } from "lucide-react";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import { db } from "@/lib/db/offline-db";
@@ -51,6 +52,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ProductDialog } from "@/components/dialogs/product-dialog";
+import { AdjustStockDialog } from "@/components/dialogs/adjust-stock-dialog";
 import { ProductFilters } from "@/components/products/product-filters";
 import {
   ProductsTable,
@@ -112,6 +114,9 @@ export default function Products() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isAdjustStockOpen, setIsAdjustStockOpen] = useState(false);
+  const [selectedProductForAdjustment, setSelectedProductForAdjustment] =
+    useState<Product | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -594,6 +599,22 @@ export default function Products() {
               </>
             )}
 
+            {canEdit && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedProductForAdjustment(null);
+                  setIsAdjustStockOpen(true);
+                }}
+                size="sm"
+                className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap gap-1.5 border-border hover:bg-accent"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline">{t("adjustStock")}</span>
+                <span className="inline sm:hidden">Adjust</span>
+              </Button>
+            )}
+
             {canCreate && (
               <Button
                 onClick={() => {
@@ -954,6 +975,17 @@ export default function Products() {
         title={errorDialog.title}
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
+      />
+      <AdjustStockDialog
+        open={isAdjustStockOpen}
+        onOpenChange={setIsAdjustStockOpen}
+        product={selectedProductForAdjustment}
+        onSuccess={(updatedProduct) => {
+          setProducts((prev) =>
+            prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+          );
+          refetchData();
+        }}
       />
     </div>
   );

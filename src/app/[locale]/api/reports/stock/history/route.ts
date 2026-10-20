@@ -82,6 +82,17 @@ export async function GET(request: NextRequest) {
       })
       .toArray();
 
+    // 5. Fetch Stock Adjustments
+    const stockAdjustmentsCollection = await getCollection(
+      (COLLECTIONS as any).STOCK_ADJUSTMENTS || "stock_adjustments"
+    );
+    const stockAdjustments = await stockAdjustmentsCollection
+      .find({
+        user_id: userId,
+        product_id: { $in: [prodObjId, productId] },
+      })
+      .toArray();
+
     // Fetch parties and customers map for names
     const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
     const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
@@ -99,11 +110,11 @@ export async function GET(request: NextRequest) {
       partyMap.set(c._id.toString(), c.name || c.company_name || "Customer");
     }
 
-    // 5. Build raw chronological movement events
+    // 6. Build raw chronological movement events
     interface RawMovement {
       id: string;
       date: Date;
-      type: "purchase" | "sale" | "sale_return";
+      type: "purchase" | "sale" | "sale_return" | "adjustment_add" | "adjustment_reduce";
       refNo: string;
       partyName: string;
       inwardQty: number;
@@ -247,15 +258,37 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Map Stock Adjustments
+    for (const adj of stockAdjustments) {
+      const d = new Date(adj.date || adj.created_at || Date.now());
+      const isAdd = adj.action_type === "add";
+      const qty = Number(adj.quantity) || 0;
+      const rate = Number(adj.cost_price || product.cost_price) || 0;
+      const reasonKey = adj.reason || "Adjustment";
+
+      rawMovements.push({
+        id: `adj-${adj._id}`,
+        date: isNaN(d.getTime()) ? new Date(adj.created_at || Date.now()) : d,
+        type: isAdd ? "adjustment_add" : "adjustment_reduce",
+        refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
+        partyName: `Adjustment (${reasonKey})`,
+        inwardQty: isAdd ? qty : 0,
+        outwardQty: !isAdd ? qty : 0,
+        unitRate: rate,
+        costPrice: rate,
+        totalAmount: Math.round(qty * rate * 100) / 100,
+      });
+    }
+
     // Sort chronologically ascending from the very beginning to calculate accurate running balance
     rawMovements.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     // Calculate Running Balance
     let runningBalance = 0;
     const allCalculatedMovements = rawMovements.map(m => {
-      if (m.type === "purchase" || m.type === "sale_return") {
+      if (m.type === "purchase" || m.type === "sale_return" || m.type === "adjustment_add") {
         runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
-      } else if (m.type === "sale") {
+      } else if (m.type === "sale" || m.type === "adjustment_reduce") {
         runningBalance = Math.round((runningBalance - m.outwardQty) * 1000) / 1000;
       }
       return {

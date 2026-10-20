@@ -337,6 +337,8 @@ export function ProductStockLedgerModal({
                             const isPurchase = m.type === "purchase";
                             const isSale = m.type === "sale";
                             const isReturn = m.type === "sale_return";
+                            const isAdjustmentAdd = m.type === "adjustment_add";
+                            const isAdjustmentReduce = m.type === "adjustment_reduce";
                             return (
                               <tr key={idx} className="hover:bg-muted/30 transition-colors">
                                 <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
@@ -356,6 +358,16 @@ export function ProductStockLedgerModal({
                                   {isReturn && (
                                     <Badge className="bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30 text-[10px] font-semibold">
                                       {t("saleReturn")}
+                                    </Badge>
+                                  )}
+                                  {isAdjustmentAdd && (
+                                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
+                                      {t("adjustmentIn")}
+                                    </Badge>
+                                  )}
+                                  {isAdjustmentReduce && (
+                                    <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-semibold">
+                                      {t("adjustmentOut")}
                                     </Badge>
                                   )}
                                 </td>

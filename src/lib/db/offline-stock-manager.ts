@@ -507,3 +507,145 @@ export async function reconcileOfflineAverageUnfulfilledSales(
   }
 }
 
+/**
+ * Records a stock adjustment locally in Dexie database with FIFO/Average valuation handling
+ * and logs it into db.stock_adjustments.
+ */
+export async function recordStockAdjustmentOffline(options: {
+  productId: string | number;
+  stockType: "available" | "damaged";
+  actionType: "add" | "reduce";
+  quantity: number;
+  reason: string;
+  notes?: string;
+  adjustmentDate?: string | Date;
+  costPrice?: number;
+}): Promise<{
+  newQuantity: number;
+  newDamagedQuantity: number;
+}> {
+  const {
+    productId,
+    stockType,
+    actionType,
+    quantity,
+    reason,
+    notes,
+    adjustmentDate,
+    costPrice,
+  } = options;
+
+  const prodIdStr = String(productId);
+  const product = await db.products.get(prodIdStr);
+  if (!product || quantity <= 0) {
+    return {
+      newQuantity: Number(product?.quantity || 0),
+      newDamagedQuantity: Number(product?.damaged_quantity || 0),
+    };
+  }
+
+  const curQty = parseFloat(product.quantity?.toString() || product.in_stock?.toString() || "0");
+  const curDamaged = parseFloat(product.damaged_quantity?.toString() || "0");
+  const curCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
+  const resolvedCost = typeof costPrice === "number" && costPrice >= 0 ? costPrice : curCost;
+
+  let newQty = curQty;
+  let newDamaged = curDamaged;
+
+  const valuationMethod = typeof window !== "undefined"
+    ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+    : "average";
+
+  if (stockType === "damaged") {
+    newDamaged = actionType === "add"
+      ? roundToPrecision(curDamaged + quantity)
+      : Math.max(0, roundToPrecision(curDamaged - quantity));
+
+    await db.products.update(prodIdStr, {
+      damaged_quantity: newDamaged,
+      damaged_quantity_str: newDamaged.toString(),
+    });
+  } else {
+    // Available stock adjustment
+    if (actionType === "add") {
+      newQty = roundToPrecision(curQty + quantity);
+      const updateFields: any = {
+        quantity: newQty,
+        quantity_str: newQty.toString(),
+        in_stock: newQty,
+      };
+
+      if (valuationMethod === "average" && resolvedCost > 0) {
+        let newAvgCost = resolvedCost;
+        if (curQty > 0 && curCost > 0) {
+          newAvgCost = calculateMovingAverage(curQty, curCost, quantity, resolvedCost);
+        }
+        updateFields.cost_price = newAvgCost;
+        updateFields.cost_price_str = newAvgCost.toString();
+        updateFields.purchase_price = newAvgCost;
+        await reconcileOfflineAverageUnfulfilledSales(prodIdStr, newAvgCost);
+      } else if (valuationMethod === "fifo") {
+        const batchId = `local_adj_batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        await db.inventory_batches.put({
+          id: batchId,
+          product_id: prodIdStr,
+          source_type: "stock_adjustment",
+          source_id: `adj_${Date.now()}`,
+          batch_number: `ADJ-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}`,
+          initial_quantity: quantity,
+          remaining_quantity: quantity,
+          cost_price: resolvedCost,
+          status: "active",
+          batch_date: adjustmentDate ? new Date(adjustmentDate).toISOString() : new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        await reconcileOfflineUnfulfilledSales(prodIdStr);
+      }
+
+      await db.products.update(prodIdStr, updateFields);
+    } else {
+      // actionType === "reduce"
+      newQty = Math.max(0, roundToPrecision(curQty - quantity));
+
+      if (valuationMethod === "fifo") {
+        await consumeOfflineBatchesOnSale({
+          productId: prodIdStr,
+          saleQty: quantity,
+          fallbackCostPrice: curCost,
+        });
+      }
+
+      await db.products.update(prodIdStr, {
+        quantity: newQty,
+        quantity_str: newQty.toString(),
+        in_stock: newQty,
+      });
+    }
+  }
+
+  // Save audit entry in Dexie db.stock_adjustments
+  const adjId = `adj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const dateIso = adjustmentDate ? new Date(adjustmentDate).toISOString() : new Date().toISOString();
+
+  await db.stock_adjustments.put({
+    id: adjId,
+    product_id: prodIdStr,
+    product_name: product.name,
+    stock_type: stockType,
+    action_type: actionType,
+    quantity,
+    cost_price: resolvedCost,
+    reason,
+    notes: notes?.trim() || "",
+    date: dateIso,
+    created_at: new Date().toISOString(),
+  });
+
+  return {
+    newQuantity: newQty,
+    newDamagedQuantity: newDamaged,
+  };
+}
+
+
