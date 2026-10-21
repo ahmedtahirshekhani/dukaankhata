@@ -57,11 +57,12 @@ export async function adjustOfflineStockWithValuation(
     : "average";
 
   if (qtyChange > 0 && typeof unitCostPrice === "number" && unitCostPrice >= 0) {
+    let computedAverageCost = unitCostPrice;
     if (valuationMethod === "average") {
-      const newAverageCost = calculateMovingAverage(currentQty, currentCost, qtyChange, unitCostPrice);
-      updateFields.cost_price = newAverageCost;
-      updateFields.cost_price_str = newAverageCost.toString();
-      updateFields.purchase_price = newAverageCost;
+      computedAverageCost = calculateMovingAverage(currentQty, currentCost, qtyChange, unitCostPrice);
+      updateFields.cost_price = computedAverageCost;
+      updateFields.cost_price_str = computedAverageCost.toString();
+      updateFields.purchase_price = computedAverageCost;
     } else if (valuationMethod === "fifo") {
       updateFields.cost_price = unitCostPrice;
       updateFields.cost_price_str = unitCostPrice.toString();
@@ -90,7 +91,7 @@ export async function adjustOfflineStockWithValuation(
         if (valuationMethod === "fifo") {
           await reconcileOfflineUnfulfilledSales(prodIdStr);
         } else if (valuationMethod === "average") {
-          await reconcileOfflineAverageUnfulfilledSales(prodIdStr, newAverageCost);
+          await reconcileOfflineAverageUnfulfilledSales(prodIdStr, computedAverageCost);
         }
       } catch (err) {
         console.error("Failed to save offline inventory batch:", err);
@@ -485,10 +486,31 @@ export async function reconcileOfflineAverageUnfulfilledSales(
         const currentCogs = Number(item.total_cogs) || 0;
         const isOversold = item.is_oversold === true || Number(item.unfulfilled_quantity) > 0;
 
-        // If the item was sold with 0 cost, or was marked oversold, update it with newAverageCost!
-        if (currentCost <= 0 || currentCogs <= 0 || isOversold) {
+        const unfulfilledQty = Number(item.unfulfilled_quantity) || 0;
+
+        if (currentCost <= 0 || currentCogs <= 0) {
+          // If the item was sold with 0 cost (no cost existed or was 0), entire quantity takes the replenishment cost
           item.cost_price = newAverageCost;
           item.total_cogs = roundToPrecision(itemQty * newAverageCost, 2);
+          item.unfulfilled_quantity = 0;
+          item.is_oversold = false;
+          orderModified = true;
+        } else if (isOversold && unfulfilledQty > 0) {
+          // Item had some stock when sold, but part of it was deficit/unfulfilled.
+          // Only the unfulfilled deficit takes the new replenishment cost; previously fulfilled stock keeps its original cost.
+          const fulfilledQty = Math.max(0, itemQty - unfulfilledQty);
+          const originalCost = currentCost > 0 ? currentCost : newAverageCost;
+          const fulfilledCogs = roundToPrecision(fulfilledQty * originalCost, 2);
+          const deficitCogs = roundToPrecision(unfulfilledQty * newAverageCost, 2);
+          const newTotalCogs = roundToPrecision(fulfilledCogs + deficitCogs, 2);
+          const effectiveUnitCost = roundToPrecision(newTotalCogs / itemQty, 2);
+
+          item.cost_price = effectiveUnitCost;
+          item.total_cogs = newTotalCogs;
+          item.unfulfilled_quantity = 0;
+          item.is_oversold = false;
+          orderModified = true;
+        } else if (isOversold) {
           item.unfulfilled_quantity = 0;
           item.is_oversold = false;
           orderModified = true;

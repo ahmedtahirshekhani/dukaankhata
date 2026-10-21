@@ -458,6 +458,8 @@
     "adjustmentReason": "Adjustment ki Wajah",
     "adjustmentDate": "Tareekh",
     "costPriceOptional": "Laagat Qeemat / Unit",
+    "costPriceAverageNote": "Ahem Note: Cost price tabdeel karne se mojooda aur naye stock ki Weighted Moving Average laagat dobara calculate ho jayegi.",
+    "costPriceFifoNote": "Ahem Note (FIFO): Is rate par naya batch banega. Sale ke waqt pehle puranay batches apni original cost par niklenge, jabke product master ki reference cost update ho jayegi.",
     "notesRemarks": "Tafseel / Remarks",
     "notesPlaceholder": "Maslan audit correction, shipment mein nuqsan...",
     "adjustStockSuccess": "Stock kamyabi se adjust ho gaya",

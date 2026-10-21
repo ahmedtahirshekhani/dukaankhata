@@ -30,6 +30,7 @@ import {
   Loader2,
   Calendar,
   FileText,
+  Info,
 } from "lucide-react";
 import { Product } from "@/types/product";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
@@ -63,10 +64,17 @@ export function AdjustStockDialog({
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [valuationMethod, setValuationMethod] = useState<"average" | "fifo" | "static">("average");
 
   // Sync state when dialog opens or initialProduct changes
   useEffect(() => {
     if (open) {
+      if (typeof window !== "undefined") {
+        const method = (localStorage.getItem("setting_stockValuationMethod") || "average") as any;
+        if (method === "fifo" || method === "average" || method === "static") {
+          setValuationMethod(method);
+        }
+      }
       const prod = initialProduct || null;
       setSelectedProduct(prod);
       setStockType("available");
@@ -429,10 +437,15 @@ export function AdjustStockDialog({
 
             {/* Cost Price (When Adding to Available Stock) */}
             {actionType === "add" && stockType === "available" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="costPriceOpt" className="text-xs font-medium text-muted-foreground">
-                  {t("costPriceOptional")} (Rs.)
-                </Label>
+              <div className="space-y-2 p-3 sm:p-3.5 rounded-xl bg-muted/40 border border-border/70">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="costPriceOpt" className="text-xs font-semibold text-foreground">
+                    {t("costPriceOptional")} (Rs.)
+                  </Label>
+                  <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-full bg-background border border-border text-muted-foreground uppercase font-semibold">
+                    {valuationMethod === "fifo" ? "Valuation: FIFO" : "Valuation: Average"}
+                  </span>
+                </div>
                 <NumericInput
                   id="costPriceOpt"
                   value={costPrice}
@@ -443,8 +456,20 @@ export function AdjustStockDialog({
                   }}
                   placeholder="0"
                   min="0"
-                  className="h-10 text-xs sm:text-sm"
+                  className="h-10 text-xs sm:text-sm font-semibold bg-background"
                 />
+
+                {/* Valuation Note / Alert */}
+                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-[11px] sm:text-xs leading-relaxed flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    {valuationMethod === "fifo" ? (
+                      <p>{t("costPriceFifoNote")}</p>
+                    ) : (
+                      <p>{t("costPriceAverageNote")}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

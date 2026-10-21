@@ -457,6 +457,8 @@
     "adjustmentReason": "Reason for Adjustment",
     "adjustmentDate": "Adjustment Date",
     "costPriceOptional": "Cost Price / Unit",
+    "costPriceAverageNote": "Notice: Changing this cost price will recalculate the Weighted Moving Average cost across all existing and added stock.",
+    "costPriceFifoNote": "Notice (FIFO): This adds a new batch at this unit cost. Older batches will be sold first at their original purchase rates, while the item's reference cost is updated.",
     "notesRemarks": "Notes / Remarks",
     "notesPlaceholder": "e.g. Audit correction, broken in transit...",
     "adjustStockSuccess": "Stock adjusted successfully",

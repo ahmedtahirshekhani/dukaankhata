@@ -146,9 +146,9 @@ export function ItemSalesDetailModal({
                   </Badge>
                 )}
               </div>
-              <DialogDescription className="text-xs mt-1 text-muted-foreground">
+              {/* <DialogDescription className="text-xs mt-1 text-muted-foreground">
                 {t("description")}
-              </DialogDescription>
+              </DialogDescription> */}
             </div>
 
             {product && (
