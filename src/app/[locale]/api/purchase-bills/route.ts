@@ -322,6 +322,21 @@ export async function POST(request: Request) {
     const finalBillDate = rawDateInput ? new Date(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
     const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt) : now;
 
+    const existingBill = await purchaseBillsCollection.findOne({
+      user_id: userObjId,
+      $or: [
+        { bill_number: finalPurchaseNo },
+        { purchase_number: finalPurchaseNo },
+        { purchase_no: finalPurchaseNo },
+      ],
+    });
+    if (existingBill) {
+      return NextResponse.json(
+        { error: "Purchase bill with this bill number already exists" },
+        { status: 409 }
+      );
+    }
+
     const billResult = await purchaseBillsCollection.insertOne({
       user_id: userObjId,
       purchase_number: finalPurchaseNo,

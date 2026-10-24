@@ -192,7 +192,7 @@ export default function Products() {
     } finally {
       setIsDeleting(false);
     }
-  }, [productToDelete, products, setProducts, refetchData]);
+  }, [productToDelete]);
 
   const currentProducts = products;
 

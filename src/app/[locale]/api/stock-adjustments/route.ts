@@ -77,6 +77,9 @@ export async function POST(request: NextRequest) {
     const resolvedCost =
       typeof costPrice === "number" && costPrice >= 0 ? costPrice : curCost;
 
+    const isCostPriceExplicitlyChanged =
+      typeof costPrice === "number" && costPrice >= 0 && (costPrice !== curCost || curCost <= 0);
+
     let newQty = curQty;
     let newDamaged = curDamaged;
     const valuationMethod = await getValuationMethod(user.id);
@@ -104,21 +107,7 @@ export async function POST(request: NextRequest) {
         updateFields.quantity_str = newQty.toString();
         updateFields.in_stock = newQty;
 
-        if (valuationMethod === "average" && resolvedCost > 0) {
-          let newAvgCost = resolvedCost;
-          if (curQty > 0 && curCost > 0) {
-            newAvgCost = calculateMovingAverage(curQty, curCost, numQty, resolvedCost);
-          }
-          updateFields.cost_price = newAvgCost;
-          updateFields.cost_price_str = newAvgCost.toString();
-          updateFields.purchase_price = newAvgCost;
-
-          await reconcileUnfulfilledSalesForProductAverage({
-            userId: user.id,
-            productId: String(productId),
-            costPrice: newAvgCost,
-          });
-        } else if (valuationMethod === "fifo") {
+        if (valuationMethod === "fifo") {
           await batchesCollection.insertOne({
             user_id: userId,
             product_id: prodObjId,
@@ -134,10 +123,37 @@ export async function POST(request: NextRequest) {
             updated_at: new Date(),
           });
 
+          if (resolvedCost > 0) {
+            updateFields.cost_price = resolvedCost;
+            updateFields.cost_price_str = resolvedCost.toString();
+            updateFields.purchase_price = resolvedCost;
+          }
+
           await reconcileUnfulfilledSalesForProduct({
             userId: user.id,
             productId: String(productId),
           });
+        } else if (valuationMethod === "average") {
+          // If user explicitly changed the cost price in the dialog, calculate moving average
+          if (isCostPriceExplicitlyChanged && resolvedCost > 0) {
+            const { getServerPriorFulfilledQty } = await import('@/lib/inventory/valuation-engine');
+            let priorFulfilledQty = 0;
+            if (curQty < 0) {
+              priorFulfilledQty = await getServerPriorFulfilledQty(user.id, String(productId));
+            }
+            const { calculateMovingAverageWithPrior } = await import('@/lib/inventory/valuation-calc');
+            const newAvgCost = calculateMovingAverageWithPrior(curQty, curCost, numQty, resolvedCost, priorFulfilledQty);
+            updateFields.cost_price = newAvgCost;
+            updateFields.cost_price_str = newAvgCost.toString();
+            updateFields.purchase_price = newAvgCost;
+
+            await reconcileUnfulfilledSalesForProductAverage({
+              userId: user.id,
+              productId: String(productId),
+              costPrice: newAvgCost,
+              inwardQty: numQty,
+            });
+          }
         }
       } else {
         // actionType === "reduce"

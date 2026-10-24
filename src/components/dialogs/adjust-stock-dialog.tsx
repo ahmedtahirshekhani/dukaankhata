@@ -37,6 +37,8 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { recordStockAdjustmentOffline } from "@/lib/db/offline-stock-manager";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { formatLocalizedUom } from "@/lib/uom";
+import { DatePicker } from "@/components/ui/date-picker";
+import { safeDate, toHTMLDateString } from "@/lib/date-utils";
 
 interface AdjustStockDialogProps {
   open: boolean;
@@ -85,7 +87,7 @@ export function AdjustStockDialog({
         : (prod?.cost_price_str || "0");
       setCostPrice(initialCost);
       setReason("physicalCount");
-      setAdjustmentDate(new Date().toISOString().split("T")[0]);
+      setAdjustmentDate(toHTMLDateString(new Date()));
       setNotes("");
       setErrorMsg(null);
     }
@@ -132,7 +134,8 @@ export function AdjustStockDialog({
     return Math.max(0, Math.round((currentTargetStock - numQty) * 100000) / 100000);
   }, [currentTargetStock, numQty, actionType]);
 
-  const isExceedingStock = actionType === "reduce" && numQty > currentTargetStock;
+  const isCurrentStockNonPositive = actionType === "reduce" && currentTargetStock <= 0;
+  const isExceedingStock = actionType === "reduce" && currentTargetStock > 0 && numQty > currentTargetStock;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,6 +149,17 @@ export function AdjustStockDialog({
       return;
     }
 
+    if (actionType === "reduce") {
+      if (currentTargetStock <= 0) {
+        setErrorMsg(t("stockCannotReduceBelowZero", { current: currentTargetStock }));
+        return;
+      }
+      if (numQty > currentTargetStock) {
+        setErrorMsg(t("reduceStockExceedsAvailable", { qty: numQty, current: currentTargetStock }));
+        return;
+      }
+    }
+
     if (!reason) {
       setErrorMsg(t("selectReason"));
       return;
@@ -156,6 +170,16 @@ export function AdjustStockDialog({
 
     try {
       const parsedCost = costPrice !== "" ? parseFloat(costPrice) : undefined;
+      const now = new Date();
+      let finalAdjustmentTimestamp: string;
+      if (adjustmentDate) {
+        const parsed = safeDate(adjustmentDate);
+        parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        finalAdjustmentTimestamp = parsed.toISOString();
+      } else {
+        finalAdjustmentTimestamp = now.toISOString();
+      }
+
       const res = await recordStockAdjustmentOffline({
         productId: selectedProduct.id,
         stockType,
@@ -163,7 +187,7 @@ export function AdjustStockDialog({
         quantity: numQty,
         reason,
         notes,
-        adjustmentDate,
+        adjustmentDate: finalAdjustmentTimestamp,
         costPrice: parsedCost,
       });
 
@@ -174,6 +198,8 @@ export function AdjustStockDialog({
         in_stock: res.newQuantity,
         damaged_quantity: res.newDamagedQuantity,
         damaged_quantity_str: res.newDamagedQuantity.toString(),
+        cost_price: res.newCostPrice !== undefined ? res.newCostPrice : selectedProduct.cost_price,
+        cost_price_str: res.newCostPrice !== undefined ? res.newCostPrice.toString() : selectedProduct.cost_price_str,
       };
 
       // Queue sync operation for backend MongoDB
@@ -184,7 +210,7 @@ export function AdjustStockDialog({
         quantity: numQty,
         reason,
         notes: notes.trim(),
-        adjustmentDate,
+        adjustmentDate: finalAdjustmentTimestamp,
         costPrice: parsedCost,
       };
 
@@ -380,8 +406,8 @@ export function AdjustStockDialog({
                   className={`text-xs sm:text-sm font-bold truncate ${
                     actionType === "add"
                       ? "text-emerald-600 dark:text-emerald-400"
-                      : isExceedingStock
-                      ? "text-rose-600"
+                      : isCurrentStockNonPositive || isExceedingStock
+                      ? "text-rose-600 dark:text-rose-400"
                       : "text-foreground"
                   }`}
                 >
@@ -390,11 +416,20 @@ export function AdjustStockDialog({
               </div>
             </div>
 
+            {isCurrentStockNonPositive && (
+              <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>
+                  {t("stockCannotReduceBelowZero", { current: currentTargetStock })}
+                </span>
+              </div>
+            )}
+
             {isExceedingStock && (
               <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>
-                  {t("reduceStock")} ({numQty}) {t("currentStock")} ({currentTargetStock}) se zyada hai.
+                  {t("reduceStockExceedsAvailable", { qty: numQty, current: currentTargetStock })}
                 </span>
               </div>
             )}
@@ -425,12 +460,12 @@ export function AdjustStockDialog({
                 <Label htmlFor="adjustDate" className="text-xs font-medium">
                   {t("adjustmentDate")}
                 </Label>
-                <Input
+                <DatePicker
                   id="adjustDate"
-                  type="date"
                   value={adjustmentDate}
-                  onChange={(e) => setAdjustmentDate(e.target.value)}
+                  onChange={(dateStr) => setAdjustmentDate(dateStr)}
                   className="h-10 text-xs sm:text-sm"
+                  placeholder="DD-MM-YYYY"
                 />
               </div>
             </div>

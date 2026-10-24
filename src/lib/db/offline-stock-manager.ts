@@ -1,10 +1,35 @@
 import { db } from "@/lib/db/offline-db";
-import { calculateMovingAverage } from "@/lib/inventory/valuation-calc";
+import { calculateMovingAverage, calculateMovingAverageWithPrior } from "@/lib/inventory/valuation-calc";
 
 const roundToPrecision = (num: number, decimals: number = 5) => {
   const factor = Math.pow(10, decimals);
   return Math.round(num * factor) / factor;
 };
+
+/**
+ * Finds how many units of previous stock were fulfilled in oversold orders for a product.
+ * Used when stock is negative and a replenishment purchase/adjustment arrives.
+ */
+export async function getOfflinePriorFulfilledQty(prodIdStr: string): Promise<number> {
+  try {
+    const allOrders = await db.orders.toArray();
+    let priorFulfilled = 0;
+    for (const o of allOrders) {
+      if (o.status === "cancelled" || !Array.isArray(o.items)) continue;
+      for (const it of o.items) {
+        if (String(it.product_id) === prodIdStr) {
+          const itQty = Number(it.quantity) || 0;
+          const unfulfilled = Number(it.unfulfilled_quantity) || 0;
+          priorFulfilled += Math.max(0, itQty - unfulfilled);
+        }
+      }
+    }
+    return priorFulfilled;
+  } catch (err) {
+    console.error("Error computing prior fulfilled qty offline:", err);
+    return 0;
+  }
+}
 
 export async function adjustOfflineStock(
   productId: string | number | undefined | null, 
@@ -59,7 +84,11 @@ export async function adjustOfflineStockWithValuation(
   if (qtyChange > 0 && typeof unitCostPrice === "number" && unitCostPrice >= 0) {
     let computedAverageCost = unitCostPrice;
     if (valuationMethod === "average") {
-      computedAverageCost = calculateMovingAverage(currentQty, currentCost, qtyChange, unitCostPrice);
+      let priorFulfilledQty = 0;
+      if (currentQty < 0) {
+        priorFulfilledQty = await getOfflinePriorFulfilledQty(prodIdStr);
+      }
+      computedAverageCost = calculateMovingAverageWithPrior(currentQty, currentCost, qtyChange, unitCostPrice, priorFulfilledQty);
       updateFields.cost_price = computedAverageCost;
       updateFields.cost_price_str = computedAverageCost.toString();
       updateFields.purchase_price = computedAverageCost;
@@ -91,7 +120,7 @@ export async function adjustOfflineStockWithValuation(
         if (valuationMethod === "fifo") {
           await reconcileOfflineUnfulfilledSales(prodIdStr);
         } else if (valuationMethod === "average") {
-          await reconcileOfflineAverageUnfulfilledSales(prodIdStr, computedAverageCost);
+          await reconcileOfflineAverageUnfulfilledSales(prodIdStr, computedAverageCost, qtyChange);
         }
       } catch (err) {
         console.error("Failed to save offline inventory batch:", err);
@@ -108,14 +137,46 @@ export async function adjustOfflineStockWithValuation(
 
       // Re-evaluate cost price from remaining batches
       const remainingBatches = batches.filter((b: any) => b.source_id !== batchInfo.source_id);
-      if (remainingBatches.length > 0) {
-        if (valuationMethod === "fifo") {
+      if (valuationMethod === "fifo") {
+        if (remainingBatches.length > 0) {
           remainingBatches.sort((a: any, b: any) => new Date(b.batch_date).getTime() - new Date(a.batch_date).getTime());
           const latestCost = Number(remainingBatches[0].cost_price) || 0;
           updateFields.cost_price = latestCost;
           updateFields.cost_price_str = latestCost.toString();
           updateFields.purchase_price = latestCost;
-        } else if (valuationMethod === "average") {
+        }
+      } else if (valuationMethod === "average") {
+        let deletedCost = (typeof unitCostPrice === "number" && unitCostPrice > 0) ? unitCostPrice : 0;
+        if (deletedCost <= 0 && billBatches.length > 0) {
+          deletedCost = Number(billBatches[0].cost_price || 0);
+        }
+        if (deletedCost <= 0 && batchInfo?.source_id) {
+          try {
+            const billDoc = await db.purchase_bills.get(batchInfo.source_id);
+            if (billDoc && Array.isArray(billDoc.items)) {
+              const matched = billDoc.items.find((it: any) => String(it.product_id) === prodIdStr);
+              if (matched) {
+                deletedCost = Number(matched.cost_price ?? matched.purchase_price ?? matched.unit_price ?? matched.price ?? matched.sell_price ?? 0);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+        if (deletedCost <= 0) {
+          deletedCost = currentCost;
+        }
+
+        const removedQty = Math.abs(qtyChange);
+        const prevQty = newQty;
+        const prevTotalVal = (currentQty * currentCost) - (removedQty * deletedCost);
+
+        if (prevQty > 0) {
+          const restoredAvg = prevTotalVal > 0 ? roundToPrecision(prevTotalVal / prevQty, 2) : currentCost;
+          updateFields.cost_price = restoredAvg;
+          updateFields.cost_price_str = restoredAvg.toString();
+          updateFields.purchase_price = restoredAvg;
+        } else if (remainingBatches.length > 0) {
           let totalVal = 0;
           let totalRemQty = 0;
           for (const b of remainingBatches) {
@@ -124,11 +185,15 @@ export async function adjustOfflineStockWithValuation(
             totalRemQty += bQty;
           }
           if (totalRemQty > 0) {
-            const restoredAvg = roundToPrecision(totalVal / totalRemQty, 4);
+            const restoredAvg = roundToPrecision(totalVal / totalRemQty, 2);
             updateFields.cost_price = restoredAvg;
             updateFields.cost_price_str = restoredAvg.toString();
             updateFields.purchase_price = restoredAvg;
           }
+        } else {
+          updateFields.cost_price = currentCost;
+          updateFields.cost_price_str = currentCost.toString();
+          updateFields.purchase_price = currentCost;
         }
       }
     } catch (err) {
@@ -337,7 +402,7 @@ export async function reInwardOfflineBatchOnSaleReturn(options: {
         });
       }
       if (finalAvgCost > 0) {
-        await reconcileOfflineAverageUnfulfilledSales(prodIdStr, finalAvgCost);
+        await reconcileOfflineAverageUnfulfilledSales(prodIdStr, finalAvgCost, quantity);
       }
     }
   } catch (err) {
@@ -461,16 +526,31 @@ export async function reconcileOfflineUnfulfilledSales(productId: string | numbe
  */
 export async function reconcileOfflineAverageUnfulfilledSales(
   productId: string | number,
-  newAverageCost: number
+  newAverageCost: number,
+  inwardQty: number = 0
 ): Promise<void> {
   const prodIdStr = String(productId);
   if (!prodIdStr || newAverageCost <= 0) return;
 
   try {
+    const product = await db.products.get(prodIdStr);
     const allOrders = await db.orders.toArray();
     const candidateOrders = allOrders
       .filter((o: any) => o.status !== "cancelled" && Array.isArray(o.items) && o.items.some((it: any) => String(it.product_id) === prodIdStr))
       .sort((a: any, b: any) => new Date(a.sale_date || a.created_at).getTime() - new Date(b.sale_date || b.created_at).getTime());
+
+    // Calculate total acquired stock to accurately know which sales were oversold (self-healing)
+    const batches = await db.inventory_batches.where("product_id").equals(prodIdStr).toArray();
+    const initialBatchQty = batches.reduce((acc: number, b: any) => acc + (Number(b.initial_quantity) || 0), 0);
+    const curStock = parseFloat(product?.quantity?.toString() || product?.in_stock?.toString() || "0");
+    const totalSold = candidateOrders.reduce((acc: number, ord: any) => {
+      const match = (ord.items || []).find((it: any) => String(it.product_id) === prodIdStr);
+      return acc + (Number(match?.quantity) || 0);
+    }, 0);
+    const totalHistoricalAcquired = Math.max(initialBatchQty, curStock + totalSold);
+
+    let runningFulfilledBudget = roundToPrecision(totalHistoricalAcquired - (Number(inwardQty) || 0), 5);
+    let remainingInward = Number(inwardQty) > 0 ? Number(inwardQty) : 0;
 
     for (const order of candidateOrders) {
       let orderModified = false;
@@ -484,35 +564,43 @@ export async function reconcileOfflineAverageUnfulfilledSales(
 
         const currentCost = Number(item.cost_price) || 0;
         const currentCogs = Number(item.total_cogs) || 0;
-        const isOversold = item.is_oversold === true || Number(item.unfulfilled_quantity) > 0;
 
-        const unfulfilledQty = Number(item.unfulfilled_quantity) || 0;
+        let unfulfilled = Number(item.unfulfilled_quantity) || 0;
+        if (item.is_oversold && unfulfilled <= 0) {
+          unfulfilled = itemQty;
+        }
 
-        if (currentCost <= 0 || currentCogs <= 0) {
-          // If the item was sold with 0 cost (no cost existed or was 0), entire quantity takes the replenishment cost
+        // Self-heal: if unfulfilled was prematurely cleared by earlier bug but running budget shows deficit
+        if (unfulfilled <= 0 && !item.is_oversold && runningFulfilledBudget < itemQty) {
+          const priorCovered = Math.max(0, runningFulfilledBudget);
+          unfulfilled = roundToPrecision(itemQty - priorCovered, 5);
+          item.is_oversold = unfulfilled > 0;
+        }
+        runningFulfilledBudget = Math.max(0, roundToPrecision(runningFulfilledBudget - itemQty, 5));
+
+        if (unfulfilled > 0) {
+          if (remainingInward > 0) {
+            const takeQty = Math.min(remainingInward, unfulfilled);
+            unfulfilled = roundToPrecision(unfulfilled - takeQty, 5);
+            remainingInward = roundToPrecision(remainingInward - takeQty, 5);
+
+            item.unfulfilled_quantity = unfulfilled;
+            item.is_oversold = unfulfilled > 0;
+            item.cost_price = newAverageCost;
+            item.total_cogs = roundToPrecision(itemQty * newAverageCost, 2);
+            orderModified = true;
+          } else {
+            // Not enough inward units to fulfill this invoice; keep unfulfilled and is_oversold
+            item.unfulfilled_quantity = unfulfilled;
+            item.is_oversold = true;
+            // Update estimated COGS to new average so report displays latest rate
+            item.cost_price = newAverageCost;
+            item.total_cogs = roundToPrecision(itemQty * newAverageCost, 2);
+            orderModified = true;
+          }
+        } else if (currentCost <= 0 || currentCogs <= 0) {
           item.cost_price = newAverageCost;
           item.total_cogs = roundToPrecision(itemQty * newAverageCost, 2);
-          item.unfulfilled_quantity = 0;
-          item.is_oversold = false;
-          orderModified = true;
-        } else if (isOversold && unfulfilledQty > 0) {
-          // Item had some stock when sold, but part of it was deficit/unfulfilled.
-          // Only the unfulfilled deficit takes the new replenishment cost; previously fulfilled stock keeps its original cost.
-          const fulfilledQty = Math.max(0, itemQty - unfulfilledQty);
-          const originalCost = currentCost > 0 ? currentCost : newAverageCost;
-          const fulfilledCogs = roundToPrecision(fulfilledQty * originalCost, 2);
-          const deficitCogs = roundToPrecision(unfulfilledQty * newAverageCost, 2);
-          const newTotalCogs = roundToPrecision(fulfilledCogs + deficitCogs, 2);
-          const effectiveUnitCost = roundToPrecision(newTotalCogs / itemQty, 2);
-
-          item.cost_price = effectiveUnitCost;
-          item.total_cogs = newTotalCogs;
-          item.unfulfilled_quantity = 0;
-          item.is_oversold = false;
-          orderModified = true;
-        } else if (isOversold) {
-          item.unfulfilled_quantity = 0;
-          item.is_oversold = false;
           orderModified = true;
         }
       }
@@ -545,6 +633,7 @@ export async function recordStockAdjustmentOffline(options: {
 }): Promise<{
   newQuantity: number;
   newDamagedQuantity: number;
+  newCostPrice: number;
 }> {
   const {
     productId,
@@ -563,6 +652,7 @@ export async function recordStockAdjustmentOffline(options: {
     return {
       newQuantity: Number(product?.quantity || 0),
       newDamagedQuantity: Number(product?.damaged_quantity || 0),
+      newCostPrice: Number(product?.cost_price || product?.purchase_price || 0),
     };
   }
 
@@ -571,8 +661,11 @@ export async function recordStockAdjustmentOffline(options: {
   const curCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
   const resolvedCost = typeof costPrice === "number" && costPrice >= 0 ? costPrice : curCost;
 
+  const isCostPriceExplicitlyChanged = typeof costPrice === "number" && costPrice >= 0 && (costPrice !== curCost || curCost <= 0);
+
   let newQty = curQty;
   let newDamaged = curDamaged;
+  let finalCostPrice = curCost;
 
   const valuationMethod = typeof window !== "undefined"
     ? (localStorage.getItem("setting_stockValuationMethod") || "average")
@@ -597,16 +690,7 @@ export async function recordStockAdjustmentOffline(options: {
         in_stock: newQty,
       };
 
-      if (valuationMethod === "average" && resolvedCost > 0) {
-        let newAvgCost = resolvedCost;
-        if (curQty > 0 && curCost > 0) {
-          newAvgCost = calculateMovingAverage(curQty, curCost, quantity, resolvedCost);
-        }
-        updateFields.cost_price = newAvgCost;
-        updateFields.cost_price_str = newAvgCost.toString();
-        updateFields.purchase_price = newAvgCost;
-        await reconcileOfflineAverageUnfulfilledSales(prodIdStr, newAvgCost);
-      } else if (valuationMethod === "fifo") {
+      if (valuationMethod === "fifo") {
         const batchId = `local_adj_batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
         await db.inventory_batches.put({
           id: batchId,
@@ -622,7 +706,29 @@ export async function recordStockAdjustmentOffline(options: {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+        if (resolvedCost > 0) {
+          finalCostPrice = resolvedCost;
+          updateFields.cost_price = resolvedCost;
+          updateFields.cost_price_str = resolvedCost.toString();
+          updateFields.purchase_price = resolvedCost;
+        }
         await reconcileOfflineUnfulfilledSales(prodIdStr);
+      } else if (valuationMethod === "average") {
+        // If user changed the cost price in dialog, calculate moving average; otherwise preserve old cost
+        if (isCostPriceExplicitlyChanged && resolvedCost > 0) {
+          let priorFulfilledQty = 0;
+          if (curQty < 0) {
+            priorFulfilledQty = await getOfflinePriorFulfilledQty(prodIdStr);
+          }
+          const newAvgCost = calculateMovingAverageWithPrior(curQty, curCost, quantity, resolvedCost, priorFulfilledQty);
+          finalCostPrice = newAvgCost;
+          updateFields.cost_price = newAvgCost;
+          updateFields.cost_price_str = newAvgCost.toString();
+          updateFields.purchase_price = newAvgCost;
+          await reconcileOfflineAverageUnfulfilledSales(prodIdStr, newAvgCost, quantity);
+        } else {
+          finalCostPrice = curCost;
+        }
       }
 
       await db.products.update(prodIdStr, updateFields);
@@ -667,6 +773,7 @@ export async function recordStockAdjustmentOffline(options: {
   return {
     newQuantity: newQty,
     newDamagedQuantity: newDamaged,
+    newCostPrice: finalCostPrice,
   };
 }
 

@@ -400,11 +400,12 @@ function AddPurchaseBillPageInner() {
 
   // Save Bill
   const handleSaveBill = async () => {
+    if (isSaving) return;
     if (!selectedPartyId || selectedProducts.length === 0) {
       setSaveError(
         !selectedPartyId
-          ? t("selectParty") || "Please select a supplier / party"
-          : t("addItems") || "Please add at least one item"
+          ? t("selectParty")
+          : t("addItems")
       );
       setShowSaveErrorDialog(true);
       return;
@@ -450,10 +451,18 @@ function AddPurchaseBillPageInner() {
           if (oldBill.items && Array.isArray(oldBill.items)) {
             for (const item of oldBill.items) {
               if (item.product_id) {
+                const itemCost = Number(
+                  item.cost_price ??
+                  item.purchase_price ??
+                  item.unit_price ??
+                  item.price ??
+                  item.sell_price ??
+                  0
+                );
                 await adjustOfflineStockWithValuation(
                   String(item.product_id),
                   -(Number(item.quantity) || 0),
-                  undefined,
+                  itemCost,
                   { source_id: editingId }
                 );
               }

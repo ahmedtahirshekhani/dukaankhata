@@ -25,7 +25,7 @@ import {
 import { ErrorDialog } from "./error-dialog";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
-import { Info } from "lucide-react";
+import { Info, AlertTriangle } from "lucide-react";
 import { CategorySelector } from "@/components/selectors/category-selector";
 import { BranchSelector } from "@/components/selectors/branch-selector";
 
@@ -122,6 +122,7 @@ export function ProductDialog({
   const [unitOfMeasurement, setUnitOfMeasurement] = useState("");
   const [branch, setBranch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const isEditMode = selectedProduct !== null;
 
@@ -168,11 +169,23 @@ export function ProductDialog({
     setProductCategory("");
     setUnitOfMeasurement("");
     setBranch("");
+    setValidationError(null);
   };
 
   const handleAddProduct = useCallback(async () => {
+    if (
+      itemType === "goods" &&
+      productInStock !== "" &&
+      Number(productInStock) > 0 &&
+      (costPrice === "" || Number(costPrice) <= 0)
+    ) {
+      setValidationError(t("openingStockRequiresCostPrice"));
+      return;
+    }
+
     try {
       setLoading(true);
+      setValidationError(null);
       const newProduct = {
         type: itemType,
         name: productName,
@@ -230,26 +243,23 @@ export function ProductDialog({
     } finally {
       setLoading(false);
     }
-  }, [
-    itemType,
-    productName,
-    productDescription,
-    productPrice,
-    sellPrice,
-    costPrice,
-    productInStock,
-    damagedQuantity,
-    productCategory,
-    unitOfMeasurement,
-    branch,
-    onSuccess,
-    onOpenChange,
-  ]);
+  }, [itemType, productInStock, costPrice, t, productName, productDescription, productCategory, sellPrice, damagedQuantity, unitOfMeasurement, branch, onSuccess, onOpenChange]);
 
   const handleEditProduct = useCallback(async () => {
     if (!selectedProduct) return;
+    if (
+      itemType === "goods" &&
+      productInStock !== "" &&
+      Number(productInStock) > 0 &&
+      (costPrice === "" || Number(costPrice) <= 0)
+    ) {
+      setValidationError(t("openingStockRequiresCostPrice"));
+      return;
+    }
+
     try {
       setLoading(true);
+      setValidationError(null);
       const updatedProduct = {
         type: itemType,
         name: productName,
@@ -285,22 +295,7 @@ export function ProductDialog({
     } finally {
       setLoading(false);
     }
-  }, [
-    selectedProduct,
-    itemType,
-    productName,
-    productDescription,
-    productPrice,
-    sellPrice,
-    costPrice,
-    productInStock,
-    damagedQuantity,
-    productCategory,
-    unitOfMeasurement,
-    branch,
-    onSuccess,
-    onOpenChange,
-  ]);
+  }, [selectedProduct, itemType, productInStock, costPrice, t, productName, productDescription, productCategory, sellPrice, damagedQuantity, unitOfMeasurement, branch, onSuccess, onOpenChange]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -431,7 +426,10 @@ export function ProductDialog({
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="costPrice">{t("costPrice")}</Label>
+                      <Label htmlFor="costPrice">
+                        {t("costPrice")}
+                        {Number(productInStock) > 0 && <span className="text-red-500 ml-0.5">*</span>}
+                      </Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
@@ -448,10 +446,17 @@ export function ProductDialog({
                         const val = e.target.value;
                         if (val !== "" && Number(val) < 0) return;
                         setCostPrice(val);
+                        if (validationError) setValidationError(null);
                       }}
                       placeholder="0"
                       min="0"
                     />
+                    {Number(productInStock) > 0 && (costPrice === "" || Number(costPrice) <= 0) && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium mt-1">
+                        <Info className="w-3 h-3 shrink-0" />
+                        <span>{t("costPriceRequiredForOpeningStock")}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -475,6 +480,7 @@ export function ProductDialog({
                         const val = e.target.value;
                         if (val !== "" && Number(val) < 0) return;
                         setProductInStock(val);
+                        if (validationError) setValidationError(null);
                       }}
                       placeholder="0"
                       min="0"
@@ -589,6 +595,12 @@ export function ProductDialog({
                   />
                 </div>
               </>
+            )}
+            {validationError && (
+              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs p-2.5 rounded-lg flex items-center gap-2 mt-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{validationError}</span>
+              </div>
             )}
           </div>
           <DialogFooter>

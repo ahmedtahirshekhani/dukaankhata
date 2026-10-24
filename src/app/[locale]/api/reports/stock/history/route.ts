@@ -110,11 +110,27 @@ export async function GET(request: NextRequest) {
       partyMap.set(c._id.toString(), c.name || c.company_name || "Customer");
     }
 
+    // Helper to get exact timestamp combining date and time down to seconds
+    const getExactTimestamp = (dateVal: any, createdAtVal: any): Date => {
+      if (!dateVal && !createdAtVal) return new Date();
+      const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
+      if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
+
+      // If base date has no time (hours=0, min=0, sec=0) but createdAt has exact time, merge time
+      if (base.getHours() === 0 && base.getMinutes() === 0 && base.getSeconds() === 0 && createdAtVal) {
+        const created = new Date(createdAtVal);
+        if (!isNaN(created.getTime())) {
+          base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
+        }
+      }
+      return base;
+    };
+
     // 6. Build raw chronological movement events
     interface RawMovement {
       id: string;
       date: Date;
-      type: "purchase" | "sale" | "sale_return" | "adjustment_add" | "adjustment_reduce";
+      type: "opening_stock" | "purchase" | "sale" | "sale_return" | "adjustment_add" | "adjustment_reduce";
       refNo: string;
       partyName: string;
       inwardQty: number;
@@ -128,10 +144,60 @@ export async function GET(request: NextRequest) {
 
     const rawMovements: RawMovement[] = [];
 
+    // Map Opening Stock if exists
+    const openingBatch = batches.find(
+      (b: any) => b.source_type === "opening_stock" || b.batch_number === "OPENING"
+    );
+    let initialOpeningQty = openingBatch
+      ? Number(openingBatch.initial_quantity) || 0
+      : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
+    const initialOpeningCost = openingBatch
+      ? Number(openingBatch.cost_price) || 0
+      : Number(product.cost_price || product.purchase_price || 0);
+    const openingDate = openingBatch?.batch_date || openingBatch?.created_at || product.created_at || new Date(0);
+
+    // Fallback: If no opening batch was recorded, check if initial stock existed at creation
+    if (initialOpeningQty <= 0) {
+      const totalPurchased = purchaseBills.reduce((acc, b) => {
+        const matched = (b.items || []).filter((it: any) => it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString());
+        return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+      }, 0);
+      const totalSold = orders.reduce((acc, o) => {
+        const matched = (o.items || []).filter((it: any) => it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString());
+        return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+      }, 0);
+      const totalAdjustAdd = stockAdjustments.filter((a: any) => a.action_type === "add").reduce((acc: number, a: any) => acc + (Number(a.quantity) || 0), 0);
+      const totalAdjustReduce = stockAdjustments.filter((a: any) => a.action_type !== "add").reduce((acc: number, a: any) => acc + (Number(a.quantity) || 0), 0);
+      const totalReturned = saleReturns.reduce((acc, r) => {
+        const matched = (r.items || []).filter((it: any) => (it.productId || it.product_id)?.toString() === productId || (it.productId || it.product_id)?.toString() === prodObjId.toString());
+        return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+      }, 0);
+      const curStockNum = Number(product.quantity || product.in_stock || 0);
+      const impliedOpening = Math.round((curStockNum - (totalPurchased + totalAdjustAdd + totalReturned - totalSold - totalAdjustReduce)) * 1000) / 1000;
+      if (impliedOpening > 0) {
+        initialOpeningQty = impliedOpening;
+      }
+    }
+
+    if (initialOpeningQty > 0) {
+      rawMovements.push({
+        id: `opening-${product._id}`,
+        date: new Date(openingDate),
+        type: "opening_stock",
+        refNo: "OPENING",
+        partyName: "Opening Stock",
+        inwardQty: initialOpeningQty,
+        outwardQty: 0,
+        unitRate: initialOpeningCost,
+        costPrice: initialOpeningCost,
+        totalAmount: Math.round(initialOpeningQty * initialOpeningCost * 100) / 100,
+        batchNumber: "OPENING",
+      });
+    }
+
     // Map Purchase Bills
     for (const bill of purchaseBills) {
-      const billDate = bill.bill_date || bill.date || bill.created_at;
-      const d = new Date(billDate);
+      const d = getExactTimestamp(bill.bill_date || bill.date, bill.created_at);
       const supplierName = bill.party_name || partyMap.get(bill.party_id?.toString()) || "Supplier";
       
       const matchedItems = (bill.items || []).filter((it: any) => 
@@ -143,7 +209,7 @@ export async function GET(request: NextRequest) {
         const rate = Number(it.cost_price ?? it.unit_price) || 0;
         rawMovements.push({
           id: `pb-${bill._id}-${it.product_id}`,
-          date: isNaN(d.getTime()) ? new Date(bill.created_at || Date.now()) : d,
+          date: d,
           type: "purchase",
           refNo: bill.bill_number || `BILL-${bill._id.toString().slice(-6)}`,
           partyName: supplierName,
@@ -159,8 +225,7 @@ export async function GET(request: NextRequest) {
 
     // Map Sales Orders
     for (const order of orders) {
-      const saleDate = order.sale_date || order.date || order.created_at;
-      const d = new Date(saleDate);
+      const d = getExactTimestamp(order.sale_date || order.date, order.created_at);
       const customerName = order.customer_name || partyMap.get(order.customer_id?.toString()) || "Customer";
 
       const matchedItems = (order.items || []).filter((it: any) => 
@@ -182,7 +247,7 @@ export async function GET(request: NextRequest) {
             const splitCost = Number(split.cost_price) || 0;
             rawMovements.push({
               id: `so-${order._id}-${it.product_id}-split-${sIdx}`,
-              date: isNaN(d.getTime()) ? new Date(order.created_at || Date.now()) : d,
+              date: d,
               type: "sale",
               refNo: order.invoice_no || `INV-${order._id.toString().slice(-6)}`,
               partyName: customerName,
@@ -199,7 +264,7 @@ export async function GET(request: NextRequest) {
           if (unfulfilledQty > 0) {
             rawMovements.push({
               id: `so-${order._id}-${it.product_id}-deficit`,
-              date: isNaN(d.getTime()) ? new Date(order.created_at || Date.now()) : d,
+              date: d,
               type: "sale",
               refNo: order.invoice_no || `INV-${order._id.toString().slice(-6)}`,
               partyName: customerName,
@@ -215,7 +280,7 @@ export async function GET(request: NextRequest) {
         } else {
           rawMovements.push({
             id: `so-${order._id}-${it.product_id}`,
-            date: isNaN(d.getTime()) ? new Date(order.created_at || Date.now()) : d,
+            date: d,
             type: "sale",
             refNo: order.invoice_no || `INV-${order._id.toString().slice(-6)}`,
             partyName: customerName,
@@ -232,8 +297,7 @@ export async function GET(request: NextRequest) {
 
     // Map Sale Returns
     for (const ret of saleReturns) {
-      const retDate = ret.date || ret.return_date || ret.created_at;
-      const d = new Date(retDate);
+      const d = getExactTimestamp(ret.return_date || ret.date, ret.created_at);
       const customerName = ret.customerName || partyMap.get(ret.customerId?.toString() || ret.customer_id?.toString()) || "Customer";
 
       const matchedItems = (ret.items || []).filter((it: any) => 
@@ -245,7 +309,7 @@ export async function GET(request: NextRequest) {
         const rate = Number(it.rate) || 0;
         rawMovements.push({
           id: `sr-${ret._id}-${it.productId || it.product_id}`,
-          date: isNaN(d.getTime()) ? new Date(ret.created_at || Date.now()) : d,
+          date: d,
           type: "sale_return",
           refNo: ret.returnNumber || ret.return_number || `RET-${ret._id.toString().slice(-6)}`,
           partyName: customerName,
@@ -260,7 +324,7 @@ export async function GET(request: NextRequest) {
 
     // Map Stock Adjustments
     for (const adj of stockAdjustments) {
-      const d = new Date(adj.date || adj.created_at || Date.now());
+      const d = getExactTimestamp(adj.date || adj.adjustment_date, adj.created_at);
       const isAdd = adj.action_type === "add";
       const qty = Number(adj.quantity) || 0;
       const rate = Number(adj.cost_price || product.cost_price) || 0;
@@ -268,7 +332,7 @@ export async function GET(request: NextRequest) {
 
       rawMovements.push({
         id: `adj-${adj._id}`,
-        date: isNaN(d.getTime()) ? new Date(adj.created_at || Date.now()) : d,
+        date: d,
         type: isAdd ? "adjustment_add" : "adjustment_reduce",
         refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
         partyName: `Adjustment (${reasonKey})`,
@@ -280,13 +344,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Sort chronologically ascending from the very beginning to calculate accurate running balance
-    rawMovements.sort((a, b) => a.date.getTime() - b.date.getTime());
+    // Sort chronologically ascending by exact Date, Time, and Seconds (with priority for simultaneous events)
+    rawMovements.sort((a, b) => {
+      const diff = a.date.getTime() - b.date.getTime();
+      if (diff !== 0) return diff;
+      const priority: Record<string, number> = {
+        opening_stock: 1,
+        purchase: 2,
+        adjustment_add: 3,
+        sale_return: 4,
+        sale: 5,
+        adjustment_reduce: 6,
+      };
+      return (priority[a.type] || 5) - (priority[b.type] || 5);
+    });
 
     // Calculate Running Balance
     let runningBalance = 0;
     const allCalculatedMovements = rawMovements.map(m => {
-      if (m.type === "purchase" || m.type === "sale_return" || m.type === "adjustment_add") {
+      if (m.type === "opening_stock" || m.type === "purchase" || m.type === "sale_return" || m.type === "adjustment_add") {
         runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
       } else if (m.type === "sale" || m.type === "adjustment_reduce") {
         runningBalance = Math.round((runningBalance - m.outwardQty) * 1000) / 1000;
@@ -300,7 +376,7 @@ export async function GET(request: NextRequest) {
 
     // Date range filtering (if requested)
     let filteredMovements = allCalculatedMovements;
-    let openingBalanceBeforeFilter = 0;
+    let openingBalanceBeforeFilter = initialOpeningQty;
 
     if (fromDate || toDate) {
       const from = fromDate ? new Date(fromDate) : null;
@@ -314,6 +390,8 @@ export async function GET(request: NextRequest) {
         const priorMovements = allCalculatedMovements.filter(m => new Date(m.date) < from);
         if (priorMovements.length > 0) {
           openingBalanceBeforeFilter = priorMovements[priorMovements.length - 1].balance;
+        } else {
+          openingBalanceBeforeFilter = initialOpeningQty;
         }
       }
 
@@ -323,17 +401,37 @@ export async function GET(request: NextRequest) {
         if (to && d > to) return false;
         return true;
       });
+
+      // If filtered by fromDate and openingBalanceBeforeFilter is non-zero,
+      // ensure an Opening Balance B/F row is at the start of the period movements
+      if (from && !filteredMovements.some(m => m.type === "opening_stock")) {
+        filteredMovements.unshift({
+          id: `opening-filter-${from.toISOString()}`,
+          date: from.toISOString(),
+          type: "opening_stock",
+          refNo: "OPENING",
+          partyName: "Opening Balance B/F",
+          inwardQty: openingBalanceBeforeFilter > 0 ? openingBalanceBeforeFilter : 0,
+          outwardQty: openingBalanceBeforeFilter < 0 ? Math.abs(openingBalanceBeforeFilter) : 0,
+          unitRate: Number(product.cost_price ?? product.purchase_price) || 0,
+          costPrice: Number(product.cost_price ?? product.purchase_price) || 0,
+          totalAmount: Math.round(Math.abs(openingBalanceBeforeFilter) * (Number(product.cost_price ?? product.purchase_price) || 0) * 100) / 100,
+          balance: openingBalanceBeforeFilter,
+        });
+      }
     }
 
     // Compute period totals
     let periodInward = 0;
     let periodOutward = 0;
     for (const m of filteredMovements) {
-      periodInward += m.inwardQty;
-      periodOutward += m.outwardQty;
+      if (m.type !== "opening_stock") {
+        periodInward += m.inwardQty;
+        periodOutward += m.outwardQty;
+      }
     }
 
-    // Format batches for client
+    // Format batches for client (includes Purchase Bills, Stock Adjustments, and Opening Stock)
     const formattedBatches = batches.map(b => ({
       id: b._id.toString(),
       batch_number: b.batch_number || "BATCH",
@@ -344,6 +442,44 @@ export async function GET(request: NextRequest) {
       status: b.status || "active",
       batch_date: b.batch_date ? new Date(b.batch_date).toISOString() : new Date(b.created_at).toISOString(),
     }));
+
+    // Add Stock Adjustments (adds) into Tracked Batches if not already represented
+    const existingBatchSources = new Set(batches.map(b => b.source_id?.toString() || b.batch_number));
+    for (const adj of stockAdjustments) {
+      if (adj.action_type === "add") {
+        const adjIdStr = adj._id.toString();
+        const adjRef = adj.ref_no || `ADJ-${adjIdStr.slice(-6)}`;
+        if (!existingBatchSources.has(adjIdStr) && !existingBatchSources.has(adjRef)) {
+          formattedBatches.push({
+            id: `adj-batch-${adjIdStr}`,
+            batch_number: adjRef,
+            source_type: "stock_adjustment",
+            initial_quantity: Number(adj.quantity) || 0,
+            remaining_quantity: Number(adj.quantity) || 0,
+            cost_price: Number(adj.cost_price || product.cost_price) || 0,
+            status: "active",
+            batch_date: adj.date ? new Date(adj.date).toISOString() : new Date(adj.created_at || Date.now()).toISOString(),
+          });
+        }
+      }
+    }
+
+    // Add Opening Stock batch into Tracked Batches if not present
+    if (initialOpeningQty > 0 && !formattedBatches.some(b => b.batch_number === "OPENING" || b.source_type === "opening_stock")) {
+      formattedBatches.push({
+        id: `opening-batch-${product._id}`,
+        batch_number: "OPENING",
+        source_type: "opening_stock",
+        initial_quantity: initialOpeningQty,
+        remaining_quantity: initialOpeningQty,
+        cost_price: initialOpeningCost,
+        status: "active",
+        batch_date: new Date(openingDate).toISOString(),
+      });
+    }
+
+    // Sort batches by batch_date descending (latest first)
+    formattedBatches.sort((a, b) => new Date(b.batch_date).getTime() - new Date(a.batch_date).getTime());
 
     await updateUserLastActivity();
 

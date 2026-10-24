@@ -225,10 +225,18 @@ export default function PurchaseBillPage() {
         const { adjustOfflineStockWithValuation } = await import('@/lib/db/offline-stock-manager');
         for (const item of billToDelete.items) {
           if (item.product_id) {
+            const itemCost = Number(
+              item.cost_price ??
+              item.purchase_price ??
+              item.unit_price ??
+              item.price ??
+              item.sell_price ??
+              0
+            );
             await adjustOfflineStockWithValuation(
               item.product_id,
               -(Number(item.quantity) || 0),
-              undefined,
+              itemCost,
               { source_id: billId }
             );
           }

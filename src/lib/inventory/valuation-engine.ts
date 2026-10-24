@@ -1,8 +1,39 @@
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from "@/lib/db/mongodb";
 import { ValuationMethod } from "@/types/inventory";
-import { calculateMovingAverage, roundToPrecision } from "@/lib/inventory/valuation-calc";
+import { calculateMovingAverage, calculateMovingAverageWithPrior, roundToPrecision } from "@/lib/inventory/valuation-calc";
 
-export { calculateMovingAverage, roundToPrecision };
+export { calculateMovingAverage, calculateMovingAverageWithPrior, roundToPrecision };
+
+/**
+ * Finds how many units of previous stock were fulfilled in oversold orders on server MongoDB.
+ * Used when stock is negative and a replenishment purchase/adjustment arrives.
+ */
+export async function getServerPriorFulfilledQty(userId: string, prodIdStr: string): Promise<number> {
+  try {
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+    const candidateOrders = await ordersCollection.find({
+      user_id: toObjectId(userId),
+      status: { $ne: "cancelled" },
+      "items.product_id": { $in: [toObjectId(prodIdStr), prodIdStr] },
+    }).toArray();
+
+    let priorFulfilled = 0;
+    for (const order of candidateOrders) {
+      for (const item of (order.items || [])) {
+        const itProdId = item.product_id?.toString();
+        if (itProdId === prodIdStr) {
+          const itQty = Number(item.quantity) || 0;
+          const unfulfilled = Number(item.unfulfilled_quantity) || 0;
+          priorFulfilled += Math.max(0, itQty - unfulfilled);
+        }
+      }
+    }
+    return priorFulfilled;
+  } catch (err) {
+    console.error("Error computing prior fulfilled qty server:", err);
+    return 0;
+  }
+}
 
 /**
  * Gets the active stock valuation method configured for the shop/workspace.
@@ -83,8 +114,11 @@ export async function applyPurchaseInwardServer(options: {
 
     let computedAverageCost = purchaseCost;
     if (valuationMethod === "average") {
-      // Calculate new moving average cost price
-      const newAverageCost = calculateMovingAverage(currentQty, currentCost, purchaseQty, purchaseCost);
+      let priorFulfilledQty = 0;
+      if (currentQty < 0) {
+        priorFulfilledQty = await getServerPriorFulfilledQty(userId, prodIdStr);
+      }
+      const newAverageCost = calculateMovingAverageWithPrior(currentQty, currentCost, purchaseQty, purchaseCost, priorFulfilledQty);
       computedAverageCost = newAverageCost;
       updateFields.cost_price = newAverageCost;
       updateFields.cost_price_str = newAverageCost.toString();
@@ -129,6 +163,7 @@ export async function applyPurchaseInwardServer(options: {
           userId,
           productId: prodIdStr,
           costPrice: computedAverageCost,
+          inwardQty: purchaseQty,
         });
       }
     } catch (batchErr) {
@@ -305,10 +340,11 @@ export async function reconcileUnfulfilledSalesForProductAverage(options: {
   userId: string;
   productId: string;
   costPrice: number;
+  inwardQty?: number;
 }): Promise<{
   reconciledOrdersCount: number;
 }> {
-  const { userId, productId, costPrice } = options;
+  const { userId, productId, costPrice, inwardQty = 0 } = options;
   if (!productId || !isValidObjectId(productId) || costPrice <= 0) {
     return { reconciledOrdersCount: 0 };
   }
@@ -316,6 +352,11 @@ export async function reconcileUnfulfilledSalesForProductAverage(options: {
   const uId = toObjectId(userId);
   const pId = toObjectId(productId);
   const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+  const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+
+  const product = await productsCollection.findOne({ _id: pId, user_id: uId });
+  const curStock = parseFloat(product?.quantity?.toString() || product?.in_stock?.toString() || "0");
 
   const candidateOrders = await ordersCollection
     .find({
@@ -326,6 +367,20 @@ export async function reconcileUnfulfilledSalesForProductAverage(options: {
     .sort({ sale_date: 1, created_at: 1 })
     .toArray();
 
+  const totalSold = candidateOrders.reduce((acc: number, ord: any) => {
+    const match = (ord.items || []).find((it: any) => {
+      const itId = it.product_id?.toString();
+      return itId === productId || itId === pId.toString();
+    });
+    return acc + (Number(match?.quantity) || 0);
+  }, 0);
+
+  const batches = await batchesCollection.find({ user_id: uId, product_id: pId }).toArray();
+  const initialBatchQty = batches.reduce((acc: number, b: any) => acc + (Number(b.initial_quantity) || 0), 0);
+  const totalHistoricalAcquired = Math.max(initialBatchQty, curStock + totalSold);
+
+  let runningFulfilledBudget = roundToPrecision(totalHistoricalAcquired - (Number(inwardQty) || 0), 5);
+  let remainingInward = Number(inwardQty) > 0 ? Number(inwardQty) : 0;
   let reconciledOrdersCount = 0;
 
   for (const order of candidateOrders) {
@@ -341,35 +396,43 @@ export async function reconcileUnfulfilledSalesForProductAverage(options: {
 
       const currentCost = Number(item.cost_price) || 0;
       const currentCogs = Number(item.total_cogs) || 0;
-      const isOversold = item.is_oversold === true || Number(item.unfulfilled_quantity) > 0;
 
-      const unfulfilledQty = Number(item.unfulfilled_quantity) || 0;
+      let unfulfilled = Number(item.unfulfilled_quantity) || 0;
+      if (item.is_oversold && unfulfilled <= 0) {
+        unfulfilled = itemQty;
+      }
 
-      if (currentCost <= 0 || currentCogs <= 0) {
-        // If item was sold with 0 cost (no cost existed or was 0), entire quantity takes the replenishment cost
+      // Self-heal: if unfulfilled was prematurely cleared by earlier bug but running budget shows deficit
+      if (unfulfilled <= 0 && !item.is_oversold && runningFulfilledBudget < itemQty) {
+        const priorCovered = Math.max(0, runningFulfilledBudget);
+        unfulfilled = roundToPrecision(itemQty - priorCovered, 5);
+        item.is_oversold = unfulfilled > 0;
+      }
+      runningFulfilledBudget = Math.max(0, roundToPrecision(runningFulfilledBudget - itemQty, 5));
+
+      if (unfulfilled > 0) {
+        if (remainingInward > 0) {
+          const takeQty = Math.min(remainingInward, unfulfilled);
+          unfulfilled = roundToPrecision(unfulfilled - takeQty, 5);
+          remainingInward = roundToPrecision(remainingInward - takeQty, 5);
+
+          item.unfulfilled_quantity = unfulfilled;
+          item.is_oversold = unfulfilled > 0;
+          item.cost_price = costPrice;
+          item.total_cogs = roundToPrecision(itemQty * costPrice, 2);
+          orderModified = true;
+        } else {
+          // Not enough inward units from this batch; remains oversold
+          item.unfulfilled_quantity = unfulfilled;
+          item.is_oversold = true;
+          // In average costing, the invoice's cost price still reflects the latest known average
+          item.cost_price = costPrice;
+          item.total_cogs = roundToPrecision(itemQty * costPrice, 2);
+          orderModified = true;
+        }
+      } else if (currentCost <= 0 || currentCogs <= 0) {
         item.cost_price = costPrice;
         item.total_cogs = roundToPrecision(itemQty * costPrice, 2);
-        item.unfulfilled_quantity = 0;
-        item.is_oversold = false;
-        orderModified = true;
-      } else if (isOversold && unfulfilledQty > 0) {
-        // Item had some stock when sold, but part of it was deficit/unfulfilled.
-        // Only the unfulfilled deficit takes the new replenishment cost; previously fulfilled stock keeps its original cost.
-        const fulfilledQty = Math.max(0, itemQty - unfulfilledQty);
-        const originalCost = currentCost > 0 ? currentCost : costPrice;
-        const fulfilledCogs = roundToPrecision(fulfilledQty * originalCost, 2);
-        const deficitCogs = roundToPrecision(unfulfilledQty * costPrice, 2);
-        const newTotalCogs = roundToPrecision(fulfilledCogs + deficitCogs, 2);
-        const effectiveUnitCost = roundToPrecision(newTotalCogs / itemQty, 2);
-
-        item.cost_price = effectiveUnitCost;
-        item.total_cogs = newTotalCogs;
-        item.unfulfilled_quantity = 0;
-        item.is_oversold = false;
-        orderModified = true;
-      } else if (isOversold) {
-        item.unfulfilled_quantity = 0;
-        item.is_oversold = false;
         orderModified = true;
       }
     }
@@ -404,6 +467,7 @@ export async function reversePurchaseInwardServer(options: {
     product_id: string | any;
     quantity: number;
     cost_price?: number;
+    unit_price?: number;
   }>;
 }): Promise<void> {
   const { userId, billId, items } = options;
@@ -507,13 +571,29 @@ export async function reversePurchaseInwardServer(options: {
 
     const valuationMethod = await getValuationMethod(userId);
 
-    if (remainingBatches.length > 0) {
-      if (valuationMethod === "fifo") {
+    if (valuationMethod === "fifo") {
+      if (remainingBatches.length > 0) {
         const latestBatchCost = Number(remainingBatches[0].cost_price) || 0;
         updateFields.cost_price = latestBatchCost;
         updateFields.cost_price_str = latestBatchCost.toString();
         updateFields.purchase_price = latestBatchCost;
-      } else if (valuationMethod === "average") {
+      }
+    } else if (valuationMethod === "average") {
+      const currentCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
+      let itemCost = Number(item.cost_price ?? (item as any).purchase_price ?? item.unit_price ?? (item as any).price ?? (item as any).sell_price ?? 0);
+      if (itemCost <= 0) {
+        itemCost = currentCost;
+      }
+
+      const prevQty = newQty;
+      const prevTotalVal = (currentQty * currentCost) - (reverseQty * itemCost);
+
+      if (prevQty > 0) {
+        const restoredAverage = prevTotalVal > 0 ? roundToPrecision(prevTotalVal / prevQty, 2) : currentCost;
+        updateFields.cost_price = restoredAverage;
+        updateFields.cost_price_str = restoredAverage.toString();
+        updateFields.purchase_price = restoredAverage;
+      } else if (remainingBatches.length > 0) {
         let totalVal = 0;
         let totalRemQty = 0;
         for (const b of remainingBatches) {
@@ -522,11 +602,15 @@ export async function reversePurchaseInwardServer(options: {
           totalRemQty += bQty;
         }
         if (totalRemQty > 0) {
-          const restoredAverage = roundToPrecision(totalVal / totalRemQty, 4);
+          const restoredAverage = roundToPrecision(totalVal / totalRemQty, 2);
           updateFields.cost_price = restoredAverage;
           updateFields.cost_price_str = restoredAverage.toString();
           updateFields.purchase_price = restoredAverage;
         }
+      } else {
+        updateFields.cost_price = currentCost;
+        updateFields.cost_price_str = currentCost.toString();
+        updateFields.purchase_price = currentCost;
       }
     }
 
@@ -757,6 +841,7 @@ export async function reInwardBatchOnSaleReturnServer(options: {
           userId,
           productId,
           costPrice: finalAvgCost,
+          inwardQty: quantity,
         });
       }
     }

@@ -21,10 +21,12 @@ import {
   RotateCcw,
   Loader2,
   AlertCircle,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { getUomShortcut } from "@/lib/uom";
-import { toHTMLDateString } from "@/lib/date-utils";
+import { toHTMLDateString, formatPakistaniDateTime } from "@/lib/date-utils";
 
 interface ProductStockLedgerModalProps {
   productId: string | null;
@@ -49,6 +51,7 @@ export function ProductStockLedgerModal({
   const [toDate, setToDate] = useState<string>("");
   const [activePreset, setActivePreset] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"ledger" | "batches">("ledger");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const fetchHistory = useCallback(async () => {
     if (!productId) return;
@@ -106,6 +109,28 @@ export function ProductStockLedgerModal({
   const summary = data?.summary;
   const movements = data?.movements || [];
   const batches = data?.batches || [];
+
+  const sortedMovements = React.useMemo(() => {
+    if (!movements || movements.length === 0) return [];
+    return [...movements].sort((a: any, b: any) => {
+      const timeA = new Date(a.date).getTime();
+      const timeB = new Date(b.date).getTime();
+      if (timeA !== timeB) {
+        return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+      }
+      const priority: Record<string, number> = {
+        opening_stock: 1,
+        purchase: 2,
+        adjustment_add: 3,
+        sale_return: 4,
+        sale: 5,
+        adjustment_reduce: 6,
+      };
+      const pA = priority[a.type] || 5;
+      const pB = priority[b.type] || 5;
+      return sortOrder === "asc" ? pA - pB : pB - pA;
+    });
+  }, [movements, sortOrder]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -232,16 +257,7 @@ export function ProductStockLedgerModal({
           ) : data ? (
             <>
               {/* Summary KPI Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                <div className="p-3 rounded-xl border bg-card/60 shadow-xs">
-                  <div className="text-[11px] font-medium text-muted-foreground">{t("openingStock")}</div>
-                  <div className="text-base sm:text-lg font-bold text-foreground mt-0.5">
-                    {summary?.openingStock || 0}{" "}
-                    <span className="text-[10px] text-muted-foreground">{getUomShortcut(product?.uom)}</span>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">{t("priorToPeriod")}</div>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div className="p-3 rounded-xl border bg-card/60 shadow-xs border-emerald-500/20">
                   <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                     <ArrowDownLeft className="w-3.5 h-3.5" /> {t("totalInward")}
@@ -290,7 +306,7 @@ export function ProductStockLedgerModal({
                   }`}
                 >
                   <TrendingUp className="w-3.5 h-3.5" />
-                  <span>{t("movementLedger")} ({movements.length})</span>
+                  <span>{t("movementLedger")} ({sortedMovements.length})</span>
                 </button>
                 {batches.length > 0 && (
                   <button
@@ -315,7 +331,21 @@ export function ProductStockLedgerModal({
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50 border-b text-muted-foreground text-[11px]">
                         <tr>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("date")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+                              className="flex items-center gap-1.5 hover:text-foreground transition-colors group cursor-pointer"
+                              title={sortOrder === "asc" ? "Sorted Oldest First (Click for Newest)" : "Sorted Newest First (Click for Oldest)"}
+                            >
+                              <span>{t("date")} / Time</span>
+                              {sortOrder === "asc" ? (
+                                <ArrowUp className="w-3.5 h-3.5 text-primary" />
+                              ) : (
+                                <ArrowDown className="w-3.5 h-3.5 text-primary" />
+                              )}
+                            </button>
+                          </th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("type")}</th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("refNo")}</th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("party")}</th>
@@ -326,14 +356,15 @@ export function ProductStockLedgerModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {movements.length === 0 ? (
+                        {sortedMovements.length === 0 ? (
                           <tr>
                             <td colSpan={8} className="py-12 text-center text-muted-foreground text-xs">
                               {t("noMovements")}
                             </td>
                           </tr>
                         ) : (
-                          movements.map((m: any, idx: number) => {
+                          sortedMovements.map((m: any, idx: number) => {
+                            const isOpening = m.type === "opening_stock";
                             const isPurchase = m.type === "purchase";
                             const isSale = m.type === "sale";
                             const isReturn = m.type === "sale_return";
@@ -342,9 +373,14 @@ export function ProductStockLedgerModal({
                             return (
                               <tr key={idx} className="hover:bg-muted/30 transition-colors">
                                 <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                                  {formatStatementDate(m.date)}
+                                  {formatPakistaniDateTime(m.date, true)}
                                 </td>
                                 <td className="py-2.5 px-3 whitespace-nowrap">
+                                  {isOpening && (
+                                    <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
+                                      {t("openingStock") || "Opening Stock"}
+                                    </Badge>
+                                  )}
                                   {isPurchase && (
                                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
                                       {t("purchaseIn")}
@@ -429,7 +465,7 @@ export function ProductStockLedgerModal({
                         <tr>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("batchNumber")}</th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("source")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("inwardDate")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("inwardDate")} / Time</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("initialQty")}</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("remainingQty")}</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("batchCost")}</th>
@@ -439,16 +475,33 @@ export function ProductStockLedgerModal({
                       <tbody className="divide-y divide-border/60">
                         {batches.map((b: any, idx: number) => {
                           const isActive = b.status === "active" && b.remaining_quantity > 0;
+                          const isAdjustment = b.source_type === "stock_adjustment";
+                          const isOpening = b.source_type === "opening_stock";
+                          const isPurchase = b.source_type === "purchase_bill";
                           return (
                             <tr key={idx} className="hover:bg-muted/30 transition-colors">
                               <td className="py-2.5 px-3 font-semibold font-mono text-foreground whitespace-nowrap">
                                 {b.batch_number}
                               </td>
-                              <td className="py-2.5 px-3 text-muted-foreground capitalize whitespace-nowrap">
-                                {b.source_type?.replace("_", " ")}
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                {isAdjustment ? (
+                                  <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
+                                    {t("adjustmentIn") || "Adjustment (+)"}
+                                  </Badge>
+                                ) : isOpening ? (
+                                  <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
+                                    {t("openingStock") || "Opening Stock"}
+                                  </Badge>
+                                ) : isPurchase ? (
+                                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
+                                    {t("purchaseIn") || "Purchase In"}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground capitalize">{b.source_type?.replace("_", " ")}</span>
+                                )}
                               </td>
-                              <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
-                                {formatStatementDate(b.batch_date)}
+                              <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                                {formatPakistaniDateTime(b.batch_date, true)}
                               </td>
                               <td className="py-2.5 px-3 text-right font-medium whitespace-nowrap">
                                 {b.initial_quantity}
