@@ -1,4 +1,5 @@
 import { db, SyncOperation } from '../db/offline-db';
+import { toast } from 'sonner';
 
 export class SyncEngine {
   
@@ -61,7 +62,7 @@ export class SyncEngine {
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.branches, db.payment_methods,
         db.vendor_transactions, db.sale_return_transactions,
         db.transactions, db.subscriptions, db.configurations,
-        db.inventory_batches,
+        db.inventory_batches, db.stock_adjustments,
         db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
         async () => {
           const promises = [];
@@ -81,6 +82,7 @@ export class SyncEngine {
           if (data.transactions?.length) promises.push(db.transactions.bulkPut(data.transactions));
           if (data.subscriptions?.length) promises.push(db.subscriptions.bulkPut(data.subscriptions));
           if (data.inventory_batches?.length) promises.push(db.inventory_batches.bulkPut(data.inventory_batches));
+          if (data.stock_adjustments?.length) promises.push(db.stock_adjustments.bulkPut(data.stock_adjustments));
           if (data.users?.length) promises.push(db.users.bulkPut(data.users));
           if (data.modules?.length) promises.push(db.modules.bulkPut(data.modules));
           
@@ -191,10 +193,11 @@ export class SyncEngine {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for cloud DB operations
 
+        const isBodyAllowed = op.data !== null && op.data !== undefined;
         const response = await fetch(op.url, {
           method: op.method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(op.data),
+          headers: isBodyAllowed ? { 'Content-Type': 'application/json' } : {},
+          body: isBodyAllowed ? JSON.stringify(op.data) : undefined,
           signal: controller.signal
         });
         
@@ -217,16 +220,18 @@ export class SyncEngine {
             const collectionName = op.collection as keyof typeof db;
             const table = db[collectionName] as any; // Cast to bypass strict typings for dynamic access
             
-            const item = await table.get(op.localId);
-            if (item) {
-              item.id = newId;
-              await table.put(item);
-              await table.delete(op.localId);
-              
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('localIdReplaced', { 
-                  detail: { collection: op.collection, oldId: op.localId, newId: newId } 
-                }));
+            if (table && typeof table.get === 'function') {
+              const item = await table.get(op.localId);
+              if (item) {
+                item.id = newId;
+                await table.put(item);
+                await table.delete(op.localId);
+                
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('localIdReplaced', { 
+                    detail: { collection: op.collection, oldId: op.localId, newId: newId } 
+                  }));
+                }
               }
             }
 
@@ -281,7 +286,6 @@ export class SyncEngine {
           
           // Show success toast for data addition if we're in the browser
           if (typeof window !== 'undefined' && op.method === 'POST') {
-            const { toast } = await import('sonner');
             // toast.success('Data successfully synced to server');
           }
         } else {
@@ -295,15 +299,17 @@ export class SyncEngine {
           await db.syncQueue.update(op.id!, { status: 'failed', error: errorText });
           
           if (typeof window !== 'undefined') {
-            const { toast } = await import('sonner');
-            toast.error(`Failed to sync ${op.collection}: ${errorMessage}`);
+            try {
+              toast.error(`Failed to sync ${op.collection}: ${errorMessage}`);
+            } catch (_) {}
           }
         }
       } catch (error: any) {
         console.error(`Sync error on ${originalOp.collection}:`, error);
         if (typeof window !== 'undefined' && error.name !== 'AbortError') {
-          const { toast } = await import('sonner');
-          toast.error(`Sync error: ${error.message}`);
+          try {
+            toast.error(`Sync error: ${error.message || 'Unknown error'}`);
+          } catch (_) {}
         }
         await db.syncQueue.update(originalOp.id!, { status: 'failed', error: error.message });
       }

@@ -20,7 +20,7 @@ import {
   PartyWiseTabSummary,
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
-import { formatStatementDate } from "../utils";
+import { formatStatementDate, formatStatementDateTime } from "../utils";
 
 /**
  * Exports transactions to an Excel file
@@ -759,10 +759,44 @@ export function exportPartyWiseByModeToExcel(
   XLSX.writeFile(workbook, filename || defaultFilename);
 }
 
+/**
+ * Exports stock adjustment audit log to Excel
+ */
+export function exportStockAdjustmentsToExcel(
+  adjustments: any[],
+  filename: string = "stock-adjustments.xlsx"
+): void {
+  const workbook = XLSX.utils.book_new();
 
+  const data = adjustments.map((adj, index) => ({
+    "#": index + 1,
+    "Ref #": adj.ref_no || "-",
+    "Date & Time": formatStatementDateTime(adj.date || adj.created_at),
+    "Item Name": adj.product_name || "-",
+    "Stock Category": adj.stock_type === "damaged" ? "Damaged Stock" : "Available Stock",
+    "Action": adj.action_type === "add" ? "Add Stock (+)" : "Reduce Stock (-)",
+    "Adjusted Qty": adj.action_type === "add" ? `+${adj.quantity}` : `-${adj.quantity}`,
+    "Cost Rate (Rs.)": Math.round((adj.cost_price || 0) * 100) / 100,
+    "Total Value (Rs.)": Math.round(((adj.quantity || 0) * (adj.cost_price || 0)) * 100) / 100,
+    "Reason": adj.reason || "-",
+    "Notes": adj.notes || "-",
+  }));
 
+  const sheet = XLSX.utils.json_to_sheet(data);
+  sheet["!cols"] = [
+    { wch: 6 },
+    { wch: 16 },
+    { wch: 24 },
+    { wch: 26 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 30 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, "Stock Adjustments");
 
-
-
-
-
+  XLSX.writeFile(workbook, filename);
+}

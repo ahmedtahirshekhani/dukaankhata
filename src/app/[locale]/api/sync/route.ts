@@ -49,6 +49,7 @@ export async function GET(request: Request) {
       { name: 'subscriptions', key: COLLECTIONS.SUBSCRIPTIONS },
       { name: 'configurations', key: COLLECTIONS.CONFIGURATIONS },
       { name: 'inventory_batches', key: COLLECTIONS.INVENTORY_BATCHES },
+      { name: 'stock_adjustments', key: COLLECTIONS.STOCK_ADJUSTMENTS },
       { name: 'users', key: COLLECTIONS.USERS, scope: 'users_and_staff' },
       { name: 'modules', key: COLLECTIONS.MODULES, scope: 'global_active' },
       { name: 'permissions', key: COLLECTIONS.PERMISSIONS, scope: 'global_active' },

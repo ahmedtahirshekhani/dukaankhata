@@ -1,5 +1,6 @@
 import { db } from "@/lib/db/offline-db";
 import { calculateMovingAverage, calculateMovingAverageWithPrior } from "@/lib/inventory/valuation-calc";
+import { SyncEngine } from "@/lib/sync/sync-engine";
 
 const roundToPrecision = (num: number, decimals: number = 5) => {
   const factor = Math.pow(10, decimals);
@@ -764,6 +765,8 @@ export async function recordStockAdjustmentOffline(options: {
     action_type: actionType,
     quantity,
     cost_price: resolvedCost,
+    previous_cost_price: curCost,
+    previous_quantity: curQty,
     reason,
     notes: notes?.trim() || "",
     date: dateIso,
@@ -774,6 +777,473 @@ export async function recordStockAdjustmentOffline(options: {
     newQuantity: newQty,
     newDamagedQuantity: newDamaged,
     newCostPrice: finalCostPrice,
+  };
+}
+
+/**
+ * Deletes a stock adjustment locally in Dexie database, reverses its quantity and cost price impact,
+ * and queues synchronization for the server.
+ */
+export async function deleteStockAdjustmentOffline(options: {
+  adjustmentId: string;
+  fallbackRecord?: any;
+}): Promise<{
+  deleted: boolean;
+  productId: string;
+  newQuantity: number;
+  newDamagedQuantity: number;
+  newCostPrice: number;
+}> {
+  const { adjustmentId, fallbackRecord } = options;
+  if (!adjustmentId) {
+    return { deleted: false, productId: "", newQuantity: 0, newDamagedQuantity: 0, newCostPrice: 0 };
+  }
+
+  // 1. Fetch adjustment from Dexie or fallback
+  let adj = await db.stock_adjustments.get(adjustmentId);
+  if (!adj && fallbackRecord) {
+    adj = fallbackRecord;
+  }
+  if (!adj) {
+    const all = await db.stock_adjustments.toArray();
+    adj = all.find((a: any) => a.id === adjustmentId || a._id === adjustmentId || (fallbackRecord?.ref_no && a.ref_no === fallbackRecord.ref_no));
+  }
+
+  if (!adj) {
+    return { deleted: false, productId: "", newQuantity: 0, newDamagedQuantity: 0, newCostPrice: 0 };
+  }
+
+  const prodIdStr = String(adj.product_id);
+  const product = await db.products.get(prodIdStr);
+
+  let newQty = 0;
+  let newDamaged = 0;
+  let newCost = 0;
+
+  if (product) {
+    const curQty = parseFloat(product.quantity?.toString() || product.in_stock?.toString() || "0");
+    const curDamaged = parseFloat(product.damaged_quantity?.toString() || "0");
+    const curCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
+    const adjQty = Number(adj.quantity) || 0;
+    const adjCost = Number(adj.cost_price ?? curCost) || 0;
+
+    const valuationMethod = typeof window !== "undefined"
+      ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+      : "average";
+
+    newQty = curQty;
+    newDamaged = curDamaged;
+    newCost = curCost;
+
+    if (adj.stock_type === "damaged") {
+      newDamaged = adj.action_type === "add"
+        ? Math.max(0, roundToPrecision(curDamaged - adjQty))
+        : roundToPrecision(curDamaged + adjQty);
+
+      await db.products.update(prodIdStr, {
+        damaged_quantity: newDamaged,
+        damaged_quantity_str: newDamaged.toString(),
+      });
+    } else {
+      // Available stock reversal
+      if (adj.action_type === "add") {
+        // Was ADDED -> Reversal DEDUCTS stock
+        newQty = roundToPrecision(curQty - adjQty);
+        const updateFields: any = {
+          quantity: newQty,
+          quantity_str: newQty.toString(),
+          in_stock: newQty,
+        };
+
+        if (valuationMethod === "average") {
+          const prevQty = newQty;
+
+          // Case 1: If current stock was ALREADY in deficit (curQty <= 0) before this deletion:
+          // Deleting a past inward simply expands the deficit. The current replacement benchmark cost (curCost) MUST NOT be changed!
+          if (curQty <= 0) {
+            newCost = curCost;
+          } else if (prevQty > 0) {
+            // Case 2: Stock remains positive after deletion.
+            // Deduct the value of the removed adjustment from today's total valuation.
+            const prevTotalVal = (curQty * curCost) - (adjQty * adjCost);
+            if (prevTotalVal > 0) {
+              const restoredAvg = roundToPrecision(prevTotalVal / prevQty, 2);
+              newCost = restoredAvg;
+              updateFields.cost_price = restoredAvg;
+              updateFields.cost_price_str = restoredAvg.toString();
+              updateFields.purchase_price = restoredAvg;
+            } else {
+              newCost = curCost;
+            }
+          } else {
+            // Check if any newer inward transactions (purchase bills or adjustments) happened AFTER this adjustment (by date or same-day time):
+            const adjDateMs = new Date(adj.date || adj.created_at).getTime();
+            const adjCreatedMs = new Date(adj.created_at || adj.date).getTime();
+            let hasSubsequentInward = false;
+            try {
+              // 1. Check all stock adjustments for this product
+              const adjustments = await db.stock_adjustments.where("product_id").equals(prodIdStr).toArray();
+              hasSubsequentInward = adjustments.some((a: any) => {
+                if (a.id === adj.id || a._id === adj.id || (adj.ref_no && a.ref_no === adj.ref_no)) return false;
+                const aDateMs = new Date(a.date || a.created_at).getTime();
+                const aCreatedMs = new Date(a.created_at || a.date).getTime();
+                return aDateMs > adjDateMs || (aDateMs === adjDateMs && aCreatedMs > adjCreatedMs);
+              });
+
+              // 2. Check all purchase bills for this product
+              if (!hasSubsequentInward) {
+                const bills = await db.purchase_bills.toArray();
+                hasSubsequentInward = bills.some((b: any) => {
+                  const bDateMs = new Date(b.date || b.created_at).getTime();
+                  const bCreatedMs = new Date(b.created_at || b.date).getTime();
+                  const isNewer = bDateMs > adjDateMs || (bDateMs === adjDateMs && bCreatedMs > adjCreatedMs);
+                  if (!isNewer) return false;
+                  return (b.items || []).some((it: any) => String(it.product_id) === prodIdStr && Number(it.quantity) > 0);
+                });
+              }
+            } catch {
+              hasSubsequentInward = false;
+            }
+
+            if (!hasSubsequentInward && adj.previous_cost_price !== undefined && adj.previous_cost_price !== null && Number(adj.previous_cost_price) > 0) {
+              // No subsequent inwards existed: this adjustment was the ONLY transaction lifting stock. Restore its previous snapshot!
+              const restored = Number(adj.previous_cost_price);
+              newCost = restored;
+              updateFields.cost_price = restored;
+              updateFields.cost_price_str = restored.toString();
+              updateFields.purchase_price = restored;
+            } else {
+              // Newer inwards happened after this adjustment, so current cost is governed by those newer transactions!
+              newCost = curCost;
+            }
+          }
+        } else if (valuationMethod === "fifo") {
+          try {
+            const batches = await db.inventory_batches.where("product_id").equals(prodIdStr).toArray();
+            const remainingBatches = batches.filter((b: any) => b.source_id !== adj.id && b.source_id !== adj.ref_no);
+            if (remainingBatches.length > 0) {
+              remainingBatches.sort((a: any, b: any) => new Date(b.batch_date || b.created_at).getTime() - new Date(a.batch_date || a.created_at).getTime());
+              const latestCost = Number(remainingBatches[0].cost_price) || 0;
+              if (latestCost > 0) {
+                newCost = latestCost;
+                updateFields.cost_price = latestCost;
+                updateFields.cost_price_str = latestCost.toString();
+                updateFields.purchase_price = latestCost;
+              }
+            }
+          } catch (err) {
+            console.error("Error updating FIFO batches on delete:", err);
+          }
+        }
+
+        await db.products.update(prodIdStr, updateFields);
+      } else {
+        // Was REDUCED -> Reversal ADDS BACK stock
+        newQty = roundToPrecision(curQty + adjQty);
+        await db.products.update(prodIdStr, {
+          quantity: newQty,
+          quantity_str: newQty.toString(),
+          in_stock: newQty,
+        });
+      }
+    }
+
+    // Clean up any batch lots created for this adjustment
+    try {
+      const batches = await db.inventory_batches.where("product_id").equals(prodIdStr).toArray();
+      const adjBatches = batches.filter((b: any) => b.source_id === adj.id || b.source_id === adj.ref_no);
+      for (const b of adjBatches) {
+        if (b.id) await db.inventory_batches.delete(b.id);
+      }
+    } catch (bErr) {
+      console.error("Failed to delete inventory batches for adjustment:", bErr);
+    }
+  }
+
+  // Delete from db.stock_adjustments
+  if (adj.id) {
+    await db.stock_adjustments.delete(adj.id);
+  }
+  if (adjustmentId !== adj.id) {
+    await db.stock_adjustments.delete(adjustmentId);
+  }
+
+  // Queue background sync
+  try {
+    await SyncEngine.queueOperation(
+      "stock_adjustments",
+      "DELETE",
+      `/api/stock-adjustments?id=${encodeURIComponent(adjustmentId)}&productId=${encodeURIComponent(prodIdStr)}`,
+      { id: adjustmentId, productId: prodIdStr },
+      `del_adj_${Date.now()}`
+    );
+  } catch (syncErr) {
+    console.error("Failed to queue stock adjustment deletion sync:", syncErr);
+  }
+
+  return {
+    deleted: true,
+    productId: prodIdStr,
+    newQuantity: newQty,
+    newDamagedQuantity: newDamaged,
+    newCostPrice: newCost,
+  };
+}
+
+/**
+ * Updates an existing stock adjustment:
+ * 1. Reverses the old adjustment impact on stock and moving average / FIFO cost.
+ * 2. Applies the new adjustment parameters and recalculates stock and moving average.
+ * 3. Updates db.stock_adjustments and queues PUT sync for MongoDB.
+ */
+export async function updateStockAdjustmentOffline(options: {
+  adjustmentId: string;
+  productId: string | number;
+  stockType: "available" | "damaged";
+  actionType: "add" | "reduce";
+  quantity: number;
+  costPrice?: number;
+  reason: string;
+  notes?: string;
+  adjustmentDate?: string | Date;
+  fallbackOldRecord?: any;
+}): Promise<{
+  updated: boolean;
+  newQuantity: number;
+  newDamagedQuantity: number;
+  newCostPrice: number;
+}> {
+  const {
+    adjustmentId,
+    productId,
+    stockType,
+    actionType,
+    quantity,
+    costPrice,
+    reason,
+    notes,
+    adjustmentDate,
+    fallbackOldRecord,
+  } = options;
+
+  // 1. Fetch old adjustment
+  let oldAdj = await db.stock_adjustments.get(adjustmentId);
+  if (!oldAdj && fallbackOldRecord) {
+    oldAdj = fallbackOldRecord;
+  }
+  if (!oldAdj) {
+    const all = await db.stock_adjustments.toArray();
+    oldAdj = all.find((a: any) => a.id === adjustmentId || a._id === adjustmentId || (fallbackOldRecord?.ref_no && a.ref_no === fallbackOldRecord.ref_no));
+  }
+
+  const prodIdStr = String(productId);
+  const product = await db.products.get(prodIdStr);
+
+  if (!product || quantity <= 0) {
+    return {
+      updated: false,
+      newQuantity: Number(product?.quantity || 0),
+      newDamagedQuantity: Number(product?.damaged_quantity || 0),
+      newCostPrice: Number(product?.cost_price || 0),
+    };
+  }
+
+  const valuationMethod = typeof window !== "undefined"
+    ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+    : "average";
+
+  let curQty = parseFloat(product.quantity?.toString() || product.in_stock?.toString() || "0");
+  let curDamaged = parseFloat(product.damaged_quantity?.toString() || "0");
+  let curCost = parseFloat(product.cost_price?.toString() || product.purchase_price?.toString() || "0");
+
+  // Step 1: Revert old adjustment if available
+  if (oldAdj) {
+    const oldQty = Number(oldAdj.quantity) || 0;
+    const oldCost = Number(oldAdj.cost_price ?? curCost) || 0;
+
+    if (oldAdj.stock_type === "damaged") {
+      curDamaged = oldAdj.action_type === "add"
+        ? Math.max(0, roundToPrecision(curDamaged - oldQty))
+        : roundToPrecision(curDamaged + oldQty);
+    } else {
+      if (oldAdj.action_type === "add") {
+        if (valuationMethod === "average") {
+          if (curQty <= 0) {
+            // Stock was already negative, curCost does not change
+          } else if (curQty - oldQty > 0) {
+            const prevTotalVal = (curQty * curCost) - (oldQty * oldCost);
+            if (prevTotalVal > 0) {
+              curCost = roundToPrecision(prevTotalVal / (curQty - oldQty), 2);
+            }
+            // Reverting pushes stock into deficit/zero: check subsequent inwards (adjustments or bills by date/time)
+            const oldDateMs = new Date(oldAdj.date || oldAdj.created_at).getTime();
+            const oldCreatedMs = new Date(oldAdj.created_at || oldAdj.date).getTime();
+            let hasSubsequentInward = false;
+            try {
+              const adjustments = await db.stock_adjustments.where("product_id").equals(prodIdStr).toArray();
+              hasSubsequentInward = adjustments.some((a: any) => {
+                if (a.id === oldAdj.id || a._id === oldAdj.id || (oldAdj.ref_no && a.ref_no === oldAdj.ref_no)) return false;
+                const aDateMs = new Date(a.date || a.created_at).getTime();
+                const aCreatedMs = new Date(a.created_at || a.date).getTime();
+                return aDateMs > oldDateMs || (aDateMs === oldDateMs && aCreatedMs > oldCreatedMs);
+              });
+
+              if (!hasSubsequentInward) {
+                const bills = await db.purchase_bills.toArray();
+                hasSubsequentInward = bills.some((b: any) => {
+                  const bDateMs = new Date(b.date || b.created_at).getTime();
+                  const bCreatedMs = new Date(b.created_at || b.date).getTime();
+                  const isNewer = bDateMs > oldDateMs || (bDateMs === oldDateMs && bCreatedMs > oldCreatedMs);
+                  if (!isNewer) return false;
+                  return (b.items || []).some((it: any) => String(it.product_id) === prodIdStr && Number(it.quantity) > 0);
+                });
+              }
+            } catch {
+              hasSubsequentInward = false;
+            }
+
+            if (!hasSubsequentInward && oldAdj.previous_cost_price !== undefined && oldAdj.previous_cost_price !== null && Number(oldAdj.previous_cost_price) > 0) {
+              curCost = Number(oldAdj.previous_cost_price);
+            }
+          }
+        }
+        curQty = roundToPrecision(curQty - oldQty);
+      } else {
+        curQty = roundToPrecision(curQty + oldQty);
+      }
+    }
+
+    // Clean up old batch from Dexie
+    try {
+      const batches = await db.inventory_batches.where("product_id").equals(prodIdStr).toArray();
+      const adjBatches = batches.filter((b: any) => b.source_id === oldAdj.id || b.source_id === oldAdj.ref_no);
+      for (const b of adjBatches) {
+        if (b.id) await db.inventory_batches.delete(b.id);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // Step 2: Apply new adjustment on intermediate (reverted) stock & cost
+  const resolvedCost = typeof costPrice === "number" && costPrice >= 0 ? costPrice : curCost;
+  let finalQty = curQty;
+  let finalDamaged = curDamaged;
+  let finalCost = curCost;
+
+  if (stockType === "damaged") {
+    finalDamaged = actionType === "add"
+      ? roundToPrecision(curDamaged + quantity)
+      : Math.max(0, roundToPrecision(curDamaged - quantity));
+
+    await db.products.update(prodIdStr, {
+      damaged_quantity: finalDamaged,
+      damaged_quantity_str: finalDamaged.toString(),
+    });
+  } else {
+    if (actionType === "add") {
+      finalQty = roundToPrecision(curQty + quantity);
+      const updateFields: any = {
+        quantity: finalQty,
+        quantity_str: finalQty.toString(),
+        in_stock: finalQty,
+      };
+
+      if (valuationMethod === "fifo") {
+        const batchId = `local_adj_batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        await db.inventory_batches.put({
+          id: batchId,
+          product_id: prodIdStr,
+          source_type: "stock_adjustment",
+          source_id: oldAdj?.id || `adj_${Date.now()}`,
+          batch_number: oldAdj?.ref_no || `ADJ-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}`,
+          initial_quantity: quantity,
+          remaining_quantity: quantity,
+          cost_price: resolvedCost,
+          status: "active",
+          batch_date: adjustmentDate ? new Date(adjustmentDate).toISOString() : new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        if (resolvedCost > 0) {
+          finalCost = resolvedCost;
+          updateFields.cost_price = resolvedCost;
+          updateFields.cost_price_str = resolvedCost.toString();
+          updateFields.purchase_price = resolvedCost;
+        }
+        await reconcileOfflineUnfulfilledSales(prodIdStr);
+      } else if (valuationMethod === "average") {
+        let priorFulfilledQty = 0;
+        if (curQty < 0) {
+          priorFulfilledQty = await getOfflinePriorFulfilledQty(prodIdStr);
+        }
+        const newAvgCost = calculateMovingAverageWithPrior(curQty, curCost, quantity, resolvedCost, priorFulfilledQty);
+        finalCost = newAvgCost;
+        updateFields.cost_price = newAvgCost;
+        updateFields.cost_price_str = newAvgCost.toString();
+        updateFields.purchase_price = newAvgCost;
+        await reconcileOfflineAverageUnfulfilledSales(prodIdStr, newAvgCost, quantity);
+      }
+
+      await db.products.update(prodIdStr, updateFields);
+    } else {
+      // actionType === "reduce"
+      finalQty = Math.max(0, roundToPrecision(curQty - quantity));
+      await db.products.update(prodIdStr, {
+        quantity: finalQty,
+        quantity_str: finalQty.toString(),
+        in_stock: finalQty,
+      });
+    }
+  }
+
+  // Step 3: Update db.stock_adjustments record
+  const dateIso = adjustmentDate ? new Date(adjustmentDate).toISOString() : (oldAdj?.date || new Date().toISOString());
+  const updatedAdjRecord = {
+    ...(oldAdj || {}),
+    id: adjustmentId,
+    product_id: prodIdStr,
+    product_name: product.name,
+    stock_type: stockType,
+    action_type: actionType,
+    quantity,
+    cost_price: resolvedCost,
+    reason,
+    notes: notes?.trim() || "",
+    date: dateIso,
+    updated_at: new Date().toISOString(),
+  };
+
+  await db.stock_adjustments.put(updatedAdjRecord);
+
+  // Queue PUT sync operation
+  try {
+    await SyncEngine.queueOperation(
+      "stock_adjustments",
+      "PUT",
+      "/api/stock-adjustments",
+      {
+        id: adjustmentId,
+        productId: prodIdStr,
+        stockType,
+        actionType,
+        quantity,
+        costPrice: resolvedCost,
+        reason,
+        notes: notes?.trim() || "",
+        adjustmentDate: dateIso,
+      },
+      `update_adj_${Date.now()}`
+    );
+  } catch (syncErr) {
+    console.error("Failed to queue stock adjustment update sync:", syncErr);
+  }
+
+  return {
+    updated: true,
+    newQuantity: finalQty,
+    newDamagedQuantity: finalDamaged,
+    newCostPrice: finalCost,
   };
 }
 

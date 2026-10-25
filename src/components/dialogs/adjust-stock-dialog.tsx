@@ -34,7 +34,8 @@ import {
 } from "lucide-react";
 import { Product } from "@/types/product";
 import { ProductDropdown } from "@/components/dropdown/product-dropdown";
-import { recordStockAdjustmentOffline } from "@/lib/db/offline-stock-manager";
+import { recordStockAdjustmentOffline, updateStockAdjustmentOffline } from "@/lib/db/offline-stock-manager";
+import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { formatLocalizedUom } from "@/lib/uom";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -44,6 +45,7 @@ interface AdjustStockDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product?: Product | null;
+  adjustment?: any | null;
   onSuccess?: (updatedProduct: Product) => void;
 }
 
@@ -51,10 +53,12 @@ export function AdjustStockDialog({
   open,
   onOpenChange,
   product: initialProduct = null,
+  adjustment = null,
   onSuccess,
 }: AdjustStockDialogProps) {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
+  const isEditMode = Boolean(adjustment);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialProduct);
   const [stockType, setStockType] = useState<"available" | "damaged">("available");
@@ -68,7 +72,7 @@ export function AdjustStockDialog({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [valuationMethod, setValuationMethod] = useState<"average" | "fifo" | "static">("average");
 
-  // Sync state when dialog opens or initialProduct changes
+  // Sync state when dialog opens or initialProduct/adjustment changes
   useEffect(() => {
     if (open) {
       if (typeof window !== "undefined") {
@@ -77,21 +81,48 @@ export function AdjustStockDialog({
           setValuationMethod(method);
         }
       }
-      const prod = initialProduct || null;
-      setSelectedProduct(prod);
-      setStockType("available");
-      setActionType("add");
-      setQuantity("");
-      const initialCost = prod?.cost_price !== undefined
-        ? String(prod.cost_price)
-        : (prod?.cost_price_str || "0");
-      setCostPrice(initialCost);
-      setReason("physicalCount");
-      setAdjustmentDate(toHTMLDateString(new Date()));
-      setNotes("");
-      setErrorMsg(null);
+
+      if (adjustment) {
+        setStockType(adjustment.stock_type || "available");
+        setActionType(adjustment.action_type || "add");
+        setQuantity(String(adjustment.quantity || ""));
+        setCostPrice(adjustment.cost_price !== undefined ? String(adjustment.cost_price) : "");
+        setReason(adjustment.reason || "physicalCount");
+        setAdjustmentDate(toHTMLDateString(adjustment.date ? new Date(adjustment.date) : new Date()));
+        setNotes(adjustment.notes || "");
+        setErrorMsg(null);
+
+        if (initialProduct) {
+          setSelectedProduct(initialProduct);
+        } else if (adjustment.product_id) {
+          db.products.get(String(adjustment.product_id)).then((p) => {
+            if (p) {
+              setSelectedProduct(p);
+            } else {
+              setSelectedProduct({
+                id: adjustment.product_id,
+                name: adjustment.product_name || "Item",
+              } as any);
+            }
+          });
+        }
+      } else {
+        const prod = initialProduct || null;
+        setSelectedProduct(prod);
+        setStockType("available");
+        setActionType("add");
+        setQuantity("");
+        const initialCost = prod?.cost_price !== undefined
+          ? String(prod.cost_price)
+          : (prod?.cost_price_str || "0");
+        setCostPrice(initialCost);
+        setReason("physicalCount");
+        setAdjustmentDate(toHTMLDateString(new Date()));
+        setNotes("");
+        setErrorMsg(null);
+      }
     }
-  }, [open, initialProduct]);
+  }, [open, initialProduct, adjustment]);
 
   // When selectedProduct is changed via ProductDropdown
   const handleSelectProduct = (newProd: Product | null) => {
@@ -180,47 +211,76 @@ export function AdjustStockDialog({
         finalAdjustmentTimestamp = now.toISOString();
       }
 
-      const res = await recordStockAdjustmentOffline({
-        productId: selectedProduct.id,
-        stockType,
-        actionType,
-        quantity: numQty,
-        reason,
-        notes,
-        adjustmentDate: finalAdjustmentTimestamp,
-        costPrice: parsedCost,
-      });
+      let updatedProduct: Product;
+      if (isEditMode && adjustment) {
+        const res = await updateStockAdjustmentOffline({
+          adjustmentId: adjustment.id || adjustment._id,
+          productId: selectedProduct.id,
+          stockType,
+          actionType,
+          quantity: numQty,
+          costPrice: parsedCost,
+          reason,
+          notes,
+          adjustmentDate: finalAdjustmentTimestamp,
+          fallbackOldRecord: adjustment,
+        });
 
-      const updatedProduct: Product = {
-        ...selectedProduct,
-        quantity: res.newQuantity,
-        quantity_str: res.newQuantity.toString(),
-        in_stock: res.newQuantity,
-        damaged_quantity: res.newDamagedQuantity,
-        damaged_quantity_str: res.newDamagedQuantity.toString(),
-        cost_price: res.newCostPrice !== undefined ? res.newCostPrice : selectedProduct.cost_price,
-        cost_price_str: res.newCostPrice !== undefined ? res.newCostPrice.toString() : selectedProduct.cost_price_str,
-      };
+        updatedProduct = {
+          ...selectedProduct,
+          quantity: res.newQuantity,
+          quantity_str: res.newQuantity.toString(),
+          in_stock: res.newQuantity,
+          damaged_quantity: res.newDamagedQuantity,
+          damaged_quantity_str: res.newDamagedQuantity.toString(),
+          cost_price: res.newCostPrice !== undefined ? res.newCostPrice : selectedProduct.cost_price,
+          cost_price_str: res.newCostPrice !== undefined ? res.newCostPrice.toString() : selectedProduct.cost_price_str,
+        };
+      } else {
+        const res = await recordStockAdjustmentOffline({
+          productId: selectedProduct.id,
+          stockType,
+          actionType,
+          quantity: numQty,
+          reason,
+          notes,
+          adjustmentDate: finalAdjustmentTimestamp,
+          costPrice: parsedCost,
+        });
 
-      // Queue sync operation for backend MongoDB
-      const payload = {
-        productId: String(selectedProduct.id),
-        stockType,
-        actionType,
-        quantity: numQty,
-        reason,
-        notes: notes.trim(),
-        adjustmentDate: finalAdjustmentTimestamp,
-        costPrice: parsedCost,
-      };
+        updatedProduct = {
+          ...selectedProduct,
+          quantity: res.newQuantity,
+          quantity_str: res.newQuantity.toString(),
+          in_stock: res.newQuantity,
+          damaged_quantity: res.newDamagedQuantity,
+          damaged_quantity_str: res.newDamagedQuantity.toString(),
+          cost_price: res.newCostPrice !== undefined ? res.newCostPrice : selectedProduct.cost_price,
+          cost_price_str: res.newCostPrice !== undefined ? res.newCostPrice.toString() : selectedProduct.cost_price_str,
+        };
 
-      await SyncEngine.queueOperation(
-        "stock_adjustments",
-        "POST",
-        "/api/stock-adjustments",
-        payload,
-        `adj_${Date.now()}`
-      );
+        // Queue sync operation for backend MongoDB
+        const payload = {
+          productId: String(selectedProduct.id),
+          stockType,
+          actionType,
+          quantity: numQty,
+          reason,
+          notes: notes.trim(),
+          adjustmentDate: finalAdjustmentTimestamp,
+          costPrice: parsedCost,
+          previous_cost_price: Number(selectedProduct.cost_price || 0),
+          previous_quantity: Number(selectedProduct.quantity || 0),
+        };
+
+        await SyncEngine.queueOperation(
+          "stock_adjustments",
+          "POST",
+          "/api/stock-adjustments",
+          payload,
+          `adj_${Date.now()}`
+        );
+      }
 
       if (onSuccess) {
         onSuccess(updatedProduct);
@@ -249,13 +309,24 @@ export function AdjustStockDialog({
               <SlidersHorizontal className="w-5 h-5 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-base sm:text-lg font-bold truncate">
-                {selectedProduct
-                  ? t("adjustStockTitle", { name: selectedProduct.name })
-                  : (t("adjustStockHeaderTitle") || t("adjustStock"))}
+              <DialogTitle className="text-base sm:text-lg font-bold truncate flex items-center gap-2">
+                <span>
+                  {isEditMode
+                    ? (t("editAdjustment") || "Edit Stock Adjustment")
+                    : selectedProduct
+                    ? t("adjustStockTitle", { name: selectedProduct.name })
+                    : (t("adjustStockHeaderTitle") || t("adjustStock"))}
+                </span>
+                {isEditMode && adjustment?.ref_no && (
+                  <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-muted text-muted-foreground border">
+                    {adjustment.ref_no}
+                  </span>
+                )}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground line-clamp-1">
-                {t("adjustStockDesc")}
+                {isEditMode
+                  ? "Update adjustment quantity, rate, or reason. Stock and average cost will be recalculated."
+                  : t("adjustStockDesc")}
               </DialogDescription>
             </div>
           </div>
@@ -549,6 +620,8 @@ export function AdjustStockDialog({
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     {tCommon("saving")}
                   </>
+                ) : isEditMode ? (
+                  t("updateAdjustment") || "Update Adjustment"
                 ) : (
                   t("adjustStock")
                 )}

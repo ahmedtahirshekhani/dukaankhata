@@ -18,7 +18,9 @@ import {
   PlusCircle,
   XIcon,
   SlidersHorizontal,
+  Package,
 } from "lucide-react";
+import { ItemAdjustmentsTab } from "@/components/products/item-adjustments-tab";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import { db } from "@/lib/db/offline-db";
 import { createSampleProductsExcel } from "@/lib/excel/sample-products";
@@ -95,6 +97,7 @@ export default function Products() {
   const canEdit = can("products", "edit");
   const canDelete = can("products", "delete");
   const canExport = can("products", "view");
+  const [activeTab, setActiveTab] = useState<"items" | "adjustments">("items");
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     category: "all",
@@ -633,8 +636,43 @@ export default function Products() {
         </div>
 
         {/* Row 2: Description */}
-        <p className="text-sm text-muted-foreground break-words">{t("pageDescription")}</p>
+        <p className="text-sm text-muted-foreground break-words">
+          {t("pageDescription")}
+        </p>
       </div>
+
+      {/* Navigation Tabs Bar - commented out
+      <div className="flex items-center gap-2 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setActiveTab("items")}
+          className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "items"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          <span>{t("productsTab") || "Items & Products"}</span>
+          <span className="ml-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+            {totalCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("adjustments")}
+          className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "adjustments"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>{t("adjustmentsTab") || "Items Adjustment"}</span>
+        </button>
+      </div>
+      */}
 
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
@@ -776,6 +814,15 @@ export default function Products() {
           />
         </CardFooter>
       </Card>
+      {/* Items Adjustment Tab - commented out
+      <ItemAdjustmentsTab
+        onAdjustStock={() => {
+          setSelectedProductForAdjustment(null);
+          setIsAdjustStockOpen(true);
+        }}
+        canEdit={canEdit}
+      />
+      */}
       <ProductDialog
         open={isProductDialogOpen}
         onOpenChange={(open) => {
