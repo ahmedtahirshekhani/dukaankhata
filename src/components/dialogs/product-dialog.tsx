@@ -198,6 +198,8 @@ export function ProductDialog({
           cost_price_str: costPrice === "" ? "" : String(costPrice),
           quantity: productInStock === "" ? 0 : Number(productInStock),
           quantity_str: productInStock === "" ? "" : String(productInStock),
+          initial_quantity: productInStock === "" ? 0 : Number(productInStock),
+          initial_cost: costPrice === "" ? 0 : Number(costPrice),
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
@@ -273,6 +275,8 @@ export function ProductDialog({
           quantity: productInStock === "" ? 0 : Number(productInStock),
           quantity_str: productInStock === "" ? "" : String(productInStock),
           in_stock: productInStock === "" ? 0 : Number(productInStock),
+          initial_quantity: productInStock === "" ? 0 : Number(productInStock),
+          initial_cost: costPrice === "" ? 0 : Number(costPrice),
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
@@ -285,6 +289,52 @@ export function ProductDialog({
       };
       const updatedProductFromServer = { ...selectedProduct, ...updatedProduct };
       await db.products.update(selectedProduct.id, updatedProduct);
+
+      // Keep local opening stock batch in sync with edited quantity / cost
+      if (itemType === "goods") {
+        try {
+          const prodIdStr = String(selectedProduct.id);
+          const openingBatch = await db.inventory_batches
+            .filter((b: any) => 
+              (String(b.product_id) === prodIdStr || String(b.productId) === prodIdStr) &&
+              (b.source_type === "opening_stock" || b.batch_number === "OPENING")
+            )
+            .first();
+
+          const newCost = costPrice === "" ? 0 : Number(costPrice);
+          const newQty = productInStock === "" ? 0 : Number(productInStock);
+
+          if (openingBatch) {
+            const oldInitialQty = Number(openingBatch.initial_quantity) || 0;
+            const oldRemainingQty = Number(openingBatch.remaining_quantity) || 0;
+            const consumed = Math.max(0, oldInitialQty - oldRemainingQty);
+            await db.inventory_batches.update(openingBatch.id, {
+              initial_quantity: newQty,
+              remaining_quantity: Math.max(0, newQty - consumed),
+              cost_price: newCost,
+              updated_at: new Date().toISOString(),
+            });
+          } else if (newQty > 0) {
+            await db.inventory_batches.put({
+              id: `batch_opening_${prodIdStr}`,
+              product_id: prodIdStr,
+              source_type: "opening_stock",
+              source_id: prodIdStr,
+              batch_number: "OPENING",
+              initial_quantity: newQty,
+              remaining_quantity: newQty,
+              cost_price: newCost,
+              status: "active",
+              batch_date: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          }
+        } catch (batchErr) {
+          console.error("Error syncing opening batch in IndexedDB:", batchErr);
+        }
+      }
+
       await SyncEngine.queueOperation("products", "PUT", `/api/products/${selectedProduct.id}`, updatedProduct, String(selectedProduct.id));
       
       onSuccess(updatedProductFromServer as any, true);

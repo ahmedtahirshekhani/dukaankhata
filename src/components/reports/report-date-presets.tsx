@@ -11,8 +11,10 @@ export type DatePresetKey =
   | "yesterday"
   | "thisWeek"
   | "lastWeek"
+  | "last7Days"
   | "thisMonth"
   | "lastMonth"
+  | "last30Days"
   | "thisYear"
   | "allTime"
   | "custom";
@@ -52,6 +54,11 @@ export function getPresetDateRange(preset: string): DateRange {
       lastMon.setDate(lastSun.getDate() - 6);
       return { fromDate: toHTMLDateString(lastMon), toDate: toHTMLDateString(lastSun) };
     }
+    case "last7Days": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 6);
+      return { fromDate: toHTMLDateString(d), toDate: toHTMLDateString(now) };
+    }
     case "thisMonth": {
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
       return { fromDate: toHTMLDateString(firstDay), toDate: toHTMLDateString(now) };
@@ -60,6 +67,11 @@ export function getPresetDateRange(preset: string): DateRange {
       const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
       return { fromDate: toHTMLDateString(firstDayLastMonth), toDate: toHTMLDateString(lastDayLastMonth) };
+    }
+    case "last30Days": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 29);
+      return { fromDate: toHTMLDateString(d), toDate: toHTMLDateString(now) };
     }
     case "thisYear": {
       const firstDayYear = new Date(now.getFullYear(), 0, 1);
@@ -86,14 +98,16 @@ export function ReportDatePresets({
   const tCommon = useTranslations("common");
 
   const presets = [
-    { key: "today", label: tCommon("today") || "Today" },
-    { key: "yesterday", label: tCommon("yesterday") || "Yesterday" },
-    { key: "thisWeek", label: tCommon("thisWeek") || "This Week" },
-    { key: "lastWeek", label: tCommon("lastWeek") || "Last Week" },
-    { key: "thisMonth", label: tCommon("thisMonth") || "This Month" },
-    { key: "lastMonth", label: tCommon("lastMonth") || "Last Month" },
-    { key: "thisYear", label: tCommon("thisYear") || "This Year" },
-    { key: "allTime", label: tCommon("allTime") || "All Time" },
+    { key: "today", label: tCommon("today")},
+    { key: "yesterday", label: tCommon("yesterday")},
+    { key: "thisWeek", label: tCommon("thisWeek")},
+    { key: "lastWeek", label: tCommon("lastWeek")},
+    { key: "last7Days", label: tCommon("last7Days")},
+    { key: "thisMonth", label: tCommon("thisMonth")},
+    { key: "lastMonth", label: tCommon("lastMonth")},
+    { key: "last30Days", label: tCommon("last30Days")},
+    { key: "thisYear", label: tCommon("thisYear")},
+    { key: "allTime", label: tCommon("allTime")},
   ];
 
   const handlePresetClick = (key: string) => {

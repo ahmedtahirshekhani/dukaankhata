@@ -60,17 +60,35 @@ export function ProductStockLedgerModal({
     try {
       const url = new URL("/api/reports/stock/history", window.location.origin);
       url.searchParams.set("productId", productId);
+      url.searchParams.set("mode", "movement");
       if (fromDate) url.searchParams.set("fromDate", fromDate);
       if (toDate) url.searchParams.set("toDate", toDate);
 
       const res = await fetch(url.toString());
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || t("failedToLoad"));
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+        setLoading(false);
+        return;
       }
-      const json = await res.json();
-      setData(json);
+      throw new Error("Server fetch failed");
     } catch (err: any) {
+      try {
+        const { getOfflineProductStockValuationHistory } = await import("@/lib/db/offline-stock-manager");
+        const localData = await getOfflineProductStockValuationHistory({
+          productId,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+          mode: "movement",
+        });
+        if (localData) {
+          setData(localData);
+          setLoading(false);
+          return;
+        }
+      } catch (localErr) {
+        console.error("Offline stock ledger fetch error:", localErr);
+      }
       console.error("Error loading stock ledger history:", err);
       setError(err.message || t("failedToLoad"));
     } finally {
@@ -112,24 +130,11 @@ export function ProductStockLedgerModal({
 
   const sortedMovements = React.useMemo(() => {
     if (!movements || movements.length === 0) return [];
-    return [...movements].sort((a: any, b: any) => {
-      const timeA = new Date(a.date).getTime();
-      const timeB = new Date(b.date).getTime();
-      if (timeA !== timeB) {
-        return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
-      }
-      const priority: Record<string, number> = {
-        opening_stock: 1,
-        purchase: 2,
-        adjustment_add: 3,
-        sale_return: 4,
-        sale: 5,
-        adjustment_reduce: 6,
-      };
-      const pA = priority[a.type] || 5;
-      const pB = priority[b.type] || 5;
-      return sortOrder === "asc" ? pA - pB : pB - pA;
-    });
+    const list = [...movements];
+    if (sortOrder === "desc") {
+      list.reverse();
+    }
+    return list;
   }, [movements, sortOrder]);
 
   return (
@@ -338,7 +343,7 @@ export function ProductStockLedgerModal({
                               className="flex items-center gap-1.5 hover:text-foreground transition-colors group cursor-pointer"
                               title={sortOrder === "asc" ? "Sorted Oldest First (Click for Newest)" : "Sorted Newest First (Click for Oldest)"}
                             >
-                              <span>{t("date")} / Time</span>
+                              <span>{t("date")}</span>
                               {sortOrder === "asc" ? (
                                 <ArrowUp className="w-3.5 h-3.5 text-primary" />
                               ) : (
@@ -373,12 +378,12 @@ export function ProductStockLedgerModal({
                             return (
                               <tr key={idx} className="hover:bg-muted/30 transition-colors">
                                 <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                                  {formatPakistaniDateTime(m.date, true)}
+                                  {formatPakistaniDateTime(m.date, false)}
                                 </td>
                                 <td className="py-2.5 px-3 whitespace-nowrap">
                                   {isOpening && (
                                     <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
-                                      {t("openingStock") || "Opening Stock"}
+                                      {t("openingStock")}
                                     </Badge>
                                   )}
                                   {isPurchase && (
@@ -465,7 +470,7 @@ export function ProductStockLedgerModal({
                         <tr>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("batchNumber")}</th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("source")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("inwardDate")} / Time</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("inwardDate")}</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("initialQty")}</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("remainingQty")}</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("batchCost")}</th>
@@ -501,7 +506,7 @@ export function ProductStockLedgerModal({
                                 )}
                               </td>
                               <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                                {formatPakistaniDateTime(b.batch_date, true)}
+                                {formatPakistaniDateTime(b.batch_date, false)}
                               </td>
                               <td className="py-2.5 px-3 text-right font-medium whitespace-nowrap">
                                 {b.initial_quantity}

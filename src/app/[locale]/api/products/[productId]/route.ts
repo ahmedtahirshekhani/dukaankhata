@@ -107,6 +107,63 @@ export async function PUT(
       return NextResponse.json({ error: 'Product not found or not authorized' }, { status: 404 })
     }
 
+    // Keep opening stock batch in sync with updated product quantity and cost
+    if (updatedProduct.quantity !== undefined || updatedProduct.cost_price !== undefined || updatedProduct.purchase_price !== undefined) {
+      try {
+        const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+        const openingBatch = await batchesCollection.findOne({
+          user_id: toObjectId(user.id),
+          product_id: { $in: [toObjectId(productId), productId] },
+          $or: [
+            { source_type: "opening_stock" },
+            { batch_number: "OPENING" }
+          ]
+        });
+
+        const newCost = updatedProduct.cost_price !== undefined 
+          ? Number(updatedProduct.cost_price) 
+          : (updatedProduct.purchase_price !== undefined ? Number(updatedProduct.purchase_price) : undefined);
+        const newQty = updatedProduct.quantity !== undefined ? Number(updatedProduct.quantity) : undefined;
+
+        if (openingBatch) {
+          const updateBatchFields: Record<string, any> = {
+            updated_at: new Date()
+          };
+          if (newCost !== undefined && !isNaN(newCost)) {
+            updateBatchFields.cost_price = newCost;
+          }
+          if (newQty !== undefined && !isNaN(newQty)) {
+            const oldInitialQty = Number(openingBatch.initial_quantity) || 0;
+            const oldRemainingQty = Number(openingBatch.remaining_quantity) || 0;
+            const consumed = Math.max(0, oldInitialQty - oldRemainingQty);
+            updateBatchFields.initial_quantity = newQty;
+            updateBatchFields.remaining_quantity = Math.max(0, newQty - consumed);
+          }
+          await batchesCollection.updateOne(
+            { _id: openingBatch._id },
+            { $set: updateBatchFields }
+          );
+        } else if (newQty !== undefined && newQty > 0) {
+          await batchesCollection.insertOne({
+            user_id: toObjectId(user.id),
+            product_id: toObjectId(productId),
+            source_type: "opening_stock",
+            source_id: productId,
+            batch_number: "OPENING",
+            initial_quantity: newQty,
+            remaining_quantity: newQty,
+            cost_price: newCost || 0,
+            status: "active",
+            batch_date: new Date(),
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
+      } catch (batchErr) {
+        console.error('[PUT /api/products/:productId] Failed to sync opening batch:', batchErr);
+      }
+    }
+
     // Fetch updated document
     const updatedDoc = await productsCollection.findOne({ _id: toObjectId(productId) });
     if (!updatedDoc) {

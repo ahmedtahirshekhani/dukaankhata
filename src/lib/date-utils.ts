@@ -89,9 +89,10 @@ export function formatReadableDateTime(date: string | Date | undefined | null): 
   return `${day}-${month}-${year}, ${hoursFormatted}:${minutes} ${ampm}`;
 }
 
-// Formats a date and time to Pakistani format with optional seconds: DD-MM-YYYY, hh:mm:ss A (e.g., "24-10-2026, 09:20:15 PM")
+// Formats a date to Pakistani format: DD-MM-YYYY, with optional time: DD-MM-YYYY, hh:mm:ss A
 export function formatPakistaniDateTime(
   date: string | Date | undefined | null,
+  isTime: boolean = false,
   includeSeconds: boolean = true
 ): string {
   if (!date) return "-";
@@ -101,6 +102,10 @@ export function formatPakistaniDateTime(
   const day = String(parsed.getDate()).padStart(2, "0");
   const month = String(parsed.getMonth() + 1).padStart(2, "0");
   const year = parsed.getFullYear();
+
+  if (!isTime) {
+    return `${day}-${month}-${year}`;
+  }
 
   let hours = parsed.getHours();
   const minutes = String(parsed.getMinutes()).padStart(2, "0");

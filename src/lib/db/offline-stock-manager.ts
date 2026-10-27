@@ -1247,4 +1247,466 @@ export async function updateStockAdjustmentOffline(options: {
   };
 }
 
+/**
+ * Loads and computes complete stock valuation movement history from Dexie offline database.
+ * Computes running balance, running WAC cost, and running stock valuation.
+ */
+export async function getOfflineProductStockValuationHistory(options: {
+  productId: string | number;
+  fromDate?: string;
+  toDate?: string;
+  mode?: "valuation" | "movement" | string;
+}) {
+  const { productId, fromDate, toDate, mode = "valuation" } = options;
+  const prodIdStr = String(productId);
+  let product = await db.products.get(prodIdStr);
+  if (!product) {
+    product = await db.products.filter((p: any) => p.id === prodIdStr || p._id === prodIdStr || String(p.id) === prodIdStr || String(p._id) === prodIdStr).first();
+  }
+  if (!product) return null;
+
+  const valuationMethod = typeof window !== "undefined"
+    ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+    : "average";
+
+  const [batches, allPurchaseBills, allOrders, allSaleReturns, allAdjustments, allParties] = await Promise.all([
+    db.inventory_batches.filter((b: any) => String(b.product_id) === prodIdStr || String(b.productId) === prodIdStr).toArray(),
+    db.purchase_bills.toArray(),
+    db.orders.toArray(),
+    db.sale_return_transactions.toArray(),
+    db.stock_adjustments.filter((a: any) => String(a.product_id) === prodIdStr || String(a.productId) === prodIdStr).toArray(),
+    db.parties.toArray(),
+  ]);
+
+  const partyMap = new Map<string, string>();
+  for (const p of allParties) {
+    partyMap.set(String(p.id || (p as any)._id), p.company_name || p.name || "Party");
+  }
+
+  const rawMovements: any[] = [];
+
+  // Opening Stock
+  const openingBatch = batches.find(
+    (b: any) => b.source_type === "opening_stock" || b.batch_number === "OPENING"
+  );
+  let initialOpeningQty = openingBatch
+    ? Number(openingBatch.initial_quantity) || 0
+    : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
+  const initialOpeningCost = openingBatch
+    ? Number(openingBatch.cost_price) || 0
+    : Number((product as any).initial_cost || (product as any).opening_cost || (product as any).purchase_price || product.cost_price || 0);
+  // Find the earliest transaction or product created_at date (never default to 1970)
+  const allTxDates: number[] = [];
+  if ((product as any).created_at) allTxDates.push(new Date((product as any).created_at).getTime());
+  if (openingBatch?.batch_date) allTxDates.push(new Date(openingBatch.batch_date).getTime());
+  if (openingBatch?.created_at) allTxDates.push(new Date(openingBatch.created_at).getTime());
+  for (const b of allPurchaseBills) allTxDates.push(new Date(b.bill_date || b.date || b.created_at).getTime());
+  for (const o of allOrders) allTxDates.push(new Date(o.sale_date || o.date || o.created_at).getTime());
+  for (const a of allAdjustments) allTxDates.push(new Date(a.date || a.adjustment_date || a.created_at).getTime());
+  const validTxDates = allTxDates.filter(t => !isNaN(t) && t > 0);
+  const earliestTx = validTxDates.length > 0 ? Math.min(...validTxDates) : Date.now();
+  const openingDate = fromDate ? new Date(fromDate) : new Date(earliestTx);
+
+  rawMovements.push({
+    id: `opening-${prodIdStr}`,
+    date: openingDate,
+    type: "opening_stock",
+    refNo: "OPENING",
+    partyName: "Opening Stock",
+    inwardQty: initialOpeningQty > 0 ? initialOpeningQty : 0,
+    outwardQty: 0,
+    unitRate: initialOpeningCost,
+    costPrice: initialOpeningCost,
+    totalAmount: Math.round(initialOpeningQty * initialOpeningCost * 100) / 100,
+    batchNumber: "OPENING",
+  });
+
+  // Purchase Bills
+  for (const bill of allPurchaseBills) {
+    if (!Array.isArray(bill.items)) continue;
+    const matched = bill.items.filter((it: any) => String(it.product_id) === prodIdStr);
+    for (const it of matched) {
+      const qty = Number(it.quantity) || 0;
+      const rate = Number(it.cost_price ?? it.unit_price) || 0;
+      const d = new Date(bill.bill_date || bill.date || bill.created_at || Date.now());
+      rawMovements.push({
+        id: `pb-${bill.id || (bill as any)._id}-${it.product_id}`,
+        date: d,
+        type: "purchase",
+        refNo: bill.bill_number || `BILL-${String(bill.id || (bill as any)._id).slice(-6)}`,
+        partyName: bill.party_name || partyMap.get(String(bill.party_id)) || "Supplier",
+        inwardQty: qty,
+        outwardQty: 0,
+        unitRate: rate,
+        costPrice: rate,
+        totalAmount: Math.round(qty * rate * 100) / 100,
+      });
+    }
+  }
+
+  // Sales Orders
+  for (const order of allOrders) {
+    if (order.status === "cancelled" || !Array.isArray(order.items)) continue;
+    const matched = order.items.filter((it: any) => String(it.product_id) === prodIdStr);
+    for (const it of matched) {
+      const qty = Number(it.quantity) || 0;
+      const price = Number(it.price) || 0;
+      const costPrice = Number(it.cost_price ?? product.cost_price) || 0;
+      const d = new Date(order.sale_date || order.date || order.created_at || Date.now());
+      rawMovements.push({
+        id: `so-${order.id || (order as any)._id}-${it.product_id}`,
+        date: d,
+        type: "sale",
+        refNo: order.invoice_no || `INV-${String(order.id || (order as any)._id).slice(-6)}`,
+        partyName: partyMap.get(String(order.customer_id || order.party_id)) || order.customer_name || "Customer",
+        inwardQty: 0,
+        outwardQty: qty,
+        unitRate: price,
+        costPrice: costPrice,
+        totalAmount: Math.round(qty * price * 100) / 100,
+      });
+    }
+  }
+
+  // Sale Returns
+  for (const ret of allSaleReturns) {
+    if (!Array.isArray(ret.items)) continue;
+    const matched = ret.items.filter((it: any) => String(it.productId || it.product_id) === prodIdStr);
+    for (const it of matched) {
+      const qty = Number(it.quantity) || 0;
+      const rate = Number(it.rate) || 0;
+      const d = new Date(ret.return_date || ret.date || ret.created_at || Date.now());
+      rawMovements.push({
+        id: `sr-${ret.id || (ret as any)._id}-${it.productId || it.product_id}`,
+        date: d,
+        type: "sale_return",
+        refNo: ret.returnNumber || ret.return_number || `RET-${String(ret.id || (ret as any)._id).slice(-6)}`,
+        partyName: partyMap.get(String(ret.customerId || ret.customer_id)) || "Customer",
+        inwardQty: qty,
+        outwardQty: 0,
+        unitRate: rate,
+        costPrice: Number(it.costPrice || product.cost_price || rate) || 0,
+        totalAmount: Math.round(qty * rate * 100) / 100,
+      });
+    }
+  }
+
+  // Stock Adjustments
+  for (const adj of allAdjustments) {
+    const isAdd = adj.action_type === "add";
+    const qty = Number(adj.quantity) || 0;
+    const rate = Number(adj.cost_price || product.cost_price) || 0;
+    const d = new Date(adj.date || adj.adjustment_date || adj.created_at || Date.now());
+    rawMovements.push({
+      id: `adj-${adj.id || (adj as any)._id}`,
+      date: d,
+      type: isAdd ? "adjustment_add" : "adjustment_reduce",
+      refNo: adj.ref_no || `ADJ-${String(adj.id || (adj as any)._id).slice(-6)}`,
+      partyName: `Adjustment (${adj.reason || "Manual"})`,
+      inwardQty: isAdd ? qty : 0,
+      outwardQty: !isAdd ? qty : 0,
+      unitRate: rate,
+      costPrice: rate,
+      totalAmount: Math.round(qty * rate * 100) / 100,
+    });
+  }
+
+  let reorderedMovements: any[] = [];
+
+  if (mode === "valuation") {
+    // WAC Valuation Sequence (Interleaved):
+    // 1. Opening stock is ALWAYS row 1 at the very top.
+    // 2. Inwards that occurred naturally prior to a sale are emitted first.
+    // 3. For any sale where current stock is not enough (deficit), pull subsequent inwards
+    //    until the sale's stock is covered.
+    // 4. Then emit the sale immediately so it reflects the available stock & calculated WAC!
+    // 5. Subsequent sales only run after their deficit has been covered by subsequent inwards.
+    const buildInterleavedValuationSequence = (items: any[]): any[] => {
+      const opening = items.find(m => m.type === "opening_stock");
+      const otherMoves = items.filter(m => m.type !== "opening_stock");
+
+      const inwardQueue = otherMoves
+        .filter(m => (m.inwardQty || 0) > 0)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const outwardQueue = otherMoves
+        .filter(m => (m.outwardQty || 0) > 0)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      const result: any[] = [];
+      let runningStock = 0;
+
+      if (opening) {
+        result.push(opening);
+        runningStock += (opening.inwardQty || 0);
+      }
+
+      while (outwardQueue.length > 0) {
+        const nextSale = outwardQueue[0];
+
+        // 1. Emit inwards that occurred at or before this sale's timestamp
+        while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()) {
+          const naturalInward = inwardQueue.shift()!;
+          result.push(naturalInward);
+          runningStock += (naturalInward.inwardQty || 0);
+        }
+
+        // 2. If running stock is not enough for this sale, pull subsequent inwards until fulfilled
+        while (runningStock < nextSale.outwardQty && inwardQueue.length > 0) {
+          const deficitInward = inwardQueue.shift()!;
+          result.push(deficitInward);
+          runningStock += (deficitInward.inwardQty || 0);
+        }
+
+        // 3. Now emit the sale
+        outwardQueue.shift();
+        result.push(nextSale);
+        runningStock -= nextSale.outwardQty;
+      }
+
+      // 4. Any remaining inwards at the end of the period
+      while (inwardQueue.length > 0) {
+        const remainingInward = inwardQueue.shift()!;
+        result.push(remainingInward);
+        runningStock += (remainingInward.inwardQty || 0);
+      }
+
+      return result;
+    };
+
+    reorderedMovements = buildInterleavedValuationSequence(rawMovements);
+  } else {
+    // Natural Chronological Sequence for Stock Movement Report (shows true physical minus balance when oversold):
+    const opening = rawMovements.find(m => m.type === "opening_stock");
+    const otherMoves = rawMovements.filter(m => m.type !== "opening_stock");
+
+    const TYPE_PRIORITY: Record<string, number> = {
+      purchase: 1,
+      adjustment_add: 2,
+      sale_return: 3,
+      sale: 4,
+      adjustment_reduce: 5,
+    };
+
+    otherMoves.sort((a, b) => {
+      const da = new Date(a.date).getTime();
+      const db = new Date(b.date).getTime();
+      if (da !== db) return da - db;
+      return (TYPE_PRIORITY[a.type] || 99) - (TYPE_PRIORITY[b.type] || 99);
+    });
+
+    reorderedMovements = opening ? [opening, ...otherMoves] : otherMoves;
+  }
+
+  let runningBalance = 0;
+  let runningWac = initialOpeningCost > 0 ? initialOpeningCost : (Number(product.cost_price ?? product.purchase_price) || 0);
+  let priorFulfilledBudget = 0;
+
+  const allCalculatedMovements = reorderedMovements.map(m => {
+    const prevBal = runningBalance;
+    const prevWac = runningWac;
+    let effectiveWac = runningWac;
+    let wacFormula = "";
+
+    if (m.type === "opening_stock") {
+      runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
+      effectiveWac = m.unitRate > 0 ? m.unitRate : runningWac;
+      runningWac = effectiveWac;
+      wacFormula = m.inwardQty > 0 ? `Opening stock (${m.inwardQty}) @ ${effectiveWac}` : `Opening balance @ 0`;
+    } else if (m.type === "purchase") {
+      const inQty = m.inwardQty;
+      const inRate = m.unitRate;
+      if (prevBal < 0 && prevWac > 0) {
+        effectiveWac = calculateMovingAverageWithPrior(prevBal, prevWac, inQty, inRate, priorFulfilledBudget);
+        wacFormula = `Reconciled Deficit (${prevBal}) + Inward (${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
+      } else {
+        effectiveWac = calculateMovingAverage(prevBal, prevWac, inQty, inRate);
+        wacFormula = prevBal > 0 
+          ? `(${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) / ${roundToPrecision(prevBal + inQty, 3)} = ${effectiveWac}`
+          : `New inward @ ${inRate}`;
+      }
+      runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
+      runningWac = effectiveWac;
+    } else if (m.type === "adjustment_add") {
+      const inQty = m.inwardQty;
+      const inRate = m.costPrice > 0 ? m.costPrice : prevWac;
+      if (inRate > 0 && inRate !== prevWac) {
+        effectiveWac = prevBal < 0
+          ? calculateMovingAverageWithPrior(prevBal, prevWac, inQty, inRate, priorFulfilledBudget)
+          : calculateMovingAverage(prevBal, prevWac, inQty, inRate);
+        wacFormula = `Adj (+): (${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
+        runningWac = effectiveWac;
+      } else {
+        effectiveWac = runningWac;
+        wacFormula = `Adj (+): ${inQty} units (WAC maintained @ ${runningWac})`;
+      }
+      runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
+    } else if (m.type === "sale_return") {
+      runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
+      effectiveWac = runningWac;
+      wacFormula = `Sale Return (${m.inwardQty}) returned to inventory (WAC: ${runningWac})`;
+    } else if (m.type === "sale") {
+      const outQty = m.outwardQty;
+      effectiveWac = runningWac;
+      if (prevBal > 0) {
+        priorFulfilledBudget += Math.min(prevBal, outQty);
+      }
+      runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
+      wacFormula = `Sale Outward: ${outQty} units @ COGS ${runningWac} (WAC maintained)`;
+    } else if (m.type === "adjustment_reduce") {
+      const outQty = m.outwardQty;
+      effectiveWac = runningWac;
+      runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
+      wacFormula = `Adj (-): ${outQty} units reduced (WAC maintained @ ${runningWac})`;
+    }
+
+    // Zoho Books rule: Asset value = runningBalance * effectiveWac (negative when stock is negative)
+    const runningValuation = roundToPrecision(runningBalance * effectiveWac, 2);
+
+    // Cost price & outward COGS
+    const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce")
+      ? effectiveWac
+      : (m.costPrice || m.unitRate || effectiveWac);
+
+    const outwardCogs = (m.type === "sale" || m.type === "adjustment_reduce")
+      ? roundToPrecision(m.outwardQty * effectiveWac, 2)
+      : 0;
+
+    return {
+      ...m,
+      date: m.date.toISOString(),
+      costPrice: finalCostPrice,
+      cogs: outwardCogs,
+      balance: runningBalance,
+      effectiveWac,
+      runningValuation,
+      wacFormula,
+    };
+  });
+
+  let filteredMovements = allCalculatedMovements;
+  let openingBalanceBeforeFilter = initialOpeningQty;
+
+  if (fromDate || toDate) {
+    const from = fromDate ? new Date(fromDate) : null;
+    if (from) from.setHours(0, 0, 0, 0);
+    const to = toDate ? new Date(toDate) : null;
+    if (to) to.setHours(23, 59, 59, 999);
+
+    let openingCostForPeriod = initialOpeningCost;
+
+    if (from) {
+      const priorMovements = allCalculatedMovements.filter(m => m.type !== "opening_stock" && new Date(m.date) < from);
+      if (priorMovements.length > 0) {
+        const lastPrior = priorMovements[priorMovements.length - 1];
+        openingBalanceBeforeFilter = lastPrior.balance;
+        openingCostForPeriod = Number(lastPrior.effectiveWac ?? initialOpeningCost) || initialOpeningCost;
+      } else {
+        openingBalanceBeforeFilter = initialOpeningQty;
+        openingCostForPeriod = initialOpeningCost;
+      }
+    }
+
+    filteredMovements = allCalculatedMovements.filter(m => {
+      if (m.type === "opening_stock") return false;
+      const d = new Date(m.date);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+
+    const startPeriodDate = from ? from.toISOString() : (openingDate ? openingDate.toISOString() : new Date().toISOString());
+    const openingValuationForPeriod = roundToPrecision(openingBalanceBeforeFilter * openingCostForPeriod, 2);
+
+    filteredMovements.unshift({
+      id: `opening-period-${startPeriodDate}`,
+      date: startPeriodDate,
+      type: "opening_stock",
+      refNo: "OPENING",
+      partyName: "Opening Stock",
+      inwardQty: openingBalanceBeforeFilter > 0 ? openingBalanceBeforeFilter : 0,
+      outwardQty: openingBalanceBeforeFilter < 0 ? Math.abs(openingBalanceBeforeFilter) : 0,
+      unitRate: openingCostForPeriod,
+      costPrice: openingCostForPeriod,
+      cogs: 0,
+      totalAmount: Math.abs(openingValuationForPeriod),
+      balance: openingBalanceBeforeFilter,
+      effectiveWac: openingCostForPeriod,
+      runningValuation: openingValuationForPeriod,
+      wacFormula: openingBalanceBeforeFilter !== 0 ? `Opening balance B/F @ ${openingCostForPeriod}` : `Opening balance @ 0`,
+    });
+  }
+
+  let periodInward = 0;
+  let periodOutward = 0;
+  for (const m of filteredMovements) {
+    if (m.type !== "opening_stock") {
+      periodInward += m.inwardQty;
+      periodOutward += m.outwardQty;
+    }
+  }
+
+  const curCost = Number(product.cost_price ?? product.purchase_price) || 0;
+  const curStock = parseFloat(product.quantity?.toString() || product.in_stock?.toString() || "0");
+
+  const trueClosingWac = allCalculatedMovements.length > 0
+    ? allCalculatedMovements[allCalculatedMovements.length - 1].effectiveWac
+    : curCost;
+
+  // Self-healing synchronization:
+  // Ensure product master's cost_price in Dexie db.products stays 100% in sync with true closing WAC!
+  if (trueClosingWac > 0 && Math.abs(curCost - trueClosingWac) > 0.001) {
+    db.products.update(prodIdStr, {
+      cost_price: trueClosingWac,
+      cost_price_str: trueClosingWac.toString(),
+      purchase_price: trueClosingWac,
+    }).catch(err => console.error("Failed to sync closing WAC to Dexie product:", err));
+  }
+
+  const effectiveCost = trueClosingWac > 0 ? trueClosingWac : curCost;
+  const totalInventoryValuation = curStock > 0 ? Math.round(curStock * effectiveCost * 100) / 100 : 0;
+
+  return {
+    product: {
+      id: prodIdStr,
+      name: product.name,
+      sku: product.sku || "-",
+      category: product.category || "General",
+      branch: product.branch || "Main",
+      uom: product.unit_of_measurement || "pcs",
+      currentStock: curStock,
+      costPrice: effectiveCost,
+      totalValuation: totalInventoryValuation,
+      sellPrice: Number(product.sell_price) || 0,
+      valuationMethod,
+    },
+    summary: {
+      openingStock: openingBalanceBeforeFilter,
+      totalInward: Math.round(periodInward * 1000) / 1000,
+      totalOutward: Math.round(periodOutward * 1000) / 1000,
+      closingStock: filteredMovements.length > 0 
+        ? filteredMovements[filteredMovements.length - 1].balance 
+        : openingBalanceBeforeFilter,
+      closingWac: filteredMovements.length > 0
+        ? filteredMovements[filteredMovements.length - 1].effectiveWac
+        : curCost,
+      closingValuation: filteredMovements.length > 0
+        ? filteredMovements[filteredMovements.length - 1].runningValuation
+        : totalInventoryValuation,
+      valuationMethod,
+      activeBatchesCount: batches.filter((b: any) => b.status === "active" && Number(b.remaining_quantity) > 0).length,
+    },
+    batches: batches.map((b: any) => ({
+      id: String(b.id || b._id),
+      batch_number: b.batch_number || "BATCH",
+      source_type: b.source_type || "purchase_bill",
+      initial_quantity: Number(b.initial_quantity) || 0,
+      remaining_quantity: Number(b.remaining_quantity) || 0,
+      cost_price: Number(b.cost_price) || 0,
+      status: b.status || "active",
+      batch_date: b.batch_date || b.created_at || new Date().toISOString(),
+    })),
+    movements: filteredMovements,
+  };
+}
+
 

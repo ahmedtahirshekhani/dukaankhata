@@ -800,3 +800,62 @@ export function exportStockAdjustmentsToExcel(
 
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports complete item stock valuation ledger (WAC & FIFO history) to Excel
+ */
+export function exportStockValuationLedgerToExcel(
+  productName: string,
+  movements: any[],
+  filename?: string
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  const data = movements.map((m, index) => {
+    let typeName = m.type;
+    if (m.type === "opening_stock") typeName = "Opening Stock";
+    else if (m.type === "purchase") typeName = "Purchase Inward";
+    else if (m.type === "sale") typeName = "Sale Outward";
+    else if (m.type === "sale_return") typeName = "Sale Return Inward";
+    else if (m.type === "adjustment_add") typeName = "Stock Adjustment (+)";
+    else if (m.type === "adjustment_reduce") typeName = "Stock Adjustment (-)";
+
+    return {
+      "#": index + 1,
+      "Date & Time": m.type === "opening_stock" ? formatStatementDate(m.date) : formatStatementDateTime(m.date),
+      "Type": typeName,
+      "Ref / Invoice #": m.refNo || "-",
+      "Party / Detail": m.partyName || "-",
+      "Inward Qty": m.inwardQty > 0 ? `+${m.inwardQty}` : "-",
+      "Inward Rate (Rs.)": m.inwardQty > 0 ? m.unitRate : "-",
+      "Outward Qty": m.outwardQty > 0 ? `-${m.outwardQty}` : "-",
+      "Outward Cost (Rs.)": m.outwardQty > 0 ? m.costPrice : "-",
+      "Balance Stock": m.balance,
+      "Effective WAC (Rs.)": m.effectiveWac !== undefined ? m.effectiveWac : m.costPrice,
+      "Stock Valuation (Rs.)": m.runningValuation !== undefined ? m.runningValuation : Math.round(m.balance * (m.effectiveWac || 0) * 100) / 100,
+      "Calculation Impact": m.wacFormula || "-",
+    };
+  });
+
+  const sheet = XLSX.utils.json_to_sheet(data);
+  sheet["!cols"] = [
+    { wch: 6 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 24 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 20 },
+    { wch: 22 },
+    { wch: 36 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, "Valuation Ledger");
+
+  const safeProdName = productName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+  const finalFilename = filename || `valuation-ledger-${safeProdName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(workbook, finalFilename);
+}

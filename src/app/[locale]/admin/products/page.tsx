@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,6 +91,8 @@ const STANDARD_IMPORT_COLUMNS = [
 ];
 
 export default function Products() {
+  const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
   const { can } = usePermissions();
@@ -766,6 +769,10 @@ export default function Products() {
           <ProductsTable
             products={currentProducts}
             isLoading={loading}
+            onViewValuation={(product) => {
+              const pId = product.id || (product as any)._id;
+              router.push(`/${locale}/admin/products/${pId}/valuation`);
+            }}
             onEdit={(product) => {
               setSelectedProduct(product);
               setIsProductDialogOpen(true);

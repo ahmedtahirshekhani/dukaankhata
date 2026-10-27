@@ -10,7 +10,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { FilePenIcon, Trash2, Loader2 } from "lucide-react";
+import { FilePenIcon, Trash2, Loader2, Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Product } from "@/types/product";
@@ -21,6 +21,7 @@ interface ProductsTableProps {
   products: Product[];
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+  onViewValuation?: (product: Product) => void;
   capitalizeFirstLetter: (str: string | undefined | null) => string;
   isLoading?: boolean;
   canEdit?: boolean;
@@ -31,6 +32,7 @@ export function ProductsTable({
   products,
   onEdit,
   onDelete,
+  onViewValuation,
   capitalizeFirstLetter,
   isLoading = false,
   canEdit = true,
@@ -137,6 +139,17 @@ export function ProductsTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1.5">
+                    {onViewValuation && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                        onClick={() => onViewValuation(product)}
+                        title={t("viewValuationLedger")}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                     {canEdit && (
                       <Button
                         size="icon"
@@ -173,6 +186,17 @@ export function ProductsTable({
             <div className="flex justify-between items-center mb-3 gap-2">
               <h3 className="font-semibold text-sm truncate">{product.name}</h3>
               <div className="flex items-center gap-1 shrink-0">
+                {onViewValuation && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onViewValuation(product)}
+                    className="h-8 w-8 text-primary hover:bg-primary/10"
+                    title={t("viewValuationLedger")}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                )}
                 {canEdit && (
                   <Button
                     size="icon"
