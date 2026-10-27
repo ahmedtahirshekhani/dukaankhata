@@ -30,6 +30,7 @@ import { formatPakistaniDateTime, toPakistaniDateString, toHTMLDateString } from
 import { getUomShortcut, formatLocalizedUom } from "@/lib/uom";
 import { exportStockValuationLedgerToExcel } from "@/lib/excel";
 import { getOfflineProductStockValuationHistory } from "@/lib/db/offline-stock-manager";
+import { cn } from "@/lib/utils";
 
 const formatValuationPrice = (val: number | string | undefined | null): string => {
   if (val === undefined || val === null || val === "") return "-";
@@ -74,6 +75,14 @@ export default function StockValuationLedgerPage() {
   });
 
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [activeTab, setActiveTab] = useState<"ledger" | "batches">("ledger");
+
+  // Sync valuation method from loaded data if specified
+  useEffect(() => {
+    if (data?.product?.valuationMethod && data.product.valuationMethod !== valuationMethod) {
+      setValuationMethod(data.product.valuationMethod);
+    }
+  }, [data, valuationMethod]);
 
   // Sync valuation method from localStorage & listen for updates across app
   useEffect(() => {
@@ -312,7 +321,7 @@ export default function StockValuationLedgerPage() {
                   </div>
                   <div className="px-3.5 py-2 rounded-xl bg-primary/10 border border-primary/30 text-right">
                     <span className="text-[10px] uppercase font-semibold text-primary block">
-                      {valuationMethod === "fifo" ? t("batchCost") : t("currentWac")}
+                      {valuationMethod === "fifo" ? (t("currentFifoCost") || "Current FIFO Cost") : t("currentWac")}
                     </span>
                     <span className="text-sm font-extrabold text-primary">
                       {formatValuationPrice(summary?.closingWac ?? product?.costPrice ?? 0)}
@@ -390,7 +399,7 @@ export default function StockValuationLedgerPage() {
                   {formatValuationPrice(summary?.closingValuation ?? product?.totalValuation ?? 0)}
                 </div>
                 <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                  Stock $\times$ WAC Unit Cost
+                  {valuationMethod === "fifo" ? "Unsold FIFO Batches Value" : "Stock × WAC Unit Cost"}
                 </span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -484,25 +493,46 @@ export default function StockValuationLedgerPage() {
           {/* Active Valuation Method View Header */}
           <div className="flex items-center justify-between border-b pt-1 no-print">
             <div className="flex items-center gap-2">
-              {valuationMethod !== "fifo" ? (
-                <div className="pb-3 text-xs sm:text-sm font-bold px-3 border-b-2 border-primary text-primary flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>{t("wacTab")} ({sortedMovements.length})</span>
-                </div>
-              ) : (
-                <div className="pb-3 text-xs sm:text-sm font-bold px-3 border-b-2 border-primary text-primary flex items-center gap-2">
-                  <Layers className="w-4 h-4" />
-                  <span>{t("fifoTab")} ({batches.length})</span>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => setActiveTab("ledger")}
+                className={cn(
+                  "pb-3 text-xs sm:text-sm font-bold px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer",
+                  activeTab === "ledger"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>
+                  {valuationMethod === "fifo"
+                    ? (t("fifoLedgerTab"))
+                    : t("wacTab")}{" "}
+                  ({sortedMovements.length})
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("batches")}
+                className={cn(
+                  "pb-3 text-xs sm:text-sm font-bold px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer",
+                  activeTab === "batches"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Layers className="w-4 h-4" />
+                <span>{t("fifoTab")} ({batches.length})</span>
+              </button>
             </div>
 
-            {valuationMethod !== "fifo" && (
+            {activeTab === "ledger" && (
               <div className="text-xs text-muted-foreground">
                 <button
                   type="button"
                   onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-                  className="hover:text-foreground font-medium flex items-center gap-1 pb-2"
+                  className="hover:text-foreground font-medium flex items-center gap-1 pb-2 cursor-pointer"
                 >
                   <span>{sortOrder === "asc" ? "Oldest First ↑" : "Newest First ↓"}</span>
                 </button>
@@ -510,8 +540,8 @@ export default function StockValuationLedgerPage() {
             )}
           </div>
 
-          {/* TAB 1: Moving Average (WAC) Ledger Table */}
-          {valuationMethod !== "fifo" && (
+          {/* TAB 1: Moving Average (WAC) / FIFO Movement Ledger Table */}
+          {activeTab === "ledger" && (
             <Card className="border shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -526,9 +556,13 @@ export default function StockValuationLedgerPage() {
                       <th className="py-3 px-3 text-right font-semibold text-rose-600 dark:text-rose-400">{t("outwardQty")}</th>
                       <th className="py-3 px-3 text-right font-semibold text-rose-600 dark:text-rose-400">{t("cogs")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("balanceStock")}</th>
-                      <th className="py-3 px-3 text-right font-extrabold text-primary bg-primary/5">{t("effectiveWac")}</th>
+                      <th className="py-3 px-3 text-right font-extrabold text-primary bg-primary/5">
+                        {valuationMethod === "fifo" ? (t("fifoRate") || "FIFO Unit Rate") : t("effectiveWac")}
+                      </th>
                       <th className="py-3 px-3 text-right font-bold text-blue-600 dark:text-blue-400">{t("stockValuation")}</th>
-                      <th className="py-3 px-3 text-left font-semibold">{t("calculationImpact")}</th>
+                      <th className="py-3 px-3 text-left font-semibold">
+                        {valuationMethod === "fifo" ? (t("fifoImpact") || "FIFO Depletion Impact") : t("calculationImpact")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
@@ -694,7 +728,7 @@ export default function StockValuationLedgerPage() {
                           {formatValuationPrice(summary?.closingValuation ?? 0)}
                         </td>
                         <td className="py-2.5 px-3 text-[11px] text-muted-foreground italic">
-                          Period closing valuation
+                          {valuationMethod === "fifo" ? "Period closing FIFO valuation" : "Period closing valuation"}
                         </td>
                       </tr>
                     </tfoot>
@@ -705,7 +739,7 @@ export default function StockValuationLedgerPage() {
           )}
 
           {/* TAB 2: Tracked Batches Table */}
-          {valuationMethod === "fifo" && (
+          {activeTab === "batches" && (
             <Card className="border shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">

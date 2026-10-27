@@ -445,94 +445,164 @@ export async function GET(request: NextRequest) {
       reorderedMovements = opening ? [opening, ...otherMoves] : otherMoves;
     }
 
-    // Calculate Running Balance and Running WAC
+    // Calculate Running Balance, Rates, and Running Valuation
     const { calculateMovingAverage, calculateMovingAverageWithPrior, roundToPrecision } = await import("@/lib/inventory/valuation-calc");
 
-    let runningBalance = 0;
-    let runningWac = initialOpeningCost > 0 ? initialOpeningCost : (Number(product.cost_price ?? product.purchase_price) || 0);
-    let priorFulfilledBudget = 0;
+    let allCalculatedMovements: any[] = [];
 
-    const allCalculatedMovements = reorderedMovements.map(m => {
-      const prevBal = runningBalance;
-      const prevWac = runningWac;
-      let effectiveWac = runningWac;
-      let wacFormula = "";
+    if (valuationMethod === "fifo") {
+      let runningBalance = 0;
+      let runningValuation = 0;
+      let lastKnownCost = initialOpeningCost > 0 ? initialOpeningCost : (Number(product.cost_price ?? product.purchase_price) || 0);
 
-      if (m.type === "opening_stock") {
-        runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
-        effectiveWac = m.unitRate > 0 ? m.unitRate : runningWac;
-        runningWac = effectiveWac;
-        wacFormula = m.inwardQty > 0 ? `Opening stock (${m.inwardQty}) @ ${effectiveWac}` : `Opening balance @ 0`;
-      } else if (m.type === "purchase") {
-        const inQty = m.inwardQty;
-        const inRate = m.unitRate;
-        if (prevBal < 0 && prevWac > 0) {
-          effectiveWac = calculateMovingAverageWithPrior(prevBal, prevWac, inQty, inRate, priorFulfilledBudget);
-          wacFormula = `Reconciled Deficit (${prevBal}) + Inward (${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
-        } else {
-          effectiveWac = calculateMovingAverage(prevBal, prevWac, inQty, inRate);
-          wacFormula = prevBal > 0 
-            ? `(${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) / ${roundToPrecision(prevBal + inQty, 3)} = ${effectiveWac}`
-            : `New inward @ ${inRate}`;
+      allCalculatedMovements = reorderedMovements.map(m => {
+        let effectiveRate = lastKnownCost;
+        let cogs = 0;
+        let impactFormula = "";
+
+        if (m.type === "opening_stock") {
+          runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
+          effectiveRate = m.unitRate > 0 ? m.unitRate : lastKnownCost;
+          lastKnownCost = effectiveRate;
+          runningValuation = roundToPrecision(runningBalance * effectiveRate, 2);
+          impactFormula = m.inwardQty > 0 
+            ? `Opening Batch: ${m.inwardQty} units @ ${effectiveRate}` 
+            : `Opening balance @ 0`;
+        } else if (m.type === "purchase") {
+          runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
+          effectiveRate = m.unitRate > 0 ? m.unitRate : lastKnownCost;
+          lastKnownCost = effectiveRate;
+          runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
+          impactFormula = `FIFO Inward: ${m.inwardQty} units @ ${effectiveRate} (Batch: ${m.batchNumber || m.refNo})`;
+        } else if (m.type === "adjustment_add") {
+          runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
+          effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
+          lastKnownCost = effectiveRate;
+          runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
+          impactFormula = `Adj (+): Added ${m.inwardQty} units @ ${effectiveRate}`;
+        } else if (m.type === "sale_return") {
+          runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
+          effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
+          runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
+          impactFormula = `Sale Return (${m.inwardQty} units) returned to inventory @ ${effectiveRate}`;
+        } else if (m.type === "sale") {
+          runningBalance = roundToPrecision(runningBalance - m.outwardQty, 3);
+          effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
+          cogs = roundToPrecision(m.outwardQty * effectiveRate, 2);
+          runningValuation = runningBalance > 0
+            ? Math.max(0, roundToPrecision(runningValuation - cogs, 2))
+            : roundToPrecision(runningBalance * effectiveRate, 2);
+          impactFormula = m.batchNumber
+            ? `FIFO Depleted from Batch ${m.batchNumber}: ${m.outwardQty} units @ ${effectiveRate} (COGS: ${cogs})`
+            : `Sale Outward: ${m.outwardQty} units @ FIFO COGS ${effectiveRate} (Total: ${cogs})`;
+        } else if (m.type === "adjustment_reduce") {
+          runningBalance = roundToPrecision(runningBalance - m.outwardQty, 3);
+          effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
+          cogs = roundToPrecision(m.outwardQty * effectiveRate, 2);
+          runningValuation = runningBalance > 0
+            ? Math.max(0, roundToPrecision(runningValuation - cogs, 2))
+            : roundToPrecision(runningBalance * effectiveRate, 2);
+          impactFormula = `Adj (-): Reduced ${m.outwardQty} units @ ${effectiveRate} (COGS: ${cogs})`;
         }
-        runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
-        runningWac = effectiveWac;
-      } else if (m.type === "adjustment_add") {
-        const inQty = m.inwardQty;
-        const inRate = m.costPrice > 0 ? m.costPrice : prevWac;
-        if (inRate > 0 && inRate !== prevWac) {
-          effectiveWac = prevBal < 0
-            ? calculateMovingAverageWithPrior(prevBal, prevWac, inQty, inRate, priorFulfilledBudget)
-            : calculateMovingAverage(prevBal, prevWac, inQty, inRate);
-          wacFormula = `Adj (+): (${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
+
+        return {
+          ...m,
+          date: m.date.toISOString(),
+          costPrice: effectiveRate,
+          cogs,
+          balance: runningBalance,
+          effectiveWac: effectiveRate,
+          runningValuation,
+          wacFormula: impactFormula,
+        };
+      });
+    } else {
+      let runningBalance = 0;
+      let runningWac = initialOpeningCost > 0 ? initialOpeningCost : (Number(product.cost_price ?? product.purchase_price) || 0);
+      let priorFulfilledBudget = 0;
+
+      allCalculatedMovements = reorderedMovements.map(m => {
+        const prevBal = runningBalance;
+        const prevWac = runningWac;
+        let effectiveWac = runningWac;
+        let wacFormula = "";
+
+        if (m.type === "opening_stock") {
+          runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
+          effectiveWac = m.unitRate > 0 ? m.unitRate : runningWac;
           runningWac = effectiveWac;
-        } else {
+          wacFormula = m.inwardQty > 0 ? `Opening stock (${m.inwardQty}) @ ${effectiveWac}` : `Opening balance @ 0`;
+        } else if (m.type === "purchase") {
+          const inQty = m.inwardQty;
+          const inRate = m.unitRate;
+          if (prevBal < 0 && prevWac > 0) {
+            effectiveWac = calculateMovingAverageWithPrior(prevBal, prevWac, inQty, inRate, priorFulfilledBudget);
+            wacFormula = `Reconciled Deficit (${prevBal}) + Inward (${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
+          } else {
+            effectiveWac = calculateMovingAverage(prevBal, prevWac, inQty, inRate);
+            wacFormula = prevBal > 0 
+              ? `(${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) / ${roundToPrecision(prevBal + inQty, 3)} = ${effectiveWac}`
+              : `New inward @ ${inRate}`;
+          }
+          runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
+          runningWac = effectiveWac;
+        } else if (m.type === "adjustment_add") {
+          const inQty = m.inwardQty;
+          const inRate = m.costPrice > 0 ? m.costPrice : prevWac;
+          if (inRate > 0 && inRate !== prevWac) {
+            effectiveWac = prevBal < 0
+              ? calculateMovingAverageWithPrior(prevBal, prevWac, inQty, inRate, priorFulfilledBudget)
+              : calculateMovingAverage(prevBal, prevWac, inQty, inRate);
+            wacFormula = `Adj (+): (${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
+            runningWac = effectiveWac;
+          } else {
+            effectiveWac = runningWac;
+            wacFormula = `Adj (+): ${inQty} units (WAC maintained @ ${runningWac})`;
+          }
+          runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
+        } else if (m.type === "sale_return") {
+          runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
           effectiveWac = runningWac;
-          wacFormula = `Adj (+): ${inQty} units (WAC maintained @ ${runningWac})`;
+          wacFormula = `Sale Return (${m.inwardQty}) returned to inventory (WAC: ${runningWac})`;
+        } else if (m.type === "sale") {
+          const outQty = m.outwardQty;
+          effectiveWac = runningWac;
+          if (prevBal > 0) {
+            priorFulfilledBudget += Math.min(prevBal, outQty);
+          }
+          runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
+          wacFormula = `Sale Outward: ${outQty} units @ COGS ${runningWac} (WAC maintained)`;
+        } else if (m.type === "adjustment_reduce") {
+          const outQty = m.outwardQty;
+          effectiveWac = runningWac;
+          runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
+          wacFormula = `Adj (-): ${outQty} units reduced (WAC maintained @ ${runningWac})`;
         }
-        runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
-      } else if (m.type === "sale_return") {
-        runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
-        effectiveWac = runningWac;
-        wacFormula = `Sale Return (${m.inwardQty}) returned to inventory (WAC: ${runningWac})`;
-      } else if (m.type === "sale") {
-        const outQty = m.outwardQty;
-        effectiveWac = runningWac;
-        if (prevBal > 0) {
-          priorFulfilledBudget += Math.min(prevBal, outQty);
-        }
-        runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
-        wacFormula = `Sale Outward: ${outQty} units @ COGS ${runningWac} (WAC maintained)`;
-      } else if (m.type === "adjustment_reduce") {
-        const outQty = m.outwardQty;
-        effectiveWac = runningWac;
-        runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
-        wacFormula = `Adj (-): ${outQty} units reduced (WAC maintained @ ${runningWac})`;
-      }
 
-      // Zoho Books rule: Asset value = runningBalance * effectiveWac (negative when stock is negative)
-      const runningValuation = roundToPrecision(runningBalance * effectiveWac, 2);
+        // Zoho Books rule: Asset value = runningBalance * effectiveWac (negative when stock is negative)
+        const runningValuation = roundToPrecision(runningBalance * effectiveWac, 2);
 
-      // Cost price & outward COGS
-      const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce")
-        ? effectiveWac
-        : (m.costPrice || m.unitRate || effectiveWac);
+        // Cost price & outward COGS
+        const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce")
+          ? effectiveWac
+          : (m.costPrice || m.unitRate || effectiveWac);
 
-      const outwardCogs = (m.type === "sale" || m.type === "adjustment_reduce")
-        ? roundToPrecision(m.outwardQty * effectiveWac, 2)
-        : 0;
+        const outwardCogs = (m.type === "sale" || m.type === "adjustment_reduce")
+          ? roundToPrecision(m.outwardQty * effectiveWac, 2)
+          : 0;
 
-      return {
-        ...m,
-        date: m.date.toISOString(),
-        costPrice: finalCostPrice,
-        cogs: outwardCogs,
-        balance: runningBalance,
-        effectiveWac,
-        runningValuation,
-        wacFormula,
-      };
-    });
+        return {
+          ...m,
+          date: m.date.toISOString(),
+          costPrice: finalCostPrice,
+          cogs: outwardCogs,
+          balance: runningBalance,
+          effectiveWac,
+          runningValuation,
+          wacFormula,
+        };
+      });
+    }
 
     // Date range filtering (if requested)
     let filteredMovements = allCalculatedMovements;
@@ -660,7 +730,7 @@ export async function GET(request: NextRequest) {
       ? allCalculatedMovements[allCalculatedMovements.length - 1].effectiveWac
       : curCost;
 
-    if (trueClosingWac > 0 && Math.abs(curCost - trueClosingWac) > 0.001) {
+    if (valuationMethod !== "fifo" && trueClosingWac > 0 && Math.abs(curCost - trueClosingWac) > 0.001) {
       productsCollection.updateOne(
         { _id: prodObjId, user_id: userId },
         {
@@ -675,7 +745,9 @@ export async function GET(request: NextRequest) {
     }
 
     const effectiveCost = trueClosingWac > 0 ? trueClosingWac : curCost;
-    const totalInventoryValuation = curStock > 0 ? Math.round(curStock * effectiveCost * 100) / 100 : 0;
+    const totalInventoryValuation = allCalculatedMovements.length > 0
+      ? allCalculatedMovements[allCalculatedMovements.length - 1].runningValuation
+      : (curStock > 0 ? Math.round(curStock * effectiveCost * 100) / 100 : 0);
 
     return NextResponse.json({
       product: {
