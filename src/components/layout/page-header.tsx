@@ -27,20 +27,20 @@ export function PageHeader({
 
   return (
     <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6", className)}>
-      <div className={cn(hasBack && "flex items-start gap-2.5")}>
+      <div className={cn("w-full sm:w-auto", hasBack ? "flex items-center sm:items-start gap-2.5" : "")}>
         {backHref && (
-          <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full shrink-0 mt-0.5">
+          <Button variant="ghost" size="icon" asChild className="h-7 w-7 rounded-full shrink-0">
             <Link href={backHref}>
               <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
             </Link>
           </Button>
         )}
         {!backHref && onBack && (
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7 rounded-full shrink-0 mt-0.5">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7 rounded-full shrink-0">
             <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
           </Button>
         )}
-        <div className="min-w-0">
+        <div className={cn("min-w-0 flex-1 text-center sm:text-start", hasBack && "pr-7 sm:pr-0 rtl:pl-7 rtl:sm:pl-0")}>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
           {description && <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{description}</p>}
         </div>
