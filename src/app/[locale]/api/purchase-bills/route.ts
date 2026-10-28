@@ -322,6 +322,21 @@ export async function POST(request: Request) {
     const finalBillDate = rawDateInput ? new Date(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
     const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt) : now;
 
+    const existingBill = await purchaseBillsCollection.findOne({
+      user_id: userObjId,
+      $or: [
+        { bill_number: finalPurchaseNo },
+        { purchase_number: finalPurchaseNo },
+        { purchase_no: finalPurchaseNo },
+      ],
+    });
+    if (existingBill) {
+      return NextResponse.json(
+        { error: "Purchase bill with this bill number already exists" },
+        { status: 409 }
+      );
+    }
+
     const billResult = await purchaseBillsCollection.insertOne({
       user_id: userObjId,
       purchase_number: finalPurchaseNo,
@@ -348,8 +363,15 @@ export async function POST(request: Request) {
       updated_at: now,
     });
 
-    // Apply stock increment for purchase
-    await applyPurchaseBillStock(productsCollection, enrichedItems, user.id);
+    // Apply stock increment and update valuation (Average cost or FIFO batches)
+    const { applyPurchaseInwardServer } = await import("@/lib/inventory/valuation-engine");
+    await applyPurchaseInwardServer({
+      userId: user.id,
+      billId: billResult.insertedId.toString(),
+      billNumber: finalPurchaseNo,
+      items: enrichedItems,
+      billDate: finalBillDate,
+    });
 
     // Record ledger entry
     if (totalAmount !== 0) {
@@ -495,9 +517,14 @@ export async function PUT(request: Request) {
 
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
-    // Revert stock of old items
+    // Revert stock and batches of old items
+    const { reversePurchaseInwardServer, applyPurchaseInwardServer } = await import("@/lib/inventory/valuation-engine");
     if (oldBill.items && oldBill.items.length > 0) {
-      await reversePurchaseBillStock(productsCollection, oldBill.items, user.id);
+      await reversePurchaseInwardServer({
+        userId: user.id,
+        billId: billObjId.toString(),
+        items: oldBill.items,
+      });
     }
 
     // Process new items if provided in request
@@ -534,8 +561,17 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Apply new stock
-    await applyPurchaseBillStock(productsCollection, enrichedItems, user.id);
+    const rawBillDate = customBillDate || customDate || customPurchaseDate;
+    const finalBillDate = rawBillDate ? new Date(rawBillDate) : (oldBill.bill_date || new Date());
+
+    // Apply new stock and valuation
+    await applyPurchaseInwardServer({
+      userId: user.id,
+      billId: billObjId.toString(),
+      billNumber: purchase_number || purchase_no || bill_number || oldBill.purchase_number || "PUR",
+      items: enrichedItems,
+      billDate: finalBillDate,
+    });
 
     const finalPaidAmount = Number(paidAmount) || 0;
     if (finalPaidAmount > totalAmount) {
@@ -562,7 +598,6 @@ export async function PUT(request: Request) {
       description: description || null,
     };
 
-    const rawBillDate = customBillDate || customDate || customPurchaseDate;
     if (rawBillDate) {
       const bDate = new Date(rawBillDate);
       updateData.bill_date = bDate;
@@ -775,9 +810,14 @@ export async function DELETE(request: Request) {
 
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
-    // Reverse stock of all items
+    // Reverse stock and inventory batches of all items
+    const { reversePurchaseInwardServer } = await import("@/lib/inventory/valuation-engine");
     if (oldBill.items && oldBill.items.length > 0) {
-      await reversePurchaseBillStock(productsCollection, oldBill.items, user.id);
+      await reversePurchaseInwardServer({
+        userId: user.id,
+        billId: billObjId.toString(),
+        items: oldBill.items,
+      });
     }
 
     const result = await purchaseBillsCollection.deleteOne({

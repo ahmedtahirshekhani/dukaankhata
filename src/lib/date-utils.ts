@@ -89,6 +89,38 @@ export function formatReadableDateTime(date: string | Date | undefined | null): 
   return `${day}-${month}-${year}, ${hoursFormatted}:${minutes} ${ampm}`;
 }
 
+// Formats a date to Pakistani format: DD-MM-YYYY, with optional time: DD-MM-YYYY, hh:mm:ss A
+export function formatPakistaniDateTime(
+  date: string | Date | undefined | null,
+  isTime: boolean = false,
+  includeSeconds: boolean = true
+): string {
+  if (!date) return "-";
+  const parsed = safeDate(date, new Date(0));
+  if (parsed.getTime() === 0) return "-";
+
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = parsed.getFullYear();
+
+  if (!isTime) {
+    return `${day}-${month}-${year}`;
+  }
+
+  let hours = parsed.getHours();
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+  const seconds = String(parsed.getSeconds()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursFormatted = String(hours).padStart(2, "0");
+
+  if (includeSeconds) {
+    return `${day}-${month}-${year}, ${hoursFormatted}:${minutes}:${seconds} ${ampm}`;
+  }
+  return `${day}-${month}-${year}, ${hoursFormatted}:${minutes} ${ampm}`;
+}
+
 // Returns today's date formatted for an HTML input (YYYY-MM-DD)
 export function getTodayHTMLDate(): string {
   return toHTMLDateString(new Date());

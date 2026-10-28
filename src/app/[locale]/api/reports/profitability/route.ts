@@ -87,35 +87,47 @@ export async function GET(request: NextRequest) {
           total_amount: { $first: "$total_amount" },
           total_cost: {
             $sum: {
-              $multiply: [
-                { $convert: { input: { $ifNull: ["$items.quantity", 0] }, to: "double", onError: 0, onNull: 0 } },
+              $ifNull: [
                 {
                   $convert: {
-                    input: {
-                      $ifNull: [
-                        "$items.cost_price",
-                        {
+                    input: "$items.total_cogs",
+                    to: "double",
+                    onError: null,
+                    onNull: null,
+                  }
+                },
+                {
+                  $multiply: [
+                    { $convert: { input: { $ifNull: ["$items.quantity", 0] }, to: "double", onError: 0, onNull: 0 } },
+                    {
+                      $convert: {
+                        input: {
                           $ifNull: [
-                            "$items.purchase_price",
+                            "$items.cost_price",
                             {
                               $ifNull: [
-                                "$items.costPrice",
+                                "$items.purchase_price",
                                 {
                                   $ifNull: [
-                                    "$items.purchasePrice",
-                                    { $ifNull: ["$product_cost", 0] }
+                                    "$items.costPrice",
+                                    {
+                                      $ifNull: [
+                                        "$items.purchasePrice",
+                                        { $ifNull: ["$product_cost", 0] }
+                                      ]
+                                    }
                                   ]
                                 }
                               ]
                             }
                           ]
-                        }
-                      ]
-                    },
-                    to: "double",
-                    onError: 0,
-                    onNull: 0
-                  }
+                        },
+                        to: "double",
+                        onError: 0,
+                        onNull: 0
+                      }
+                    }
+                  ]
                 }
               ]
             }

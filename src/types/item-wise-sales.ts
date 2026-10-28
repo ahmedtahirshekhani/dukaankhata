@@ -21,7 +21,15 @@ export interface ItemSaleRecord {
   minSellPrice: number;
   maxSellPrice: number;
   avgSellingPrice: number;
+  avgCostPrice?: number;
   profitMargin: number;
+  batchSplits?: Array<{
+    batch_id?: any;
+    batch_number?: string;
+    quantity?: number;
+    cost_price?: number;
+    total_cost?: number;
+  }>;
 }
 
 export interface ItemWiseSaleSummary {

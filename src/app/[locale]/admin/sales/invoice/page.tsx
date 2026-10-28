@@ -861,9 +861,9 @@ export default function OrdersPage() {
     if (!orderToDelete) return;
     setDeleting(true);
     try {
-      // 1. Revert stock locally
+      // 1. Revert stock and batches locally
       if (orderToDelete.items && Array.isArray(orderToDelete.items)) {
-        const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+        const { adjustOfflineStock, restoreOfflineBatchesOnSaleRevert } = await import('@/lib/db/offline-stock-manager');
         for (const item of orderToDelete.items) {
           if (item.product_id) {
             const productDoc = await db.products.get(item.product_id.toString());
@@ -876,6 +876,11 @@ export default function OrdersPage() {
                 await adjustOfflineStock(item.product_id.toString(), Number(item.quantity) || 0);
               }
             }
+          }
+
+          const batchSplits = (item as any).batch_splits;
+          if (batchSplits && Array.isArray(batchSplits) && batchSplits.length > 0) {
+            await restoreOfflineBatchesOnSaleRevert({ consumedBatches: batchSplits });
           }
         }
       }

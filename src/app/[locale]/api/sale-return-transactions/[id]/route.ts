@@ -264,10 +264,40 @@ export async function PUT(
         if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
       }
     }
-    // Apply new stock
+    // Delete old inventory batches for this sale return
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.deleteMany({
+        user_id: toObjectId(user.id),
+        source_id: id.toString(),
+      });
+    } catch (bErr) {
+      console.error("Failed to delete old batches on sale return update:", bErr);
+    }
+
+    // Apply new stock and re-inward batches
     if (lineItems && Array.isArray(lineItems)) {
+      const { reInwardBatchOnSaleReturnServer } = await import('@/lib/inventory/valuation-engine');
       for (const item of lineItems) {
-        if (item.productId) await adjustStock(item.productId, user.id, (item.quantity || 0));
+        if (item.productId) {
+          const retQty = item.quantity || 0;
+          await adjustStock(item.productId, user.id, retQty);
+          if (retQty > 0) {
+            try {
+              await reInwardBatchOnSaleReturnServer({
+                userId: user.id,
+                returnId: id.toString(),
+                returnNumber: existing.return_number || "SR",
+                productId: item.productId,
+                quantity: retQty,
+                costPrice: Number((item as any).costPrice) || Number(item.rate) || 0,
+                returnDate: date,
+              });
+            } catch (retBatchErr) {
+              console.error("Failed to re-inward batch on sale return update:", retBatchErr);
+            }
+          }
+        }
       }
     }
 
@@ -467,6 +497,17 @@ export async function DELETE(
       for (const item of existing.items) {
         if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
       }
+    }
+
+    // Delete inventory batches created by this sale return
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.deleteMany({
+        user_id: toObjectId(user.id),
+        source_id: id.toString(),
+      });
+    } catch (delBatchErr) {
+      console.error("Failed to delete inventory batches for sale return:", delBatchErr);
     }
 
     if (customerId && isValidObjectId(customerId)) {

@@ -177,13 +177,28 @@ export default function QuotationListPage() {
         };
         await db.orders.put(orderDoc);
 
-        // Deduct stock offline
+        // Deduct stock and update selling price offline
         const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
         if (quotation.items && Array.isArray(quotation.items)) {
           for (const item of quotation.items) {
-             const productId = item.product_id || item.productId || item.id;
+             const productId = (item.product_id || item.productId || item.id || "").toString();
              if (productId) {
-               await adjustOfflineStock(productId.toString(), -(Number(item.quantity) || 0));
+               await adjustOfflineStock(productId, -(Number(item.quantity) || 0));
+
+               // Update latest selling price in Dexie
+               const salePrice = Number(item.unit_price ?? item.sell_price ?? item.price ?? 0);
+               if (!isNaN(salePrice) && salePrice > 0) {
+                 let productDoc = await db.products.get(productId);
+                 if (!productDoc) {
+                   productDoc = await db.products.where("_id").equals(productId).first();
+                 }
+                 const actualKey = (productDoc?.id || productId).toString();
+                 await db.products.update(actualKey, {
+                   sell_price: salePrice,
+                   sell_price_str: String(salePrice),
+                   price: salePrice,
+                 });
+               }
              }
           }
         }

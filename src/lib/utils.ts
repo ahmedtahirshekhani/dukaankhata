@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatReadableDate, formatPakistaniDateTime } from "./date-utils"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -23,7 +24,7 @@ export function getUserTimeZone(fallback: string = 'Asia/Karachi'): string {
 
 
 // Format a date in the user's local timezone. Accepts a Date object or an ISO string.
-// By default, formats date only (no time). Pass options to customize formatting.
+// By default, formats date only (no time) in day-month-year order. Pass options to customize formatting.
 export function formatDate(
   date: Date | string,
   iSCurrentTime?: boolean,
@@ -35,10 +36,10 @@ export function formatDate(
   if (!iSCurrentTime) {
     timezoneDt = timezoneDt - (dt.getTimezoneOffset() * 60000);
   }
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('en-GB', {
     timeZone: tz,
-    month: 'short',
     day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
     ...options,
   }).format(timezoneDt)
@@ -126,41 +127,20 @@ export function formatCurrencyWithSuper(amount: number): { whole: string; decima
 
 /**
  * Format date and time for display in account statement entry date column
- * Shows full date with time (e.g., "Feb 20, 2026, 10:30 AM")
+ * Shows full date with time in Pakistani format (e.g., "24-10-2026, 10:30:00 AM")
  */
 export function formatStatementDateTime(dateStr: string): string {
   if (!dateStr) return "-";
-  try {
-    const date = new Date(dateStr);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
-  } catch {
-    return dateStr;
-  }
+  return formatPakistaniDateTime(dateStr, true);
 }
 
 /**
  * Format date only (no time) for display in account statement
- * Shows only date (e.g., "Feb 20, 2026")
+ * Shows Pakistani date (e.g., "24-10-2026")
  */
 export function formatStatementDate(dateStr: string): string {
   if (!dateStr) return "-";
-  try {
-    const date = new Date(dateStr);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    }).format(date);
-  } catch {
-    return dateStr;
-  }
+  return formatReadableDate(dateStr);
 }
 
 /**

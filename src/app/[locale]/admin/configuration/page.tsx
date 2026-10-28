@@ -25,7 +25,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Layers, Home } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export default function ConfigurationPage({
   params,
@@ -71,10 +75,14 @@ export default function ConfigurationPage({
   const [deleteWorkspaceError, setDeleteWorkspaceError] = useState<string>("");
   const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
+  // Active Tab State
+  const [activeTab, setActiveTab] = useState<"inventory" | "company" | "danger">("inventory");
+
   // Feature Switches State
   const [enableCounterSale, setEnableCounterSale] = useState(true);
   const [enableAiChat, setEnableAiChat] = useState(true);
   const [enableWhatsApp, setEnableWhatsApp] = useState(true);
+  const [stockValuationMethod, setStockValuationMethod] = useState<"average" | "fifo">("average");
 
   useEffect(() => {
     const load = async () => {
@@ -86,6 +94,10 @@ export default function ConfigurationPage({
           if (savedAi) setEnableAiChat(savedAi === "true");
           const savedWa = localStorage.getItem("setting_wa");
           if (savedWa) setEnableWhatsApp(savedWa === "true");
+          const savedMethod = localStorage.getItem("setting_stockValuationMethod");
+          if (savedMethod === "fifo" || savedMethod === "average") {
+            setStockValuationMethod(savedMethod);
+          }
 
           const wsId = (session?.user as any)?.id || "";
 
@@ -99,9 +111,13 @@ export default function ConfigurationPage({
         }
 
         try {
-          const res = await fetch(`/${params.locale}/api/configuration/assets`);
-          if (res.ok) {
-            const data = await res.json();
+          const [assetsRes, configRes] = await Promise.all([
+            fetch(`/${params.locale}/api/configuration/assets`),
+            fetch(`/${params.locale}/api/configurations`),
+          ]);
+
+          if (assetsRes.ok) {
+            const data = await assetsRes.json();
             const wsId = (session?.user as any)?.id || "";
             const savedCompanyName = data.companyName || localStorage.getItem(`companyName_${wsId}`) || (session?.user as any)?.company || "";
             const savedCompanyAddress = data.companyAddress || localStorage.getItem(`companyAddress_${wsId}`) || "";
@@ -114,6 +130,26 @@ export default function ConfigurationPage({
             setCompanyEmail(savedCompanyEmail as string);
             setCompanyLogo(data.companyLogo || localStorage.getItem(`companyLogo_${wsId}`) || null);
             setSignatureImage(data.signatureImage || localStorage.getItem(`invoiceSignature_${wsId}`) || null);
+          }
+
+            if (configRes.ok) {
+              const cfg = await configRes.json();
+              if (cfg.stock_valuation_method === "fifo" || cfg.stock_valuation_method === "average") {
+                setStockValuationMethod(cfg.stock_valuation_method);
+                localStorage.setItem("setting_stockValuationMethod", cfg.stock_valuation_method);
+              }
+            if (typeof cfg.is_counterSale_enable === "boolean") {
+              setEnableCounterSale(cfg.is_counterSale_enable);
+              localStorage.setItem("setting_counterSale", String(cfg.is_counterSale_enable));
+            }
+            if (typeof cfg.is_AI_Chat_Enable === "boolean") {
+              setEnableAiChat(cfg.is_AI_Chat_Enable);
+              localStorage.setItem("setting_aiChat", String(cfg.is_AI_Chat_Enable));
+            }
+            if (typeof cfg.is_Whatsapp_enable === "boolean") {
+              setEnableWhatsApp(cfg.is_Whatsapp_enable);
+              localStorage.setItem("setting_wa", String(cfg.is_Whatsapp_enable));
+            }
           }
         } catch (fetchErr) {
           console.warn("Offline or failed to fetch config from server, using local data");
@@ -133,6 +169,7 @@ export default function ConfigurationPage({
       is_counterSale_enable: updates.counterSale ?? enableCounterSale,
       is_AI_Chat_Enable: updates.aiChat ?? enableAiChat,
       is_Whatsapp_enable: updates.wa ?? enableWhatsApp,
+      stock_valuation_method: updates.stockValuationMethod ?? stockValuationMethod,
     };
 
     try {
@@ -172,6 +209,14 @@ export default function ConfigurationPage({
     localStorage.setItem("setting_wa", String(val));
     window.dispatchEvent(new Event("featureSettingsUpdated"));
     syncFeatureSettings({ wa: val });
+  };
+
+  const handleValuationMethodChange = (method: "average" | "fifo") => {
+    setStockValuationMethod(method);
+    localStorage.setItem("setting_stockValuationMethod", method);
+    window.dispatchEvent(new Event("featureSettingsUpdated"));
+    window.dispatchEvent(new Event("stockValuationMethodUpdated"));
+    syncFeatureSettings({ stockValuationMethod: method });
   };
 
   const handleDeleteData = async (e: React.FormEvent) => {
@@ -379,262 +424,465 @@ export default function ConfigurationPage({
 
   return (
     <ProtectedRoute locale={params.locale}>
-      <div className="container mx-auto py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">{tNav("configuration")}</h1>
-            <p className="text-gray-600 mt-2">
-              {tNav("configurationDescription")}
-            </p>
+      <div className="flex-1 space-y-5 w-full mx-auto animate-in fade-in duration-300">
+        {/* PageHeader with integrated navigation tabs */}
+        <PageHeader
+          title={tNav("configuration")}
+          description={tNav("configurationDescription")}
+          actions={
+            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none py-0.5">
+              <div
+                className={cn(
+                  "grid sm:inline-flex items-center p-1 bg-muted/70 border rounded-xl gap-1 w-full sm:w-auto",
+                  canEditConfig ? "grid-cols-3" : "grid-cols-2"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("inventory")}
+                  className={cn(
+                    "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap min-w-0",
+                    activeTab === "inventory"
+                      ? "bg-background text-primary shadow-xs ring-1 ring-border"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Layers className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">{t("tabInventoryFeatures")}</span>
+                  <span className="sm:hidden truncate">{t("tabInventoryShort") || "Inventory"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("company")}
+                  className={cn(
+                    "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap min-w-0",
+                    activeTab === "company"
+                      ? "bg-background text-primary shadow-xs ring-1 ring-border"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Home className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">{t("tabCompanyProfile")}</span>
+                  <span className="sm:hidden truncate">{t("tabCompanyShort") || "Company"}</span>
+                </button>
+                {canEditConfig && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("danger")}
+                    className={cn(
+                      "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap min-w-0",
+                      activeTab === "danger"
+                        ? "bg-background text-destructive shadow-xs ring-1 ring-border"
+                        : "text-muted-foreground hover:text-destructive"
+                    )}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline">{t("tabDangerZone")}</span>
+                    <span className="sm:hidden truncate">{t("tabDangerShort") || "Danger"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          }
+        />
+
+        {message && (
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center justify-between animate-in fade-in duration-200 font-medium">
+            <span>{message}</span>
           </div>
+        )}
 
-          {canViewConfig && (
+        {isLoading ? (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Stock Valuation Skeleton */}
+            <Card className="border-border shadow-xs">
+              <CardHeader className="pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <Skeleton className="w-9 h-9 rounded-lg" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-44" />
+                    <Skeleton className="h-3 w-72" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <Skeleton className="h-28 rounded-xl" />
+                  <Skeleton className="h-28 rounded-xl" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Feature Modules Skeleton */}
+            <Card className="border-border shadow-xs">
+              <CardHeader className="pb-3.5 space-y-1.5">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-56" />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Skeleton className="h-16 rounded-xl" />
+                  <Skeleton className="h-16 rounded-xl" />
+                  <Skeleton className="h-16 rounded-xl" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          canViewConfig && (
             <>
-              <Card className="mb-8">
-                <CardHeader>
-                  <CardTitle>{t("featureModules")}</CardTitle>
-                  <CardDescription>{t("featureModulesDescription")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>{t("counterSaleTitle")}</Label>
-                      <p className="text-sm text-gray-500">{t("counterSaleDesc")}</p>
-                    </div>
-                    <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>{t("aiChatTitle")}</Label>
-                      <p className="text-sm text-gray-500">{t("aiChatDesc")}</p>
-                    </div>
-                    <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>{t("whatsappTitle")}</Label>
-                      <p className="text-sm text-gray-500">{t("whatsappDesc")}</p>
-                    </div>
-                    <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {message && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-                  {message}
-                </div>
-              )}
-
-              {isLoading ? (
-                <div className="p-4 text-sm text-muted-foreground">
-                  {t("loading")}
-                </div>
-              ) : (
-                <>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{t("companyDetails")}</CardTitle>
-                      <CardDescription>
-                        {t("companyDetailsDescription")}
-                      </CardDescription>
+              {/* TAB 1: INVENTORY & FEATURE MODULES */}
+              {activeTab === "inventory" && (
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  {/* Stock Valuation Method Card */}
+                  <Card className="border-border shadow-xs">
+                    <CardHeader className="pb-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                          <Layers className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base sm:text-lg">{t("stockValuationTitle")}</CardTitle>
+                          <CardDescription className="text-xs mt-0.5">
+                            {t("stockValuationDescription")}
+                          </CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-6">
-                        {/* Company Name */}
-                        <div className="space-y-2">
-                          <Label htmlFor="company-name">{t("companyName")}</Label>
-                          <Input
-                            id="company-name"
-                            type="text"
-                            placeholder={t("enterCompanyName")}
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Company Address */}
-                        <div className="space-y-2">
-                          <Label htmlFor="company-address">{t("companyAddress")}</Label>
-                          <Input
-                            id="company-address"
-                            type="text"
-                            placeholder={t("enterCompanyAddress")}
-                            value={companyAddress}
-                            onChange={(e) => setCompanyAddress(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Company Phone */}
-                        <div className="space-y-2">
-                          <Label htmlFor="company-phone">{t("companyPhone")}</Label>
-                          <Input
-                            id="company-phone"
-                            type="text"
-                            placeholder={t("enterCompanyPhone")}
-                            value={companyPhone}
-                            onChange={(e) => setCompanyPhone(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Company Email */}
-                        <div className="space-y-2">
-                          <Label htmlFor="company-email">{t("companyEmail")}</Label>
-                          <Input
-                            id="company-email"
-                            type="email"
-                            placeholder={t("enterCompanyEmail")}
-                            value={companyEmail}
-                            onChange={(e) => setCompanyEmail(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Company Logo */}
-                        <div className="space-y-2">
-                          <Label htmlFor="company-logo">{t("companyLogo")}</Label>
-                          <Input
-                            id="company-logo"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoChange}
-                          />
-                          {logoError && (
-                            <p className="text-xs text-red-600">{logoError}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {/* Weighted Average Option */}
+                        <div
+                          onClick={() => handleValuationMethodChange("average")}
+                          className={cn(
+                            "p-4 rounded-xl border-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
+                            stockValuationMethod === "average"
+                              ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20"
+                              : "border-border hover:border-muted-foreground/30 bg-card"
                           )}
-                          {companyLogo && (
-                            <div className="mt-2">
-                              <img
-                                src={companyLogo}
-                                alt={t("companyLogoAlt")}
-                                className="h-16 w-auto rounded border"
-                              />
-                              <div className="mt-2 flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setCompanyLogo(null);
-                                  }}
-                                >
-                                  {tCommon("delete")}
-                                </Button>
+                        >
+                          <div>
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1 pr-2">
+                                <h4 className="font-bold text-foreground text-xs sm:text-sm">
+                                  {t("weightedAverageTitle")}
+                                </h4>
+                                <Badge className="text-[10px] px-2 py-0.5 bg-primary/15 text-primary hover:bg-primary/25 border-primary/20 shadow-none font-semibold">
+                                  {t("weightedAverageBadge")}
+                                </Badge>
+                              </div>
+                              <div
+                                className={cn(
+                                  "w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
+                                  stockValuationMethod === "average"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40"
+                                )}
+                              >
+                                {stockValuationMethod === "average" && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                                )}
                               </div>
                             </div>
-                          )}
+                            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                              {t("weightedAverageDesc")}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* Authorized Signature */}
-                        <div className="space-y-2">
-                          <Label htmlFor="authorized-signature">
-                            {t("authorizedSignature")}
-                          </Label>
-                          <Input
-                            id="authorized-signature"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleSignatureChange}
-                          />
-                          {signatureError && (
-                            <p className="text-xs text-red-600">{signatureError}</p>
+                        {/* FIFO Option */}
+                        <div
+                          onClick={() => handleValuationMethodChange("fifo")}
+                          className={cn(
+                            "p-4 rounded-xl border-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
+                            stockValuationMethod === "fifo"
+                              ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20"
+                              : "border-border hover:border-muted-foreground/30 bg-card"
                           )}
-                          {signatureImage && (
-                            <div className="mt-2">
-                              <img
-                                src={signatureImage}
-                                alt={t("authorizedSignatureAlt")}
-                                className="h-16 w-auto rounded border"
-                              />
-                              <div className="mt-2 flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setSignatureImage(null);
-                                  }}
-                                >
-                                  {tCommon("delete")}
-                                </Button>
+                        >
+                          <div>
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1 pr-2">
+                                <h4 className="font-bold text-foreground text-xs sm:text-sm">
+                                  {t("fifoTitle")}
+                                </h4>
+                                <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/40 text-primary font-semibold">
+                                  {t("fifoBadge")}
+                                </Badge>
+                              </div>
+                              <div
+                                className={cn(
+                                  "w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
+                                  stockValuationMethod === "fifo"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40"
+                                )}
+                              >
+                                {stockValuationMethod === "fifo" && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                                )}
                               </div>
                             </div>
-                          )}
+                            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                              {t("fifoDesc")}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {canEditConfig && (
-                    <div className="mt-6 flex justify-end">
-                      <Button onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? t("saving") : t("saveDetails")}
-                      </Button>
-                    </div>
-                  )}
-
-                  {canEditConfig && (
-                    <Card className="mt-8 border-red-200 bg-red-50/50">
-                      <CardHeader>
-                        <CardTitle className="text-red-600">{t("dangerZone") || "Danger Zone"}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="space-y-1 text-red-900/90">
-                            <h3 className="font-medium text-red-800">{t("deleteAllDataTitle") || "Delete All Workspace Data"}</h3>
-                            <p className="text-sm">{t("deleteAllDataDescription") || "This will delete all sales, expenses, and records for this workspace. Cash defaults will be reset."}</p>
+                  {/* Feature Modules Card */}
+                  <Card className="border-border shadow-xs">
+                    <CardHeader className="pb-3.5">
+                      <CardTitle className="text-base sm:text-lg">{t("featureModules")}</CardTitle>
+                      <CardDescription className="text-xs mt-0.5">{t("featureModulesDescription")}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="flex items-center justify-between p-3.5 bg-muted/30 border border-border rounded-xl">
+                          <div className="space-y-0.5 pr-2">
+                            <Label className="text-xs sm:text-sm font-semibold">{t("counterSaleTitle")}</Label>
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">{t("counterSaleDesc")}</p>
                           </div>
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowDeleteDataModal(true)}
-                            className="bg-red-600 text-white hover:bg-red-50 hover:text-red-700 border-red-200 w-full sm:w-auto shrink-0"
-                          >
-                            {t("deleteAllDataButton") || "Delete Data"}
-                          </Button>
+                          <Switch checked={enableCounterSale} onCheckedChange={handleToggleCounter} />
                         </div>
 
-                        <div className="border-t border-red-200/80 my-2" />
+                        <div className="flex items-center justify-between p-3.5 bg-muted/30 border border-border rounded-xl">
+                          <div className="space-y-0.5 pr-2">
+                            <Label className="text-xs sm:text-sm font-semibold">{t("aiChatTitle")}</Label>
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">{t("aiChatDesc")}</p>
+                          </div>
+                          <Switch checked={enableAiChat} onCheckedChange={handleToggleAi} />
+                        </div>
 
-                        {/* Option 2: Delete Entire Workspace */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="space-y-1 text-red-900/90">
-                            <h3 className="font-medium text-red-800">{t("deleteWorkspaceTitle") || "Delete Workspace"}</h3>
-                            <p className="text-sm">{t("deleteWorkspaceDescription") || "Permanently delete this entire workspace along with all its sales, expenses, inventory, staff roles, and settings. This cannot be undone."}</p>
-                            {!isOwner && (
-                              <p className="text-xs text-red-600 italic mt-1 font-medium">{t("onlyOwnerCanDeleteWorkspace") || "Only the workspace owner can delete this workspace."}</p>
+                        <div className="flex items-center justify-between p-3.5 bg-muted/30 border border-border rounded-xl">
+                          <div className="space-y-0.5 pr-2">
+                            <Label className="text-xs sm:text-sm font-semibold">{t("whatsappTitle")}</Label>
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">{t("whatsappDesc")}</p>
+                          </div>
+                          <Switch checked={enableWhatsApp} onCheckedChange={handleToggleWa} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* TAB 2: COMPANY PROFILE & BRANDING */}
+              {activeTab === "company" && (
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  <Card className="border-border shadow-xs">
+                    <CardHeader className="pb-3.5">
+                      <CardTitle className="text-base sm:text-lg">{t("companyDetails")}</CardTitle>
+                      <CardDescription className="text-xs mt-0.5">
+                        {t("companyDetailsDescription")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {/* Left Column: Text Inputs */}
+                        <div className="space-y-3.5">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="company-name" className="text-xs font-semibold">{t("companyName")}</Label>
+                            <Input
+                              id="company-name"
+                              type="text"
+                              placeholder={t("enterCompanyName")}
+                              value={companyName}
+                              onChange={(e) => setCompanyName(e.target.value)}
+                              className="h-10 text-sm"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="company-phone" className="text-xs font-semibold">{t("companyPhone")}</Label>
+                            <Input
+                              id="company-phone"
+                              type="text"
+                              placeholder={t("enterCompanyPhone")}
+                              value={companyPhone}
+                              onChange={(e) => setCompanyPhone(e.target.value)}
+                              className="h-10 text-sm"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="company-email" className="text-xs font-semibold">{t("companyEmail")}</Label>
+                            <Input
+                              id="company-email"
+                              type="email"
+                              placeholder={t("enterCompanyEmail")}
+                              value={companyEmail}
+                              onChange={(e) => setCompanyEmail(e.target.value)}
+                              className="h-10 text-sm"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="company-address" className="text-xs font-semibold">{t("companyAddress")}</Label>
+                            <Input
+                              id="company-address"
+                              type="text"
+                              placeholder={t("enterCompanyAddress")}
+                              value={companyAddress}
+                              onChange={(e) => setCompanyAddress(e.target.value)}
+                              className="h-10 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Right Column: Logo & Signature */}
+                        <div className="space-y-3.5">
+                          {/* Logo */}
+                          <div className="p-3.5 bg-muted/30 border border-border rounded-xl space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="company-logo" className="text-xs font-semibold">{t("companyLogo")}</Label>
+                              {companyLogo && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setCompanyLogo(null)}
+                                  className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 p-1"
+                                >
+                                  {tCommon("delete")}
+                                </Button>
+                              )}
+                            </div>
+                            <Input
+                              id="company-logo"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoChange}
+                              className="text-xs"
+                            />
+                            {logoError && <p className="text-xs text-destructive">{logoError}</p>}
+                            {companyLogo && (
+                              <div className="mt-2 flex items-center justify-center p-2 bg-background rounded-lg border border-border">
+                                <img src={companyLogo} alt={t("companyLogoAlt")} className="h-14 max-w-full object-contain" />
+                              </div>
                             )}
                           </div>
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowDeleteWorkspaceModal(true)}
-                            disabled={!isOwner}
-                            className="bg-red-700 text-white hover:bg-red-800 hover:text-white border-red-300 w-full sm:w-auto shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {t("deleteWorkspaceButton") || "Delete Workspace"}
+
+                          {/* Signature */}
+                          <div className="p-3.5 bg-muted/30 border border-border rounded-xl space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="authorized-signature" className="text-xs font-semibold">{t("authorizedSignature")}</Label>
+                              {signatureImage && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setSignatureImage(null)}
+                                  className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 p-1"
+                                >
+                                  {tCommon("delete")}
+                                </Button>
+                              )}
+                            </div>
+                            <Input
+                              id="authorized-signature"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSignatureChange}
+                              className="text-xs"
+                            />
+                            {signatureError && <p className="text-xs text-destructive">{signatureError}</p>}
+                            {signatureImage && (
+                              <div className="mt-2 flex items-center justify-center p-2 bg-background rounded-lg border border-border">
+                                <img src={signatureImage} alt={t("authorizedSignatureAlt")} className="h-14 max-w-full object-contain" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {canEditConfig && (
+                        <div className="mt-6 flex justify-end">
+                          <Button onClick={handleSave} disabled={isSaving} className="font-semibold px-6">
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t("saving")}
+                              </>
+                            ) : (
+                              t("saveDetails")
+                            )}
                           </Button>
                         </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-                        {isSoleWorkspace && (
-                          <div className="mt-1 p-3 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                              <p className="leading-relaxed">
-                                {t("cannotDeleteOnlyWorkspaceDesc") || "You cannot delete your only workspace. If you want to delete your entire account, please go to the Settings page and click Delete Account."}
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => router.push(`/${params.locale}/admin/settings`)}
-                              className="border-amber-300 bg-white hover:bg-amber-100 text-amber-900 hover:text-slate-600 text-xs shrink-0 font-medium"
-                            >
-                              {t("goToSettings")}
-                            </Button>
+              {/* TAB 3: DANGER ZONE */}
+              {activeTab === "danger" && canEditConfig && (
+                <div className="animate-in fade-in duration-150">
+                  <Card className="border-destructive/30 bg-destructive/5">
+                    <CardHeader className="pb-3.5">
+                      <CardTitle className="text-destructive text-base sm:text-lg">{t("dangerZone") || "Danger Zone"}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h3 className="font-semibold text-destructive text-sm">{t("deleteAllDataTitle") || "Delete All Workspace Data"}</h3>
+                          <p className="text-xs text-destructive/80">{t("deleteAllDataDescription") || "This will delete all sales, expenses, and records for this workspace. Cash defaults will be reset."}</p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          onClick={() => setShowDeleteDataModal(true)}
+                          className="text-xs w-full sm:w-auto shrink-0 font-medium"
+                        >
+                          {t("deleteAllDataButton") || "Delete Data"}
+                        </Button>
+                      </div>
+
+                      <div className="border-t border-destructive/20 my-2" />
+
+                      {/* Option 2: Delete Entire Workspace */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h3 className="font-semibold text-destructive text-sm">{t("deleteWorkspaceTitle") || "Delete Workspace"}</h3>
+                          <p className="text-xs text-destructive/80">{t("deleteWorkspaceDescription") || "Permanently delete this entire workspace along with all its sales, expenses, inventory, staff roles, and settings. This cannot be undone."}</p>
+                          {!isOwner && (
+                            <p className="text-[11px] text-destructive italic mt-1 font-medium">{t("onlyOwnerCanDeleteWorkspace") || "Only the workspace owner can delete this workspace."}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="destructive"
+                          onClick={() => setShowDeleteWorkspaceModal(true)}
+                          disabled={!isOwner}
+                          className="text-xs w-full sm:w-auto shrink-0 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          {t("deleteWorkspaceButton") || "Delete Workspace"}
+                        </Button>
+                      </div>
+
+                      {isSoleWorkspace && (
+                        <div className="mt-1 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <p className="leading-relaxed text-xs">
+                              {t("cannotDeleteOnlyWorkspaceDesc") || "You cannot delete your only workspace. If you want to delete your entire account, please go to the Settings page and click Delete Account."}
+                            </p>
                           </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-                </>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => router.push(`/${params.locale}/admin/settings`)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-xs text-xs shrink-0 font-medium transition-colors cursor-pointer"
+                          >
+                            {t("goToSettings")}
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               )}
             </>
-          )}
+          )
+        )}
 
           {/* Delete All Data Modal */}
           <Dialog
@@ -830,12 +1078,11 @@ export default function ConfigurationPage({
           </Dialog>
 
           {!canViewConfig && !canViewPaymentMethods && (
-                <div className="text-center p-8 text-muted-foreground border rounded-lg bg-gray-50 mt-8">
-                  You do not have permission to view configuration or payment methods.
-                </div>
-              )}
+            <div className="text-center p-8 text-muted-foreground border rounded-lg bg-muted/30 mt-8">
+              You do not have permission to view configuration or payment methods.
             </div>
-        </div>
+          )}
+      </div>
     </ProtectedRoute>
   );
 }

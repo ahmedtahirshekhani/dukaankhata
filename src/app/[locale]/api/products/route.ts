@@ -88,6 +88,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
   }
 
+  // Create opening stock batch if initial quantity is present
+  const initQty = Number(newProduct.quantity || newProduct.in_stock) || 0;
+  const initCost = Number(newProduct.cost_price || newProduct.purchase_price) || 0;
+  if (initQty > 0) {
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.insertOne({
+        user_id: toObjectId(user.id),
+        product_id: result.insertedId,
+        source_type: "opening_stock",
+        source_id: result.insertedId.toString(),
+        batch_number: "OPENING",
+        initial_quantity: initQty,
+        remaining_quantity: initQty,
+        cost_price: initCost,
+        status: "active",
+        batch_date: now,
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (bErr) {
+      console.error("Failed to create opening stock batch:", bErr);
+    }
+  }
+
   // ✅ Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });

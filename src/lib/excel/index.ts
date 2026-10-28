@@ -20,7 +20,7 @@ import {
   PartyWiseTabSummary,
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
-import { formatStatementDate } from "../utils";
+import { formatStatementDate, formatStatementDateTime } from "../utils";
 
 /**
  * Exports transactions to an Excel file
@@ -297,10 +297,10 @@ export function exportStockReportToExcel(
 ): void {
   const excelData = items.map((item) => {
     const qty = item.quantity || 0;
-    const cost = item.cost_price || 0;
+    const cost = item.effective_cost_price ?? item.cost_price ?? 0;
     const sell = item.sell_price || 0;
     const damagedQty = item.damaged_quantity || 0;
-    const totalCostVal = qty * cost;
+    const totalCostVal = item.total_cost_value ?? (qty * cost);
     const totalRetailVal = qty * sell;
     const profitPotential = totalRetailVal - totalCostVal;
 
@@ -309,13 +309,13 @@ export function exportStockReportToExcel(
       Category: item.category || "-",
       Branch: item.branch || "-",
       Quantity: qty,
-      "Cost Price (Rs.)": Math.floor(cost),
-      "Sell Price (Rs.)": Math.floor(sell),
-      "Total Cost Valuation (Rs.)": Math.floor(totalCostVal),
-      "Total Retail Valuation (Rs.)": Math.floor(totalRetailVal),
-      "Profit Potential (Rs.)": Math.floor(profitPotential),
+      "Cost Price (Rs.)": Math.round(cost * 100) / 100,
+      "Sell Price (Rs.)": Math.round(sell * 100) / 100,
+      "Total Cost Valuation (Rs.)": Math.round(totalCostVal * 100) / 100,
+      "Total Retail Valuation (Rs.)": Math.round(totalRetailVal * 100) / 100,
+      "Profit Potential (Rs.)": Math.round(profitPotential * 100) / 100,
       "Damaged Quantity": damagedQty,
-      "Damaged Valuation (Rs.)": Math.floor(damagedQty * cost),
+      "Damaged Valuation (Rs.)": Math.round(damagedQty * cost * 100) / 100,
     };
   });
 
@@ -487,6 +487,7 @@ export function exportItemWiseSalesToExcel(
     "Gross Sales (Rs.)": Math.round(item.totalGrossAmount || 0),
     "Discount (Rs.)": Math.round(item.totalDiscount || 0),
     "Net Revenue (Rs.)": Math.round(item.totalRevenue || 0),
+    "Cost / COGS (Rs.)": Math.round((item as any).totalCost || 0),
     "Profit (Rs.)": Math.round(item.totalProfit || 0),
     "Profit Margin (%)": `${item.profitMargin || 0}%`,
     "Current Stock": item.currentStock || 0,
@@ -758,10 +759,103 @@ export function exportPartyWiseByModeToExcel(
   XLSX.writeFile(workbook, filename || defaultFilename);
 }
 
+/**
+ * Exports stock adjustment audit log to Excel
+ */
+export function exportStockAdjustmentsToExcel(
+  adjustments: any[],
+  filename: string = "stock-adjustments.xlsx"
+): void {
+  const workbook = XLSX.utils.book_new();
 
+  const data = adjustments.map((adj, index) => ({
+    "#": index + 1,
+    "Ref #": adj.ref_no || "-",
+    "Date & Time": formatStatementDateTime(adj.date || adj.created_at),
+    "Item Name": adj.product_name || "-",
+    "Stock Category": adj.stock_type === "damaged" ? "Damaged Stock" : "Available Stock",
+    "Action": adj.action_type === "add" ? "Add Stock (+)" : "Reduce Stock (-)",
+    "Adjusted Qty": adj.action_type === "add" ? `+${adj.quantity}` : `-${adj.quantity}`,
+    "Cost Rate (Rs.)": Math.round((adj.cost_price || 0) * 100) / 100,
+    "Total Value (Rs.)": Math.round(((adj.quantity || 0) * (adj.cost_price || 0)) * 100) / 100,
+    "Reason": adj.reason || "-",
+    "Notes": adj.notes || "-",
+  }));
 
+  const sheet = XLSX.utils.json_to_sheet(data);
+  sheet["!cols"] = [
+    { wch: 6 },
+    { wch: 16 },
+    { wch: 24 },
+    { wch: 26 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 30 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, "Stock Adjustments");
 
+  XLSX.writeFile(workbook, filename);
+}
 
+/**
+ * Exports complete item stock valuation ledger (WAC & FIFO history) to Excel
+ */
+export function exportStockValuationLedgerToExcel(
+  productName: string,
+  movements: any[],
+  filename?: string
+): void {
+  const workbook = XLSX.utils.book_new();
 
+  const data = movements.map((m, index) => {
+    let typeName = m.type;
+    if (m.type === "opening_stock") typeName = "Opening Stock";
+    else if (m.type === "purchase") typeName = "Purchase Inward";
+    else if (m.type === "sale") typeName = "Sale Outward";
+    else if (m.type === "sale_return") typeName = "Sale Return Inward";
+    else if (m.type === "adjustment_add") typeName = "Stock Adjustment (+)";
+    else if (m.type === "adjustment_reduce") typeName = "Stock Adjustment (-)";
 
+    return {
+      "#": index + 1,
+      "Date & Time": m.type === "opening_stock" ? formatStatementDate(m.date) : formatStatementDateTime(m.date),
+      "Type": typeName,
+      "Ref / Invoice #": m.refNo || "-",
+      "Party / Detail": m.partyName || "-",
+      "Inward Qty": m.inwardQty > 0 ? `+${m.inwardQty}` : "-",
+      "Inward Rate (Rs.)": m.inwardQty > 0 ? m.unitRate : "-",
+      "Outward Qty": m.outwardQty > 0 ? `-${m.outwardQty}` : "-",
+      "Outward Cost (Rs.)": m.outwardQty > 0 ? m.costPrice : "-",
+      "Balance Stock": m.balance,
+      "Effective WAC (Rs.)": m.effectiveWac !== undefined ? m.effectiveWac : m.costPrice,
+      "Stock Valuation (Rs.)": m.runningValuation !== undefined ? m.runningValuation : Math.round(m.balance * (m.effectiveWac || 0) * 100) / 100,
+      "Calculation Impact": m.wacFormula || "-",
+    };
+  });
 
+  const sheet = XLSX.utils.json_to_sheet(data);
+  sheet["!cols"] = [
+    { wch: 6 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 24 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 20 },
+    { wch: 22 },
+    { wch: 36 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, "Valuation Ledger");
+
+  const safeProdName = productName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+  const finalFilename = filename || `valuation-ledger-${safeProdName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(workbook, finalFilename);
+}

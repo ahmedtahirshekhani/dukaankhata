@@ -451,10 +451,22 @@ export default function SaleReturnPage() {
       const netAmount = paidAmount - totalAmount;
       await updateOfflinePartyBalance(formCustomerId, netAmount);
 
-      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+      const { adjustOfflineStock, reInwardOfflineBatchOnSaleReturn } = await import('@/lib/db/offline-stock-manager');
       for (const item of payload.items) {
         const pId = (item.productId || (item as any).product_id)?.toString();
-        if (pId) await adjustOfflineStock(pId, item.quantity);
+        if (pId) {
+          await adjustOfflineStock(pId, item.quantity);
+          const productDoc = await db.products.get(pId);
+          const costPrice = Number(productDoc?.cost_price || productDoc?.purchase_price) || Number(item.rate) || 0;
+          await reInwardOfflineBatchOnSaleReturn({
+            productId: pId,
+            quantity: Number(item.quantity) || 0,
+            costPrice,
+            returnId: newId,
+            returnNumber: formReturnNumber,
+            returnDate: formDate,
+          });
+        }
       }
 
       await SyncEngine.queueOperation(
@@ -619,6 +631,12 @@ export default function SaleReturnPage() {
             const qty = Number(item.quantity) || 0;
             if (pId && qty > 0) await adjustOfflineStock(pId, -qty);
           }
+        }
+
+        // Delete batches associated with this sale return
+        const retBatches = await db.inventory_batches.where("source_id").equals(transactionToDelete.id.toString()).toArray();
+        for (const b of retBatches) {
+          if (b.id) await db.inventory_batches.delete(b.id);
         }
         await db.sale_return_transactions.update(transactionToDelete.id, {
           ...existing,

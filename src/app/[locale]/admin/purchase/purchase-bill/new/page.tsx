@@ -400,11 +400,12 @@ function AddPurchaseBillPageInner() {
 
   // Save Bill
   const handleSaveBill = async () => {
+    if (isSaving) return;
     if (!selectedPartyId || selectedProducts.length === 0) {
       setSaveError(
         !selectedPartyId
-          ? t("selectParty") || "Please select a supplier / party"
-          : t("addItems") || "Please add at least one item"
+          ? t("selectParty")
+          : t("addItems")
       );
       setShowSaveErrorDialog(true);
       return;
@@ -433,7 +434,7 @@ function AddPurchaseBillPageInner() {
       const nowIso = now.toISOString();
       const localBillId = editingId || `local_pb_${Date.now()}`;
       const finalPurchaseNo = purchaseNumber || generateReferenceNumber("PUR");
-      const { adjustOfflineStock } = await import("@/lib/db/offline-stock-manager");
+      const { adjustOfflineStockWithValuation } = await import("@/lib/db/offline-stock-manager");
 
       const finalPaidAmount = currentPaid;
       const finalBalanceDue = Math.max(0, calculations.totalAmount - finalPaidAmount);
@@ -450,9 +451,19 @@ function AddPurchaseBillPageInner() {
           if (oldBill.items && Array.isArray(oldBill.items)) {
             for (const item of oldBill.items) {
               if (item.product_id) {
-                await adjustOfflineStock(
+                const itemCost = Number(
+                  item.cost_price ??
+                  item.purchase_price ??
+                  item.unit_price ??
+                  item.price ??
+                  item.sell_price ??
+                  0
+                );
+                await adjustOfflineStockWithValuation(
                   String(item.product_id),
-                  -(Number(item.quantity) || 0)
+                  -(Number(item.quantity) || 0),
+                  itemCost,
+                  { source_id: editingId }
                 );
               }
             }
@@ -514,10 +525,20 @@ function AddPurchaseBillPageInner() {
       // 4. Update offline party balance (negative for purchase bill debit)
       await updateOfflinePartyBalance(selectedPartyId, -finalBalanceDue);
 
-      // 5. Update offline stock (+ for purchase increment) & save UOM if changed
+      // 5. Update offline stock (+ for purchase increment) & update valuation & batches
       for (const p of selectedProducts) {
         if (p.id) {
-          await adjustOfflineStock(String(p.id), Number(p.quantity) || 0);
+          const pCost = Number(p.sell_price) || 0;
+          await adjustOfflineStockWithValuation(
+            String(p.id),
+            Number(p.quantity) || 0,
+            pCost,
+            {
+              source_id: localBillId,
+              batch_number: finalPurchaseNo,
+              batch_date: billDateTime,
+            }
+          );
 
           const productDoc = await db.products.get(String(p.id));
           if (

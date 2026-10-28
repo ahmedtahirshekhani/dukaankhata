@@ -163,6 +163,31 @@ export default function QuotationViewClient({ id }: { id: string }) {
             const res = await fetch(`/${locale}/api/quotations/${id}/convert`, { method: "POST" });
             if (res.ok) {
                 const data = await res.json();
+
+                // Update local Dexie product selling prices
+                if (quotation?.items && Array.isArray(quotation.items)) {
+                    for (const item of quotation.items) {
+                        const productId = (item.product_id || item.productId || item.id || "").toString();
+                        const salePrice = Number(item.unit_price ?? item.sell_price ?? item.price ?? 0);
+                        if (productId && !isNaN(salePrice) && salePrice > 0) {
+                            try {
+                                let productDoc = await db.products.get(productId);
+                                if (!productDoc) {
+                                    productDoc = await db.products.where("_id").equals(productId).first();
+                                }
+                                const actualKey = (productDoc?.id || productId).toString();
+                                await db.products.update(actualKey, {
+                                    sell_price: salePrice,
+                                    sell_price_str: String(salePrice),
+                                    price: salePrice,
+                                });
+                            } catch (e) {
+                                console.error("Error updating local product price on quotation convert:", e);
+                            }
+                        }
+                    }
+                }
+
                 setErrorDialog({
                     open: true,
                     title: tCommon("success"),

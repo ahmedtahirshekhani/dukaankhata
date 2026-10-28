@@ -297,7 +297,7 @@ export async function POST(req: NextRequest) {
       
       const productDoc = await productsCollection.findOne(
         { _id: toObjectId(item.productId) },
-        { projection: { type: 1, quantity: 1, in_stock: 1 } }
+        { projection: { type: 1, quantity: 1, in_stock: 1, cost_price: 1, purchase_price: 1 } }
       );
       
       if (!productDoc) continue;
@@ -310,6 +310,23 @@ export async function POST(req: NextRequest) {
       if (returnQty <= 0) continue;
 
       await adjustStock(item.productId, user.id, returnQty);
+
+      // Re-inward batch into inventory_batches
+      try {
+        const { reInwardBatchOnSaleReturnServer } = await import('@/lib/inventory/valuation-engine');
+        const costPrice = Number((item as any).costPrice) || Number((productDoc as any).cost_price) || Number((productDoc as any).purchase_price) || 0;
+        await reInwardBatchOnSaleReturnServer({
+          userId: user.id,
+          returnId: insertedId.toString(),
+          returnNumber,
+          productId: item.productId,
+          quantity: returnQty,
+          costPrice,
+          returnDate: date,
+        });
+      } catch (retBatchErr) {
+        console.error("Failed to re-inward batch on sale return:", retBatchErr);
+      }
     }
 
     await appendCustomerLedgerEntry({

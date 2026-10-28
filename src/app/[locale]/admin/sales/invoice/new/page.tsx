@@ -848,6 +848,7 @@ export default function NewInvoicePage() {
           discount: p.discount || 0,
           discountType: p.discountType || "value",
           unit_of_measurement: p.unit_of_measurement,
+          cost_price: Number((p as any).cost_price ?? (p as any).purchase_price ?? 0),
         })),
         subtotal: total,
         charges: displayCharges.map((c) => ({
@@ -939,6 +940,7 @@ export default function NewInvoicePage() {
           discount: p.discount || 0,
           discountType: p.discountType || "value",
           unit_of_measurement: p.unit_of_measurement,
+          cost_price: Number((p as any).cost_price ?? (p as any).purchase_price ?? 0),
         }))
       };
 
@@ -947,43 +949,116 @@ export default function NewInvoicePage() {
         if (oldOrder) {
           orderData.created_at = oldOrder.created_at;
           orderData.status = oldOrder.status;
+
+          // Revert old consumed batches if present
+          if (oldOrder.items && Array.isArray(oldOrder.items)) {
+            const { restoreOfflineBatchesOnSaleRevert } = await import('@/lib/db/offline-stock-manager');
+            for (const oldItem of oldOrder.items) {
+              if (oldItem.batch_splits && Array.isArray(oldItem.batch_splits)) {
+                await restoreOfflineBatchesOnSaleRevert({ consumedBatches: oldItem.batch_splits });
+              }
+            }
+          }
         }
         await db.orders.put(orderData);
       } else {
         await db.orders.add(orderData);
       }
 
-      // 3. Update stock & missing UOM locally (optimistic)
+      // 3. Update stock, FIFO batches & missing UOM locally (optimistic)
       for (const p of selectedProducts) {
         const prodId = (p.id || (p as any)._id || "").toString();
         if (prodId) {
-          const productDoc = await db.products.get(prodId);
+          let productDoc = await db.products.get(prodId);
+          if (!productDoc) {
+            productDoc = await db.products.where("_id").equals(prodId).first();
+          }
           if (productDoc) {
+            const actualKey = (productDoc.id || prodId).toString();
             // Update stock if goods
             if (!p.type || p.type === "goods" || p.type === "good") {
               if (p.quantityType === "damaged") {
                 const currentQty = parseFloat(productDoc.damaged_quantity?.toString() || "0");
                 const newQty = Math.max(0, Math.round((currentQty - (Number(p.quantity) || 0)) * 100000) / 100000);
-                await db.products.update(prodId, { damaged_quantity: newQty });
+                await db.products.update(actualKey, { damaged_quantity: newQty });
               } else {
-                await adjustOfflineStock(prodId, -(Number(p.quantity) || 0));
+                await adjustOfflineStock(actualKey, -(Number(p.quantity) || 0));
+
+                // Offline FIFO consumption
+                const valuationMethod = typeof window !== "undefined"
+                  ? (localStorage.getItem("setting_stockValuationMethod") || "average")
+                  : "average";
+                if (valuationMethod === "fifo") {
+                  const { consumeOfflineBatchesOnSale } = await import('@/lib/db/offline-stock-manager');
+                  const fallbackCost = Number(productDoc.cost_price || productDoc.purchase_price) || 0;
+                  const consumption = await consumeOfflineBatchesOnSale({
+                    productId: actualKey,
+                    saleQty: Number(p.quantity) || 0,
+                    fallbackCostPrice: fallbackCost,
+                  });
+                  (p as any).batch_splits = consumption.consumed_batches;
+                  (p as any).cost_price = consumption.effective_unit_cost;
+                  (p as any).total_cogs = consumption.total_cogs;
+                  (p as any).unfulfilled_quantity = consumption.remaining_unfulfilled_qty;
+                  (p as any).is_oversold = consumption.remaining_unfulfilled_qty > 0;
+                } else {
+                  const avgCost = Number(productDoc.cost_price ?? productDoc.purchase_price ?? (p as any).cost_price) || 0;
+                  const curStock = parseFloat(productDoc.quantity?.toString() || productDoc.in_stock?.toString() || "0");
+                  const saleQty = Number(p.quantity) || 0;
+                  const isDeficit = (curStock < saleQty) || avgCost <= 0;
+                  (p as any).cost_price = avgCost;
+                  (p as any).total_cogs = Math.round(saleQty * avgCost * 100) / 100;
+                  (p as any).unfulfilled_quantity = isDeficit ? Math.max(0, saleQty - Math.max(0, curStock)) : 0;
+                  (p as any).is_oversold = isDeficit;
+                }
               }
+            }
+
+            // Update product latest selling price locally (optimistic)
+            const salePriceNum = Number(p.sell_price ?? (p as any).price);
+            if (!isNaN(salePriceNum) && salePriceNum > 0) {
+              await db.products.update(actualKey, {
+                sell_price: salePriceNum,
+                sell_price_str: String(salePriceNum),
+                price: salePriceNum,
+              });
             }
 
             // If product originally had no UOM and user selected a UOM, update product permanently
             if (p.unit_of_measurement && (!productDoc.unit_of_measurement || productDoc.unit_of_measurement.trim() === "" || productDoc.unit_of_measurement === "-" || productDoc.unit_of_measurement === "none" || p.hadNoUomOriginally)) {
-              await db.products.update(prodId, { unit_of_measurement: p.unit_of_measurement });
+              await db.products.update(actualKey, { unit_of_measurement: p.unit_of_measurement });
               await SyncEngine.queueOperation(
                 "products",
                 "PUT",
-                `/api/products/${prodId}`,
+                `/api/products/${actualKey}`,
                 { unit_of_measurement: p.unit_of_measurement },
-                prodId
+                actualKey
               );
             }
           }
         }
       }
+
+      // Update local order document with attached batch_splits and COGS
+      orderData.items = selectedProducts.map(p => ({
+        product_id: (p.id || (p as any)._id || "").toString(),
+        name: p.name,
+        description: p.description,
+        quantity: p.quantity,
+        quantity_str: p.quantityInput || String(p.quantity),
+        quantityType: p.quantityType || "prime",
+        price: p.sell_price,
+        discount: p.discount || 0,
+        discountType: p.discountType || "value",
+        unit_of_measurement: p.unit_of_measurement,
+        batch_splits: (p as any).batch_splits,
+        cost_price: (p as any).cost_price,
+        total_cogs: (p as any).total_cogs,
+        unfulfilled_quantity: (p as any).unfulfilled_quantity,
+        is_oversold: (p as any).is_oversold,
+      }));
+      await db.orders.put(orderData);
+      (payload as any).items = orderData.items;
 
       // 4. Update balance locally (optimistic)
       const netAmount = finalTotal - (paymentDetails.noPaymentAtAll ? 0 : paymentDetails.paidAmount);

@@ -232,14 +232,14 @@ export async function POST(request: Request) {
             const productDoc = await productsCollection.findOne(
               { _id: productId },
               {
-                projection: { name: 1, description: 1, unit_of_measurement: 1, cost_price: 1 },
+                projection: { name: 1, description: 1, unit_of_measurement: 1, cost_price: 1, purchase_price: 1 },
               },
             );
             if (productDoc) {
               productName = productName || productDoc.name;
               productDescription = productDescription || productDoc.description;
               productUom = productUom || productDoc.unit_of_measurement;
-              productCostPrice = productCostPrice || productDoc.cost_price || 0;
+              productCostPrice = productCostPrice || Number(productDoc.cost_price) || Number(productDoc.purchase_price) || 0;
             }
           }
 
@@ -373,6 +373,9 @@ export async function POST(request: Request) {
             quantity: 1,
             in_stock: 1,
             damaged_quantity: 1,
+            cost_price: 1,
+            cost_price_str: 1,
+            purchase_price: 1,
           },
         },
       );
@@ -400,8 +403,63 @@ export async function POST(request: Request) {
       } else {
         const { adjustStock } = await import('@/lib/db/stock-manager');
         await adjustStock(item.product_id.toString(), user.id, -orderQty);
+
+        // FIFO Batch consumption & COGS tracking
+        try {
+          const { getValuationMethod, consumeBatchesOnSaleServer } = await import('@/lib/inventory/valuation-engine');
+          const valuationMethod = await getValuationMethod(user.id);
+          const rawCost = (productDoc as any).cost_price ?? (productDoc as any).purchase_price ?? item.cost_price;
+          const fallbackCost = Number(rawCost) || 0;
+
+          if (valuationMethod === "fifo") {
+            const consumption = await consumeBatchesOnSaleServer({
+              userId: user.id,
+              productId: item.product_id.toString(),
+              saleQty: orderQty,
+              orderId: orderId.toString(),
+              fallbackCostPrice: fallbackCost,
+            });
+
+            item.batch_splits = consumption.consumed_batches;
+            item.cost_price = consumption.effective_unit_cost;
+            item.total_cogs = consumption.total_cogs;
+            item.unfulfilled_quantity = consumption.remaining_unfulfilled_qty;
+            item.is_oversold = consumption.remaining_unfulfilled_qty > 0;
+          } else {
+            const curStock = parseFloat((productDoc as any).quantity?.toString() || (productDoc as any).in_stock?.toString() || "0");
+            const isDeficit = (curStock < orderQty) || fallbackCost <= 0;
+            item.cost_price = fallbackCost;
+            item.total_cogs = Math.round(orderQty * fallbackCost * 100) / 100;
+            item.unfulfilled_quantity = isDeficit ? Math.max(0, orderQty - Math.max(0, curStock)) : 0;
+            item.is_oversold = isDeficit;
+          }
+        } catch (fifoErr) {
+          console.error("Error consuming FIFO batches on sale:", fifoErr);
+        }
+      }
+
+      // Update product master with latest selling price used during sale
+      if (item.price !== undefined && item.price !== null && Number(item.price) > 0) {
+        const salePriceNum = Number(item.price);
+        await productsCollection.updateOne(
+          { _id: item.product_id },
+          {
+            $set: {
+              sell_price: salePriceNum,
+              sell_price_str: salePriceNum.toString(),
+              price: salePriceNum,
+              updated_at: new Date(),
+            },
+          }
+        );
       }
     }
+
+    // Persist enriched items (with batch_splits and COGS) on the order document
+    await ordersCollection.updateOne(
+      { _id: orderId },
+      { $set: { items: orderItems } }
+    );
 
     // Ledger event: order increases balance (customer owes more)
     await appendCustomerLedgerEntry({
@@ -550,6 +608,19 @@ export async function DELETE(request: Request) {
             { _id: toObjectId(item.product_id.toString()) },
             { $inc: { [stockField]: orderQty } }
           );
+
+          // Restore consumed FIFO batches if present
+          if (!isDamaged && item.batch_splits && Array.isArray(item.batch_splits) && item.batch_splits.length > 0) {
+            try {
+              const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+              await restoreBatchesOnSaleRevertServer({
+                userId: user.id,
+                consumedBatches: item.batch_splits,
+              });
+            } catch (batchErr) {
+              console.error("Error restoring batch splits on order delete:", batchErr);
+            }
+          }
         })
       );
     }

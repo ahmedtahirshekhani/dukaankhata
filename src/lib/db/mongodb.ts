@@ -1,5 +1,13 @@
+import dns from "node:dns";
 import { MongoClient, Db, Collection, ObjectId, Document, UpdateFilter, Filter } from "mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";  // Add this import at top
+
+// Prevent ESERVFAIL errors from ISP/local DNS when resolving MongoDB Atlas SRV/TXT records
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (e) {
+  // Ignore in environments where setting DNS is restricted
+}
 
 if (!process.env.MONGODB_URL) {
   throw new Error("Please add your Mongo URI to .env.local");
@@ -15,15 +23,25 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
+function initMongoClientPromise(): Promise<MongoClient> {
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch (e) { }
+
+  const newClient = new MongoClient(uri, options);
+  const p = newClient.connect().catch((err) => {
+    if (global._mongoClientPromise === p) {
+      global._mongoClientPromise = undefined;
+    }
+    throw err;
+  });
+  return p;
+}
+
 if (process.env.NODE_ENV === "development") {
-  // In development mode, use a global variable to preserve the client across hot reloads
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
-  }
+  global._mongoClientPromise = initMongoClientPromise();
   clientPromise = global._mongoClientPromise;
 } else {
-  // In production mode, create a new client
   client = new MongoClient(uri, options);
   clientPromise = client.connect();
 }
@@ -35,7 +53,6 @@ export default clientPromise;
 const DB_NAME = process.env.MONGODB_DB_NAME || "dukaankhata";
 
 declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
   var _mongoIndexesCreated: boolean | undefined;
 }
 
@@ -47,13 +64,29 @@ export async function ensureIndexes() {
   });
 }
 
-// Helper function to get database
+// Helper function to get database with auto-reconnect fallback
 export async function getDatabase(): Promise<Db> {
-  const client = await clientPromise;
+  let activeClient: MongoClient;
+  try {
+    if (process.env.NODE_ENV === "development" && !global._mongoClientPromise) {
+      global._mongoClientPromise = initMongoClientPromise();
+      clientPromise = global._mongoClientPromise;
+    }
+    activeClient = await (global._mongoClientPromise || clientPromise);
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      global._mongoClientPromise = initMongoClientPromise();
+      clientPromise = global._mongoClientPromise;
+      activeClient = await clientPromise;
+    } else {
+      throw err;
+    }
+  }
+
   if (!global._mongoIndexesCreated) {
     ensureIndexes();
   }
-  return client.db(DB_NAME);
+  return activeClient.db(DB_NAME);
 }
 
 // Helper function to get a collection
@@ -99,12 +132,14 @@ export const COLLECTIONS = {
   WHATSAPP_VERIFICATION_CODES: "whatsapp_verification_codes",
   CONFIGURATIONS: "configurations",
   ORDER_ITEMS: "order_items",
+  INVENTORY_BATCHES: "inventory_batches",
   WAITLIST: "waitlist",
   WHATSAPP_SESSIONS: "whatsapp_sessions",
   WHATSAPP_REMINDER_LOGS: "whatsapp_reminder_logs",
   WHATSAPP_AUTH_KEYS: "whatsapp_auth_keys",
   WHATSAPP_CAMPAIGNS: "whatsapp_campaigns",
   WHATSAPP_CAMPAIGN_LOGS: "whatsapp_campaign_logs",
+  STOCK_ADJUSTMENTS: "stock_adjustments",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string

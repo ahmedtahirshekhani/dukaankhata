@@ -59,6 +59,10 @@ export interface StockProduct {
   total_cost?: number;
   total_retail?: number;
   potential_profit?: number;
+  effective_cost_price?: number;
+  total_cost_value?: number;
+  batch_count?: number;
+  valuation_method?: string;
   [key: string]: any;
 }
 

@@ -36,6 +36,8 @@ export class DukanKhataDB extends Dexie {
   role_permissions!: Table<any, string>;
   user_roles!: Table<any, string>;
   branches!: Table<any, string>;
+  inventory_batches!: Table<any, string>;
+  stock_adjustments!: Table<any, string>;
   syncQueue!: Table<SyncOperation, number>;
 
   constructor(dbName: string = 'DukanKhataOfflineDB') {
@@ -139,6 +141,63 @@ export class DukanKhataDB extends Dexie {
       role_permissions: 'id, role_id',
       user_roles: 'id, user_id',
       branches: 'id, name',
+      syncQueue: '++id, status, timestamp, collection'
+    });
+    // v4: added inventory_batches for dynamic stock valuation (FIFO lot tracking)
+    this.version(4).stores({
+      products: 'id, name, sku, category',
+      parties: 'id, name, phone, company_name, type, is_delete',
+      orders: 'id, party_id, created_at, status',
+      party_transactions: 'id, party_id, date, type',
+      party_ledger_entries: 'id, party_id, created_at, effective_at',
+      party_balance_state: 'id, party_id',
+      purchase_bills: 'id, party_id, created_at',
+      expenses: 'id, date, category',
+      quotations: 'id, party_id, created_at, status',
+      categories: 'id, name',
+      payment_methods: 'id, name, opening_balance',
+      vendor_transactions: 'id, party_id, date, type',
+      sale_return_transactions: 'id, party_id, date',
+      transactions: 'id, order_id, type',
+      subscriptions: 'id, status, expiry_date',
+      configurations: 'id, user_id',
+      users: 'id, email',
+      modules: 'id, name',
+      permissions: 'id, module_id',
+      roles: 'id, owner_id',
+      role_permissions: 'id, role_id',
+      user_roles: 'id, user_id',
+      branches: 'id, name',
+      inventory_batches: 'id, product_id, status, batch_date, created_at',
+      syncQueue: '++id, status, timestamp, collection'
+    });
+    // v5: added stock_adjustments for audit & inventory count adjustments
+    this.version(5).stores({
+      products: 'id, name, sku, category',
+      parties: 'id, name, phone, company_name, type, is_delete',
+      orders: 'id, party_id, created_at, status',
+      party_transactions: 'id, party_id, date, type',
+      party_ledger_entries: 'id, party_id, created_at, effective_at',
+      party_balance_state: 'id, party_id',
+      purchase_bills: 'id, party_id, created_at',
+      expenses: 'id, date, category',
+      quotations: 'id, party_id, created_at, status',
+      categories: 'id, name',
+      payment_methods: 'id, name, opening_balance',
+      vendor_transactions: 'id, party_id, date, type',
+      sale_return_transactions: 'id, party_id, date',
+      transactions: 'id, order_id, type',
+      subscriptions: 'id, status, expiry_date',
+      configurations: 'id, user_id',
+      users: 'id, email',
+      modules: 'id, name',
+      permissions: 'id, module_id',
+      roles: 'id, owner_id',
+      role_permissions: 'id, role_id',
+      user_roles: 'id, user_id',
+      branches: 'id, name',
+      inventory_batches: 'id, product_id, status, batch_date, created_at',
+      stock_adjustments: 'id, product_id, date, created_at',
       syncQueue: '++id, status, timestamp, collection'
     });
   }
