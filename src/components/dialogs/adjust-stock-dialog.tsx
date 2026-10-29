@@ -37,7 +37,7 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { recordStockAdjustmentOffline, updateStockAdjustmentOffline } from "@/lib/db/offline-stock-manager";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
-import { formatLocalizedUom } from "@/lib/uom";
+import { getUomShortcut } from "@/lib/uom";
 import { DatePicker } from "@/components/ui/date-picker";
 import { safeDate, toHTMLDateString } from "@/lib/date-utils";
 
@@ -102,6 +102,7 @@ export function AdjustStockDialog({
               setSelectedProduct({
                 id: adjustment.product_id,
                 name: adjustment.product_name || "Item",
+                unit_of_measurement: (adjustment as any).unit_of_measurement || (adjustment as any).uom || "",
               } as any);
             }
           });
@@ -150,9 +151,13 @@ export function AdjustStockDialog({
   }, [selectedProduct]);
 
   const uomLabel = useMemo(() => {
-    if (!selectedProduct?.unit_of_measurement) return "";
-    return formatLocalizedUom(selectedProduct.unit_of_measurement, (key) => t(key));
-  }, [selectedProduct, t]);
+    const rawUom =
+      selectedProduct?.unit_of_measurement ||
+      (selectedProduct as any)?.uom ||
+      (selectedProduct as any)?.unit ||
+      "";
+    return getUomShortcut(rawUom);
+  }, [selectedProduct]);
 
   const numQty = parseFloat(quantity) || 0;
   const currentTargetStock = stockType === "available" ? currentAvailable : currentDamaged;

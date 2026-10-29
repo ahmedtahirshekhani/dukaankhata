@@ -1292,9 +1292,50 @@ export async function getOfflineProductStockValuationHistory(options: {
   let initialOpeningQty = openingBatch
     ? Number(openingBatch.initial_quantity) || 0
     : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
-  const initialOpeningCost = openingBatch
+  let initialOpeningCost = openingBatch
     ? Number(openingBatch.cost_price) || 0
-    : Number((product as any).initial_cost || (product as any).opening_cost || (product as any).purchase_price || product.cost_price || 0);
+    : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+  // If opening cost is not directly available, check earliest sales invoice before purchases (which preserved the initial cost)
+  if (initialOpeningCost <= 0) {
+    const sortedOrders = [...allOrders].sort((a, b) => new Date(a.sale_date || a.date || a.created_at).getTime() - new Date(b.sale_date || b.date || b.created_at).getTime());
+    for (const ord of sortedOrders) {
+      const item = (ord.items || []).find((it: any) => String(it.product_id) === prodIdStr);
+      if (item && Number(item.cost_price) > 0) {
+        initialOpeningCost = Number(item.cost_price);
+        break;
+      }
+    }
+  }
+
+  // Last resort fallback
+  if (initialOpeningCost <= 0) {
+    initialOpeningCost = Number((product as any).purchase_price || product.cost_price || 0);
+  }
+
+  // Fallback: If no opening batch was recorded, check if initial stock existed at creation
+  if (initialOpeningQty <= 0) {
+    const totalPurchased = allPurchaseBills.reduce((acc, b) => {
+      const matched = (b.items || []).filter((it: any) => String(it.product_id) === prodIdStr);
+      return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+    }, 0);
+    const totalSold = allOrders.filter(o => o.status !== "cancelled").reduce((acc, o) => {
+      const matched = (o.items || []).filter((it: any) => String(it.product_id) === prodIdStr);
+      return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+    }, 0);
+    const totalAdjustAdd = allAdjustments.filter((a: any) => a.action_type === "add").reduce((acc: number, a: any) => acc + (Number(a.quantity) || 0), 0);
+    const totalAdjustReduce = allAdjustments.filter((a: any) => a.action_type !== "add").reduce((acc: number, a: any) => acc + (Number(a.quantity) || 0), 0);
+    const totalReturned = allSaleReturns.reduce((acc, r) => {
+      const matched = (r.items || []).filter((it: any) => String(it.productId || it.product_id) === prodIdStr);
+      return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+    }, 0);
+    const curStockNum = Number((product as any).quantity || (product as any).in_stock || 0);
+    const impliedOpening = Math.round((curStockNum - (totalPurchased + totalAdjustAdd + totalReturned - totalSold - totalAdjustReduce)) * 1000) / 1000;
+    if (impliedOpening > 0) {
+      initialOpeningQty = impliedOpening;
+    }
+  }
+
   // Find the earliest transaction or product created_at date (never default to 1970)
   const allTxDates: number[] = [];
   if ((product as any).created_at) allTxDates.push(new Date((product as any).created_at).getTime());
@@ -1353,18 +1394,64 @@ export async function getOfflineProductStockValuationHistory(options: {
       const price = Number(it.price) || 0;
       const costPrice = Number(it.cost_price ?? product.cost_price) || 0;
       const d = new Date(order.sale_date || order.date || order.created_at || Date.now());
-      rawMovements.push({
-        id: `so-${order.id || (order as any)._id}-${it.product_id}`,
-        date: d,
-        type: "sale",
-        refNo: order.invoice_no || `INV-${String(order.id || (order as any)._id).slice(-6)}`,
-        partyName: partyMap.get(String(order.customer_id || order.party_id)) || order.customer_name || "Customer",
-        inwardQty: 0,
-        outwardQty: qty,
-        unitRate: price,
-        costPrice: costPrice,
-        totalAmount: Math.round(qty * price * 100) / 100,
-      });
+      const customerName = partyMap.get(String(order.customer_id || order.party_id)) || order.customer_name || "Customer";
+      const invoiceNo = order.invoice_no || `INV-${String(order.id || (order as any)._id).slice(-6)}`;
+      const splits = Array.isArray(it.batch_splits) && it.batch_splits.length > 0 ? it.batch_splits : null;
+
+      if (splits && splits.length > 0) {
+        const fulfilledQty = splits.reduce((acc: number, s: any) => acc + (Number(s.quantity) || 0), 0);
+        const unfulfilledQty = Math.max(0, Math.round((qty - fulfilledQty) * 100000) / 100000);
+
+        splits.forEach((split: any, sIdx: number) => {
+          const splitQty = Number(split.quantity) || 0;
+          const splitCost = Number(split.cost_price) || 0;
+          rawMovements.push({
+            id: `so-${order.id || (order as any)._id}-${it.product_id}-split-${sIdx}`,
+            date: d,
+            type: "sale",
+            refNo: invoiceNo,
+            partyName: customerName,
+            inwardQty: 0,
+            outwardQty: splitQty,
+            unitRate: price,
+            costPrice: splitCost,
+            totalAmount: Math.round(splitQty * price * 100) / 100,
+            batchNumber: split.batch_number || undefined,
+            batchSplits: [split],
+          });
+        });
+
+        if (unfulfilledQty > 0) {
+          rawMovements.push({
+            id: `so-${order.id || (order as any)._id}-${it.product_id}-deficit`,
+            date: d,
+            type: "sale",
+            refNo: invoiceNo,
+            partyName: customerName,
+            inwardQty: 0,
+            outwardQty: unfulfilledQty,
+            unitRate: price,
+            costPrice: costPrice,
+            totalAmount: Math.round(unfulfilledQty * price * 100) / 100,
+            batchNumber: "DEFICIT",
+            batchSplits: [],
+          });
+        }
+      } else {
+        rawMovements.push({
+          id: `so-${order.id || (order as any)._id}-${it.product_id}`,
+          date: d,
+          type: "sale",
+          refNo: invoiceNo,
+          partyName: customerName,
+          inwardQty: 0,
+          outwardQty: qty,
+          unitRate: price,
+          costPrice: costPrice,
+          totalAmount: Math.round(qty * price * 100) / 100,
+          batchSplits: it.batch_splits || [],
+        });
+      }
     }
   }
 

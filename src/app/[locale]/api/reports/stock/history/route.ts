@@ -157,9 +157,26 @@ export async function GET(request: NextRequest) {
     let initialOpeningQty = openingBatch
       ? Number(openingBatch.initial_quantity) || 0
       : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
-    const initialOpeningCost = openingBatch
+    let initialOpeningCost = openingBatch
       ? Number(openingBatch.cost_price) || 0
-      : Number((product as any).initial_cost || (product as any).opening_cost || (product as any).purchase_price || product.cost_price || 0);
+      : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+    // If opening cost is not directly available, check earliest sales invoice before purchases (which preserved the initial cost)
+    if (initialOpeningCost <= 0) {
+      const sortedOrders = [...orders].sort((a, b) => new Date(a.date || a.sale_date || a.created_at).getTime() - new Date(b.date || b.sale_date || b.created_at).getTime());
+      for (const ord of sortedOrders) {
+        const item = (ord.items || []).find((it: any) => it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString());
+        if (item && Number(item.cost_price) > 0) {
+          initialOpeningCost = Number(item.cost_price);
+          break;
+        }
+      }
+    }
+
+    // Last resort fallback
+    if (initialOpeningCost <= 0) {
+      initialOpeningCost = Number((product as any).purchase_price || product.cost_price || 0);
+    }
     // Find the earliest transaction or product created_at date (never default to 1970)
     const allTxDates: number[] = [];
     if (product.created_at) allTxDates.push(new Date(product.created_at).getTime());
