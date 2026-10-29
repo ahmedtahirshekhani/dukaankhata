@@ -378,7 +378,7 @@ export async function GET(request: NextRequest) {
 
     let reorderedMovements: RawMovement[] = [];
 
-    if (mode === "valuation") {
+    if (mode === "valuation" && valuationMethod !== "fifo") {
       // WAC Valuation Sequence (Interleaved):
       // 1. Opening stock is ALWAYS row 1 at the very top.
       // 2. Inwards that occurred naturally prior to a sale are emitted first.
@@ -735,8 +735,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Sort batches by batch_date descending (latest first)
-    formattedBatches.sort((a, b) => new Date(b.batch_date).getTime() - new Date(a.batch_date).getTime());
+    // Sort batches: Opening Stock is ALWAYS first, then subsequent batches ordered by start date (ascending / oldest first)
+    formattedBatches.sort((a, b) => {
+      const isOpeningA = a.source_type === "opening_stock" || a.batch_number === "OPENING";
+      const isOpeningB = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+      if (isOpeningA && !isOpeningB) return -1;
+      if (!isOpeningA && isOpeningB) return 1;
+      const da = new Date(a.batch_date || 0).getTime();
+      const db = new Date(b.batch_date || 0).getTime();
+      return da - db;
+    });
 
     await updateUserLastActivity();
 

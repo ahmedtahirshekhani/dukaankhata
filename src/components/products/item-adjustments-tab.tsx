@@ -331,7 +331,7 @@ export function ItemAdjustmentsTab({
   return (
     <div className="flex flex-col gap-4">
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
+      {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         <div className="p-3.5 rounded-xl border bg-card/70 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-[11px] font-semibold">{safeT("totalAdjustments", "Total Adjustments")}</span>
@@ -391,7 +391,7 @@ export function ItemAdjustmentsTab({
             {safeT("netAdjustedQty", "Net Qty Change")}: {summary.netQty > 0 ? `+${summary.netQty}` : summary.netQty}
           </span>
         </div>
-      </div>
+      </div> */}
 
       {/* Filters & Actions Toolbar */}
       <div className="p-3.5 sm:p-4 rounded-xl border bg-card/50 shadow-xs space-y-3">
@@ -580,8 +580,8 @@ export function ItemAdjustmentsTab({
           <table className="w-full text-xs">
             <thead className="bg-muted/60 border-b text-muted-foreground text-[11px]">
               <tr>
+                <th className="py-3 px-3.5 text-left font-semibold">{safeT("dateTime", "Date")}</th>
                 <th className="py-3 px-3.5 text-left font-semibold">{safeT("refNo", "Ref #")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("dateTime", "Date & Time")}</th>
                 <th className="py-3 px-3.5 text-left font-semibold">{safeT("product", "Product / Item")}</th>
                 <th className="py-3 px-3.5 text-left font-semibold">{safeT("stockType", "Stock Category")}</th>
                 <th className="py-3 px-3.5 text-left font-semibold">{safeT("action", "Action")}</th>
@@ -640,14 +640,14 @@ export function ItemAdjustmentsTab({
 
                   return (
                     <tr key={a.id} className="hover:bg-muted/30 transition-colors">
+                      {/* Date & Time down to seconds */}
+                      <td className="py-2.5 px-3.5 whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                        {formatPakistaniDateTime(a.date, false)}
+                      </td>
+
                       {/* Ref # */}
                       <td className="py-2.5 px-3.5 whitespace-nowrap font-mono font-semibold text-foreground">
                         {a.ref_no}
-                      </td>
-
-                      {/* Date & Time down to seconds */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap font-mono text-[11px] text-muted-foreground">
-                        {formatPakistaniDateTime(a.date, true)}
                       </td>
 
                       {/* Product Name */}

@@ -1500,7 +1500,7 @@ export async function getOfflineProductStockValuationHistory(options: {
 
   let reorderedMovements: any[] = [];
 
-  if (mode === "valuation") {
+  if (mode === "valuation" && valuationMethod !== "fifo") {
     // WAC Valuation Sequence (Interleaved):
     // 1. Opening stock is ALWAYS row 1 at the very top.
     // 2. Inwards that occurred naturally prior to a sale are emitted first.
@@ -1854,16 +1854,45 @@ export async function getOfflineProductStockValuationHistory(options: {
       valuationMethod,
       activeBatchesCount: batches.filter((b: any) => b.status === "active" && Number(b.remaining_quantity) > 0).length,
     },
-    batches: batches.map((b: any) => ({
-      id: String(b.id || b._id),
-      batch_number: b.batch_number || "BATCH",
-      source_type: b.source_type || "purchase_bill",
-      initial_quantity: Number(b.initial_quantity) || 0,
-      remaining_quantity: Number(b.remaining_quantity) || 0,
-      cost_price: Number(b.cost_price) || 0,
-      status: b.status || "active",
-      batch_date: b.batch_date || b.created_at || new Date().toISOString(),
-    })),
+    batches: (() => {
+      const list = batches.map((b: any) => ({
+        id: String(b.id || b._id),
+        batch_number: b.batch_number || "BATCH",
+        source_type: b.source_type || "purchase_bill",
+        initial_quantity: Number(b.initial_quantity) || 0,
+        remaining_quantity: Number(b.remaining_quantity) || 0,
+        cost_price: Number(b.cost_price) || 0,
+        status: b.status || "active",
+        batch_date: b.batch_date || b.created_at || new Date().toISOString(),
+      }));
+
+      // Add Opening Stock batch if not already represented
+      if (initialOpeningQty > 0 && !list.some((b: any) => b.batch_number === "OPENING" || b.source_type === "opening_stock")) {
+        list.push({
+          id: `opening-batch-${prodIdStr}`,
+          batch_number: "OPENING",
+          source_type: "opening_stock",
+          initial_quantity: initialOpeningQty,
+          remaining_quantity: initialOpeningQty,
+          cost_price: initialOpeningCost,
+          status: "active",
+          batch_date: new Date(openingDate).toISOString(),
+        });
+      }
+
+      // Sort batches: Opening Stock is ALWAYS first, then subsequent batches ordered by start date (ascending / oldest first)
+      list.sort((a: any, b: any) => {
+        const isOpeningA = a.source_type === "opening_stock" || a.batch_number === "OPENING";
+        const isOpeningB = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+        if (isOpeningA && !isOpeningB) return -1;
+        if (!isOpeningA && isOpeningB) return 1;
+        const da = new Date(a.batch_date || 0).getTime();
+        const db = new Date(b.batch_date || 0).getTime();
+        return da - db;
+      });
+
+      return list;
+    })(),
     movements: filteredMovements,
   };
 }

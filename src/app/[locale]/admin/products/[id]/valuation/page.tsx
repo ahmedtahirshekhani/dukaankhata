@@ -245,6 +245,27 @@ export default function StockValuationLedgerPage() {
     return list;
   }, [movements, sortOrder]);
 
+  // FIFO Batches sorting: Opening Stock is ALWAYS first, then subsequent batches ordered by start date (ascending / oldest first)
+  const sortedBatches = useMemo(() => {
+    if (!batches || batches.length === 0) return [];
+
+    const list = [...batches];
+    list.sort((a: any, b: any) => {
+      const isOpeningA = a.source_type === "opening_stock" || a.batch_number === "OPENING";
+      const isOpeningB = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+      if (isOpeningA && !isOpeningB) return -1;
+      if (!isOpeningA && isOpeningB) return 1;
+      const da = new Date(a.batch_date || a.created_at || 0).getTime();
+      const db = new Date(b.batch_date || b.created_at || 0).getTime();
+      if (da !== db) return da - db;
+      const ca = new Date(a.created_at || 0).getTime();
+      const cb = new Date(b.created_at || 0).getTime();
+      return ca - cb;
+    });
+
+    return list;
+  }, [batches]);
+
   const handleExportExcel = () => {
     if (!product || sortedMovements.length === 0) return;
     exportStockValuationLedgerToExcel(product.name || "Item", sortedMovements, undefined, valuationMethod);
@@ -860,14 +881,14 @@ export default function StockValuationLedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {batches.length === 0 ? (
+                    {sortedBatches.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
                           {t("noBatches")}
                         </td>
                       </tr>
                     ) : (
-                      batches.map((b: any) => {
+                      sortedBatches.map((b: any) => {
                         const isDepleted = Number(b.remaining_quantity) <= 0;
                         const isOpening = b.source_type === "opening_stock";
                         const isPurchase = b.source_type === "purchase_bill" || b.source_type === "purchase";
