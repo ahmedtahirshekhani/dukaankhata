@@ -310,6 +310,27 @@ export function ItemAdjustmentsTab({
     setCurrentPage(1);
   };
 
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() ||
+    stockTypeFilter !== "all" ||
+    actionTypeFilter !== "all" ||
+    reasonFilter !== "all" ||
+    fromDate ||
+    toDate ||
+    activePreset !== "all"
+  );
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setStockTypeFilter("all");
+    setActionTypeFilter("all");
+    setReasonFilter("all");
+    setFromDate("");
+    setToDate("");
+    setActivePreset("all");
+    setCurrentPage(1);
+  };
+
   const handleExport = () => {
     if (filteredAdjustments.length === 0) return;
     setIsExporting(true);
@@ -349,76 +370,15 @@ export function ItemAdjustmentsTab({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* KPI Summary Cards */}
-      {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
-        <div className="p-3.5 rounded-xl border bg-card/70 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-semibold">{safeT("totalAdjustments", "Total Adjustments")}</span>
-            <SlidersHorizontal className="w-4 h-4 text-primary" />
-          </div>
-          <div className="mt-1">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {summary.totalCount}
-            </span>
-          </div>
-          <span className="text-[10px] text-muted-foreground mt-0.5">Audit Entries</span>
-        </div>
-
-        <div className="p-3.5 rounded-xl border bg-card/70 shadow-xs border-emerald-500/25 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-            <span className="text-[11px] font-semibold flex items-center gap-1">
-              <ArrowDownLeft className="w-3.5 h-3.5" />
-              {safeT("totalAdded", "Total Added")}
-            </span>
-          </div>
-          <div className="mt-1">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-              +{summary.totalAdded}
-            </span>
-          </div>
-          <span className="text-[10px] text-muted-foreground mt-0.5">{safeT("addStock", "Add Stock")}</span>
-        </div>
-
-        <div className="p-3.5 rounded-xl border bg-card/70 shadow-xs border-rose-500/25 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-            <span className="text-[11px] font-semibold flex items-center gap-1">
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              {safeT("totalReduced", "Total Reduced")}
-            </span>
-          </div>
-          <div className="mt-1">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
-              -{summary.totalReduced}
-            </span>
-          </div>
-          <span className="text-[10px] text-muted-foreground mt-0.5">{safeT("reduceStock", "Reduce Stock")}</span>
-        </div>
-
-        <div className="p-3.5 rounded-xl border bg-card/70 shadow-xs border-primary/20 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-primary">
-            <span className="text-[11px] font-semibold flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              {safeT("costImpact", "Valuation Impact")}
-            </span>
-          </div>
-          <div className="mt-1">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {formatCurrency(summary.totalValue)}
-            </span>
-          </div>
-          <span className="text-[10px] text-muted-foreground mt-0.5">
-            {safeT("netAdjustedQty", "Net Qty Change")}: {summary.netQty > 0 ? `+${summary.netQty}` : summary.netQty}
-          </span>
-        </div>
-      </div> */}
+    <div className="flex flex-col gap-3.5 sm:gap-4 w-full max-w-full">
 
       {/* Filters & Actions Toolbar */}
-      <div className="p-3.5 sm:p-4 rounded-xl border bg-card/50 shadow-xs space-y-3">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+      <div className="p-3 sm:p-4 rounded-xl border bg-card/50 shadow-xs space-y-2.5 sm:space-y-3">
+        {/* Row 1: Search Box & Actions */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           {/* Search Box */}
-          <div className="relative flex-1 min-w-[220px]">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <div className="relative flex-1 min-w-0">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               placeholder={safeT("searchAdjustments", "Search adjustments...")}
@@ -427,30 +387,31 @@ export function ItemAdjustmentsTab({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-8 pr-8 h-9 text-xs sm:text-sm"
+              className="pl-8 pr-8 h-9 text-xs sm:text-sm w-full"
             />
             {searchTerm && (
               <button
+                type="button"
                 onClick={() => setSearchTerm("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                title="Clear Search"
               >
                 <XIcon className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Quick Actions (Export, Refresh) */}
+          <div className="flex items-center gap-2 justify-end shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
               disabled={isExporting || filteredAdjustments.length === 0}
-              className="h-9 text-xs gap-1.5"
+              className="h-9 text-xs gap-1.5 flex-1 sm:flex-initial"
             >
-              <FileDown className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">{safeT("exportAdjustments", "Export")}</span>
-              <span className="inline sm:hidden">Export</span>
+              <FileDown className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>{safeT("exportAdjustments", "Export")}</span>
             </Button>
 
             <Button
@@ -458,28 +419,18 @@ export function ItemAdjustmentsTab({
               size="sm"
               onClick={fetchServerAdjustments}
               disabled={loading}
-              className="h-9 w-9 p-0"
+              className="h-9 w-9 p-0 shrink-0"
               title="Refresh"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
-
-            {/* {canEdit && onAdjustStock && (
-              <Button
-                size="sm"
-                onClick={onAdjustStock}
-                className="h-9 text-xs gap-1.5 shadow-xs"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>{safeT("newAdjustment", "New Adjustment")}</span>
-              </Button>
-            )} */}
           </div>
         </div>
 
-        {/* Second Row: Filter Selects & Date Presets */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-border/60">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+        {/* Row 2: Filter Selects & Date Presets */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2 border-t border-border/60">
+          {/* Action, Stock Type, Reason Filters */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:items-center gap-2 w-full lg:w-auto">
             {/* Action Filter */}
             <Select
               value={actionTypeFilter}
@@ -488,7 +439,7 @@ export function ItemAdjustmentsTab({
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-8 text-xs w-[125px]">
+              <SelectTrigger className="h-8 text-xs w-full lg:w-[130px]">
                 <SelectValue placeholder={safeT("allActions", "All Actions")} />
               </SelectTrigger>
               <SelectContent>
@@ -506,7 +457,7 @@ export function ItemAdjustmentsTab({
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-8 text-xs w-[135px]">
+              <SelectTrigger className="h-8 text-xs w-full lg:w-[135px]">
                 <SelectValue placeholder={safeT("allTypes", "All Types")} />
               </SelectTrigger>
               <SelectContent>
@@ -517,87 +468,119 @@ export function ItemAdjustmentsTab({
             </Select>
 
             {/* Reason Filter */}
-            <Select
-              value={reasonFilter}
-              onValueChange={(val) => {
-                setReasonFilter(val);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="h-8 text-xs w-[150px]">
-                <SelectValue placeholder={safeT("adjustmentReason", "Reason for Adjustment")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Reasons</SelectItem>
-                <SelectItem value="physicalCount">{safeT("reasons.physicalCount", "Physical Count / Audit")}</SelectItem>
-                <SelectItem value="damaged">{safeT("reasons.damaged", "Damaged / Broken")}</SelectItem>
-                <SelectItem value="expired">{safeT("reasons.expired", "Expired Goods")}</SelectItem>
-                <SelectItem value="theft">{safeT("reasons.theft", "Lost / Theft")}</SelectItem>
-                <SelectItem value="internalUse">{safeT("reasons.internalUse", "Internal Use / Sample")}</SelectItem>
-                <SelectItem value="found">{safeT("reasons.found", "Surplus / Found Stock")}</SelectItem>
-                <SelectItem value="other">{safeT("reasons.other", "Other Reason")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="col-span-2 sm:col-span-1 lg:w-auto">
+              <Select
+                value={reasonFilter}
+                onValueChange={(val) => {
+                  setReasonFilter(val);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs w-full lg:w-[155px]">
+                  <SelectValue placeholder={safeT("adjustmentReason", "Reason")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Reasons</SelectItem>
+                  <SelectItem value="physicalCount">{safeT("reasons.physicalCount", "Physical Count / Audit")}</SelectItem>
+                  <SelectItem value="damaged">{safeT("reasons.damaged", "Damaged / Broken")}</SelectItem>
+                  <SelectItem value="expired">{safeT("reasons.expired", "Expired Goods")}</SelectItem>
+                  <SelectItem value="theft">{safeT("reasons.theft", "Lost / Theft")}</SelectItem>
+                  <SelectItem value="internalUse">{safeT("reasons.internalUse", "Internal Use / Sample")}</SelectItem>
+                  <SelectItem value="found">{safeT("reasons.found", "Surplus / Found Stock")}</SelectItem>
+                  <SelectItem value="other">{safeT("reasons.other", "Other Reason")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Date Presets & Inputs */}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <Button
-              variant={activePreset === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("all")}
-              className="h-7 text-xs px-2"
-            >
-              All
-            </Button>
-            <Button
-              variant={activePreset === "thisMonth" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("thisMonth")}
-              className="h-7 text-xs px-2"
-            >
-              This Month
-            </Button>
-            <Button
-              variant={activePreset === "last30Days" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("last30Days")}
-              className="h-7 text-xs px-2"
-            >
-              30 Days
-            </Button>
-
-            <div className="w-[120px]">
-              <DatePicker
-                value={fromDate}
-                onChange={(val) => {
-                  setFromDate(val);
-                  setActivePreset("custom");
-                  setCurrentPage(1);
-                }}
-                placeholder="From Date"
-              />
+          {/* Date Presets & Date Inputs */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+            {/* Presets Button Group */}
+            <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/50 shrink-0">
+              <Button
+                variant={activePreset === "all" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => handlePresetChange("all")}
+                className="h-7 text-xs px-2.5 rounded-md"
+              >
+                All
+              </Button>
+              <Button
+                variant={activePreset === "thisMonth" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => handlePresetChange("thisMonth")}
+                className="h-7 text-xs px-2.5 rounded-md"
+              >
+                This Month
+              </Button>
+              <Button
+                variant={activePreset === "last30Days" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => handlePresetChange("last30Days")}
+                className="h-7 text-xs px-2.5 rounded-md"
+              >
+                30 Days
+              </Button>
             </div>
-            <span className="text-muted-foreground text-[11px]">to</span>
-            <div className="w-[120px]">
-              <DatePicker
-                value={toDate}
-                onChange={(val) => {
-                  setToDate(val);
-                  setActivePreset("custom");
-                  setCurrentPage(1);
-                }}
-                placeholder="To Date"
-              />
+
+            {/* From - To Date Pickers */}
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 w-full sm:w-auto">
+              <div className="w-full sm:w-[125px]">
+                <DatePicker
+                  className="h-8 text-xs pl-7 pr-1.5"
+                  value={fromDate}
+                  onChange={(val) => {
+                    setFromDate(val);
+                    setActivePreset("custom");
+                    setCurrentPage(1);
+                  }}
+                  placeholder="From Date"
+                />
+              </div>
+              <div className="w-full sm:w-[125px]">
+                <DatePicker
+                  className="h-8 text-xs pl-7 pr-1.5"
+                  value={toDate}
+                  onChange={(val) => {
+                    setToDate(val);
+                    setActivePreset("custom");
+                    setCurrentPage(1);
+                  }}
+                  placeholder="To Date"
+                />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Active Filters Summary & Reset */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 text-muted-foreground flex-wrap gap-2">
+            <div className="flex items-center gap-1.5">
+              <FilterIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="text-[11px] font-medium">Filtered adjustments:</span>
+              <Badge variant="secondary" className="text-[10px] font-mono font-semibold py-0 px-1.5">
+                {filteredAdjustments.length}
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="h-6 text-[11px] px-2 text-primary hover:text-primary hover:bg-primary/10 gap-1 rounded"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Filters</span>
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Adjustments Table */}
+      {/* Adjustments Container */}
       <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        {/* DESKTOP TABLE VIEW (md and up) */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-xs min-w-[950px]">
             <thead className="bg-muted/60 border-b text-muted-foreground text-[11px]">
               <tr>
                 <th className="py-3 px-3.5 text-left font-semibold">{safeT("dateTime", "Date")}</th>
@@ -626,16 +609,25 @@ export function ItemAdjustmentsTab({
                   <td colSpan={11} className="py-16 text-center text-muted-foreground">
                     <div className="max-w-xs mx-auto space-y-2">
                       <SlidersHorizontal className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-                      <p className="font-semibold text-foreground text-sm">{safeT("noAdjustmentsFound", "No stock adjustments recorded yet.")}</p>
-                      <p className="text-xs text-muted-foreground">{safeT("adjustStockDesc", "Add or reduce available/damaged stock with reason tracking.")}</p>
-                      {canEdit && onAdjustStock && (
+                      <p className="font-semibold text-foreground text-sm">
+                        {hasActiveFilters
+                          ? safeT("noMatchingAdjustments", "No adjustments match your current filters.")
+                          : safeT("noAdjustmentsFound", "No stock adjustments recorded yet.")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {hasActiveFilters
+                          ? "Try clearing filters or search terms to see all adjustments."
+                          : safeT("adjustStockDesc", "Add or reduce available/damaged stock with reason tracking.")}
+                      </p>
+                      {hasActiveFilters && (
                         <Button
+                          variant="outline"
                           size="sm"
-                          onClick={onAdjustStock}
+                          onClick={handleResetFilters}
                           className="mt-2 text-xs"
                         >
-                          <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                          {safeT("newAdjustment", "New Adjustment")}
+                          <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                          <span>Reset Filters</span>
                         </Button>
                       )}
                     </div>
@@ -717,12 +709,12 @@ export function ItemAdjustmentsTab({
                       </td>
 
                       {/* Unit Cost Rate */}
-                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap text-muted-foreground">
+                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap font-mono text-muted-foreground">
                         {formatCurrency(a.cost_price || 0)}
                       </td>
 
                       {/* Total Value Impact */}
-                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap font-medium text-foreground">
+                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap font-medium font-mono text-foreground">
                         {formatCurrency(total)}
                       </td>
 
@@ -779,16 +771,183 @@ export function ItemAdjustmentsTab({
           </table>
         </div>
 
+        {/* MOBILE / TABLET CARD VIEW (under md) */}
+        <div className="block md:hidden divide-y divide-border/60">
+          {loading && allAdjustments.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
+              <span>{safeT("loading", "Loading...")}</span>
+            </div>
+          ) : paginatedAdjustments.length === 0 ? (
+            <div className="py-12 px-4 text-center text-muted-foreground">
+              <div className="max-w-xs mx-auto space-y-2">
+                <SlidersHorizontal className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                <p className="font-semibold text-foreground text-sm">
+                  {hasActiveFilters
+                    ? safeT("noMatchingAdjustments", "No adjustments match your current filters.")
+                    : safeT("noAdjustmentsFound", "No stock adjustments recorded yet.")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {hasActiveFilters
+                    ? "Try clearing filters or search terms to see all adjustments."
+                    : safeT("adjustStockDesc", "Add or reduce available/damaged stock with reason tracking.")}
+                </p>
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetFilters}
+                    className="mt-2 text-xs"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                    <span>Reset Filters</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            paginatedAdjustments.map((a) => {
+              const isAdd = a.action_type === "add";
+              const isDamaged = a.stock_type === "damaged";
+              const total = Math.round(a.quantity * (a.cost_price || 0) * 100) / 100;
+              let reasonLabel = a.reason || "-";
+              if (a.reason) {
+                try {
+                  const translated = (t as any)(`reasons.${a.reason}`);
+                  if (translated && typeof translated === "string" && !translated.startsWith("reasons.")) {
+                    reasonLabel = translated;
+                  }
+                } catch {
+                  reasonLabel = a.reason;
+                }
+              }
+
+              return (
+                <div key={a.id} className="p-3.5 sm:p-4 space-y-2.5 hover:bg-muted/20 transition-colors">
+                  {/* Line 1: Ref #, Stock Category, Action Badge */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <span className="font-mono text-xs font-bold text-foreground">
+                        {a.ref_no}
+                      </span>
+                      {isDamaged ? (
+                        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold py-0 px-1.5">
+                          {safeT("damagedStock", "Damaged")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] font-semibold py-0 px-1.5 bg-muted/40 text-muted-foreground">
+                          {safeT("availableStock", "Available")}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="shrink-0">
+                      {isAdd ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5">
+                          <ArrowDownLeft className="w-3 h-3" />
+                          <span>{safeT("addStock", "Add")}</span>
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5">
+                          <ArrowUpRight className="w-3 h-3" />
+                          <span>{safeT("reduceStock", "Reduce")}</span>
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Line 2: Product Name & Reason */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-sm text-foreground leading-tight line-clamp-2" title={a.product_name}>
+                        {a.product_name}
+                      </p>
+                    </div>
+                    <span className="inline-block shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-muted/70 text-foreground border border-border/40">
+                      {reasonLabel}
+                    </span>
+                  </div>
+
+                  {/* Line 3: Quantity & Financial Impact Box */}
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/50 text-xs">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] text-muted-foreground font-medium truncate">{safeT("adjustedQty", "Adjusted Qty")}</span>
+                      <span className={`text-sm font-extrabold mt-0.5 truncate ${isAdd ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                        {isAdd ? `+${a.quantity}` : `-${a.quantity}`}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col border-l border-border/50 pl-2 min-w-0">
+                      <span className="text-[10px] text-muted-foreground font-medium truncate">{safeT("rate", "Rate")}</span>
+                      <span className="text-xs font-semibold text-foreground mt-0.5 font-mono truncate">
+                        {formatCurrency(a.cost_price || 0)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col border-l border-border/50 pl-2 min-w-0">
+                      <span className="text-[10px] text-muted-foreground font-medium truncate">{safeT("totalValue", "Total Value")}</span>
+                      <span className="text-xs font-bold text-foreground mt-0.5 font-mono truncate">
+                        {formatCurrency(total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Notes (if any) */}
+                  {a.notes && (
+                    <p className="text-[11px] text-muted-foreground bg-background/60 p-2 rounded border border-border/40 italic line-clamp-2">
+                      {a.notes}
+                    </p>
+                  )}
+
+                  {/* Line 4: Timestamp and Actions */}
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px] text-muted-foreground flex-wrap gap-2">
+                    <div className="flex items-center gap-1 font-mono text-[10px] truncate pr-2">
+                      <Calendar className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+                      <span className="truncate">{formatPakistaniDateTime(a.date, false)}</span>
+                    </div>
+
+                    {canEdit && (
+                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingAdjustment(a);
+                            setIsEditDialogOpen(true);
+                          }}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md"
+                          title={safeT("editAdjustment", "Edit Adjustment")}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setDeletingAdjustment(a);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:border-rose-200 dark:hover:border-rose-900 rounded-md"
+                          title={safeT("deleteAdjustment", "Delete Adjustment")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {/* Pagination Footer */}
         {totalCount > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t gap-3">
-            <div className="text-xs text-muted-foreground">
-              {tCommon("totalCountLabel", { count: totalCount })}
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Rows:</span>
+          <div className="flex flex-col sm:flex-row items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 border-t border-border/60 gap-3">
+            <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-6 w-full sm:w-auto text-xs text-muted-foreground">
+              <span className="whitespace-nowrap">{tCommon("totalCountLabel", { count: totalCount })}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] whitespace-nowrap">{tCommon("rowsPerPage") || "Rows:"}</span>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(val) => {
@@ -796,7 +955,7 @@ export function ItemAdjustmentsTab({
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-[65px] text-xs">
+                  <SelectTrigger className="h-7 w-[60px] text-xs">
                     <SelectValue placeholder={String(pageSize)} />
                   </SelectTrigger>
                   <SelectContent>
@@ -807,13 +966,18 @@ export function ItemAdjustmentsTab({
                   </SelectContent>
                 </Select>
               </div>
-
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(page) => setCurrentPage(page)}
-              />
             </div>
+
+            {totalPages > 1 && (
+              <div className="w-full sm:w-auto flex justify-center sm:justify-end overflow-x-auto [&>div]:py-0 [&>div]:px-0">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+                  isLoading={loading}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -838,10 +1002,10 @@ export function ItemAdjustmentsTab({
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-rose-600">
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{safeT("deleteAdjustmentTitle", "Delete Stock Adjustment")}</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -854,44 +1018,45 @@ export function ItemAdjustmentsTab({
 
           {deletingAdjustment && (
             <div className="bg-muted/50 p-3 rounded-xl space-y-1.5 text-xs border border-border/80 my-1">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-muted-foreground">Ref #:</span>
                 <span className="font-mono font-bold text-foreground">{deletingAdjustment.ref_no}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-muted-foreground">Product:</span>
                 <span className="font-semibold text-foreground truncate max-w-[200px]">{deletingAdjustment.product_name}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-muted-foreground">Stock Type:</span>
                 <span className="capitalize font-medium">{deletingAdjustment.stock_type}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Action & Quantity:</span>
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-muted-foreground">Action & Qty:</span>
                 <span className={`font-bold ${deletingAdjustment.action_type === "add" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                   {deletingAdjustment.action_type === "add"
                     ? `+${deletingAdjustment.quantity} (Stock will be deducted)`
                     : `-${deletingAdjustment.quantity} (Stock will be restored)`}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-muted-foreground">Unit Cost:</span>
                 <span className="font-mono font-medium">{formatCurrency(deletingAdjustment.cost_price || 0)}</span>
               </div>
-              <div className="flex justify-between border-t border-border/60 pt-1.5">
+              <div className="flex justify-between items-center gap-2 border-t border-border/60 pt-1.5">
                 <span className="text-muted-foreground">Total Valuation:</span>
                 <span className="font-bold font-mono">{formatCurrency(deletingAdjustment.quantity * (deletingAdjustment.cost_price || 0))}</span>
               </div>
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={isDeleting}
               onClick={() => setIsDeleteDialogOpen(false)}
+              className="w-full sm:w-auto"
             >
               {tCommon("cancel")}
             </Button>
@@ -901,7 +1066,7 @@ export function ItemAdjustmentsTab({
               size="sm"
               disabled={isDeleting}
               onClick={handleConfirmDelete}
-              className="gap-1.5 font-semibold"
+              className="gap-1.5 font-semibold w-full sm:w-auto"
             >
               {isDeleting ? (
                 <>
