@@ -647,7 +647,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           } ${sidebarMinimized ? "sm:w-16 md:w-16 w-72 max-w-[85vw]" : "w-72 max-w-[85vw] sm:w-52 md:w-56"}`}
         >
           <nav
-            className={`flex h-full overflow-y-auto flex-col gap-1 py-3 px-3 ${
+            className={`flex h-full overflow-y-auto custom-scrollbar flex-col gap-1 py-3 px-3 ${
               sidebarMinimized ? "sm:px-1 md:px-1" : "sm:px-2 md:px-2.5"
             }`}
           >
@@ -791,41 +791,33 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 aria-expanded={salesExpanded}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <ShoppingCartIcon className={`h-4 w-4 flex-shrink-0 transition-colors ${isSalesSectionActive ? "text-primary" : "opacity-90"}`} />
+                  <ShoppingCartIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("sales")}
                   </span>
                 </div>
-                <div className={`flex items-center gap-1.5 flex-shrink-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                  {isSalesSectionActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  )}
-                  {hasSalesSub && (
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground ${salesExpanded ? "rotate-90 text-foreground" : ""}`}
-                    />
-                  )}
-                </div>
+                {hasSalesSub && (
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${salesExpanded ? "rotate-90 text-foreground" : ""}`}
+                  />
+                )}
               </button>
 
               {salesExpanded && (
-                <div className={`mt-1 ml-3.5 pl-2.5 border-l-2 border-border/70 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                   {can('sales', 'view_quotations') && (
                     <Link
                       href={`/${locale}/admin/sales/quotations`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/quotations" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/sales/quotations"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/sales/quotations" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("quotations")}</span>
+                      {tNav("quotations")}
                     </Link>
                   )}
                   {can('sales', 'view_invoice') && (
@@ -834,35 +826,28 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/invoice" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/sales/invoice"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/sales/invoice" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("invoice")}</span>
+                      {tNav("invoice")}
                     </Link>
                   )}
-
                   {can('sales', 'view_payment_in') && (
                     <Link
                       href={`/${locale}/admin/sales/payment-in`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/payment-in" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/sales/payment-in"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/sales/payment-in" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("paymentIn")}</span>
+                      {tNav("paymentIn")}
                     </Link>
                   )}
                   {can('sales', 'view_sale_return') && (
@@ -871,16 +856,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/sale-return" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/sales/sale-return"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/sales/sale-return" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("saleReturn")}</span>
+                      {tNav("saleReturn")}
                     </Link>
                   )}
                   {enableCounterSale && can('sales', 'view_counter_sale') && (
@@ -889,16 +871,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/sales/counter-sale"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/sales/counter-sale" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("counterSale")}</span>
+                      {tNav("counterSale")}
                     </Link>
                   )}
                 </div>
@@ -929,41 +908,33 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 aria-expanded={purchaseExpanded}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <ShoppingBagIcon className={`h-4 w-4 flex-shrink-0 transition-colors ${isPurchaseSectionActive ? "text-primary" : "opacity-90"}`} />
+                  <ShoppingBagIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("purchase")}
                   </span>
                 </div>
-                <div className={`flex items-center gap-1.5 flex-shrink-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                  {isPurchaseSectionActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  )}
-                  {hasPurchaseSub && (
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground ${purchaseExpanded ? "rotate-90 text-foreground" : ""}`}
-                    />
-                  )}
-                </div>
+                {hasPurchaseSub && (
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${purchaseExpanded ? "rotate-90 text-foreground" : ""}`}
+                  />
+                )}
               </button>
 
               {purchaseExpanded && (
-                <div className={`mt-1 ml-3.5 pl-2.5 border-l-2 border-border/70 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                   {can('purchase', 'view_purchase_bill') && (
                     <Link
                       href={`/${locale}/admin/purchase/purchase-bill`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/purchase/purchase-bill" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/purchase/purchase-bill"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/purchase/purchase-bill" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("purchaseBill")}</span>
+                      {tNav("purchaseBill")}
                     </Link>
                   )}
                   {can('purchase', 'view_payment_out') && (
@@ -972,16 +943,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/purchase/payment-out" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/purchase/payment-out"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/purchase/payment-out" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("paymentOut")}</span>
+                      {tNav("paymentOut")}
                     </Link>
                   )}
                 </div>
@@ -1050,41 +1018,33 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                 aria-expanded={reportsExpanded}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <BarChart className={`h-4 w-4 flex-shrink-0 transition-colors ${isReportsSectionActive ? "text-primary" : "opacity-90"}`} />
+                  <BarChart className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                   <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                     {tNav("reports")}
                   </span>
                 </div>
-                <div className={`flex items-center gap-1.5 flex-shrink-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                  {isReportsSectionActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  )}
-                  {hasReportsSub && (
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground ${reportsExpanded ? "rotate-90 text-foreground" : ""}`}
-                    />
-                  )}
-                </div>
+                {hasReportsSub && (
+                  <ChevronRight
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${reportsExpanded ? "rotate-90 text-foreground" : ""}`}
+                  />
+                )}
               </button>              
 
               {reportsExpanded && (
-                <div className={`mt-1 ml-3.5 pl-2.5 border-l-2 border-border/70 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                   {can('reports', 'view_account_statement') && (
                     <Link
                       href={`/${locale}/admin/reports/account-statement`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/account-statement" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/account-statement"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/account-statement" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("accountStatement")}</span>
+                      {tNav("accountStatement")}
                     </Link>
                   )}
                   {can('reports', 'view_stock') && (
@@ -1093,16 +1053,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/stock"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/stock" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("stockReport")}</span>
+                      {tNav("stockReport")}
                     </Link>
                   )}
                   {can('reports', 'view_receivable_summary') && (
@@ -1111,16 +1068,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/receivable-summary"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/receivable-summary" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("receivableSummary")}</span>
+                      {tNav("receivableSummary")}
                     </Link>
                   )}
                   {can('reports', 'view_profitability') && (
@@ -1129,16 +1083,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/profitability"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/profitability" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("profitability")}</span>
+                      {tNav("profitability")}
                     </Link>
                   )}
                   {can('reports', 'view_item_wise_sales') && (
@@ -1147,16 +1098,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/item-wise-sales" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/item-wise-sales"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/item-wise-sales" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("itemWiseSaleReport")}</span>
+                      {tNav("itemWiseSaleReport")}
                     </Link>
                   )}
                   {can('reports', 'view_sale_report') && (
@@ -1165,16 +1113,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/sale-report" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/sale-report"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/sale-report" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("saleReport")}</span>
+                      {tNav("saleReport")}
                     </Link>
                   )}
                   {can('reports', 'view_purchase_report') && (
@@ -1183,16 +1128,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/purchase-report" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/purchase-report"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/purchase-report" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("purchaseReport")}</span>
+                      {tNav("purchaseReport")}
                     </Link>
                   )}
                   {can('reports', 'view_party_wise_sale_purchase_report') && (
@@ -1201,16 +1143,13 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/party-wise-report" ? "page" : undefined}
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
                         pathWithoutLocale === "/admin/reports/party-wise-report"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/reports/party-wise-report" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">{tNav("partyWiseReport")}</span>
+                      {tNav("partyWiseReport")}
                     </Link>
                   )}
                 </div>
@@ -1243,85 +1182,71 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                   aria-expanded={whatsappExpanded}
                 >
                   <div className="flex items-center gap-2.5 truncate">
-                    <MessageCircle className={`h-4 w-4 flex-shrink-0 transition-colors ${pathWithoutLocale === "/admin/whatsapp-integration" ? "text-primary" : "opacity-90"}`} />
+                    <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
                     <span className={`font-medium truncate ${sidebarMinimized ? "sm:hidden" : ""}`}>
                       {tNav("whatsapp")}
                     </span>
                   </div>
-                  <div className={`flex items-center gap-1.5 flex-shrink-0 ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                    {pathWithoutLocale === "/admin/whatsapp-integration" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    )}
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground ${whatsappExpanded ? "rotate-90 text-foreground" : ""}`}
-                    />
-                  </div>
-                </button>
+                <ChevronRight
+                  className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${whatsappExpanded ? "rotate-90 text-foreground" : ""}`}
+                />
+              </button>
 
-                {whatsappExpanded && (
-                  <div className={`mt-1 ml-3.5 pl-2.5 border-l-2 border-border/70 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
-                    <Link
-                      href={`/${locale}/admin/whatsapp-integration?tab=campaigns`}
-                      prefetch={false}
-                      onClick={() => handleWhatsappTabClick("campaigns")}
-                      aria-current={
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
-                          ? "page"
-                          : undefined
-                      }
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">Marketing Campaigns</span>
-                    </Link>
-                    <Link
-                      href={`/${locale}/admin/whatsapp-integration?tab=connection`}
-                      prefetch={false}
-                      onClick={() => handleWhatsappTabClick("connection")}
-                      aria-current={
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
-                          ? "page"
-                          : undefined
-                      }
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">Device Connection</span>
-                    </Link>
-                    <Link
-                      href={`/${locale}/admin/whatsapp-integration?tab=reminders`}
-                      prefetch={false}
-                      onClick={() => handleWhatsappTabClick("reminders")}
-                      aria-current={
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
-                          ? "page"
-                          : undefined
-                      }
-                      className={`group/sub flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
-                          ? "bg-primary/10 text-primary font-semibold shadow-xs"
-                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders" ? "bg-primary scale-110" : "bg-muted-foreground/30 group-hover/sub:bg-foreground/50"
-                      }`} />
-                      <span className="truncate">Udhaar Reminders</span>
-                    </Link>
-                  </div>
-                )}
+              {whatsappExpanded && (
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration?tab=campaigns`}
+                    prefetch={false}
+                    onClick={() => handleWhatsappTabClick("campaigns")}
+                    aria-current={
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
+                        ? "page"
+                        : undefined
+                    }
+                    className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    Marketing Campaigns
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration?tab=connection`}
+                    prefetch={false}
+                    onClick={() => handleWhatsappTabClick("connection")}
+                    aria-current={
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
+                        ? "page"
+                        : undefined
+                    }
+                    className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    Device Connection
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration?tab=reminders`}
+                    prefetch={false}
+                    onClick={() => handleWhatsappTabClick("reminders")}
+                    aria-current={
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
+                        ? "page"
+                        : undefined
+                    }
+                    className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    Udhaar Reminders
+                  </Link>
+                </div>
+              )}
               </div>
             )}
 

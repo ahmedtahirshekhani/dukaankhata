@@ -159,6 +159,17 @@ export function ItemAdjustmentsTab({
 
   useEffect(() => {
     fetchServerAdjustments();
+    const handleSync = (e: any) => {
+      if (!e?.detail?.collection || e.detail.collection === "stock_adjustments") {
+        fetchServerAdjustments();
+      }
+    };
+    window.addEventListener("syncComplete", handleSync);
+    window.addEventListener("localIdReplaced", handleSync);
+    return () => {
+      window.removeEventListener("syncComplete", handleSync);
+      window.removeEventListener("localIdReplaced", handleSync);
+    };
   }, [fetchServerAdjustments]);
 
   // Merge server and local adjustments without duplicates
@@ -175,7 +186,16 @@ export function ItemAdjustmentsTab({
     if (localAdjustments && localAdjustments.length > 0) {
       for (const loc of localAdjustments) {
         if (!map.has(loc.id) && (!loc.ref_no || !map.has(loc.ref_no))) {
-          map.set(loc.id, loc);
+          // Extra deduplication against server records: check matching product_id, action_type, quantity, within 60s
+          const isDuplicateOfServer = serverAdjustments.some((srv) =>
+            String(srv.product_id) === String(loc.product_id) &&
+            srv.action_type === loc.action_type &&
+            Number(srv.quantity) === Number(loc.quantity) &&
+            Math.abs(new Date(srv.date || (srv as any).created_at || "").getTime() - new Date(loc.date || (loc as any).created_at || "").getTime()) < 60000
+          );
+          if (!isDuplicateOfServer) {
+            map.set(loc.id, loc);
+          }
         }
       }
     }
@@ -429,7 +449,7 @@ export function ItemAdjustmentsTab({
               className="h-9 text-xs gap-1.5"
             >
               <FileDown className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">{safeT("exportAdjustments", "Export Log")}</span>
+              <span className="hidden sm:inline">{safeT("exportAdjustments", "Export")}</span>
               <span className="inline sm:hidden">Export</span>
             </Button>
 
@@ -444,7 +464,7 @@ export function ItemAdjustmentsTab({
               <RotateCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
 
-            {canEdit && onAdjustStock && (
+            {/* {canEdit && onAdjustStock && (
               <Button
                 size="sm"
                 onClick={onAdjustStock}
@@ -453,7 +473,7 @@ export function ItemAdjustmentsTab({
                 <PlusCircle className="w-4 h-4" />
                 <span>{safeT("newAdjustment", "New Adjustment")}</span>
               </Button>
-            )}
+            )} */}
           </div>
         </div>
 

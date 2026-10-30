@@ -82,6 +82,8 @@ export async function POST(request: NextRequest) {
 
     let newQty = curQty;
     let newDamaged = curDamaged;
+    let reductionCost = curCost;
+    let consumedBatchSplits: any[] = [];
     const valuationMethod = await getValuationMethod(user.id);
     const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
 
@@ -163,12 +165,18 @@ export async function POST(request: NextRequest) {
         updateFields.in_stock = newQty;
 
         if (valuationMethod === "fifo") {
-          await consumeBatchesOnSaleServer({
+          const consumption = await consumeBatchesOnSaleServer({
             userId: user.id,
             productId: String(productId),
             saleQty: numQty,
             fallbackCostPrice: curCost,
           });
+          if (consumption && consumption.effective_unit_cost > 0) {
+            reductionCost = consumption.effective_unit_cost;
+            consumedBatchSplits = consumption.consumed_batches || [];
+          }
+        } else {
+          reductionCost = curCost;
         }
       }
     }
@@ -183,28 +191,38 @@ export async function POST(request: NextRequest) {
       (COLLECTIONS as any).STOCK_ADJUSTMENTS || "stock_adjustments"
     );
 
-    const refNo = `ADJ-${Date.now().toString().slice(-6)}`;
-    await stockAdjustmentsCollection.insertOne({
+    const refNo = body.refNo || body.ref_no || `ADJ-${Date.now().toString().slice(-6)}`;
+    const finalAdjCost = actionType === "reduce" ? reductionCost : resolvedCost;
+    const insertResult = await stockAdjustmentsCollection.insertOne({
       user_id: userId,
       product_id: prodObjId,
       product_name: product.name,
       stock_type: stockType,
       action_type: actionType,
       quantity: numQty,
-      cost_price: resolvedCost,
+      cost_price: finalAdjCost,
+      batch_splits: consumedBatchSplits,
       previous_cost_price: curCost,
       previous_quantity: curQty,
       reason: reason || "physicalCount",
       notes: notes || "",
       ref_no: refNo,
       date: parsedDate,
+      metadata: body.localId ? { local_id: body.localId } : undefined,
       created_at: new Date(),
     });
 
+    const newId = insertResult.insertedId.toString();
+
     return NextResponse.json({
       success: true,
+      id: newId,
+      _id: newId,
       newQuantity: newQty,
       newDamagedQuantity: newDamaged,
+      newCostPrice: actionType === "reduce" ? curCost : finalAdjCost,
+      effectiveCostPrice: finalAdjCost,
+      batch_splits: consumedBatchSplits,
       refNo,
     });
   } catch (err: any) {
@@ -510,6 +528,14 @@ export async function DELETE(request: NextRequest) {
           updateFields.quantity = newQty;
           updateFields.quantity_str = newQty.toString();
           updateFields.in_stock = newQty;
+
+          if (valuationMethod === "fifo" && adj.batch_splits && Array.isArray(adj.batch_splits) && adj.batch_splits.length > 0) {
+            const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+            await restoreBatchesOnSaleRevertServer({
+              userId: user.id,
+              consumedBatches: adj.batch_splits,
+            });
+          }
         }
       }
 
@@ -668,6 +694,13 @@ export async function PUT(request: NextRequest) {
         curQty = roundToPrecision(curQty - oldQty, 5);
       } else {
         curQty = roundToPrecision(curQty + oldQty, 5);
+        if (valuationMethod === "fifo" && oldAdj.batch_splits && Array.isArray(oldAdj.batch_splits) && oldAdj.batch_splits.length > 0) {
+          const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+          await restoreBatchesOnSaleRevertServer({
+            userId: user.id,
+            consumedBatches: oldAdj.batch_splits,
+          });
+        }
       }
     }
 
@@ -687,6 +720,8 @@ export async function PUT(request: NextRequest) {
     let finalQty = curQty;
     let finalDamaged = curDamaged;
     let finalCost = curCost;
+    let reductionCost = curCost;
+    let consumedBatchSplits: any[] = [];
 
     const updateFields: any = { updated_at: new Date() };
     const parsedDate = adjustmentDate ? new Date(adjustmentDate) : new Date();
@@ -751,12 +786,18 @@ export async function PUT(request: NextRequest) {
         updateFields.quantity_str = finalQty.toString();
         updateFields.in_stock = finalQty;
         if (valuationMethod === "fifo") {
-          await consumeBatchesOnSaleServer({
+          const consumption = await consumeBatchesOnSaleServer({
             userId: user.id,
             productId: prodObjId.toString(),
             saleQty: numQty,
             fallbackCostPrice: curCost,
           });
+          if (consumption && consumption.effective_unit_cost > 0) {
+            reductionCost = consumption.effective_unit_cost;
+            consumedBatchSplits = consumption.consumed_batches || [];
+          }
+        } else {
+          reductionCost = curCost;
         }
       }
     }
@@ -766,6 +807,7 @@ export async function PUT(request: NextRequest) {
       { $set: updateFields }
     );
 
+    const finalAdjCost = actionType === "reduce" ? reductionCost : resolvedCost;
     await stockAdjustmentsCollection.updateOne(
       { _id: oldAdj._id },
       {
@@ -773,12 +815,13 @@ export async function PUT(request: NextRequest) {
           stock_type: stockType,
           action_type: actionType,
           quantity: numQty,
-          cost_price: resolvedCost,
+          cost_price: finalAdjCost,
+          batch_splits: consumedBatchSplits,
           reason: reason || "physicalCount",
           notes: notes?.trim() || "",
           date: parsedDate,
           updated_at: new Date(),
-        }
+        },
       }
     );
 

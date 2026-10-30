@@ -339,11 +339,11 @@ export function ItemSalesDetailModal({
                           <th className="py-2.5 px-3 text-left font-semibold">{t("date")}</th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("invoiceNo")}</th>
                           <th className="py-2.5 px-3 text-left font-semibold">{t("customer")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("qtySold")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("rate")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("discount")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("netRevenue")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("costCogs")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("qtySold")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("rate")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("discount")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("netRevenue")}</th>
+                          <th className="py-2.5 px-3 text-left font-semibold">{t("costCogs")}</th>
                           <th className="py-2.5 px-3 text-right font-semibold">{t("profit")}</th>
                         </tr>
                       </thead>

@@ -361,19 +361,42 @@ export async function GET(request: NextRequest) {
       const qty = Number(adj.quantity) || 0;
       const rate = Number(adj.cost_price || product.cost_price) || 0;
       const reasonKey = adj.reason || "Adjustment";
+      const splits = Array.isArray(adj.batch_splits) && adj.batch_splits.length > 0 ? adj.batch_splits : null;
 
-      rawMovements.push({
-        id: `adj-${adj._id}`,
-        date: d,
-        type: isAdd ? "adjustment_add" : "adjustment_reduce",
-        refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
-        partyName: `Adjustment (${reasonKey})`,
-        inwardQty: isAdd ? qty : 0,
-        outwardQty: !isAdd ? qty : 0,
-        unitRate: rate,
-        costPrice: rate,
-        totalAmount: Math.round(qty * rate * 100) / 100,
-      });
+      if (!isAdd && valuationMethod === "fifo" && splits && splits.length > 0) {
+        splits.forEach((split: any, sIdx: number) => {
+          const splitQty = Number(split.quantity) || 0;
+          const splitCost = Number(split.cost_price) || 0;
+          rawMovements.push({
+            id: `adj-${adj._id}-split-${sIdx}`,
+            date: d,
+            type: "adjustment_reduce",
+            refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
+            partyName: `Adjustment (${reasonKey})`,
+            inwardQty: 0,
+            outwardQty: splitQty,
+            unitRate: splitCost,
+            costPrice: splitCost,
+            totalAmount: Math.round(splitQty * splitCost * 100) / 100,
+            batchNumber: split.batch_number || undefined,
+            batchSplits: [split],
+          });
+        });
+      } else {
+        rawMovements.push({
+          id: `adj-${adj._id}`,
+          date: d,
+          type: isAdd ? "adjustment_add" : "adjustment_reduce",
+          refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
+          partyName: `Adjustment (${reasonKey})`,
+          inwardQty: isAdd ? qty : 0,
+          outwardQty: !isAdd ? qty : 0,
+          unitRate: rate,
+          costPrice: rate,
+          totalAmount: Math.round(qty * rate * 100) / 100,
+          batchSplits: splits || [],
+        });
+      }
     }
 
     let reorderedMovements: RawMovement[] = [];
