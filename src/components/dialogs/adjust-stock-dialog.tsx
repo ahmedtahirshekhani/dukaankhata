@@ -65,7 +65,7 @@ export function AdjustStockDialog({
   const [actionType, setActionType] = useState<"add" | "reduce">("add");
   const [quantity, setQuantity] = useState<string>("");
   const [costPrice, setCostPrice] = useState<string>("");
-  const [reason, setReason] = useState<string>("physicalCount");
+  const [reason, setReason] = useState<string>("");
   const [adjustmentDate, setAdjustmentDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -93,7 +93,7 @@ export function AdjustStockDialog({
         setActionType(adjustment.action_type || "add");
         setQuantity(String(adjustment.quantity || ""));
         setCostPrice(adjustment.cost_price !== undefined ? String(adjustment.cost_price) : "");
-        setReason(adjustment.reason || "physicalCount");
+        setReason(adjustment.reason || "");
         setAdjustmentDate(toHTMLDateString(adjustment.date ? new Date(adjustment.date) : new Date()));
         setNotes(adjustment.notes || "");
         setErrorMsg(null);
@@ -123,7 +123,7 @@ export function AdjustStockDialog({
           ? String(prod.cost_price)
           : (prod?.cost_price_str || "0");
         setCostPrice(initialCost);
-        setReason("physicalCount");
+        setReason("");
         setAdjustmentDate(toHTMLDateString(new Date()));
         setNotes("");
         setErrorMsg(null);
@@ -756,7 +756,7 @@ export function AdjustStockDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || numQty <= 0}
+                disabled={isSubmitting || numQty <= 0 || !reason}
                 className="w-full sm:w-auto h-10 text-xs sm:text-sm font-semibold gap-1.5"
               >
                 {isSubmitting ? (

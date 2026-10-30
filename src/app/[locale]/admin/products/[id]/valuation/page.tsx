@@ -797,25 +797,13 @@ export default function StockValuationLedgerPage() {
 
                               {/* WAC Formula / Calculation Notes */}
                               <td className={`py-2.5 px-3 text-[11px] text-muted-foreground font-mono min-w-[240px] max-w-[420px] whitespace-normal break-words leading-relaxed align-top ${subBorderClass}`} title={m.wacFormula}>
-                                <div className="flex items-start gap-1.5 flex-wrap">
-                                  {m.batchNumber && (
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-[10px] font-mono px-1.5 py-0 shrink-0 font-semibold mt-0.5 ${
-                                        m.batchNumber === "DEFICIT"
-                                          ? "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                                          : "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300"
-                                      }`}
-                                    >
-                                      {m.batchNumber === "DEFICIT" ? "Oversold" : `Batch: ${m.batchNumber}`}
-                                    </Badge>
-                                  )}
-                                  {m.wacFormula ? (
-                                    <span className="whitespace-normal break-words">{m.wacFormula}</span>
-                                  ) : (
-                                    "-"
-                                  )}
-                                </div>
+                                {m.wacFormula ? (
+                                  <span className="whitespace-normal break-words">
+                                    {m.wacFormula.replace(/FIFO Depleted from Batch [^:]+:\s*/, "FIFO Depleted: ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                )}
                               </td>
                             </tr>
                           );

@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
     };
 
     const parsedDate = adjustmentDate ? new Date(adjustmentDate) : new Date();
+    const refNo = body.refNo || body.ref_no || `ADJ-${Date.now().toString().slice(-6)}`;
+    const adjLocalId = body.localId || `adj_${Date.now()}`;
 
     if (stockType === "damaged") {
       newDamaged =
@@ -114,8 +116,8 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             product_id: prodObjId,
             source_type: "stock_adjustment",
-            source_id: `adj_${Date.now()}`,
-            batch_number: `ADJ-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}`,
+            source_id: adjLocalId,
+            batch_number: refNo,
             initial_quantity: numQty,
             remaining_quantity: numQty,
             cost_price: resolvedCost,
@@ -191,7 +193,6 @@ export async function POST(request: NextRequest) {
       (COLLECTIONS as any).STOCK_ADJUSTMENTS || "stock_adjustments"
     );
 
-    const refNo = body.refNo || body.ref_no || `ADJ-${Date.now().toString().slice(-6)}`;
     const finalAdjCost = actionType === "reduce" ? reductionCost : resolvedCost;
     const insertResult = await stockAdjustmentsCollection.insertOne({
       user_id: userId,
@@ -745,7 +746,7 @@ export async function PUT(request: NextRequest) {
             product_id: prodObjId,
             source_type: "stock_adjustment",
             source_id: oldAdj._id.toString(),
-            batch_number: oldAdj.ref_no || `ADJ-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}`,
+            batch_number: oldAdj.ref_no || body.refNo || body.ref_no || `ADJ-${Date.now().toString().slice(-6)}`,
             initial_quantity: numQty,
             remaining_quantity: numQty,
             cost_price: resolvedCost,

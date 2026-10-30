@@ -30,8 +30,9 @@ import {
   AlertCircle,
   PlusCircle,
   Loader2,
-  Edit2,
+  Edit,
   Trash2,
+  FilePenIcon,
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +40,20 @@ import { formatCurrency } from "@/lib/utils";
 import { formatPakistaniDateTime, toHTMLDateString } from "@/lib/date-utils";
 import { exportStockAdjustmentsToExcel } from "@/lib/excel";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { deleteStockAdjustmentOffline } from "@/lib/db/offline-stock-manager";
 import { AdjustStockDialog } from "@/components/dialogs/adjust-stock-dialog";
 import {
@@ -80,7 +95,10 @@ export function ItemAdjustmentsTab({
   const safeT = (key: string, fallback: string) => {
     try {
       const res = (t as any)(key);
-      return res || fallback;
+      if (!res || res === key || (typeof res === "string" && res.startsWith("products."))) {
+        return fallback;
+      }
+      return res;
     } catch {
       return fallback;
     }
@@ -370,36 +388,37 @@ export function ItemAdjustmentsTab({
   };
 
   return (
-    <div className="flex flex-col gap-3.5 sm:gap-4 w-full max-w-full">
-
+    <>
+      <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
       {/* Filters & Actions Toolbar */}
-      <div className="p-3 sm:p-4 rounded-xl border bg-card/50 shadow-xs space-y-2.5 sm:space-y-3">
-        {/* Row 1: Search Box & Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          {/* Search Box */}
-          <div className="relative flex-1 min-w-0">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder={safeT("searchAdjustments", "Search adjustments...")}
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-8 pr-8 h-9 text-xs sm:text-sm w-full"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-                title="Clear Search"
-              >
-                <XIcon className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+      <CardHeader className="p-0">
+        <div className="flex flex-col gap-3">
+          {/* Row 1: Search Box & Actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            {/* Search Box */}
+            <div className="relative flex-1 min-w-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder={safeT("searchAdjustments", "Search adjustments...")}
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-9 pr-8 h-9 text-xs sm:text-sm w-full"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                  title="Clear Search"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
 
           {/* Quick Actions (Export, Refresh) */}
           <div className="flex items-center gap-2 justify-end shrink-0">
@@ -558,7 +577,7 @@ export function ItemAdjustmentsTab({
           <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 text-muted-foreground flex-wrap gap-2">
             <div className="flex items-center gap-1.5">
               <FilterIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-[11px] font-medium">Filtered adjustments:</span>
+              <span className="text-[11px] font-medium">{safeT("filteredAdjustments", "Filtered adjustments:")}</span>
               <Badge variant="secondary" className="text-[10px] font-mono font-semibold py-0 px-1.5">
                 {filteredAdjustments.length}
               </Badge>
@@ -570,43 +589,44 @@ export function ItemAdjustmentsTab({
               className="h-6 text-[11px] px-2 text-primary hover:text-primary hover:bg-primary/10 gap-1 rounded"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Reset Filters</span>
+              <span>{safeT("resetFilters", "Reset Filters")}</span>
             </Button>
           </div>
         )}
-      </div>
+        </div>
+      </CardHeader>
 
       {/* Adjustments Container */}
-      <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
+      <CardContent className="p-0 relative">
         {/* DESKTOP TABLE VIEW (md and up) */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-xs min-w-[950px]">
-            <thead className="bg-muted/60 border-b text-muted-foreground text-[11px]">
-              <tr>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("dateTime", "Date")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("refNo", "Ref #")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("product", "Product / Item")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("stockType", "Stock Category")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("action", "Action")}</th>
-                <th className="py-3 px-3.5 text-right font-semibold">{safeT("adjustedQty", "Adjusted Qty")}</th>
-                <th className="py-3 px-3.5 text-right font-semibold">{safeT("rate", "Rate")}</th>
-                <th className="py-3 px-3.5 text-right font-semibold">{safeT("totalValue", "Total Value")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("reason", "Reason")}</th>
-                <th className="py-3 px-3.5 text-left font-semibold">{safeT("notesRemarks", "Notes / Remarks")}</th>
-                <th className="py-3 px-3.5 text-center font-semibold">{safeT("actions", "Actions")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
+          <Table className="min-w-[950px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>{safeT("dateTime", "Date")}</TableHead>
+                <TableHead>{safeT("refNo", "Ref #")}</TableHead>
+                <TableHead>{safeT("product", "Product / Item")}</TableHead>
+                <TableHead>{safeT("stockType", "Stock Category")}</TableHead>
+                <TableHead>{safeT("action", "Action")}</TableHead>
+                <TableHead className="text-right">{safeT("adjustedQty", "Adjusted Qty")}</TableHead>
+                <TableHead className="text-right">{safeT("rate", "Rate")}</TableHead>
+                <TableHead className="text-right">{safeT("totalValue", "Total Value")}</TableHead>
+                <TableHead>{safeT("reason", "Reason")}</TableHead>
+                <TableHead>{safeT("notesRemarks", "Notes / Remarks")}</TableHead>
+                <TableHead className="text-center">{safeT("actions", "Actions")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {loading && allAdjustments.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="py-16 text-center text-muted-foreground">
+                <TableRow>
+                  <TableCell colSpan={11} className="py-16 text-center text-muted-foreground">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
                     <span>{safeT("loading", "Loading...")}</span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : paginatedAdjustments.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="py-16 text-center text-muted-foreground">
+                <TableRow>
+                  <TableCell colSpan={11} className="py-16 text-center text-muted-foreground">
                     <div className="max-w-xs mx-auto space-y-2">
                       <SlidersHorizontal className="w-8 h-8 text-muted-foreground/40 mx-auto" />
                       <p className="font-semibold text-foreground text-sm">
@@ -616,7 +636,7 @@ export function ItemAdjustmentsTab({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {hasActiveFilters
-                          ? "Try clearing filters or search terms to see all adjustments."
+                          ? safeT("tryClearingFilters", "Try clearing filters or search terms to see all adjustments.")
                           : safeT("adjustStockDesc", "Add or reduce available/damaged stock with reason tracking.")}
                       </p>
                       {hasActiveFilters && (
@@ -627,12 +647,12 @@ export function ItemAdjustmentsTab({
                           className="mt-2 text-xs"
                         >
                           <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                          <span>Reset Filters</span>
+                          <span>{safeT("resetFilters", "Reset Filters")}</span>
                         </Button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 paginatedAdjustments.map((a) => {
                   const isAdd = a.action_type === "add";
@@ -651,26 +671,26 @@ export function ItemAdjustmentsTab({
                   }
 
                   return (
-                    <tr key={a.id} className="hover:bg-muted/30 transition-colors">
+                    <TableRow key={a.id}>
                       {/* Date & Time down to seconds */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                      <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                         {formatPakistaniDateTime(a.date, false)}
-                      </td>
+                      </TableCell>
 
                       {/* Ref # */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap font-mono font-semibold text-foreground">
+                      <TableCell className="whitespace-nowrap font-mono font-semibold text-foreground text-xs">
                         {a.ref_no}
-                      </td>
+                      </TableCell>
 
                       {/* Product Name */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap text-xs">
                         <div className="font-semibold text-foreground max-w-[200px] truncate" title={a.product_name}>
                           {a.product_name}
                         </div>
-                      </td>
+                      </TableCell>
 
                       {/* Stock Category (Available vs Damaged) */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap text-xs">
                         {isDamaged ? (
                           <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
                             {safeT("damagedStock", "Damaged")}
@@ -680,95 +700,96 @@ export function ItemAdjustmentsTab({
                             {safeT("availableStock", "Available")}
                           </Badge>
                         )}
-                      </td>
+                      </TableCell>
 
-                      {/* Action (Add vs Reduce) */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
+                      {/* Action (Add vs Reduce) - Black Arrow Icon */}
+                      <TableCell className="whitespace-nowrap text-xs">
                         {isAdd ? (
                           <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold gap-1">
-                            <ArrowDownLeft className="w-3 h-3" />
+                            <ArrowDownLeft className="w-3 h-3 text-black dark:text-white" />
                             {safeT("addStock", "Add")}
                           </Badge>
                         ) : (
                           <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-semibold gap-1">
-                            <ArrowUpRight className="w-3 h-3" />
+                            <ArrowUpRight className="w-3 h-3 text-black dark:text-white" />
                             {safeT("reduceStock", "Reduce")}
                           </Badge>
                         )}
-                      </td>
+                      </TableCell>
 
                       {/* Quantity */}
-                      <td
-                        className={`py-2.5 px-3.5 text-right font-bold whitespace-nowrap ${
+                      <TableCell
+                        className={`text-right font-bold whitespace-nowrap text-xs ${
                           isAdd
                             ? "text-emerald-600 dark:text-emerald-400"
                             : "text-rose-600 dark:text-rose-400"
                         }`}
                       >
                         {isAdd ? `+${a.quantity}` : `-${a.quantity}`}
-                      </td>
+                      </TableCell>
 
                       {/* Unit Cost Rate */}
-                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap font-mono text-muted-foreground">
+                      <TableCell className="text-right whitespace-nowrap font-mono text-muted-foreground text-xs">
                         {formatCurrency(a.cost_price || 0)}
-                      </td>
+                      </TableCell>
 
                       {/* Total Value Impact */}
-                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap font-medium font-mono text-foreground">
+                      <TableCell className="text-right whitespace-nowrap font-medium font-mono text-foreground text-xs">
                         {formatCurrency(total)}
-                      </td>
+                      </TableCell>
 
                       {/* Reason */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap text-xs">
                         <span className="inline-block px-2 py-0.5 rounded text-[11px] bg-muted/60 text-foreground font-medium">
                           {reasonLabel}
                         </span>
-                      </td>
+                      </TableCell>
 
                       {/* Notes / Remarks */}
-                      <td className="py-2.5 px-3.5 text-muted-foreground text-[11px] max-w-[200px] truncate" title={a.notes}>
+                      <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate" title={a.notes}>
                         {a.notes || "-"}
-                      </td>
+                      </TableCell>
 
-                      {/* Actions (Edit & Delete) */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-1">
+                      {/* Actions (Edit & Delete) - Exactly matching Products Table */}
+                      <TableCell className="whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           {canEdit && (
                             <Button
+                              size="icon"
                               variant="ghost"
-                              size="sm"
                               onClick={() => {
                                 setEditingAdjustment(a);
                                 setIsEditDialogOpen(true);
                               }}
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
                               title={safeT("editAdjustment", "Edit Adjustment")}
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <FilePenIcon className="w-4 h-4" />
+                              <span className="sr-only">{safeT("editAdjustment", "Edit")}</span>
                             </Button>
                           )}
                           {canEdit && (
                             <Button
-                              variant="ghost"
-                              size="sm"
+                              size="icon"
+                              variant="danger"
+                              className="h-8 w-8"
                               onClick={() => {
                                 setDeletingAdjustment(a);
                                 setIsDeleteDialogOpen(true);
                               }}
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-md transition-colors"
                               title={safeT("deleteAdjustment", "Delete Adjustment")}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">{safeT("deleteAdjustment", "Delete")}</span>
                             </Button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {/* MOBILE / TABLET CARD VIEW (under md) */}
@@ -789,7 +810,7 @@ export function ItemAdjustmentsTab({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {hasActiveFilters
-                    ? "Try clearing filters or search terms to see all adjustments."
+                    ? safeT("tryClearingFilters", "Try clearing filters or search terms to see all adjustments.")
                     : safeT("adjustStockDesc", "Add or reduce available/damaged stock with reason tracking.")}
                 </p>
                 {hasActiveFilters && (
@@ -800,7 +821,7 @@ export function ItemAdjustmentsTab({
                     className="mt-2 text-xs"
                   >
                     <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                    <span>Reset Filters</span>
+                    <span>{safeT("resetFilters", "Reset Filters")}</span>
                   </Button>
                 )}
               </div>
@@ -844,12 +865,12 @@ export function ItemAdjustmentsTab({
                     <div className="shrink-0">
                       {isAdd ? (
                         <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5">
-                          <ArrowDownLeft className="w-3 h-3" />
+                          <ArrowDownLeft className="w-3 h-3 text-black dark:text-white" />
                           <span>{safeT("addStock", "Add")}</span>
                         </Badge>
                       ) : (
                         <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5">
-                          <ArrowUpRight className="w-3 h-3" />
+                          <ArrowUpRight className="w-3 h-3 text-black dark:text-white" />
                           <span>{safeT("reduceStock", "Reduce")}</span>
                         </Badge>
                       )}
@@ -909,28 +930,30 @@ export function ItemAdjustmentsTab({
                     {canEdit && (
                       <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                         <Button
-                          variant="outline"
-                          size="sm"
+                          size="icon"
+                          variant="ghost"
                           onClick={() => {
                             setEditingAdjustment(a);
                             setIsEditDialogOpen(true);
                           }}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md"
+                          className="h-8 w-8"
                           title={safeT("editAdjustment", "Edit Adjustment")}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <FilePenIcon className="w-4 h-4" />
+                          <span className="sr-only">{safeT("editAdjustment", "Edit")}</span>
                         </Button>
                         <Button
-                          variant="outline"
-                          size="sm"
+                          size="icon"
+                          variant="danger"
+                          className="h-8 w-8"
                           onClick={() => {
                             setDeletingAdjustment(a);
                             setIsDeleteDialogOpen(true);
                           }}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:border-rose-200 dark:hover:border-rose-900 rounded-md"
                           title={safeT("deleteAdjustment", "Delete Adjustment")}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sr-only">{safeT("deleteAdjustment", "Delete")}</span>
                         </Button>
                       </div>
                     )}
@@ -940,47 +963,53 @@ export function ItemAdjustmentsTab({
             })
           )}
         </div>
+      </CardContent>
 
-        {/* Pagination Footer */}
-        {totalCount > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 border-t border-border/60 gap-3">
-            <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-6 w-full sm:w-auto text-xs text-muted-foreground">
-              <span className="whitespace-nowrap">{tCommon("totalCountLabel", { count: totalCount })}</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] whitespace-nowrap">{tCommon("rowsPerPage") || "Rows:"}</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(val) => {
-                    setPageSize(Number(val));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-[60px] text-xs">
-                    <SelectValue placeholder={String(pageSize)} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="15">15</SelectItem>
-                    <SelectItem value="30">30</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Pagination Footer matching Products page */}
+      {totalCount > 0 && (
+        <CardFooter className="flex flex-col md:flex-row justify-between items-center px-4 sm:px-6 py-4 border-t gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full md:w-auto">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {tCommon("totalCountLabel", { count: totalCount })}
             </div>
 
-            {totalPages > 1 && (
-              <div className="w-full sm:w-auto flex justify-center sm:justify-end overflow-x-auto [&>div]:py-0 [&>div]:px-0">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={(page) => setCurrentPage(page)}
-                  isLoading={loading}
-                />
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {tCommon("rowsPerPage") || "Rows:"}
+              </span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(val) => {
+                  setPageSize(Number(val));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={String(pageSize)} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="15">15</SelectItem>
+                  <SelectItem value="30">30</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        )}
-      </div>
+
+          {totalPages > 1 && (
+            <div className="w-full sm:w-auto flex justify-center sm:justify-end overflow-x-auto [&>div]:py-0 [&>div]:px-0">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+                isLoading={loading}
+              />
+            </div>
+          )}
+        </CardFooter>
+      )}
+    </Card>
 
       {/* Edit Adjustment Dialog */}
       {isEditDialogOpen && (
@@ -1083,6 +1112,6 @@ export function ItemAdjustmentsTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

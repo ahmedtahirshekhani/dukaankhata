@@ -394,6 +394,7 @@ export async function GET(request: NextRequest) {
           unitRate: rate,
           costPrice: rate,
           totalAmount: Math.round(qty * rate * 100) / 100,
+          batchNumber: isAdd ? (adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`) : undefined,
           batchSplits: splits || [],
         });
       }
@@ -513,7 +514,7 @@ export async function GET(request: NextRequest) {
           effectiveRate = m.unitRate > 0 ? m.unitRate : lastKnownCost;
           lastKnownCost = effectiveRate;
           runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
-          impactFormula = `FIFO Inward: ${m.inwardQty} units @ ${effectiveRate} (Batch: ${m.batchNumber || m.refNo})`;
+          impactFormula = `FIFO Inward: ${m.inwardQty} units @ ${effectiveRate}`;
         } else if (m.type === "adjustment_add") {
           runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
           effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
@@ -532,9 +533,7 @@ export async function GET(request: NextRequest) {
           runningValuation = runningBalance > 0
             ? Math.max(0, roundToPrecision(runningValuation - cogs, 2))
             : roundToPrecision(runningBalance * effectiveRate, 2);
-          impactFormula = m.batchNumber
-            ? `FIFO Depleted from Batch ${m.batchNumber}: ${m.outwardQty} units @ ${effectiveRate} (COGS: ${cogs})`
-            : `Sale Outward: ${m.outwardQty} units @ FIFO COGS ${effectiveRate} (Total: ${cogs})`;
+          impactFormula = `FIFO Depleted: ${m.outwardQty} units @ ${effectiveRate} (COGS: ${cogs})`;
         } else if (m.type === "adjustment_reduce") {
           runningBalance = roundToPrecision(runningBalance - m.outwardQty, 3);
           effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
@@ -711,25 +710,58 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Format batches for client (includes Purchase Bills, Stock Adjustments, and Opening Stock)
-    const formattedBatches = batches.map(b => ({
-      id: b._id.toString(),
-      batch_number: b.batch_number || "BATCH",
-      source_type: b.source_type || "purchase_bill",
-      initial_quantity: Number(b.initial_quantity) || 0,
-      remaining_quantity: Number(b.remaining_quantity) || 0,
-      cost_price: Number(b.cost_price) || 0,
-      status: b.status || "active",
-      batch_date: b.batch_date ? new Date(b.batch_date).toISOString() : new Date(b.created_at).toISOString(),
-    }));
+    // 1. Correlate and synchronize stock_adjustment batches with their adjustments
+    for (const b of batches) {
+      if (b.source_type === "stock_adjustment") {
+        const matchedAdj = stockAdjustments.find((a: any) => {
+          if (a.action_type !== "add") return false;
+          const aId = a._id.toString();
+          if (b.source_id && (b.source_id.toString() === aId || b.source_id === a.metadata?.local_id)) return true;
+          if (b.batch_number && b.batch_number === a.ref_no) return true;
+          const bTime = new Date(b.batch_date || b.created_at || 0).getTime();
+          const aTime = new Date(a.date || a.created_at || 0).getTime();
+          return (
+            Math.abs(Number(b.initial_quantity) - Number(a.quantity)) < 0.001 &&
+            Math.abs(Number(b.cost_price) - Number(a.cost_price || product.cost_price)) < 0.01 &&
+            Math.abs(bTime - aTime) < 300000
+          );
+        });
 
-    // Add Stock Adjustments (adds) into Tracked Batches if not already represented
-    const existingBatchSources = new Set(batches.map(b => b.source_id?.toString() || b.batch_number));
+        if (matchedAdj) {
+          b.batch_number = matchedAdj.ref_no || b.batch_number;
+          b.source_id = matchedAdj._id.toString();
+        }
+      }
+    }
+
+    // Format batches for client (includes Purchase Bills, Stock Adjustments, and Opening Stock)
+    const formattedBatches = batches.map(b => {
+      const rem = Number(b.remaining_quantity) || 0;
+      return {
+        id: b._id.toString(),
+        batch_number: b.batch_number || "BATCH",
+        source_type: b.source_type || "purchase_bill",
+        initial_quantity: Number(b.initial_quantity) || 0,
+        remaining_quantity: rem,
+        cost_price: Number(b.cost_price) || 0,
+        status: rem > 0 ? (b.status || "active") : "depleted",
+        batch_date: b.batch_date ? new Date(b.batch_date).toISOString() : new Date(b.created_at).toISOString(),
+      };
+    });
+
+    // Add Stock Adjustments (adds) into Tracked Batches ONLY if completely missing from batches
+    const existingBatchSources = new Set(
+      batches.flatMap((b: any) => [b.source_id?.toString(), b.batch_number, b._id?.toString()]).filter(Boolean)
+    );
     for (const adj of stockAdjustments) {
       if (adj.action_type === "add") {
         const adjIdStr = adj._id.toString();
         const adjRef = adj.ref_no || `ADJ-${adjIdStr.slice(-6)}`;
-        if (!existingBatchSources.has(adjIdStr) && !existingBatchSources.has(adjRef)) {
+        if (
+          !existingBatchSources.has(adjIdStr) &&
+          !existingBatchSources.has(adjRef) &&
+          (!adj.metadata?.local_id || !existingBatchSources.has(adj.metadata.local_id))
+        ) {
           formattedBatches.push({
             id: `adj-batch-${adjIdStr}`,
             batch_number: adjRef,
