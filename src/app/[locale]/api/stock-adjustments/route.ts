@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     let newDamaged = curDamaged;
     let reductionCost = curCost;
     let consumedBatchSplits: any[] = [];
+    let batchInsertResult: any = null;
     const valuationMethod = await getValuationMethod(user.id);
     const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
 
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
         updateFields.in_stock = newQty;
 
         if (valuationMethod === "fifo") {
-          await batchesCollection.insertOne({
+          batchInsertResult = await batchesCollection.insertOne({
             user_id: userId,
             product_id: prodObjId,
             source_type: "stock_adjustment",
@@ -209,11 +210,18 @@ export async function POST(request: NextRequest) {
       notes: notes || "",
       ref_no: refNo,
       date: parsedDate,
-      metadata: body.localId ? { local_id: body.localId } : undefined,
+      metadata: { local_id: adjLocalId },
       created_at: new Date(),
     });
 
     const newId = insertResult.insertedId.toString();
+
+    if (batchInsertResult?.insertedId) {
+      await batchesCollection.updateOne(
+        { _id: batchInsertResult.insertedId },
+        { $set: { source_id: newId } }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -551,7 +559,8 @@ export async function DELETE(request: NextRequest) {
         $or: [
           { source_id: adj._id.toString() },
           { source_id: adj.ref_no },
-          { source_id: id }
+          { source_id: id },
+          { batch_number: adj.ref_no },
         ]
       });
     }
@@ -712,7 +721,8 @@ export async function PUT(request: NextRequest) {
       $or: [
         { source_id: oldAdj._id.toString() },
         { source_id: oldAdj.ref_no },
-        { source_id: id }
+        { source_id: id },
+        { batch_number: oldAdj.ref_no },
       ]
     });
 
