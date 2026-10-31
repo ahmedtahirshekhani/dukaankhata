@@ -807,9 +807,11 @@ export function exportStockAdjustmentsToExcel(
 export function exportStockValuationLedgerToExcel(
   productName: string,
   movements: any[],
-  filename?: string
+  filename?: string,
+  valuationMethod?: string
 ): void {
   const workbook = XLSX.utils.book_new();
+  const isFifo = valuationMethod === "fifo";
 
   const data = movements.map((m, index) => {
     let typeName = m.type;
@@ -820,16 +822,32 @@ export function exportStockValuationLedgerToExcel(
     else if (m.type === "adjustment_add") typeName = "Stock Adjustment (+)";
     else if (m.type === "adjustment_reduce") typeName = "Stock Adjustment (-)";
 
+    const qty = m.inwardQty > 0 ? m.inwardQty : m.outwardQty > 0 ? m.outwardQty : "-";
+    const unitCost = m.inwardQty > 0 ? m.unitRate : m.outwardQty > 0 ? m.costPrice : "-";
+
+    if (isFifo) {
+      return {
+        "#": index + 1,
+        "Date & Time": m.type === "opening_stock" ? formatStatementDate(m.date) : formatStatementDateTime(m.date),
+        "Type": typeName,
+        "Ref / Invoice #": m.refNo || "-",
+        "Party / Detail": m.partyName || "-",
+        "Qty": qty,
+        "Unit Cost (Rs.)": unitCost,
+        "Balance Stock": m.balance,
+        "Stock Valuation (Rs.)": m.runningValuation !== undefined ? m.runningValuation : 0,
+        "FIFO Depletion Impact": m.wacFormula || "-",
+      };
+    }
+
     return {
       "#": index + 1,
       "Date & Time": m.type === "opening_stock" ? formatStatementDate(m.date) : formatStatementDateTime(m.date),
       "Type": typeName,
       "Ref / Invoice #": m.refNo || "-",
       "Party / Detail": m.partyName || "-",
-      "Inward Qty": m.inwardQty > 0 ? `+${m.inwardQty}` : "-",
-      "Inward Rate (Rs.)": m.inwardQty > 0 ? m.unitRate : "-",
-      "Outward Qty": m.outwardQty > 0 ? `-${m.outwardQty}` : "-",
-      "Outward Cost (Rs.)": m.outwardQty > 0 ? m.costPrice : "-",
+      "Qty": qty,
+      "Unit Cost (Rs.)": unitCost,
       "Balance Stock": m.balance,
       "Effective WAC (Rs.)": m.effectiveWac !== undefined ? m.effectiveWac : m.costPrice,
       "Stock Valuation (Rs.)": m.runningValuation !== undefined ? m.runningValuation : Math.round(m.balance * (m.effectiveWac || 0) * 100) / 100,
@@ -838,24 +856,36 @@ export function exportStockValuationLedgerToExcel(
   });
 
   const sheet = XLSX.utils.json_to_sheet(data);
-  sheet["!cols"] = [
-    { wch: 6 },
-    { wch: 22 },
-    { wch: 22 },
-    { wch: 20 },
-    { wch: 24 },
-    { wch: 14 },
-    { wch: 18 },
-    { wch: 14 },
-    { wch: 18 },
-    { wch: 15 },
-    { wch: 20 },
-    { wch: 22 },
-    { wch: 36 },
-  ];
-  XLSX.utils.book_append_sheet(workbook, sheet, "Valuation Ledger");
+  sheet["!cols"] = isFifo
+    ? [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 20 },
+        { wch: 24 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 22 },
+        { wch: 36 },
+      ]
+    : [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 20 },
+        { wch: 24 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 22 },
+        { wch: 36 },
+      ];
+  XLSX.utils.book_append_sheet(workbook, sheet, isFifo ? "FIFO Valuation Ledger" : "Valuation Ledger");
 
   const safeProdName = productName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
-  const finalFilename = filename || `valuation-ledger-${safeProdName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const prefix = isFifo ? "fifo-valuation" : "valuation-ledger";
+  const finalFilename = filename || `${prefix}-${safeProdName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(workbook, finalFilename);
 }

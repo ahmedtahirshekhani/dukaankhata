@@ -50,7 +50,6 @@ export function ProductStockLedgerModal({
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [activePreset, setActivePreset] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"ledger" | "batches">("ledger");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const fetchHistory = useCallback(async () => {
@@ -128,13 +127,54 @@ export function ProductStockLedgerModal({
   const movements = data?.movements || [];
   const batches = data?.batches || [];
 
-  const sortedMovements = React.useMemo(() => {
+  interface MovementGroup {
+    key: string;
+    refNo: string;
+    type: string;
+    date: any;
+    partyName: string;
+    items: any[];
+  }
+
+  const groupedMovements = React.useMemo(() => {
     if (!movements || movements.length === 0) return [];
-    const list = [...movements];
-    if (sortOrder === "desc") {
-      list.reverse();
+
+    const groups: MovementGroup[] = [];
+
+    for (const m of movements) {
+      const isGroupable =
+        m.refNo &&
+        m.refNo !== "-" &&
+        m.refNo !== "OPENING" &&
+        m.type !== "opening_stock";
+
+      const lastGroup = groups[groups.length - 1];
+      const isSameTransaction =
+        isGroupable &&
+        lastGroup &&
+        lastGroup.refNo === m.refNo &&
+        lastGroup.type === m.type &&
+        new Date(lastGroup.date).getTime() === new Date(m.date).getTime();
+
+      if (isSameTransaction) {
+        lastGroup.items.push(m);
+      } else {
+        groups.push({
+          key: m.id || `${m.refNo}-${m.type}-${m.date}-${groups.length}`,
+          refNo: m.refNo || "-",
+          type: m.type,
+          date: m.date,
+          partyName: m.partyName || "-",
+          items: [m],
+        });
+      }
     }
-    return list;
+
+    if (sortOrder === "desc") {
+      groups.reverse();
+    }
+
+    return groups;
   }, [movements, sortOrder]);
 
   return (
@@ -299,38 +339,15 @@ export function ProductStockLedgerModal({
                 </div>
               </div>
 
-              {/* Tabs Bar */}
-              <div className="flex items-center gap-2 border-b pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("ledger")}
-                  className={`pb-2 text-xs font-semibold px-2 border-b-2 transition-colors flex items-center gap-1.5 ${
-                    activeTab === "ledger"
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>{t("movementLedger")} ({sortedMovements.length})</span>
-                </button>
-                {batches.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("batches")}
-                    className={`pb-2 text-xs font-semibold px-2 border-b-2 transition-colors flex items-center gap-1.5 ${
-                      activeTab === "batches"
-                        ? "border-primary text-primary"
-                        : "border-transparent text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>{t("trackedBatches")} ({batches.length})</span>
-                  </button>
-                )}
+              {/* Section Header */}
+              <div className="flex items-center justify-between border-b pb-2 pt-1">
+                <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                  <span>{t("movementLedger")} ({movements.length})</span>
+                </div>
               </div>
 
-              {/* TAB 1: Movement Ledger Table */}
-              {activeTab === "ledger" && (
+              {/* Movement Ledger Table */}
                 <div className="border rounded-xl overflow-hidden shadow-xs">
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -361,181 +378,145 @@ export function ProductStockLedgerModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {sortedMovements.length === 0 ? (
+                        {groupedMovements.length === 0 ? (
                           <tr>
                             <td colSpan={8} className="py-12 text-center text-muted-foreground text-xs">
                               {t("noMovements")}
                             </td>
                           </tr>
                         ) : (
-                          sortedMovements.map((m: any, idx: number) => {
-                            const isOpening = m.type === "opening_stock";
-                            const isPurchase = m.type === "purchase";
-                            const isSale = m.type === "sale";
-                            const isReturn = m.type === "sale_return";
-                            const isAdjustmentAdd = m.type === "adjustment_add";
-                            const isAdjustmentReduce = m.type === "adjustment_reduce";
-                            return (
-                              <tr key={idx} className="hover:bg-muted/30 transition-colors">
-                                <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                                  {formatPakistaniDateTime(m.date, false)}
-                                </td>
-                                <td className="py-2.5 px-3 whitespace-nowrap">
-                                  {isOpening && (
-                                    <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
-                                      {t("openingStock")}
-                                    </Badge>
+                          groupedMovements.map((group) => {
+                            return group.items.map((m: any, subIdx: number) => {
+                              const isOpening = m.type === "opening_stock";
+                              const isPurchase = m.type === "purchase";
+                              const isSale = m.type === "sale";
+                              const isReturn = m.type === "sale_return";
+                              const isAdjustmentAdd = m.type === "adjustment_add";
+                              const isAdjustmentReduce = m.type === "adjustment_reduce";
+                              const isLastSub = subIdx === group.items.length - 1;
+                              const subBorderClass = isLastSub ? "border-b border-border/60" : "border-b border-dashed border-border/40";
+
+                              return (
+                                <tr
+                                  key={m.id || `${group.key}-${subIdx}`}
+                                  className={`hover:bg-muted/30 transition-colors ${subIdx > 0 ? "bg-muted/10" : ""}`}
+                                >
+                                  {subIdx === 0 && (
+                                    <>
+                                      {/* Date */}
+                                      <td
+                                        rowSpan={group.items.length}
+                                        className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap align-top border-b border-border/60 bg-card/60"
+                                      >
+                                        {formatPakistaniDateTime(m.date, false)}
+                                      </td>
+
+                                      {/* Type Badge */}
+                                      <td
+                                        rowSpan={group.items.length}
+                                        className="py-2.5 px-3 whitespace-nowrap align-top border-b border-border/60 bg-card/60"
+                                      >
+                                        {isOpening && (
+                                          <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
+                                            {t("openingStock")}
+                                          </Badge>
+                                        )}
+                                        {isPurchase && (
+                                          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
+                                            {t("purchaseIn")}
+                                          </Badge>
+                                        )}
+                                        {isSale && (
+                                          <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px] font-semibold">
+                                            {t("saleOut")}
+                                          </Badge>
+                                        )}
+                                        {isReturn && (
+                                          <Badge className="bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30 text-[10px] font-semibold">
+                                            {t("saleReturn")}
+                                          </Badge>
+                                        )}
+                                        {isAdjustmentAdd && (
+                                          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
+                                            {t("adjustmentIn")}
+                                          </Badge>
+                                        )}
+                                        {isAdjustmentReduce && (
+                                          <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-semibold">
+                                            {t("adjustmentOut")}
+                                          </Badge>
+                                        )}
+                                      </td>
+                                    </>
                                   )}
-                                  {isPurchase && (
-                                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
-                                      {t("purchaseIn")}
-                                    </Badge>
+
+                                  {/* Ref / Voucher # & Batch Number */}
+                                  <td className={`py-2.5 px-3 whitespace-nowrap align-top ${subBorderClass}`}>
+                                    {subIdx === 0 && (
+                                      <div className="font-semibold text-foreground">{group.refNo}</div>
+                                    )}
+                                    {m.batchNumber && (
+                                      <span
+                                        className={`text-[10px] font-mono block ${
+                                          m.batchNumber === "DEFICIT"
+                                            ? "text-rose-600 dark:text-rose-400 font-semibold"
+                                            : "text-sky-600 dark:text-sky-400"
+                                        }`}
+                                      >
+                                        {m.batchNumber === "DEFICIT" ? "Oversold Deficit" : `Batch: ${m.batchNumber}`}
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {subIdx === 0 && (
+                                    /* Party */
+                                    <td
+                                      rowSpan={group.items.length}
+                                      className="py-2.5 px-3 text-muted-foreground whitespace-nowrap max-w-[130px] truncate align-top border-b border-border/60 bg-card/60"
+                                      title={m.partyName}
+                                    >
+                                      {m.partyName}
+                                    </td>
                                   )}
-                                  {isSale && (
-                                    <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px] font-semibold">
-                                      {t("saleOut")}
-                                    </Badge>
-                                  )}
-                                  {isReturn && (
-                                    <Badge className="bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30 text-[10px] font-semibold">
-                                      {t("saleReturn")}
-                                    </Badge>
-                                  )}
-                                  {isAdjustmentAdd && (
-                                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
-                                      {t("adjustmentIn")}
-                                    </Badge>
-                                  )}
-                                  {isAdjustmentReduce && (
-                                    <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-semibold">
-                                      {t("adjustmentOut")}
-                                    </Badge>
-                                  )}
-                                </td>
-                                <td className="py-2.5 px-3 whitespace-nowrap">
-                                  <div className="font-semibold text-foreground">{m.refNo}</div>
-                                  {m.batchNumber && (
+
+                                  {/* Inward */}
+                                  <td className={`py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap ${subBorderClass}`}>
+                                    {m.inwardQty > 0 ? `+${m.inwardQty}` : "-"}
+                                  </td>
+
+                                  {/* Outward */}
+                                  <td className={`py-2.5 px-3 text-right font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap ${subBorderClass}`}>
+                                    {m.outwardQty > 0 ? `-${m.outwardQty}` : "-"}
+                                  </td>
+
+                                  {/* Rate */}
+                                  <td className={`py-2.5 px-3 text-right whitespace-nowrap font-mono ${subBorderClass}`}>
+                                    {formatCurrency(m.unitRate)}
+                                  </td>
+
+                                  {/* Running Balance */}
+                                  <td className={`py-2.5 px-3 text-right whitespace-nowrap ${subBorderClass}`}>
                                     <span
-                                      className={`text-[10px] font-mono block ${
-                                        m.batchNumber === "DEFICIT"
-                                          ? "text-rose-600 dark:text-rose-400 font-semibold"
-                                          : "text-sky-600 dark:text-sky-400"
+                                      className={`inline-block px-2 py-0.5 rounded font-bold text-xs font-mono ${
+                                        m.balance > 0
+                                          ? "bg-primary/10 text-primary"
+                                          : m.balance === 0
+                                          ? "bg-muted text-muted-foreground"
+                                          : "bg-rose-500/15 text-rose-600"
                                       }`}
                                     >
-                                      {m.batchNumber === "DEFICIT" ? "Oversold Deficit" : `Batch: ${m.batchNumber}`}
+                                      {m.balance} {getUomShortcut(product?.uom)}
                                     </span>
-                                  )}
-                                </td>
-                                <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap max-w-[130px] truncate">
-                                  {m.partyName}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                  {m.inwardQty > 0 ? `+${m.inwardQty}` : "-"}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
-                                  {m.outwardQty > 0 ? `-${m.outwardQty}` : "-"}
-                                </td>
-                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                  {formatCurrency(m.unitRate)}
-                                </td>
-                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                  <span
-                                    className={`inline-block px-2 py-0.5 rounded font-bold text-xs ${
-                                      m.balance > 0
-                                        ? "bg-primary/10 text-primary"
-                                        : m.balance === 0
-                                        ? "bg-muted text-muted-foreground"
-                                        : "bg-rose-500/15 text-rose-600"
-                                    }`}
-                                  >
-                                    {m.balance} {getUomShortcut(product?.uom)}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
+                                  </td>
+                                </tr>
+                              );
+                            });
                           })
                         )}
                       </tbody>
                     </table>
                   </div>
                 </div>
-              )}
-
-              {/* TAB 2: Tracked Batches Table */}
-              {activeTab === "batches" && (
-                <div className="border rounded-xl overflow-hidden shadow-xs">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/50 border-b text-muted-foreground text-[11px]">
-                        <tr>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("batchNumber")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("source")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("inwardDate")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("initialQty")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("remainingQty")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("batchCost")}</th>
-                          <th className="py-2.5 px-3 text-center font-semibold">{t("status")}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {batches.map((b: any, idx: number) => {
-                          const isActive = b.status === "active" && b.remaining_quantity > 0;
-                          const isAdjustment = b.source_type === "stock_adjustment";
-                          const isOpening = b.source_type === "opening_stock";
-                          const isPurchase = b.source_type === "purchase_bill";
-                          return (
-                            <tr key={idx} className="hover:bg-muted/30 transition-colors">
-                              <td className="py-2.5 px-3 font-semibold font-mono text-foreground whitespace-nowrap">
-                                {b.batch_number}
-                              </td>
-                              <td className="py-2.5 px-3 whitespace-nowrap">
-                                {isAdjustment ? (
-                                  <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
-                                    {t("adjustmentIn") || "Adjustment (+)"}
-                                  </Badge>
-                                ) : isOpening ? (
-                                  <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
-                                    {t("openingStock") || "Opening Stock"}
-                                  </Badge>
-                                ) : isPurchase ? (
-                                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
-                                    {t("purchaseIn") || "Purchase In"}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-muted-foreground capitalize">{b.source_type?.replace("_", " ")}</span>
-                                )}
-                              </td>
-                              <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                                {formatPakistaniDateTime(b.batch_date, false)}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-medium whitespace-nowrap">
-                                {b.initial_quantity}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-bold text-foreground whitespace-nowrap">
-                                {b.remaining_quantity}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                {formatCurrency(b.cost_price)}
-                              </td>
-                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                                <Badge
-                                  className={`text-[10px] font-semibold ${
-                                    isActive
-                                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                                      : "bg-muted text-muted-foreground border-transparent"
-                                  }`}
-                                >
-                                  {isActive ? t("activeInStock") : t("depleted")}
-                                </Badge>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
             </>
           ) : null}
         </div>

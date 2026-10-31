@@ -81,8 +81,33 @@ export class SyncEngine {
           if (data.sale_return_transactions?.length) promises.push(db.sale_return_transactions.bulkPut(data.sale_return_transactions));
           if (data.transactions?.length) promises.push(db.transactions.bulkPut(data.transactions));
           if (data.subscriptions?.length) promises.push(db.subscriptions.bulkPut(data.subscriptions));
-          if (data.inventory_batches?.length) promises.push(db.inventory_batches.bulkPut(data.inventory_batches));
-          if (data.stock_adjustments?.length) promises.push(db.stock_adjustments.bulkPut(data.stock_adjustments));
+          if (data.inventory_batches?.length) {
+            const localBatches = await db.inventory_batches.toArray();
+            const tempBatches = localBatches.filter((b: any) => b.id && String(b.id).startsWith("local_adj_batch_"));
+            for (const loc of tempBatches) {
+              const matchedServer = data.inventory_batches.find((srv: any) =>
+                srv.source_type === "stock_adjustment" &&
+                String(srv.product_id) === String(loc.product_id) &&
+                Number(srv.initial_quantity) === Number(loc.initial_quantity)
+              );
+              if (matchedServer) await db.inventory_batches.delete(loc.id);
+            }
+            promises.push(db.inventory_batches.bulkPut(data.inventory_batches));
+          }
+          if (data.stock_adjustments?.length) {
+            const localAdjs = await db.stock_adjustments.toArray();
+            const tempAdjs = localAdjs.filter((a: any) => a.id && String(a.id).startsWith("adj_"));
+            for (const loc of tempAdjs) {
+              const matchedServer = data.stock_adjustments.find((srv: any) =>
+                (srv.ref_no && loc.ref_no && srv.ref_no === loc.ref_no) ||
+                (String(srv.product_id) === String(loc.product_id) &&
+                 srv.action_type === loc.action_type &&
+                 Number(srv.quantity) === Number(loc.quantity))
+              );
+              if (matchedServer) await db.stock_adjustments.delete(loc.id);
+            }
+            promises.push(db.stock_adjustments.bulkPut(data.stock_adjustments));
+          }
           if (data.users?.length) promises.push(db.users.bulkPut(data.users));
           if (data.modules?.length) promises.push(db.modules.bulkPut(data.modules));
           
@@ -224,8 +249,19 @@ export class SyncEngine {
               const item = await table.get(op.localId);
               if (item) {
                 item.id = newId;
+                if (result.refNo || result.ref_no) {
+                  item.ref_no = result.refNo || result.ref_no;
+                }
                 await table.put(item);
                 await table.delete(op.localId);
+
+                if (op.collection === 'stock_adjustments') {
+                  const batches = await db.inventory_batches.filter((b: any) => b.source_id === op.localId).toArray();
+                  for (const b of batches) {
+                    b.source_id = newId;
+                    await db.inventory_batches.put(b);
+                  }
+                }
                 
                 if (typeof window !== 'undefined') {
                   window.dispatchEvent(new CustomEvent('localIdReplaced', { 

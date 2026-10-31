@@ -102,6 +102,13 @@ export default function StockValuationLedgerPage() {
     };
   }, []);
 
+  // Ensure activeTab is reset to ledger if method is not FIFO
+  useEffect(() => {
+    if (valuationMethod !== "fifo" && activeTab === "batches") {
+      setActiveTab("ledger");
+    }
+  }, [valuationMethod, activeTab]);
+
   const fetchValuationData = useCallback(async () => {
     if (!productId) return;
     setLoading(true);
@@ -178,6 +185,56 @@ export default function StockValuationLedgerPage() {
   const batches = data?.batches || [];
   const movements = data?.movements || [];
 
+  interface MovementGroup {
+    key: string;
+    refNo: string;
+    type: string;
+    date: any;
+    partyName: string;
+    items: any[];
+  }
+
+  const groupedMovements = useMemo(() => {
+    if (!movements || movements.length === 0) return [];
+
+    const groups: MovementGroup[] = [];
+
+    for (const m of movements) {
+      const isGroupable =
+        m.refNo &&
+        m.refNo !== "-" &&
+        m.refNo !== "OPENING" &&
+        m.type !== "opening_stock";
+
+      const lastGroup = groups[groups.length - 1];
+      const isSameTransaction =
+        isGroupable &&
+        lastGroup &&
+        lastGroup.refNo === m.refNo &&
+        lastGroup.type === m.type &&
+        new Date(lastGroup.date).getTime() === new Date(m.date).getTime();
+
+      if (isSameTransaction) {
+        lastGroup.items.push(m);
+      } else {
+        groups.push({
+          key: m.id || `${m.refNo}-${m.type}-${m.date}-${groups.length}`,
+          refNo: m.refNo || "-",
+          type: m.type,
+          date: m.date,
+          partyName: m.partyName || "-",
+          items: [m],
+        });
+      }
+    }
+
+    if (sortOrder === "desc") {
+      groups.reverse();
+    }
+
+    return groups;
+  }, [movements, sortOrder]);
+
   const sortedMovements = useMemo(() => {
     const list = [...movements];
     // Do NOT re-sort by date timestamps: the valuation engine already sequenced
@@ -188,9 +245,30 @@ export default function StockValuationLedgerPage() {
     return list;
   }, [movements, sortOrder]);
 
+  // FIFO Batches sorting: Opening Stock is ALWAYS first, then subsequent batches ordered by start date (ascending / oldest first)
+  const sortedBatches = useMemo(() => {
+    if (!batches || batches.length === 0) return [];
+
+    const list = [...batches];
+    list.sort((a: any, b: any) => {
+      const isOpeningA = a.source_type === "opening_stock" || a.batch_number === "OPENING";
+      const isOpeningB = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+      if (isOpeningA && !isOpeningB) return -1;
+      if (!isOpeningA && isOpeningB) return 1;
+      const da = new Date(a.batch_date || a.created_at || 0).getTime();
+      const db = new Date(b.batch_date || b.created_at || 0).getTime();
+      if (da !== db) return da - db;
+      const ca = new Date(a.created_at || 0).getTime();
+      const cb = new Date(b.created_at || 0).getTime();
+      return ca - cb;
+    });
+
+    return list;
+  }, [batches]);
+
   const handleExportExcel = () => {
     if (!product || sortedMovements.length === 0) return;
-    exportStockValuationLedgerToExcel(product.name || "Item", sortedMovements);
+    exportStockValuationLedgerToExcel(product.name || "Item", sortedMovements, undefined, valuationMethod);
   };
 
   const handlePrint = () => {
@@ -512,19 +590,21 @@ export default function StockValuationLedgerPage() {
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("batches")}
-                className={cn(
-                  "pb-3 text-xs sm:text-sm font-bold px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer",
-                  activeTab === "batches"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Layers className="w-4 h-4" />
-                <span>{t("fifoTab")} ({batches.length})</span>
-              </button>
+              {valuationMethod === "fifo" && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("batches")}
+                  className={cn(
+                    "pb-3 text-xs sm:text-sm font-bold px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer",
+                    activeTab === "batches"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>{t("fifoTab")} ({batches.length})</span>
+                </button>
+              )}
             </div>
 
             {activeTab === "ledger" && (
@@ -551,14 +631,15 @@ export default function StockValuationLedgerPage() {
                       <th className="py-3 px-3 text-left font-semibold">{t("type")}</th>
                       <th className="py-3 px-3 text-left font-semibold">{t("refNo")}</th>
                       <th className="py-3 px-3 text-left font-semibold">{t("party")}</th>
-                      <th className="py-3 px-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">{t("inwardQty")}</th>
-                      <th className="py-3 px-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">{t("unitRate")}</th>
-                      <th className="py-3 px-3 text-right font-semibold text-rose-600 dark:text-rose-400">{t("outwardQty")}</th>
-                      <th className="py-3 px-3 text-right font-semibold text-rose-600 dark:text-rose-400">{t("cogs")}</th>
+                      {/* Qty & Unit Cost (2 clean columns for both FIFO and WAC) */}
+                      <th className="py-3 px-3 text-right font-semibold">{t("qty")}</th>
+                      <th className="py-3 px-3 text-right font-semibold">{t("unitCost")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("balanceStock")}</th>
-                      <th className="py-3 px-3 text-right font-extrabold text-primary bg-primary/5">
-                        {valuationMethod === "fifo" ? (t("fifoRate") || "FIFO Unit Rate") : t("effectiveWac")}
-                      </th>
+                      {valuationMethod !== "fifo" && (
+                        <th className="py-3 px-3 text-right font-extrabold text-primary bg-primary/5">
+                          {t("effectiveWac")}
+                        </th>
+                      )}
                       <th className="py-3 px-3 text-right font-bold text-blue-600 dark:text-blue-400">{t("stockValuation")}</th>
                       <th className="py-3 px-3 text-left font-semibold">
                         {valuationMethod === "fifo" ? (t("fifoImpact") || "FIFO Depletion Impact") : t("calculationImpact")}
@@ -566,130 +647,167 @@ export default function StockValuationLedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {sortedMovements.length === 0 ? (
+                    {groupedMovements.length === 0 ? (
                       <tr>
-                        <td colSpan={12} className="py-16 text-center text-muted-foreground text-xs">
+                        <td colSpan={valuationMethod === "fifo" ? 9 : 10} className="py-16 text-center text-muted-foreground text-xs">
                           {t("noRecords")}
                         </td>
                       </tr>
                     ) : (
-                      sortedMovements.map((m: any, idx: number) => {
-                        const isOpening = m.type === "opening_stock";
-                        const isPurchase = m.type === "purchase";
-                        const isSale = m.type === "sale";
-                        const isReturn = m.type === "sale_return";
-                        const isAdjustmentAdd = m.type === "adjustment_add";
-                        const isAdjustmentReduce = m.type === "adjustment_reduce";
+                      groupedMovements.map((group) => {
+                        const isMulti = group.items.length > 1;
 
-                        const isNegativeBalance = Number(m.balance) < 0;
+                        return group.items.map((m: any, subIdx: number) => {
+                          const isOpening = m.type === "opening_stock";
+                          const isPurchase = m.type === "purchase";
+                          const isSale = m.type === "sale";
+                          const isReturn = m.type === "sale_return";
+                          const isAdjustmentAdd = m.type === "adjustment_add";
+                          const isAdjustmentReduce = m.type === "adjustment_reduce";
 
-                        return (
-                          <tr key={m.id || idx} className="hover:bg-muted/30 transition-colors">
-                            {/* Date */}
-                            <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                              {formatPakistaniDateTime(m.date, false)}
-                            </td>
+                          const isNegativeBalance = Number(m.balance) < 0;
+                          const isLastSub = subIdx === group.items.length - 1;
+                          const subBorderClass = isLastSub ? "border-b border-border/60" : "border-b border-dashed border-border/40";
 
-                            {/* Type Badge */}
-                            <td className="py-2.5 px-3 whitespace-nowrap">
-                              {isOpening && (
-                                <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
-                                  Opening Stock
-                                </Badge>
+                          return (
+                            <tr
+                              key={m.id || `${group.key}-${subIdx}`}
+                              className={`hover:bg-muted/30 transition-colors ${subIdx > 0 ? "bg-muted/10" : ""}`}
+                            >
+                              {subIdx === 0 && (
+                                <>
+                                  {/* Date */}
+                                  <td
+                                    rowSpan={group.items.length}
+                                    className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap align-top border-b border-border/60 bg-card/60"
+                                  >
+                                    {formatPakistaniDateTime(m.date, false)}
+                                  </td>
+
+                                  {/* Type Badge */}
+                                  <td
+                                    rowSpan={group.items.length}
+                                    className="py-2.5 px-3 whitespace-nowrap align-top border-b border-border/60 bg-card/60"
+                                  >
+                                    {isOpening && (
+                                      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
+                                        Opening Stock
+                                      </Badge>
+                                    )}
+                                    {isPurchase && (
+                                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
+                                        Purchase Inward
+                                      </Badge>
+                                    )}
+                                    {isSale && (
+                                      <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-semibold">
+                                        Sale Outward
+                                      </Badge>
+                                    )}
+                                    {isReturn && (
+                                      <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-semibold">
+                                        Sale Return
+                                      </Badge>
+                                    )}
+                                    {isAdjustmentAdd && (
+                                      <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 text-[10px] font-semibold">
+                                        Adjustment (+)
+                                      </Badge>
+                                    )}
+                                    {isAdjustmentReduce && (
+                                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
+                                        Adjustment (-)
+                                      </Badge>
+                                    )}
+                                  </td>
+                                </>
                               )}
-                              {isPurchase && (
-                                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
-                                  Purchase Inward
-                                </Badge>
+
+                              {/* Ref / Voucher # & Batch Number */}
+                              <td className={`py-2.5 px-3 font-mono text-[11px] whitespace-nowrap align-top ${subBorderClass}`}>
+                                {subIdx === 0 && (
+                                  <div className="font-medium text-foreground">{group.refNo || "-"}</div>
+                                )}
+                                {m.batchNumber && (
+                                  <span
+                                    className={`text-[10px] font-mono block ${
+                                      m.batchNumber === "DEFICIT"
+                                        ? "text-rose-600 dark:text-rose-400 font-semibold"
+                                        : "text-sky-600 dark:text-sky-400 font-medium"
+                                    }`}
+                                  >
+                                    {m.batchNumber === "DEFICIT" ? "Oversold Deficit" : `Batch: ${m.batchNumber}`}
+                                  </span>
+                                )}
+                              </td>
+
+                              {subIdx === 0 && (
+                                /* Party / Entity */
+                                <td
+                                  rowSpan={group.items.length}
+                                  className="py-2.5 px-3 text-muted-foreground max-w-[180px] truncate align-top border-b border-border/60 bg-card/60"
+                                  title={m.partyName}
+                                >
+                                  {m.partyName || "-"}
+                                </td>
                               )}
-                              {isSale && (
-                                <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-semibold">
-                                  Sale Outward
-                                </Badge>
-                              )}
-                              {isReturn && (
-                                <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-semibold">
-                                  Sale Return
-                                </Badge>
-                              )}
-                              {isAdjustmentAdd && (
-                                <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 text-[10px] font-semibold">
-                                  Adjustment (+)
-                                </Badge>
-                              )}
-                              {isAdjustmentReduce && (
-                                <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-semibold">
-                                  Adjustment (-)
-                                </Badge>
-                              )}
-                            </td>
 
-                            {/* Ref / Voucher # */}
-                            <td className="py-2.5 px-3 font-mono text-[11px] font-medium text-foreground whitespace-nowrap">
-                              {m.refNo || "-"}
-                            </td>
+                              {/* Qty: Only number, no + or - */}
+                              <td className={`py-2.5 px-3 text-right font-mono font-medium text-foreground whitespace-nowrap ${subBorderClass}`}>
+                                {m.inwardQty > 0
+                                  ? m.inwardQty
+                                  : m.outwardQty > 0
+                                  ? m.outwardQty
+                                  : "-"}
+                              </td>
 
-                            {/* Party / Entity */}
-                            <td className="py-2.5 px-3 text-muted-foreground max-w-[180px] truncate" title={m.partyName}>
-                              {m.partyName || "-"}
-                            </td>
+                              {/* Unit Cost */}
+                              <td className={`py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap ${subBorderClass}`}>
+                                {m.inwardQty > 0
+                                  ? formatValuationPrice(m.unitRate)
+                                  : m.outwardQty > 0
+                                  ? formatValuationPrice(m.costPrice)
+                                  : "-"}
+                              </td>
 
-                            {/* Inward Qty */}
-                            <td className="py-2.5 px-3 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                              {m.inwardQty > 0 ? `+${m.inwardQty}` : "-"}
-                            </td>
-
-                            {/* Inward Rate */}
-                            <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">
-                              {m.inwardQty > 0 ? formatValuationPrice(m.unitRate) : "-"}
-                            </td>
-
-                            {/* Outward Qty */}
-                            <td className="py-2.5 px-3 text-right font-mono font-medium text-rose-600 dark:text-rose-400 whitespace-nowrap">
-                              {m.outwardQty > 0 ? `-${m.outwardQty}` : "-"}
-                            </td>
-
-                            {/* Outward COGS */}
-                            <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">
-                              {m.outwardQty > 0 ? formatValuationPrice(m.costPrice) : "-"}
-                            </td>
-
-                            {/* Running Balance Stock */}
-                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                              <span
-                                className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
-                                  isNegativeBalance
-                                    ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
-                                    : "bg-muted text-foreground"
-                                }`}
-                              >
-                                {m.balance} {getUomShortcut(product?.uom)}
-                              </span>
-                            </td>
-
-                            {/* Effective WAC Unit Rate */}
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-primary bg-primary/5 whitespace-nowrap">
-                              {formatValuationPrice(m.effectiveWac ?? m.costPrice ?? 0)}
-                            </td>
-
-                            {/* Running Valuation */}
-                            <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                              {formatValuationPrice(m.runningValuation ?? 0)}
-                            </td>
-
-                            {/* WAC Formula / Calculation Notes */}
-                            <td className="py-2.5 px-3 text-[11px] text-muted-foreground font-mono max-w-[320px] truncate" title={m.wacFormula}>
-                              {m.wacFormula ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Info className="w-3 h-3 text-primary/60 shrink-0" />
-                                  <span>{m.wacFormula}</span>
+                              {/* Running Balance Stock */}
+                              <td className={`py-2.5 px-3 text-right whitespace-nowrap ${subBorderClass}`}>
+                                <span
+                                  className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+                                    isNegativeBalance
+                                      ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
+                                      : "bg-muted text-foreground"
+                                  }`}
+                                >
+                                  {m.balance} {getUomShortcut(product?.uom)}
                                 </span>
-                              ) : (
-                                "-"
+                              </td>
+
+                              {/* Effective WAC Unit Rate (Only shown in WAC mode) */}
+                              {valuationMethod !== "fifo" && (
+                                <td className={`py-2.5 px-3 text-right font-mono font-black text-primary bg-primary/5 whitespace-nowrap ${subBorderClass}`}>
+                                  {formatValuationPrice(m.effectiveWac ?? m.costPrice ?? 0)}
+                                </td>
                               )}
-                            </td>
-                          </tr>
-                        );
+
+                              {/* Running Valuation */}
+                              <td className={`py-2.5 px-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap ${subBorderClass}`}>
+                                {formatValuationPrice(m.runningValuation ?? 0)}
+                              </td>
+
+                              {/* WAC Formula / Calculation Notes */}
+                              <td className={`py-2.5 px-3 text-[11px] text-muted-foreground font-mono min-w-[240px] max-w-[420px] whitespace-normal break-words leading-relaxed align-top ${subBorderClass}`} title={m.wacFormula}>
+                                {m.wacFormula ? (
+                                  <span className="whitespace-normal break-words">
+                                    {m.wacFormula.replace(/FIFO Depleted from Batch [^:]+:\s*/, "FIFO Depleted: ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        });
                       })
                     )}
                   </tbody>
@@ -702,13 +820,7 @@ export default function StockValuationLedgerPage() {
                         <td colSpan={3} className="py-2.5 px-3 text-left font-bold text-foreground">
                           *** Closing Stock ***
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                          {summary?.totalInward ? `+${summary.totalInward}` : "-"}
-                        </td>
                         <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">-</td>
-                        <td className="py-2.5 px-3 text-right font-mono text-rose-600 dark:text-rose-400 whitespace-nowrap">
-                          {summary?.totalOutward ? `-${summary.totalOutward}` : "-"}
-                        </td>
                         <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">-</td>
                         <td className="py-2.5 px-3 text-right whitespace-nowrap">
                           <span
@@ -721,9 +833,11 @@ export default function StockValuationLedgerPage() {
                             {summary?.closingStock ?? product?.currentStock ?? 0} {getUomShortcut(product?.uom)}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-black text-primary bg-primary/10 whitespace-nowrap">
-                          {formatValuationPrice(summary?.closingWac ?? 0)}
-                        </td>
+                        {valuationMethod !== "fifo" && (
+                          <td className="py-2.5 px-3 text-right font-mono font-black text-primary bg-primary/10 whitespace-nowrap">
+                            {formatValuationPrice(summary?.closingWac ?? 0)}
+                          </td>
+                        )}
                         <td className="py-2.5 px-3 text-right font-mono font-extrabold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                           {formatValuationPrice(summary?.closingValuation ?? 0)}
                         </td>
@@ -739,15 +853,15 @@ export default function StockValuationLedgerPage() {
           )}
 
           {/* TAB 2: Tracked Batches Table */}
-          {activeTab === "batches" && (
+          {valuationMethod === "fifo" && activeTab === "batches" && (
             <Card className="border shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 border-b text-muted-foreground text-[11px]">
                     <tr>
+                      <th className="py-3 px-3 text-left font-semibold">{t("date")}</th>
+                      <th className="py-3 px-3 text-left font-semibold">{t("type")}</th>
                       <th className="py-3 px-3 text-left font-semibold">{t("batchNumber")}</th>
-                      <th className="py-3 px-3 text-left font-semibold">{t("source")}</th>
-                      <th className="py-3 px-3 text-left font-semibold">{t("batchDate")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("initialQty")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("remainingQty")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("batchCost")}</th>
@@ -755,37 +869,79 @@ export default function StockValuationLedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {batches.length === 0 ? (
+                    {sortedBatches.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
                           {t("noBatches")}
                         </td>
                       </tr>
                     ) : (
-                      batches.map((b: any) => {
+                      sortedBatches.map((b: any) => {
                         const isDepleted = Number(b.remaining_quantity) <= 0;
+                        const isOpening = b.source_type === "opening_stock";
+                        const isPurchase = b.source_type === "purchase_bill" || b.source_type === "purchase";
+                        const isAdjustment = b.source_type === "stock_adjustment";
+                        const isReturn = b.source_type === "sale_return";
+
                         return (
                           <tr key={b.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-2.5 px-3 font-mono font-medium text-foreground whitespace-nowrap">
-                              {b.batch_number}
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground capitalize">
-                              {b.source_type?.replace(/_/g, " ") || "-"}
-                            </td>
+                            {/* Date */}
                             <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                               {formatPakistaniDateTime(b.batch_date, false)}
                             </td>
+
+                            {/* Type */}
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              {isOpening && (
+                                <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold">
+                                  Opening Stock
+                                </Badge>
+                              )}
+                              {isPurchase && (
+                                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">
+                                  Purchase Inward
+                                </Badge>
+                              )}
+                              {isAdjustment && (
+                                <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 text-[10px] font-semibold">
+                                  Adjustment
+                                </Badge>
+                              )}
+                              {isReturn && (
+                                <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-semibold">
+                                  Sale Return
+                                </Badge>
+                              )}
+                              {!isOpening && !isPurchase && !isAdjustment && !isReturn && (
+                                <span className="text-muted-foreground capitalize">
+                                  {b.source_type?.replace(/_/g, " ") || "-"}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Batch # */}
+                            <td className="py-2.5 px-3 font-mono font-medium text-foreground whitespace-nowrap">
+                              {b.batch_number}
+                            </td>
+
+                            {/* Initial Qty */}
                             <td className="py-2.5 px-3 text-right font-mono font-medium">
                               {b.initial_quantity} {getUomShortcut(product?.uom)}
                             </td>
+
+                            {/* Remaining Qty */}
                             <td className="py-2.5 px-3 text-right font-mono font-bold">
                               <span className={isDepleted ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400"}>
                                 {b.remaining_quantity} {getUomShortcut(product?.uom)}
                               </span>
                             </td>
+
+                            {/* Batch Cost */}
                             <td className="py-2.5 px-3 text-right font-mono font-bold text-primary">
                               {formatValuationPrice(b.cost_price)}
                             </td>
+
+                            {/* Status */}
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               {isDepleted ? (
                                 <Badge variant="outline" className="text-[10px] text-muted-foreground bg-muted/40">

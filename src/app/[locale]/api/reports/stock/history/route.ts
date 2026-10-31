@@ -157,9 +157,26 @@ export async function GET(request: NextRequest) {
     let initialOpeningQty = openingBatch
       ? Number(openingBatch.initial_quantity) || 0
       : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
-    const initialOpeningCost = openingBatch
+    let initialOpeningCost = openingBatch
       ? Number(openingBatch.cost_price) || 0
-      : Number((product as any).initial_cost || (product as any).opening_cost || (product as any).purchase_price || product.cost_price || 0);
+      : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+    // If opening cost is not directly available, check earliest sales invoice before purchases (which preserved the initial cost)
+    if (initialOpeningCost <= 0) {
+      const sortedOrders = [...orders].sort((a, b) => new Date(a.date || a.sale_date || a.created_at).getTime() - new Date(b.date || b.sale_date || b.created_at).getTime());
+      for (const ord of sortedOrders) {
+        const item = (ord.items || []).find((it: any) => it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString());
+        if (item && Number(item.cost_price) > 0) {
+          initialOpeningCost = Number(item.cost_price);
+          break;
+        }
+      }
+    }
+
+    // Last resort fallback
+    if (initialOpeningCost <= 0) {
+      initialOpeningCost = Number((product as any).purchase_price || product.cost_price || 0);
+    }
     // Find the earliest transaction or product created_at date (never default to 1970)
     const allTxDates: number[] = [];
     if (product.created_at) allTxDates.push(new Date(product.created_at).getTime());
@@ -344,24 +361,48 @@ export async function GET(request: NextRequest) {
       const qty = Number(adj.quantity) || 0;
       const rate = Number(adj.cost_price || product.cost_price) || 0;
       const reasonKey = adj.reason || "Adjustment";
+      const splits = Array.isArray(adj.batch_splits) && adj.batch_splits.length > 0 ? adj.batch_splits : null;
 
-      rawMovements.push({
-        id: `adj-${adj._id}`,
-        date: d,
-        type: isAdd ? "adjustment_add" : "adjustment_reduce",
-        refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
-        partyName: `Adjustment (${reasonKey})`,
-        inwardQty: isAdd ? qty : 0,
-        outwardQty: !isAdd ? qty : 0,
-        unitRate: rate,
-        costPrice: rate,
-        totalAmount: Math.round(qty * rate * 100) / 100,
-      });
+      if (!isAdd && valuationMethod === "fifo" && splits && splits.length > 0) {
+        splits.forEach((split: any, sIdx: number) => {
+          const splitQty = Number(split.quantity) || 0;
+          const splitCost = Number(split.cost_price) || 0;
+          rawMovements.push({
+            id: `adj-${adj._id}-split-${sIdx}`,
+            date: d,
+            type: "adjustment_reduce",
+            refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
+            partyName: `Adjustment (${reasonKey})`,
+            inwardQty: 0,
+            outwardQty: splitQty,
+            unitRate: splitCost,
+            costPrice: splitCost,
+            totalAmount: Math.round(splitQty * splitCost * 100) / 100,
+            batchNumber: split.batch_number || undefined,
+            batchSplits: [split],
+          });
+        });
+      } else {
+        rawMovements.push({
+          id: `adj-${adj._id}`,
+          date: d,
+          type: isAdd ? "adjustment_add" : "adjustment_reduce",
+          refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
+          partyName: `Adjustment (${reasonKey})`,
+          inwardQty: isAdd ? qty : 0,
+          outwardQty: !isAdd ? qty : 0,
+          unitRate: rate,
+          costPrice: rate,
+          totalAmount: Math.round(qty * rate * 100) / 100,
+          batchNumber: isAdd ? (adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`) : undefined,
+          batchSplits: splits || [],
+        });
+      }
     }
 
     let reorderedMovements: RawMovement[] = [];
 
-    if (mode === "valuation") {
+    if (mode === "valuation" && valuationMethod !== "fifo") {
       // WAC Valuation Sequence (Interleaved):
       // 1. Opening stock is ALWAYS row 1 at the very top.
       // 2. Inwards that occurred naturally prior to a sale are emitted first.
@@ -473,7 +514,7 @@ export async function GET(request: NextRequest) {
           effectiveRate = m.unitRate > 0 ? m.unitRate : lastKnownCost;
           lastKnownCost = effectiveRate;
           runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
-          impactFormula = `FIFO Inward: ${m.inwardQty} units @ ${effectiveRate} (Batch: ${m.batchNumber || m.refNo})`;
+          impactFormula = `FIFO Inward: ${m.inwardQty} units @ ${effectiveRate}`;
         } else if (m.type === "adjustment_add") {
           runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
           effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
@@ -492,9 +533,7 @@ export async function GET(request: NextRequest) {
           runningValuation = runningBalance > 0
             ? Math.max(0, roundToPrecision(runningValuation - cogs, 2))
             : roundToPrecision(runningBalance * effectiveRate, 2);
-          impactFormula = m.batchNumber
-            ? `FIFO Depleted from Batch ${m.batchNumber}: ${m.outwardQty} units @ ${effectiveRate} (COGS: ${cogs})`
-            : `Sale Outward: ${m.outwardQty} units @ FIFO COGS ${effectiveRate} (Total: ${cogs})`;
+          impactFormula = `FIFO Depleted: ${m.outwardQty} units @ ${effectiveRate} (COGS: ${cogs})`;
         } else if (m.type === "adjustment_reduce") {
           runningBalance = roundToPrecision(runningBalance - m.outwardQty, 3);
           effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
@@ -671,25 +710,58 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Format batches for client (includes Purchase Bills, Stock Adjustments, and Opening Stock)
-    const formattedBatches = batches.map(b => ({
-      id: b._id.toString(),
-      batch_number: b.batch_number || "BATCH",
-      source_type: b.source_type || "purchase_bill",
-      initial_quantity: Number(b.initial_quantity) || 0,
-      remaining_quantity: Number(b.remaining_quantity) || 0,
-      cost_price: Number(b.cost_price) || 0,
-      status: b.status || "active",
-      batch_date: b.batch_date ? new Date(b.batch_date).toISOString() : new Date(b.created_at).toISOString(),
-    }));
+    // 1. Correlate and synchronize stock_adjustment batches with their adjustments
+    for (const b of batches) {
+      if (b.source_type === "stock_adjustment") {
+        const matchedAdj = stockAdjustments.find((a: any) => {
+          if (a.action_type !== "add") return false;
+          const aId = a._id.toString();
+          if (b.source_id && (b.source_id.toString() === aId || b.source_id === a.metadata?.local_id)) return true;
+          if (b.batch_number && b.batch_number === a.ref_no) return true;
+          const bTime = new Date(b.batch_date || b.created_at || 0).getTime();
+          const aTime = new Date(a.date || a.created_at || 0).getTime();
+          return (
+            Math.abs(Number(b.initial_quantity) - Number(a.quantity)) < 0.001 &&
+            Math.abs(Number(b.cost_price) - Number(a.cost_price || product.cost_price)) < 0.01 &&
+            Math.abs(bTime - aTime) < 300000
+          );
+        });
 
-    // Add Stock Adjustments (adds) into Tracked Batches if not already represented
-    const existingBatchSources = new Set(batches.map(b => b.source_id?.toString() || b.batch_number));
+        if (matchedAdj) {
+          b.batch_number = matchedAdj.ref_no || b.batch_number;
+          b.source_id = matchedAdj._id.toString();
+        }
+      }
+    }
+
+    // Format batches for client (includes Purchase Bills, Stock Adjustments, and Opening Stock)
+    const formattedBatches = batches.map(b => {
+      const rem = Number(b.remaining_quantity) || 0;
+      return {
+        id: b._id.toString(),
+        batch_number: b.batch_number || "BATCH",
+        source_type: b.source_type || "purchase_bill",
+        initial_quantity: Number(b.initial_quantity) || 0,
+        remaining_quantity: rem,
+        cost_price: Number(b.cost_price) || 0,
+        status: rem > 0 ? (b.status || "active") : "depleted",
+        batch_date: b.batch_date ? new Date(b.batch_date).toISOString() : new Date(b.created_at).toISOString(),
+      };
+    });
+
+    // Add Stock Adjustments (adds) into Tracked Batches ONLY if completely missing from batches
+    const existingBatchSources = new Set(
+      batches.flatMap((b: any) => [b.source_id?.toString(), b.batch_number, b._id?.toString()]).filter(Boolean)
+    );
     for (const adj of stockAdjustments) {
       if (adj.action_type === "add") {
         const adjIdStr = adj._id.toString();
         const adjRef = adj.ref_no || `ADJ-${adjIdStr.slice(-6)}`;
-        if (!existingBatchSources.has(adjIdStr) && !existingBatchSources.has(adjRef)) {
+        if (
+          !existingBatchSources.has(adjIdStr) &&
+          !existingBatchSources.has(adjRef) &&
+          (!adj.metadata?.local_id || !existingBatchSources.has(adj.metadata.local_id))
+        ) {
           formattedBatches.push({
             id: `adj-batch-${adjIdStr}`,
             batch_number: adjRef,
@@ -718,8 +790,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Sort batches by batch_date descending (latest first)
-    formattedBatches.sort((a, b) => new Date(b.batch_date).getTime() - new Date(a.batch_date).getTime());
+    // Sort batches: Opening Stock is ALWAYS first, then subsequent batches ordered by start date (ascending / oldest first)
+    formattedBatches.sort((a, b) => {
+      const isOpeningA = a.source_type === "opening_stock" || a.batch_number === "OPENING";
+      const isOpeningB = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+      if (isOpeningA && !isOpeningB) return -1;
+      if (!isOpeningA && isOpeningB) return 1;
+      const da = new Date(a.batch_date || 0).getTime();
+      const db = new Date(b.batch_date || 0).getTime();
+      return da - db;
+    });
 
     await updateUserLastActivity();
 

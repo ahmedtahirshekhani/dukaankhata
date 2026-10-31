@@ -37,7 +37,7 @@ import { ProductDropdown } from "@/components/dropdown/product-dropdown";
 import { recordStockAdjustmentOffline, updateStockAdjustmentOffline } from "@/lib/db/offline-stock-manager";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
-import { formatLocalizedUom } from "@/lib/uom";
+import { getUomShortcut } from "@/lib/uom";
 import { DatePicker } from "@/components/ui/date-picker";
 import { safeDate, toHTMLDateString } from "@/lib/date-utils";
 
@@ -65,12 +65,18 @@ export function AdjustStockDialog({
   const [actionType, setActionType] = useState<"add" | "reduce">("add");
   const [quantity, setQuantity] = useState<string>("");
   const [costPrice, setCostPrice] = useState<string>("");
-  const [reason, setReason] = useState<string>("physicalCount");
+  const [reason, setReason] = useState<string>("");
   const [adjustmentDate, setAdjustmentDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [valuationMethod, setValuationMethod] = useState<"average" | "fifo" | "static">("average");
+  const [fifoBatchPreview, setFifoBatchPreview] = useState<{
+    effectiveCost: number;
+    totalCost: number;
+    batches: Array<{ batch_number: string; quantity: number; cost_price: number }>;
+    isFallback: boolean;
+  } | null>(null);
 
   // Sync state when dialog opens or initialProduct/adjustment changes
   useEffect(() => {
@@ -87,7 +93,7 @@ export function AdjustStockDialog({
         setActionType(adjustment.action_type || "add");
         setQuantity(String(adjustment.quantity || ""));
         setCostPrice(adjustment.cost_price !== undefined ? String(adjustment.cost_price) : "");
-        setReason(adjustment.reason || "physicalCount");
+        setReason(adjustment.reason || "");
         setAdjustmentDate(toHTMLDateString(adjustment.date ? new Date(adjustment.date) : new Date()));
         setNotes(adjustment.notes || "");
         setErrorMsg(null);
@@ -102,6 +108,7 @@ export function AdjustStockDialog({
               setSelectedProduct({
                 id: adjustment.product_id,
                 name: adjustment.product_name || "Item",
+                unit_of_measurement: (adjustment as any).unit_of_measurement || (adjustment as any).uom || "",
               } as any);
             }
           });
@@ -116,7 +123,7 @@ export function AdjustStockDialog({
           ? String(prod.cost_price)
           : (prod?.cost_price_str || "0");
         setCostPrice(initialCost);
-        setReason("physicalCount");
+        setReason("");
         setAdjustmentDate(toHTMLDateString(new Date()));
         setNotes("");
         setErrorMsg(null);
@@ -150,9 +157,13 @@ export function AdjustStockDialog({
   }, [selectedProduct]);
 
   const uomLabel = useMemo(() => {
-    if (!selectedProduct?.unit_of_measurement) return "";
-    return formatLocalizedUom(selectedProduct.unit_of_measurement, (key) => t(key));
-  }, [selectedProduct, t]);
+    const rawUom =
+      selectedProduct?.unit_of_measurement ||
+      (selectedProduct as any)?.uom ||
+      (selectedProduct as any)?.unit ||
+      "";
+    return getUomShortcut(rawUom);
+  }, [selectedProduct]);
 
   const numQty = parseFloat(quantity) || 0;
   const currentTargetStock = stockType === "available" ? currentAvailable : currentDamaged;
@@ -167,6 +178,68 @@ export function AdjustStockDialog({
 
   const isCurrentStockNonPositive = actionType === "reduce" && currentTargetStock <= 0;
   const isExceedingStock = actionType === "reduce" && currentTargetStock > 0 && numQty > currentTargetStock;
+
+  // Live FIFO preview when reducing available stock
+  useEffect(() => {
+    if (!open || actionType !== "reduce" || stockType !== "available" || valuationMethod !== "fifo" || !selectedProduct) {
+      setFifoBatchPreview(null);
+      return;
+    }
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const prodIdStr = String(selectedProduct.id);
+        const batches = await db.inventory_batches.where("product_id").equals(prodIdStr).toArray();
+        const activeBatches = batches
+          .filter((b: any) => (b.status === "active" || !b.status) && Number(b.remaining_quantity) > 0)
+          .sort((a: any, b: any) => new Date(a.batch_date || a.created_at).getTime() - new Date(b.batch_date || b.created_at).getTime());
+
+        const qtyToReduce = numQty > 0 ? numQty : 1;
+        let unfulfilled = qtyToReduce;
+        let totalCost = 0;
+        const usedBatches: Array<{ batch_number: string; quantity: number; cost_price: number }> = [];
+
+        for (const b of activeBatches) {
+          if (unfulfilled <= 0) break;
+          const avail = Number(b.remaining_quantity) || 0;
+          if (avail <= 0) continue;
+          const take = Math.min(avail, unfulfilled);
+          const cp = Number(b.cost_price) || 0;
+          totalCost += take * cp;
+          unfulfilled -= take;
+          usedBatches.push({
+            batch_number: b.batch_number || "BATCH",
+            quantity: take,
+            cost_price: cp,
+          });
+        }
+
+        const fallback = Number(selectedProduct.cost_price || (selectedProduct as any).purchase_price) || 0;
+        const isFallback = unfulfilled > 0;
+        if (unfulfilled > 0) {
+          totalCost += unfulfilled * fallback;
+        }
+
+        const effectiveCost = qtyToReduce > 0 ? Math.round((totalCost / qtyToReduce) * 100) / 100 : fallback;
+
+        if (isMounted) {
+          setFifoBatchPreview({
+            effectiveCost,
+            totalCost: Math.round(totalCost * 100) / 100,
+            batches: usedBatches,
+            isFallback,
+          });
+        }
+      } catch (err) {
+        console.error("Error previewing FIFO batches:", err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open, actionType, stockType, valuationMethod, selectedProduct, numQty]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,7 +292,7 @@ export function AdjustStockDialog({
           stockType,
           actionType,
           quantity: numQty,
-          costPrice: parsedCost,
+          costPrice: actionType === "reduce" ? undefined : parsedCost,
           reason,
           notes,
           adjustmentDate: finalAdjustmentTimestamp,
@@ -245,7 +318,7 @@ export function AdjustStockDialog({
           reason,
           notes,
           adjustmentDate: finalAdjustmentTimestamp,
-          costPrice: parsedCost,
+          costPrice: actionType === "reduce" ? undefined : parsedCost,
         });
 
         updatedProduct = {
@@ -261,6 +334,8 @@ export function AdjustStockDialog({
 
         // Queue sync operation for backend MongoDB
         const payload = {
+          localId: res.adjustmentId,
+          refNo: res.refNo,
           productId: String(selectedProduct.id),
           stockType,
           actionType,
@@ -268,7 +343,8 @@ export function AdjustStockDialog({
           reason,
           notes: notes.trim(),
           adjustmentDate: finalAdjustmentTimestamp,
-          costPrice: parsedCost,
+          costPrice: actionType === "reduce" ? res.effectiveCostPrice : parsedCost,
+          batch_splits: (res as any).batchSplits,
           previous_cost_price: Number(selectedProduct.cost_price || 0),
           previous_quantity: Number(selectedProduct.quantity || 0),
         };
@@ -278,7 +354,7 @@ export function AdjustStockDialog({
           "POST",
           "/api/stock-adjustments",
           payload,
-          `adj_${Date.now()}`
+          res.adjustmentId
         );
       }
 
@@ -579,6 +655,74 @@ export function AdjustStockDialog({
               </div>
             )}
 
+            {/* FIFO / Valuation Rate Preview on Stock Reduction */}
+            {/* {actionType === "reduce" && stockType === "available" && (
+              <div className="space-y-2 p-3 sm:p-3.5 rounded-xl bg-muted/40 border border-border/70">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-primary shrink-0" />
+                    {valuationMethod === "fifo" ? "FIFO Batch Deduction" : "Average Valuation Cost"}
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-full bg-background border border-border text-muted-foreground uppercase font-semibold">
+                    {valuationMethod === "fifo" ? "Oldest Batch First" : "Moving Average"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
+                  <span className="text-muted-foreground">
+                    {valuationMethod === "fifo" ? "FIFO Deduction Rate:" : "Current Cost Price:"}
+                  </span>
+                  <span className="font-bold text-foreground">
+                    Rs.{" "}
+                    {valuationMethod === "fifo"
+                      ? fifoBatchPreview
+                        ? fifoBatchPreview.effectiveCost
+                        : (selectedProduct.cost_price || 0)
+                      : (selectedProduct.cost_price || 0)}{" "}
+                    / {uomLabel || "unit"}
+                  </span>
+                </div>
+
+                {valuationMethod === "fifo" && fifoBatchPreview && fifoBatchPreview.batches.length > 0 && (
+                  <div className="text-[11px] bg-background/80 p-2.5 rounded-lg border border-border/60 space-y-1.5">
+                    <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase">
+                      <span>{numQty > 0 ? "Consumed FIFO Batches" : "Next Batch in Queue"}</span>
+                      {numQty > 0 && <span>Total: Rs. {fifoBatchPreview.totalCost}</span>}
+                    </div>
+                    {fifoBatchPreview.batches.map((b, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-[11px] font-mono">
+                        <span className="truncate pr-2">
+                          {b.batch_number}: {b.quantity} {uomLabel} @ Rs. {b.cost_price}
+                        </span>
+                        <span className="shrink-0 font-medium text-foreground">
+                          Rs. {(b.quantity * b.cost_price).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                    {fifoBatchPreview.isFallback && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                        Remaining quantity exceeds available active batches; will consume at fallback cost Rs.{" "}
+                        {selectedProduct.cost_price || 0}.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {valuationMethod === "fifo" && (!fifoBatchPreview || fifoBatchPreview.batches.length === 0) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    No active batches found for this product. Reduction will use fallback cost Rs.{" "}
+                    {selectedProduct.cost_price || 0}.
+                  </p>
+                )}
+
+                {valuationMethod === "average" && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Stock will be reduced at the current moving average cost (Rs. {selectedProduct.cost_price || 0}) without altering unit average cost.
+                  </p>
+                )}
+              </div>
+            )} */}
+
             {/* Notes / Remarks */}
             <div className="space-y-1.5">
               <Label htmlFor="adjustNotes" className="text-xs font-medium text-muted-foreground">
@@ -612,7 +756,7 @@ export function AdjustStockDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || numQty <= 0}
+                disabled={isSubmitting || numQty <= 0 || !reason}
                 className="w-full sm:w-auto h-10 text-xs sm:text-sm font-semibold gap-1.5"
               >
                 {isSubmitting ? (

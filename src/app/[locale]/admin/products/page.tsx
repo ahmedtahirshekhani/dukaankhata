@@ -644,7 +644,7 @@ export default function Products() {
         </p>
       </div>
 
-      {/* Navigation Tabs Bar - commented out
+      {/* Navigation Tabs Bar */}
       <div className="flex items-center gap-2 border-b border-border">
         <button
           type="button"
@@ -675,8 +675,8 @@ export default function Products() {
           <span>{t("adjustmentsTab") || "Items Adjustment"}</span>
         </button>
       </div>
-      */}
 
+      {activeTab === "items" && (
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
           <div className="flex flex-col gap-4">
@@ -821,15 +821,17 @@ export default function Products() {
           />
         </CardFooter>
       </Card>
-      {/* Items Adjustment Tab - commented out
-      <ItemAdjustmentsTab
-        onAdjustStock={() => {
-          setSelectedProductForAdjustment(null);
-          setIsAdjustStockOpen(true);
-        }}
-        canEdit={canEdit}
-      />
-      */}
+      )}
+
+      {activeTab === "adjustments" && (
+        <ItemAdjustmentsTab
+          onAdjustStock={() => {
+            setSelectedProductForAdjustment(null);
+            setIsAdjustStockOpen(true);
+          }}
+          canEdit={canEdit}
+        />
+      )}
       <ProductDialog
         open={isProductDialogOpen}
         onOpenChange={(open) => {
