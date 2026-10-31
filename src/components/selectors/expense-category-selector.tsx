@@ -31,6 +31,7 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   "Transport & Fuel",
   "Marketing & Advertising",
   "Packaging",
+  "Stock Adjustment",
   "Miscellaneous",
 ];
 

@@ -1,14 +1,77 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useRef } from "react";
 import { Input, InputProps } from "@/components/ui/input";
 
 export interface NumericInputProps extends Omit<InputProps, "type" | "inputMode"> {
   allowDecimal?: boolean;
   allowNegative?: boolean;
+  selectOnFocus?: boolean;
 }
 
 export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
-  ({ allowDecimal = true, allowNegative = false, className, onChange, onKeyDown, ...props }, ref) => {
+  ({ 
+    allowDecimal = true, 
+    allowNegative = false, 
+    selectOnFocus = true,
+    className, 
+    onChange, 
+    onKeyDown, 
+    onFocus,
+    onBlur,
+    onMouseDown,
+    onMouseUp,
+    onClick,
+    ...props 
+  }, ref) => {
+    const isFocusedRef = useRef(false);
+    const isMouseDownRef = useRef(false);
     
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      // If focus was triggered via keyboard (Tab) or programmatically (not mouse down)
+      if (!isMouseDownRef.current) {
+        isFocusedRef.current = true;
+        if (selectOnFocus) {
+          const target = e.currentTarget;
+          setTimeout(() => {
+            if (document.activeElement === target) {
+              target.select();
+            }
+          }, 0);
+        }
+      }
+      onFocus?.(e);
+    };
+
+    const handleMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
+      isMouseDownRef.current = true;
+      onMouseDown?.(e);
+    };
+
+    const handleMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
+      isMouseDownRef.current = false;
+      // On first mouse click into the input, select all text like Chrome URL/search bar
+      if (selectOnFocus && !isFocusedRef.current) {
+        isFocusedRef.current = true;
+        const target = e.currentTarget;
+        target.select();
+      }
+      onMouseUp?.(e);
+    };
+
+    const handleClick = (e: React.MouseEvent<HTMLInputElement>) => {
+      // Fallback for touch devices or browsers
+      if (selectOnFocus && !isFocusedRef.current) {
+        isFocusedRef.current = true;
+        e.currentTarget.select();
+      }
+      onClick?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      isFocusedRef.current = false;
+      isMouseDownRef.current = false;
+      onBlur?.(e);
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let val = e.target.value;
       
@@ -62,6 +125,11 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
         inputMode={allowDecimal ? "decimal" : "numeric"}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onClick={handleClick}
         className={`text-right ${className || ""}`}
         {...props}
       />

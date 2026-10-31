@@ -184,9 +184,6 @@ export function ItemSelectTable({
                     value={product.sellPriceInput ?? String(product.sell_price)}
                     onChange={(e) => handleSellPriceChange(product.id, e.target.value)}
                     onBlur={() => handleSellPriceBlur(product.id)}
-                    onFocus={(e) => {
-                      if (e.target.value === "0") e.target.select();
-                    }}
                     className="w-24 h-7 text-xs"
                   />
                 </TableCell>
@@ -313,11 +310,6 @@ export function ItemSelectTable({
                       handleSellPriceChange(product.id, e.target.value)
                     }
                     onBlur={() => handleSellPriceBlur(product.id)}
-                    onFocus={(e) => {
-                      if (e.target.value === "0") {
-                        e.target.select();
-                      }
-                    }}
                     className="w-full h-7 text-xs"
                   />
                 </div>
@@ -420,6 +412,42 @@ export function ItemSelectTable({
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {!showQtyType && showDiscount && (
+                <div className="pt-1">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">{t("discount") || "Discount"}</p>
+                  <div className="flex items-center gap-1">
+                    <NumericInput
+                      placeholder="0"
+                      value={product.discount ?? ""}
+                      onChange={(e) =>
+                        handleDiscountChange?.(
+                          product.id,
+                          parseFloat(e.target.value || "0"),
+                        )
+                      }
+                      className="h-7 text-xs p-1 flex-1"
+                    />
+                    <Select
+                      value={product.discountType || "value"}
+                      onValueChange={(val) =>
+                        handleDiscountTypeChange?.(
+                          product.id,
+                          val as "value" | "percentage",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-16 h-7 text-xs px-1">
+                        <SelectValue placeholder={t("pkr") || "PKR"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="value" className="text-xs">PKR</SelectItem>
+                        <SelectItem value="percentage" className="text-xs">%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
 

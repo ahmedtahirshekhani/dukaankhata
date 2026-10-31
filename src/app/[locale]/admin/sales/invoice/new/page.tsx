@@ -1179,6 +1179,10 @@ export default function NewInvoicePage() {
                     type="text"
                     value={invoiceNo}
                     onChange={(e) => setInvoiceNo(e.target.value)}
+                    onFocus={(e) => {
+                      const target = e.currentTarget;
+                      setTimeout(() => target.select(), 0);
+                    }}
                     placeholder="INV-001"
                     className="h-8 text-xs"
                   />
