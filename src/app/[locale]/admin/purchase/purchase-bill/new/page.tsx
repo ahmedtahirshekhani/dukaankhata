@@ -691,6 +691,10 @@ function AddPurchaseBillPageInner() {
                     type="text"
                     value={purchaseNumber}
                     onChange={(e) => setPurchaseNumber(e.target.value)}
+                    onFocus={(e) => {
+                      const target = e.currentTarget;
+                      setTimeout(() => target.select(), 0);
+                    }}
                     placeholder="PUR-001"
                     className="h-8 text-xs"
                   />

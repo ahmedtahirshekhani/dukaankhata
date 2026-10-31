@@ -792,6 +792,43 @@ export async function recordStockAdjustmentOffline(options: {
     created_at: new Date().toISOString(),
   });
 
+  // Auto-create expense entry when stock is reduced (Stock Adjustment Loss)
+  if (actionType === "reduce") {
+    let totalReductionAmount = 0;
+    if (valuationMethod === "fifo" && consumedBatchSplits.length > 0) {
+      totalReductionAmount = consumedBatchSplits.reduce(
+        (acc: number, b: any) => acc + (b.total_cost || (Number(b.quantity) * Number(b.cost_price))),
+        0
+      );
+    } else {
+      totalReductionAmount = roundToPrecision(quantity * reductionCost, 2);
+    }
+    if (totalReductionAmount <= 0) {
+      totalReductionAmount = roundToPrecision(quantity * finalAdjCost, 2);
+    }
+    const effectiveUnitCost = quantity > 0 ? roundToPrecision(totalReductionAmount / quantity, 2) : finalAdjCost;
+
+    if (totalReductionAmount > 0) {
+      const expenseId = `exp_adj_${adjId}`;
+      await db.expenses.put({
+        id: expenseId,
+        expenseNumber: `EXP-${refNo}`,
+        date: dateIso,
+        category: "Stock Adjustment",
+        itemName: `${product.name} (Qty: ${quantity} ${product.uom || 'pcs'})`,
+        description: `Stock Adjustment (${refNo}) - ${reason || 'Physical Count'}`,
+        qty: quantity,
+        rate: effectiveUnitCost,
+        amount: totalReductionAmount,
+        source_type: "stock_adjustment",
+        source_id: adjId,
+        ref_no: refNo,
+        created_at: dateIso,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
   return {
     adjustmentId: adjId,
     refNo,
@@ -994,6 +1031,18 @@ export async function deleteStockAdjustmentOffline(options: {
   }
   if (adjustmentId !== adj.id) {
     await db.stock_adjustments.delete(adjustmentId);
+  }
+
+  // Delete linked stock adjustment expense from db.expenses
+  try {
+    const linkedExpenses = await db.expenses
+      .filter((e: any) => e.source_id === adjustmentId || (adj.ref_no && (e.ref_no === adj.ref_no || e.expenseNumber === `EXP-${adj.ref_no}`)))
+      .toArray();
+    for (const exp of linkedExpenses) {
+      await db.expenses.delete(exp.id);
+    }
+  } catch (expErr) {
+    console.error("Failed to delete linked expense offline:", expErr);
   }
 
   // Queue background sync
@@ -1268,6 +1317,55 @@ export async function updateStockAdjustmentOffline(options: {
   };
 
   await db.stock_adjustments.put(updatedAdjRecord);
+
+  // Sync linked expense for Stock Adjustment Loss in db.expenses
+  try {
+    const existingExp = await db.expenses
+      .filter((e: any) => e.source_id === adjustmentId || (oldAdj?.ref_no && (e.ref_no === oldAdj.ref_no || e.expenseNumber === `EXP-${oldAdj.ref_no}`)))
+      .first();
+
+    if (actionType === "reduce") {
+      let totalReductionAmount = 0;
+      if (valuationMethod === "fifo" && consumedBatchSplits.length > 0) {
+        totalReductionAmount = consumedBatchSplits.reduce(
+          (acc: number, b: any) => acc + (b.total_cost || (Number(b.quantity) * Number(b.cost_price))),
+          0
+        );
+      } else {
+        totalReductionAmount = roundToPrecision(quantity * reductionCost, 2);
+      }
+      if (totalReductionAmount <= 0) {
+        totalReductionAmount = roundToPrecision(quantity * finalAdjCost, 2);
+      }
+      const effectiveUnitCost = quantity > 0 ? roundToPrecision(totalReductionAmount / quantity, 2) : finalAdjCost;
+
+      if (totalReductionAmount > 0) {
+        const expenseId = existingExp?.id || `exp_adj_${adjustmentId}`;
+        await db.expenses.put({
+          id: expenseId,
+          expenseNumber: `EXP-${oldAdj?.ref_no || `ADJ-${String(adjustmentId).slice(-6)}`}`,
+          date: dateIso,
+          category: "Stock Adjustment",
+          itemName: `${product.name} (Qty: ${quantity} ${product.uom || 'pcs'})`,
+          description: `Stock Adjustment (${oldAdj?.ref_no || ''}) - ${reason || 'Physical Count'}`,
+          qty: quantity,
+          rate: effectiveUnitCost,
+          amount: totalReductionAmount,
+          source_type: "stock_adjustment",
+          source_id: adjustmentId,
+          ref_no: oldAdj?.ref_no,
+          created_at: existingExp?.created_at || dateIso,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } else {
+      if (existingExp) {
+        await db.expenses.delete(existingExp.id);
+      }
+    }
+  } catch (expErr) {
+    console.error("Failed to sync linked expense offline:", expErr);
+  }
 
   // Queue PUT sync operation
   try {

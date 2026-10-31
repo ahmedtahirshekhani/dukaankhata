@@ -189,7 +189,10 @@ export async function GET(request: NextRequest) {
     // Calculate Expenses
     const expensesQuery: any = {
       ...baseQuery,
-      created_at: { $gte: from, $lte: to },
+      $or: [
+        { date: { $gte: from, $lte: to } },
+        { created_at: { $gte: from, $lte: to } },
+      ],
     };
 
     const expensePipeline = [
@@ -337,7 +340,10 @@ export async function GET(request: NextRequest) {
     // Get top expenses
     const topExpensesQuery = {
       ...baseQuery,
-      created_at: { $gte: from, $lte: to },
+      $or: [
+        { date: { $gte: from, $lte: to } },
+        { created_at: { $gte: from, $lte: to } },
+      ],
     };
 
     const skip = limit > 0 ? (page - 1) * limit : 0;
@@ -359,9 +365,9 @@ export async function GET(request: NextRequest) {
     const expenses = expenseItems.map((expense: any) => ({
       id: expense._id.toString(),
       category: expense.category || "Uncategorized",
-      description: expense.description || "-",
+      description: expense.description || expense.item_name || "-",
       amount: expense.amount || 0,
-      date: expense.created_at || new Date(),
+      date: expense.date || expense.created_at || new Date(),
       paymentMethod: expense.payment_method || "-",
     }));
 

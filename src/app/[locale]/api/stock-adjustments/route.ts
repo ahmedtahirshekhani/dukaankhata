@@ -223,6 +223,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-create expense entry when stock is reduced (Stock Adjustment Loss)
+    if (actionType === "reduce") {
+      let totalReductionAmount = 0;
+      if (valuationMethod === "fifo" && consumedBatchSplits.length > 0) {
+        totalReductionAmount = consumedBatchSplits.reduce(
+          (acc: number, b: any) => acc + (b.total_cost || (Number(b.quantity) * Number(b.cost_price))),
+          0
+        );
+      } else {
+        totalReductionAmount = roundToPrecision(numQty * reductionCost, 2);
+      }
+      if (totalReductionAmount <= 0) {
+        totalReductionAmount = roundToPrecision(numQty * finalAdjCost, 2);
+      }
+      const effectiveUnitCost = numQty > 0 ? roundToPrecision(totalReductionAmount / numQty, 2) : finalAdjCost;
+
+      if (totalReductionAmount > 0) {
+        const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
+        await expensesCollection.insertOne({
+          user_id: userId,
+          expense_number: `EXP-${refNo}`,
+          date: parsedDate,
+          category: "Stock Adjustment",
+          item_name: `${product.name} (Qty: ${numQty} ${product.uom || 'pcs'})`,
+          description: `Stock Adjustment (${refNo}) - ${reason || 'Physical Count'}`,
+          qty: numQty,
+          rate: effectiveUnitCost,
+          amount: totalReductionAmount,
+          source_type: "stock_adjustment",
+          source_id: newId,
+          ref_no: refNo,
+          created_at: parsedDate,
+          updated_at: new Date(),
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       id: newId,
@@ -563,6 +600,19 @@ export async function DELETE(request: NextRequest) {
           { batch_number: adj.ref_no },
         ]
       });
+
+      // Delete linked stock adjustment expense if any
+      const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
+      await expensesCollection.deleteMany({
+        user_id: userId,
+        $or: [
+          { source_id: adj._id.toString() },
+          { source_id: adj.ref_no },
+          { source_id: id },
+          { ref_no: adj.ref_no },
+          { expense_number: `EXP-${adj.ref_no}` },
+        ]
+      });
     }
 
     await stockAdjustmentsCollection.deleteOne({ _id: adj._id });
@@ -835,6 +885,65 @@ export async function PUT(request: NextRequest) {
         },
       }
     );
+
+    // Sync linked expense for Stock Adjustment Loss
+    const expensesCollection = await getCollection(COLLECTIONS.EXPENSES);
+    const expQuery = {
+      user_id: userId,
+      $or: [
+        { source_id: oldAdj._id.toString() },
+        { source_id: oldAdj.ref_no },
+        { source_id: id },
+        { ref_no: oldAdj.ref_no },
+        { expense_number: `EXP-${oldAdj.ref_no}` },
+      ]
+    };
+
+    if (actionType === "reduce") {
+      let totalReductionAmount = 0;
+      if (valuationMethod === "fifo" && consumedBatchSplits.length > 0) {
+        totalReductionAmount = consumedBatchSplits.reduce(
+          (acc: number, b: any) => acc + (b.total_cost || (Number(b.quantity) * Number(b.cost_price))),
+          0
+        );
+      } else {
+        totalReductionAmount = roundToPrecision(numQty * reductionCost, 2);
+      }
+      if (totalReductionAmount <= 0) {
+        totalReductionAmount = roundToPrecision(numQty * finalAdjCost, 2);
+      }
+      const effectiveUnitCost = numQty > 0 ? roundToPrecision(totalReductionAmount / numQty, 2) : finalAdjCost;
+
+      if (totalReductionAmount > 0) {
+        await expensesCollection.updateOne(
+          expQuery,
+          {
+            $set: {
+              user_id: userId,
+              expense_number: `EXP-${oldAdj.ref_no}`,
+              date: parsedDate,
+              category: "Stock Adjustment",
+              item_name: `${product.name} (Qty: ${numQty} ${product.uom || 'pcs'})`,
+              description: `Stock Adjustment (${oldAdj.ref_no}) - ${reason || 'Physical Count'}`,
+              qty: numQty,
+              rate: effectiveUnitCost,
+              amount: totalReductionAmount,
+              source_type: "stock_adjustment",
+              source_id: oldAdj._id.toString(),
+              ref_no: oldAdj.ref_no,
+              updated_at: new Date(),
+            },
+            $setOnInsert: {
+              created_at: parsedDate,
+            }
+          },
+          { upsert: true }
+        );
+      }
+    } else {
+      // Changed to add: delete any previously linked reduction expense
+      await expensesCollection.deleteMany(expQuery);
+    }
 
     return NextResponse.json({
       success: true,
