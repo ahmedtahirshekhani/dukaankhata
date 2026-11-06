@@ -8,7 +8,8 @@ import {
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime, generateReferenceNumber } from '@/lib/utils';
+import { generateReferenceNumber } from '@/lib/utils';
+import { parseSafeDate } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(req: NextRequest) {
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = setDateToCurrentTime(dateStr);
+    const date = parseSafeDate(dateStr);
 
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const now = new Date();

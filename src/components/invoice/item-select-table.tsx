@@ -89,22 +89,22 @@ export function ItemSelectTable({
   return (
     <div className="w-full">
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
-        <Table className="text-xs">
+      <div className="hidden md:block overflow-x-auto custom-scrollbar">
+        <Table className="text-xs w-full">
           <TableHeader className="bg-gray-50/50">
             <TableRow>
-              <TableHead className={showQtyType && showDiscount ? "w-[30%] py-2 h-8" : "w-[38%] py-2 h-8"}>
-                {t("item") || "Item"}
+              <TableHead className={showQtyType && showDiscount ? "w-[24%] py-2 h-8" : "w-[34%] py-2 h-8"}>
+                {t("item")}
               </TableHead>
-              <TableHead className="py-2 h-8">{t("quantity") || "Qty"}</TableHead>
-              {showQtyType && <TableHead className="py-2 h-8">{t("qtyType") || "Type"}</TableHead>}
-              <TableHead className="py-2 h-8">{t("uom") || "UOM"}</TableHead>
-              <TableHead className="py-2 h-8">{displayPriceLabel}</TableHead>
-              {showDiscount && <TableHead className="py-2 h-8">{t("discount") || "Discount"}</TableHead>}
-              <TableHead className={!showDiscount && !showQtyType ? "py-2 h-8 text-right" : "py-2 h-8"}>
+              <TableHead className="py-2 h-8 whitespace-nowrap">{t("quantity") || "Qty"}</TableHead>
+              {showQtyType && <TableHead className="py-2 h-8 whitespace-nowrap">{t("qtyType") || "Type"}</TableHead>}
+              <TableHead className="py-2 h-8 whitespace-nowrap">{t("uom") || "UOM"}</TableHead>
+              <TableHead className="py-2 h-8 whitespace-nowrap">{displayPriceLabel}</TableHead>
+              {showDiscount && <TableHead className="py-2 h-8 whitespace-nowrap">{t("discount") || "Discount"}</TableHead>}
+              <TableHead className="py-2 h-8 text-right whitespace-nowrap">
                 {t("amount") || "Amount"}
               </TableHead>
-              <TableHead className="w-8 py-2 h-8"></TableHead>
+              <TableHead className="w-7 py-2 h-8"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,7 +130,7 @@ export function ItemSelectTable({
                     value={product.quantityInput ?? String(product.quantity ?? 1)}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                     onBlur={() => handleQuantityBlur(product.id)}
-                    className="w-16 h-7 p-1 text-xs"
+                    className="w-14 h-7 p-1 text-xs"
                   />
                 </TableCell>
                 {showQtyType && (
@@ -144,7 +144,7 @@ export function ItemSelectTable({
                         )
                       }
                     >
-                      <SelectTrigger className="w-20 h-7 text-xs bg-white">
+                      <SelectTrigger className="w-[72px] h-7 text-xs bg-white px-2">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -157,7 +157,7 @@ export function ItemSelectTable({
                 <TableCell className="py-1">
                   {!isUomMissing(product) ? (
                     <Select disabled>
-                      <SelectTrigger className="w-16 h-7 text-xs bg-gray-50 text-muted-foreground font-medium cursor-not-allowed">
+                      <SelectTrigger className="w-14 h-7 text-xs bg-gray-50 text-muted-foreground font-medium cursor-not-allowed px-1">
                         <SelectValue placeholder={formatUomDisplay(product.unit_of_measurement)} />
                       </SelectTrigger>
                     </Select>
@@ -166,10 +166,10 @@ export function ItemSelectTable({
                       value={product.unit_of_measurement || ""}
                       onValueChange={(val) => handleUomChange?.(product.id, val)}
                     >
-                      <SelectTrigger className="w-24 h-7 text-xs bg-amber-50/70 border-amber-300 text-amber-900 focus:ring-amber-500 font-medium">
+                      <SelectTrigger className="w-20 h-7 text-xs bg-amber-50/70 border-amber-300 text-amber-900 focus:ring-amber-500 font-medium px-1.5">
                         <SelectValue placeholder={t("selectUom") || "Select UOM"} />
                       </SelectTrigger>
-                      <SelectContent className="max-h-56">
+                      <SelectContent className="max-h-56 custom-scrollbar">
                         {unitOptions.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value} className="text-xs">
                             {opt.label}
@@ -184,7 +184,7 @@ export function ItemSelectTable({
                     value={product.sellPriceInput ?? String(product.sell_price)}
                     onChange={(e) => handleSellPriceChange(product.id, e.target.value)}
                     onBlur={() => handleSellPriceBlur(product.id)}
-                    className="w-24 h-7 text-xs"
+                    className="w-20 h-7 text-xs"
                   />
                 </TableCell>
                 {showDiscount && (
@@ -199,7 +199,7 @@ export function ItemSelectTable({
                             parseFloat(e.target.value || "0"),
                           )
                         }
-                        className="w-16 h-7 text-xs"
+                        className="w-12 h-7 text-xs p-1"
                       />
                       <Select
                         value={product.discountType || "value"}
@@ -210,7 +210,7 @@ export function ItemSelectTable({
                           )
                         }
                       >
-                        <SelectTrigger className="w-14 h-7 text-xs bg-white">
+                        <SelectTrigger className="w-12 h-7 text-xs bg-white px-1">
                           <SelectValue placeholder={t("pkr") || "PKR"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -221,8 +221,8 @@ export function ItemSelectTable({
                     </div>
                   </TableCell>
                 )}
-                <TableCell className={!showDiscount && !showQtyType ? "py-1 text-right" : "py-1"}>
-                  <span className="font-semibold text-xs text-gray-900">
+                <TableCell className="py-1 text-right whitespace-nowrap">
+                  <span className="font-semibold text-xs text-gray-900 whitespace-nowrap">
                     Rs. {Math.floor(calculateLineTotal(product))}
                   </span>
                 </TableCell>
@@ -231,7 +231,7 @@ export function ItemSelectTable({
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveProduct(product.id)}
-                    className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 p-0"
                   >
                     <XIcon className="w-3.5 h-3.5" />
                   </Button>
@@ -244,7 +244,7 @@ export function ItemSelectTable({
 
       {/* Add Item Row - Desktop */}
       <div className="hidden md:flex mt-2 items-center">
-        <div className={showQtyType && showDiscount ? "w-[30%]" : "w-[38%]"}>
+        <div className={showQtyType && showDiscount ? "w-[24%]" : "w-[34%]"}>
           <ProductDropdown
             resetOnChange
             value={""}
@@ -340,7 +340,7 @@ export function ItemSelectTable({
                         <SelectTrigger className="w-20 h-7 text-xs bg-amber-50/70 border-amber-300 text-amber-900 font-medium px-1 shrink-0">
                           <SelectValue placeholder={t("selectUom") || "UOM"} />
                         </SelectTrigger>
-                        <SelectContent className="max-h-56">
+                        <SelectContent className="max-h-56 custom-scrollbar">
                           {unitOptions.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value} className="text-xs">
                               {opt.label}
@@ -455,7 +455,7 @@ export function ItemSelectTable({
                 <p className="text-xs font-medium text-muted-foreground">
                   {t("amount") || "Amount"}
                 </p>
-                <p className="font-bold text-xs">
+                <p className="font-bold text-xs whitespace-nowrap">
                   Rs. {Math.floor(calculateLineTotal(product))}
                 </p>
               </div>

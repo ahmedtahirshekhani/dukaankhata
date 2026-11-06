@@ -11,7 +11,7 @@ import {
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime } from '@/lib/utils';
+import { parseSafeDate } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 interface CustomerTransactionDoc {
@@ -117,7 +117,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = setDateToCurrentTime(dateStr);
+    const date = parseSafeDate(dateStr);
 
     const collection = await getCollection<CustomerTransactionDoc>(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const existing = await collection.findOne({

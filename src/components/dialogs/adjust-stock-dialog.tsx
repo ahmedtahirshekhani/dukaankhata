@@ -39,7 +39,7 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { getUomShortcut } from "@/lib/uom";
 import { DatePicker } from "@/components/ui/date-picker";
-import { safeDate, toHTMLDateString } from "@/lib/date-utils";
+import { safeDate, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 
 interface AdjustStockDialogProps {
   open: boolean;
@@ -274,15 +274,7 @@ export function AdjustStockDialog({
 
     try {
       const parsedCost = costPrice !== "" ? parseFloat(costPrice) : undefined;
-      const now = new Date();
-      let finalAdjustmentTimestamp: string;
-      if (adjustmentDate) {
-        const parsed = safeDate(adjustmentDate);
-        parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-        finalAdjustmentTimestamp = parsed.toISOString();
-      } else {
-        finalAdjustmentTimestamp = now.toISOString();
-      }
+      const finalAdjustmentTimestamp = toSafeISOString(adjustmentDate);
 
       let updatedProduct: Product;
       if (isEditMode && adjustment) {

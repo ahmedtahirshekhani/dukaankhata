@@ -132,3 +132,77 @@ export function getDaysAgoHTMLDate(days: number): string {
   date.setDate(date.getDate() - days);
   return toHTMLDateString(date);
 }
+
+/**
+ * Safely converts a date input (YYYY-MM-DD, DD-MM-YYYY, ISO string, or Date)
+ * to a standardized UTC ISO string anchored at 12:00:00 UTC (Midday UTC).
+ * 
+ * Why 12:00:00 UTC?
+ * Across all timezones worldwide (UTC-11 to UTC+12), Midday UTC is guaranteed
+ * to NEVER cross midnight into the previous or next day, permanently preventing
+ * timezone shifting bugs when saving and viewing dates.
+ */
+export function toSafeISOString(date: string | Date | undefined | null): string {
+  if (!date) return new Date().toISOString();
+  
+  if (date instanceof Date) {
+    if (isNaN(date.getTime())) return new Date().toISOString();
+    return date.toISOString();
+  }
+
+  const trimmed = String(date).trim();
+  if (!trimmed) return new Date().toISOString();
+
+  // If already a full ISO timestamp with time (e.g., 2026-11-04T10:15:30...), keep it
+  if (trimmed.includes("T")) {
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  }
+
+  // YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), 12, 0, 0, 0)).toISOString();
+  }
+
+  // DD-MM-YYYY or DD/MM/YYYY (Pakistani format)
+  const pkMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (pkMatch) {
+    const [, d, m, y] = pkMatch;
+    return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), 12, 0, 0, 0)).toISOString();
+  }
+
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+/**
+ * Backend/Server-safe Date parser that extracts the exact calendar date
+ * without allowing server clocks (UTC hours) to bump the date to the next day.
+ */
+export function parseSafeDate(date: string | Date | undefined | null): Date {
+  if (!date) return new Date();
+  if (date instanceof Date) return isNaN(date.getTime()) ? new Date() : date;
+  
+  const trimmed = String(date).trim();
+  if (!trimmed) return new Date();
+
+  // YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), 12, 0, 0, 0));
+  }
+
+  // DD-MM-YYYY or DD/MM/YYYY
+  const pkMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (pkMatch) {
+    const [, d, m, y] = pkMatch;
+    return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), 12, 0, 0, 0));
+  }
+
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+

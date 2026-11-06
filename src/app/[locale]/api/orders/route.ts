@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { parseSafeDate } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -267,8 +267,8 @@ export async function POST(request: Request) {
       total_amount: total,
       subtotal: typeof subtotal === "number" ? subtotal : total,
       invoice_no: invoiceNo ?? null,
-      sale_date: saleDate ? setDateToCurrentTime(saleDate) : setDateToCurrentTime(now),
-      due_date: dueDate ? setDateToCurrentTime(dueDate) : null,
+      sale_date: parseSafeDate(saleDate || now),
+      due_date: dueDate ? parseSafeDate(dueDate) : null,
       charges: Array.isArray(charges) ? charges : [],
       overallDiscount: typeof overallDiscount === "number" ? overallDiscount : 0,
       shippingCharges: typeof shippingCharges === "number" ? shippingCharges : 0,
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
         ? {
             method: resolvedPaymentMethodId,
             paid_amount: payment.paidAmount || 0,
-            paid_date: payment.paidDate ? setDateToCurrentTime(payment.paidDate) : null,
+            paid_date: payment.paidDate ? parseSafeDate(payment.paidDate) : null,
             no_payment_at_all: payment.noPaymentAtAll || false,
           }
         : null,
@@ -333,10 +333,10 @@ export async function POST(request: Request) {
         type: "income",
         description: `Payment for order #${orderId.toString()}`,
         payment_date: paymentInfo.paidDate
-          ? setDateToCurrentTime(paymentInfo.paidDate)
+          ? parseSafeDate(paymentInfo.paidDate)
           : paymentDate
-            ? setDateToCurrentTime(paymentDate)
-            : setDateToCurrentTime(now),
+            ? parseSafeDate(paymentDate)
+            : now,
         created_at: now,
       };
       if (
@@ -470,7 +470,7 @@ export async function POST(request: Request) {
       eventSource: "order",
       eventSourceId: orderId.toString(),
       amountDelta: total,
-      effectiveAt: setDateToCurrentTime(saleDate || now),
+      effectiveAt: parseSafeDate(saleDate || now),
       metadata: {
         invoice_no: invoiceNo || null,
         total_amount: total,
@@ -495,8 +495,8 @@ export async function POST(request: Request) {
         eventSource: "order",
         eventSourceId: orderId.toString(),
         amountDelta: -paymentInfo2.paidAmount,
-        effectiveAt: setDateToCurrentTime(
-          saleDate || paymentInfo2.paidDate || paymentDate || now
+        effectiveAt: parseSafeDate(
+          paymentInfo2.paidDate || saleDate || paymentDate || now
         ),
         metadata: {
           invoice_no: invoiceNo || null,

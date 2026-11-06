@@ -59,9 +59,9 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
-import { generateReferenceNumber, maskPaymentNo, setDateToCurrentTime } from "@/lib/utils";
+import { generateReferenceNumber, maskPaymentNo } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate } from "@/lib/date-utils";
+import { formatReadableDate, safeDate, toSafeISOString } from "@/lib/date-utils";
 
 type Customer = {
   id: string;
@@ -227,7 +227,7 @@ export default function PaymentInPage() {
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-IN");
 
       const now = new Date();
-      const finalDate = setDateToCurrentTime(formDate);
+      const finalDateISO = toSafeISOString(formDate);
 
       const payload = {
         paymentNumber: paymentNo,
@@ -235,8 +235,8 @@ export default function PaymentInPage() {
         customerId: formCustomerId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: finalDate.toISOString(),
-        payment_date: finalDate.toISOString(),
+        date: finalDateISO,
+        payment_date: finalDateISO,
         type: "payment-in"
       };
 
@@ -293,7 +293,7 @@ export default function PaymentInPage() {
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-IN");
 
       const now = new Date();
-      const finalDate = setDateToCurrentTime(formDate);
+      const finalDateISO = toSafeISOString(formDate);
 
       const payload = {
         paymentNumber: paymentNo,
@@ -301,8 +301,8 @@ export default function PaymentInPage() {
         customerId: formCustomerId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: finalDate.toISOString(),
-        payment_date: finalDate.toISOString(),
+        date: finalDateISO,
+        payment_date: finalDateISO,
         type: "payment-in"
       };
 

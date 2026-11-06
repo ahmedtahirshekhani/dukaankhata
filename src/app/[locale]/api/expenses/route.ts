@@ -10,7 +10,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { parseSafeDate } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 type ExpenseItemInput = {
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const expenseDate = setDateToCurrentTime(dateInput);
+    const expenseDate = parseSafeDate(dateInput);
     const now = new Date();
     const userId = toObjectId(user.id);
 
