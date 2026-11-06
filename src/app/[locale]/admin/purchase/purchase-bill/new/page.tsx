@@ -22,7 +22,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
-import { toHTMLDateString } from "@/lib/date-utils";
+import { toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
 import { type POSProduct, type Product } from "@/app/[locale]/admin/sales/invoice/new/page";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
@@ -471,15 +471,7 @@ function AddPurchaseBillPageInner() {
         }
       }
 
-      let billDateTime: string;
-      if (selectedDate) {
-        const [year, month, day] = selectedDate.split("-").map(Number);
-        const d = new Date(now.getTime());
-        d.setFullYear(year, month - 1, day);
-        billDateTime = d.toISOString();
-      } else {
-        billDateTime = nowIso;
-      }
+      const billDateTime = toSafeISOString(selectedDate);
 
       const billData: any = {
         id: localBillId,

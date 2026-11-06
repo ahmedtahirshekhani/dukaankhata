@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { formatReadableDate, formatPakistaniDateTime } from "./date-utils"
+import { formatReadableDate, formatPakistaniDateTime, toSafeISOString, parseSafeDate } from "./date-utils"
+export { toSafeISOString, parseSafeDate }
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -30,19 +31,17 @@ export function formatDate(
   iSCurrentTime?: boolean,
   options?: Intl.DateTimeFormatOptions
 ) {
+  if (!date) return "-"
   const tz = getUserTimeZone()
   const dt = typeof date === 'string' ? new Date(date) : date
-  let timezoneDt = dt.getTime() 
-  if (!iSCurrentTime) {
-    timezoneDt = timezoneDt - (dt.getTimezoneOffset() * 60000);
-  }
+  if (isNaN(dt.getTime())) return "-"
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: tz,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     ...options,
-  }).format(timezoneDt)
+  }).format(dt)
 }
 
 // Convert any Date (assumed local) to a UTC ISO string suitable for DB storage.
@@ -159,12 +158,47 @@ export function setDateToMidnight(date: Date | string): Date {
 }
 
 /**
- * Set a date's year/month/day while preserving the current local time.
- * Useful for date-picker inputs where we want "today's time" instead of midnight.
+ * Set a date's year/month/day while preserving current time.
+ * If given a date-only string (YYYY-MM-DD or DD-MM-YYYY), safely extracts calendar date without UTC timezone distortion.
  */
 export function setDateToCurrentTime(date: Date | string): Date {
-  const source = typeof date === "string" ? new Date(date) : date;
+  if (!date) return new Date();
   const now = new Date();
+
+  if (typeof date === "string") {
+    const trimmed = date.trim();
+    // YYYY-MM-DD
+    const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    if (isoMatch) {
+      const [, y, m, d] = isoMatch;
+      return new Date(
+        Number(y),
+        Number(m) - 1,
+        Number(d),
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds(),
+      );
+    }
+    // DD-MM-YYYY
+    const pkMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (pkMatch) {
+      const [, d, m, y] = pkMatch;
+      return new Date(
+        Number(y),
+        Number(m) - 1,
+        Number(d),
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds(),
+      );
+    }
+  }
+
+  const source = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(source.getTime())) return new Date();
 
   return new Date(
     source.getFullYear(),

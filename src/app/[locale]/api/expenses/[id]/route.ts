@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { COLLECTIONS, getCollection, isValidObjectId, toObjectId, setLastUpdated, updateUserLastActivity } from "@/lib/db/mongodb";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { parseSafeDate } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 type Params = {
@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     const updateData = {
       expense_number: expenseNumber,
-      date: setDateToCurrentTime(dateInput),
+      date: parseSafeDate(dateInput),
       category,
       item_name: itemName,
       description: itemName,

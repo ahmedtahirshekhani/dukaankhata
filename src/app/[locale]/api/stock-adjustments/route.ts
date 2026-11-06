@@ -15,6 +15,7 @@ import {
   reconcileUnfulfilledSalesForProduct,
   reconcileUnfulfilledSalesForProductAverage,
 } from "@/lib/inventory/valuation-engine";
+import { parseSafeDate } from "@/lib/date-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date(),
     };
 
-    const parsedDate = adjustmentDate ? new Date(adjustmentDate) : new Date();
+    const parsedDate = adjustmentDate ? parseSafeDate(adjustmentDate) : new Date();
     const refNo = body.refNo || body.ref_no || `ADJ-${Date.now().toString().slice(-6)}`;
     const adjLocalId = body.localId || `adj_${Date.now()}`;
 

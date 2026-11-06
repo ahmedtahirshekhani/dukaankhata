@@ -58,9 +58,8 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate } from "@/lib/date-utils";
+import { formatReadableDate, safeDate, toSafeISOString } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
-import { setDateToCurrentTime } from "@/lib/utils";
 
 type Customer = {
   id: string;
@@ -395,13 +394,14 @@ export default function SaleReturnPage() {
   };
 
   const buildPayload = () => {
-    const finalDate = setDateToCurrentTime(formDate);
+    const finalDateISO = toSafeISOString(formDate);
+    const invoiceDateISO = formInvoiceDate ? toSafeISOString(formInvoiceDate) : undefined;
     return {
       returnNumber: formReturnNumber.trim(),
       customerId: formCustomerId,
-      date: finalDate.toISOString(),
-      return_date: finalDate.toISOString(),
-      invoiceDate: formInvoiceDate || undefined,
+      date: finalDateISO,
+      return_date: finalDateISO,
+      invoiceDate: invoiceDateISO,
       invoiceNo: formInvoiceNo.trim(),
       items: formItems.map((item) => ({
         id: item.id,

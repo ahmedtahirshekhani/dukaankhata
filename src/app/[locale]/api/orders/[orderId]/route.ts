@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from '@/lib/auth/rbac';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime } from '@/lib/utils';
+import { parseSafeDate } from '@/lib/date-utils';
 
 // Helper to check if product is goods (not service)
 function isGoodsProduct(productDoc: any): boolean {
@@ -205,8 +205,8 @@ export async function PUT(
   const now = new Date();
   const updateData: any = {
     customer_id: toObjectId(customerId),
-    sale_date: saleDate ? setDateToCurrentTime(saleDate) : setDateToCurrentTime(now),
-    due_date: dueDate ? setDateToCurrentTime(dueDate) : null,
+    sale_date: parseSafeDate(saleDate || now),
+    due_date: dueDate ? parseSafeDate(dueDate) : null,
     invoice_no: invoiceNo || null,
     items: newItems,
     subtotal: subtotal || total,
@@ -221,7 +221,7 @@ export async function PUT(
     updateData.payment = {
       method: payment.method,
       paid_amount: payment.paidAmount || 0,
-      paid_date: payment.paidDate ? setDateToCurrentTime(payment.paidDate) : null,
+      paid_date: payment.paidDate ? parseSafeDate(payment.paidDate) : null,
       no_payment_at_all: payment.noPaymentAtAll || false,
     };
   } else {
@@ -254,7 +254,7 @@ export async function PUT(
       category: 'selling',
       type: 'income',
       description: `Payment for order #${orderId}`,
-      payment_date: payment.paidDate ? setDateToCurrentTime(payment.paidDate) : now,
+      payment_date: payment.paidDate ? parseSafeDate(payment.paidDate) : now,
       payment_method_id: payment.method === 'cash' ? 'cash' : payment.method === 'cheque' ? 'cheque' : null,
       created_at: now,
     });

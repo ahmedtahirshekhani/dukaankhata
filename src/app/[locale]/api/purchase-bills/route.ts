@@ -11,7 +11,8 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime, generateReferenceNumber } from "@/lib/utils";
+import { generateReferenceNumber } from "@/lib/utils";
+import { parseSafeDate } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { ObjectId } from "mongodb";
 
@@ -319,7 +320,7 @@ export async function POST(request: Request) {
     const now = new Date();
 
     const rawDateInput = customBillDate || customDate;
-    const finalBillDate = rawDateInput ? new Date(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
+    const finalBillDate = rawDateInput ? parseSafeDate(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
     const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt) : now;
 
     const existingBill = await purchaseBillsCollection.findOne({
@@ -562,7 +563,7 @@ export async function PUT(request: Request) {
     }
 
     const rawBillDate = customBillDate || customDate || customPurchaseDate;
-    const finalBillDate = rawBillDate ? new Date(rawBillDate) : (oldBill.bill_date || new Date());
+    const finalBillDate = rawBillDate ? parseSafeDate(rawBillDate) : (oldBill.bill_date || new Date());
 
     // Apply new stock and valuation
     await applyPurchaseInwardServer({
@@ -599,7 +600,7 @@ export async function PUT(request: Request) {
     };
 
     if (rawBillDate) {
-      const bDate = new Date(rawBillDate);
+      const bDate = parseSafeDate(rawBillDate);
       updateData.bill_date = bDate;
       updateData.purchase_date = bDate;
       updateData.date = bDate;

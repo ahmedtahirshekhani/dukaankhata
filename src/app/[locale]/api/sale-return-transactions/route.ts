@@ -10,7 +10,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { parseSafeDate } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 type SaleReturnItem = {
@@ -256,8 +256,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const date = setDateToCurrentTime(dateStr);
-    const invoiceDate = invoiceDateRaw ? setDateToCurrentTime(invoiceDateRaw) : null;
+    const date = parseSafeDate(dateStr);
+    const invoiceDate = invoiceDateRaw ? parseSafeDate(invoiceDateRaw) : null;
 
     const collection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
     const now = new Date();

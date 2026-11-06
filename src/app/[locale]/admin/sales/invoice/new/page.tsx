@@ -42,7 +42,7 @@ import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { generateReferenceNumber, setDateToCurrentTime } from "@/lib/utils";
 
 import { DatePicker } from "@/components/ui/date-picker";
-import { toHTMLDateString } from "@/lib/date-utils";
+import { toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -665,7 +665,7 @@ export default function NewInvoicePage() {
   };
 
   const executeCreateOrder = async () => {
-    const saleDateISO = selectedDate ? (selectedDate.includes('T') ? selectedDate : `${selectedDate}T12:00:00.000Z`) : new Date().toISOString();
+    const saleDateISO = toSafeISOString(selectedDate);
     if (isCashSale) {
       await handleCreateOrder({
         paidAmount: Math.floor(finalTotal),
@@ -835,8 +835,8 @@ export default function NewInvoicePage() {
       const payload = {
         invoiceNo,
         customerId: selectedCustomer.id,
-        saleDate: selectedDate,
-        dueDate: addDueDate ? dueDate : null,
+        saleDate: toSafeISOString(selectedDate),
+        dueDate: addDueDate && dueDate ? toSafeISOString(dueDate) : null,
         products: selectedProducts.map((p) => ({
           id: p.id,
           name: p.name,
@@ -902,7 +902,7 @@ export default function NewInvoicePage() {
         }
       }
 
-      const finalSaleDate = selectedDate ? setDateToCurrentTime(selectedDate).toISOString() : now;
+      const finalSaleDate = toSafeISOString(selectedDate);
 
       // 2. Insert or Update Order locally
       const orderData: any = {
@@ -914,7 +914,7 @@ export default function NewInvoicePage() {
         sale_date: finalSaleDate,
         order_date: finalSaleDate,
         date: finalSaleDate,
-        due_date: addDueDate ? dueDate : null,
+        due_date: addDueDate && dueDate ? toSafeISOString(dueDate) : null,
         charges: displayCharges,
         overallDiscount: overallDiscountAmount,
         shippingCharges: shippingChargesNum,
