@@ -4,6 +4,7 @@ import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,18 +37,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
+    const from = parsePKTDateBoundary(fromDate, false);
+    const to = parsePKTDateBoundary(toDate, true);
 
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       return NextResponse.json(
         { error: "Invalid date range" },
         { status: 400 }
       );
     }
-
-    from.setHours(0, 0, 0, 0);
-    to.setHours(23, 59, 59, 999);
 
     const userId = toObjectId(user.id);
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
@@ -57,9 +55,10 @@ export async function GET(request: NextRequest) {
       user_id: userId,
       status: { $ne: "cancelled" },
       $or: [
+        { sale_date: { $gte: from, $lte: to } },
         { sale_date: { $gte: from.toISOString(), $lte: to.toISOString() } },
-        { created_at: { $gte: from, $lte: to } },
-        { created_at: { $gte: from.toISOString(), $lte: to.toISOString() } }
+        { sale_date: { $exists: false }, created_at: { $gte: from, $lte: to } },
+        { sale_date: { $exists: false }, created_at: { $gte: from.toISOString(), $lte: to.toISOString() } }
       ]
     };
 

@@ -9,7 +9,7 @@ import {
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
 import { generateReferenceNumber } from '@/lib/utils';
-import { parseSafeDate } from '@/lib/date-utils';
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(req: NextRequest) {
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     const customerId = body?.customerId ?? body?.customer_id ?? '';
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
-    const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json({ error: 'Valid customer is required' }, { status: 400 });
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
       customerId,
       paymentAmount,
       paymentMethodId,
-      date: date.toISOString().split('T')[0],
+      date: toHTMLDateString(date),
     });
   } catch (err: unknown) {
     console.error('customer-transactions POST error', err);

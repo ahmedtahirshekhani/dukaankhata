@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { seedCustomerOpeningBalance } from "@/lib/ledger/customer-ledger";
+import { parseSafeOpeningDate } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
@@ -142,10 +143,16 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
+    const createdAt = newCustomer.created_at ? parseSafeOpeningDate(newCustomer.created_at) : parseSafeOpeningDate(now);
+    const openingBalanceDate = newCustomer.opening_balance_date
+      ? parseSafeOpeningDate(newCustomer.opening_balance_date)
+      : createdAt;
+
     const result = await customersCollection.insertOne({
       ...newCustomer,
       user_id: toObjectId(user.id),
-      created_at: now,
+      opening_balance_date: openingBalanceDate,
+      created_at: createdAt,
       updated_at: now,
     });
 
@@ -170,7 +177,7 @@ export async function POST(request: Request) {
         user.id,
         customer._id.toString(),
         openingBalance,
-        customer.created_at ?? now
+        openingBalanceDate
       );
     }
 

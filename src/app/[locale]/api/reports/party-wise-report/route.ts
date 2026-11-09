@@ -4,32 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseDateBoundary(dateStr: string | null | undefined, isEnd: boolean = false): Date | null {
-  if (!dateStr || !dateStr.trim()) return null;
-  const trimmed = dateStr.trim();
-
-  // Support DD-MM-YYYY or DD/MM/YYYY
-  const pkMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-  let d: Date;
-  if (pkMatch) {
-    const [, day, month, year] = pkMatch;
-    d = new Date(Number(year), Number(month) - 1, Number(day));
-  } else {
-    d = new Date(trimmed);
-  }
-
-  if (isNaN(d.getTime())) return null;
-  if (isEnd) {
-    d.setHours(23, 59, 59, 999);
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-  return d;
+  return parsePKTDateBoundary(dateStr, isEnd);
 }
 
 function buildDateExpr(from: Date | null, to: Date | null, dateFieldList: string[]) {

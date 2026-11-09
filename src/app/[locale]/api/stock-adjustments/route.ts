@@ -15,7 +15,7 @@ import {
   reconcileUnfulfilledSalesForProduct,
   reconcileUnfulfilledSalesForProductAverage,
 } from "@/lib/inventory/valuation-engine";
-import { parseSafeDate } from "@/lib/date-utils";
+import { parsePKTDateBoundary, parseSafeDate } from "@/lib/date-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -315,14 +315,12 @@ export async function GET(request: NextRequest) {
     if (fromDate || toDate) {
       query.date = {};
       if (fromDate) {
-        const from = new Date(fromDate);
-        from.setHours(0, 0, 0, 0);
-        query.date.$gte = from;
+        const from = parsePKTDateBoundary(fromDate, false);
+        if (from) query.date.$gte = from;
       }
       if (toDate) {
-        const to = new Date(toDate);
-        to.setHours(23, 59, 59, 999);
-        query.date.$lte = to;
+        const to = parsePKTDateBoundary(toDate, true);
+        if (to) query.date.$lte = to;
       }
     }
     if (search) {
@@ -786,7 +784,7 @@ export async function PUT(request: NextRequest) {
     let consumedBatchSplits: any[] = [];
 
     const updateFields: any = { updated_at: new Date() };
-    const parsedDate = adjustmentDate ? new Date(adjustmentDate) : new Date();
+    const parsedDate = adjustmentDate ? parseSafeDate(adjustmentDate) : new Date();
 
     if (stockType === "damaged") {
       finalDamaged = actionType === "add"

@@ -10,7 +10,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { parseSafeDate } from "@/lib/date-utils";
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 interface SaleReturnDoc {
@@ -138,7 +138,7 @@ export async function GET(
       paymentRefNo: item.payment_ref_no ?? "",
       invoiceNo: item.invoice_no ?? "",
       invoiceDate: item.invoice_date
-        ? new Date(item.invoice_date).toISOString().split("T")[0]
+        ? toHTMLDateString(item.invoice_date)
         : "",
       date: item.date ? (typeof item.date === "string" ? item.date : new Date(item.date).toISOString()) : "",
       return_date: item.return_date || item.date || "",
@@ -190,7 +190,7 @@ export async function PUT(
     const invoiceDateRaw = (body?.invoiceDate ?? body?.invoice_date ?? "")
       .toString()
       .trim();
-    const dateStr = body?.date ?? new Date().toISOString().split("T")[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json(
@@ -447,9 +447,9 @@ export async function PUT(
       paymentRefNo: updated.payment_ref_no ?? "",
       invoiceNo: updated.invoice_no ?? "",
       invoiceDate: updated.invoice_date
-        ? new Date(updated.invoice_date).toISOString().split("T")[0]
+        ? toHTMLDateString(updated.invoice_date)
         : "",
-      date: new Date(updated.date).toISOString().split("T")[0],
+      date: toHTMLDateString(updated.date),
     });
   } catch (err: unknown) {
     console.error("sale-return-transactions PUT [id] error", err);

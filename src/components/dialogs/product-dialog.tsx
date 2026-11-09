@@ -25,6 +25,7 @@ import {
 import { ErrorDialog } from "./error-dialog";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { toSafeOpeningISOString } from "@/lib/date-utils";
 import { Info, AlertTriangle } from "lucide-react";
 import { CategorySelector } from "@/components/selectors/category-selector";
 import { BranchSelector } from "@/components/selectors/branch-selector";
@@ -209,7 +210,7 @@ export function ProductDialog({
           sell_price: sellPrice === "" ? 0 : Number(sellPrice),
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
-        created_at: new Date().toISOString(),
+        created_at: toSafeOpeningISOString(),
       };
       const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const addedProduct = { ...newProduct, id: tempId, _id: tempId, is_delete: 0 };
@@ -219,6 +220,7 @@ export function ProductDialog({
       if (addedProduct.quantity && Number(addedProduct.quantity) > 0) {
         const openingQty = Number(addedProduct.quantity);
         const openingCost = Number(addedProduct.cost_price || 0);
+        const openingBatchDate = toSafeOpeningISOString();
         await db.inventory_batches.put({
           id: `batch_opening_${tempId}`,
           product_id: tempId,
@@ -229,8 +231,8 @@ export function ProductDialog({
           remaining_quantity: openingQty,
           cost_price: openingCost,
           status: "active",
-          batch_date: new Date().toISOString(),
-          created_at: new Date().toISOString(),
+          batch_date: openingBatchDate,
+          created_at: openingBatchDate,
           updated_at: new Date().toISOString(),
         });
       }
@@ -249,15 +251,6 @@ export function ProductDialog({
 
   const handleEditProduct = useCallback(async () => {
     if (!selectedProduct) return;
-    if (
-      itemType === "goods" &&
-      productInStock !== "" &&
-      Number(productInStock) > 0 &&
-      (costPrice === "" || Number(costPrice) <= 0)
-    ) {
-      setValidationError(t("openingStockRequiresCostPrice"));
-      return;
-    }
 
     try {
       setLoading(true);
@@ -272,11 +265,12 @@ export function ProductDialog({
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
           cost_price: costPrice === "" ? 0 : Number(costPrice),
           cost_price_str: costPrice === "" ? "" : String(costPrice),
-          quantity: productInStock === "" ? 0 : Number(productInStock),
-          quantity_str: productInStock === "" ? "" : String(productInStock),
-          in_stock: productInStock === "" ? 0 : Number(productInStock),
-          initial_quantity: productInStock === "" ? 0 : Number(productInStock),
-          initial_cost: costPrice === "" ? 0 : Number(costPrice),
+          // Keep existing live inventory and opening baseline - do NOT overwrite opening stock/batch with live stock!
+          quantity: selectedProduct.quantity ?? selectedProduct.in_stock ?? 0,
+          quantity_str: selectedProduct.quantity_str || String(selectedProduct.quantity ?? selectedProduct.in_stock ?? 0),
+          in_stock: selectedProduct.in_stock ?? selectedProduct.quantity ?? 0,
+          initial_quantity: (selectedProduct as any).initial_quantity ?? (selectedProduct as any).opening_stock ?? 0,
+          initial_cost: (selectedProduct as any).initial_cost ?? (selectedProduct as any).opening_cost ?? selectedProduct.cost_price ?? 0,
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
@@ -290,51 +284,6 @@ export function ProductDialog({
       const updatedProductFromServer = { ...selectedProduct, ...updatedProduct };
       await db.products.update(selectedProduct.id, updatedProduct);
 
-      // Keep local opening stock batch in sync with edited quantity / cost
-      if (itemType === "goods") {
-        try {
-          const prodIdStr = String(selectedProduct.id);
-          const openingBatch = await db.inventory_batches
-            .filter((b: any) => 
-              (String(b.product_id) === prodIdStr || String(b.productId) === prodIdStr) &&
-              (b.source_type === "opening_stock" || b.batch_number === "OPENING")
-            )
-            .first();
-
-          const newCost = costPrice === "" ? 0 : Number(costPrice);
-          const newQty = productInStock === "" ? 0 : Number(productInStock);
-
-          if (openingBatch) {
-            const oldInitialQty = Number(openingBatch.initial_quantity) || 0;
-            const oldRemainingQty = Number(openingBatch.remaining_quantity) || 0;
-            const consumed = Math.max(0, oldInitialQty - oldRemainingQty);
-            await db.inventory_batches.update(openingBatch.id, {
-              initial_quantity: newQty,
-              remaining_quantity: Math.max(0, newQty - consumed),
-              cost_price: newCost,
-              updated_at: new Date().toISOString(),
-            });
-          } else if (newQty > 0) {
-            await db.inventory_batches.put({
-              id: `batch_opening_${prodIdStr}`,
-              product_id: prodIdStr,
-              source_type: "opening_stock",
-              source_id: prodIdStr,
-              batch_number: "OPENING",
-              initial_quantity: newQty,
-              remaining_quantity: newQty,
-              cost_price: newCost,
-              status: "active",
-              batch_date: new Date().toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-          }
-        } catch (batchErr) {
-          console.error("Error syncing opening batch in IndexedDB:", batchErr);
-        }
-      }
-
       await SyncEngine.queueOperation("products", "PUT", `/api/products/${selectedProduct.id}`, updatedProduct, String(selectedProduct.id));
       
       onSuccess(updatedProductFromServer as any, true);
@@ -345,7 +294,7 @@ export function ProductDialog({
     } finally {
       setLoading(false);
     }
-  }, [selectedProduct, itemType, productInStock, costPrice, t, productName, productDescription, productCategory, sellPrice, damagedQuantity, unitOfMeasurement, branch, onSuccess, onOpenChange]);
+  }, [selectedProduct, itemType, productName, productDescription, productCategory, sellPrice, costPrice, damagedQuantity, unitOfMeasurement, branch, onSuccess, onOpenChange]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -501,7 +450,7 @@ export function ProductDialog({
                       placeholder="0"
                       min="0"
                     />
-                    {Number(productInStock) > 0 && (costPrice === "" || Number(costPrice) <= 0) && (
+                    {!isEditMode && Number(productInStock) > 0 && (costPrice === "" || Number(costPrice) <= 0) && (
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium mt-1">
                         <Info className="w-3 h-3 shrink-0" />
                         <span>{t("costPriceRequiredForOpeningStock")}</span>
@@ -513,14 +462,20 @@ export function ProductDialog({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="quantity">{t("quantity")}</Label>
+                      <Label htmlFor="quantity">
+                        {!isEditMode ? t("quantity") : (t("currentStock") || t("quantity"))}
+                      </Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
                             <Info className="w-3 h-3 text-gray-400" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent>{t("quantityTooltip")}</TooltipContent>
+                        <TooltipContent>
+                          {isEditMode 
+                            ? (t("currentStockEditTooltip") || "Current stock cannot be edited directly. Please use 'Adjust Stock'.") 
+                            : t("quantityTooltip")}
+                        </TooltipContent>
                       </Tooltip>
                     </div>
                     <NumericInput
@@ -534,7 +489,13 @@ export function ProductDialog({
                       }}
                       placeholder="0"
                       min="0"
+                      disabled={isEditMode}
                     />
+                    {isEditMode && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("useStockAdjustmentToChangeStock") || "Use 'Adjust Stock' to change inventory quantity."}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

@@ -11,7 +11,7 @@ import {
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { parseSafeDate } from '@/lib/date-utils';
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 interface CustomerTransactionDoc {
@@ -102,7 +102,7 @@ export async function PUT(
     const customerId = body?.customerId ?? body?.customer_id ?? '';
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
-    const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
     const type = body?.type ?? 'payment-in';
     const paymentNumber = body?.paymentNumber ?? body?.payment_number;
 
@@ -212,7 +212,7 @@ export async function PUT(
       customerId: updatedDoc.customer_id.toString(),
       paymentAmount: updatedDoc.payment_amount,
       paymentMethodId: typeof pmId === 'string' ? pmId : pmId.toString(),
-      date: new Date(updatedDoc.date).toISOString().split('T')[0],
+      date: toHTMLDateString(updatedDoc.date),
       type: updatedDoc.type ?? 'payment-in',
     });
   } catch (err: unknown) {

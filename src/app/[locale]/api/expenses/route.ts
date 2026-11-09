@@ -10,7 +10,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
-import { parseSafeDate } from "@/lib/date-utils";
+import { parseSafeDate, toHTMLDateString } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 type ExpenseItemInput = {
@@ -73,9 +73,9 @@ export async function GET(request: Request) {
       id: row._id.toString(),
       expenseNumber: row.expense_number ?? "",
       date: row.date
-        ? new Date(row.date).toISOString().split("T")[0]
+        ? toHTMLDateString(row.date)
         : row.created_at
-          ? new Date(row.created_at).toISOString().split("T")[0]
+          ? toHTMLDateString(row.created_at)
           : "",
       category: row.category ?? "",
       itemName: row.item_name ?? row.description ?? "",

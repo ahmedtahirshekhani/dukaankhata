@@ -24,6 +24,8 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { cn } from "@/lib/utils";
+import { toSafeOpeningISOString } from "@/lib/date-utils";
 
 export type Customer = {
   id: string;
@@ -32,6 +34,7 @@ export type Customer = {
   phone: string;
   company_name?: string;
   company_address?: string;
+  opening_balance?: number;
   balance?: number;
   status: "active" | "inactive";
   is_delete?: number;
@@ -76,9 +79,12 @@ export function CustomerFormModal({
         setCompanyName(customerToEdit.company_name || "");
         setCompanyAddress(customerToEdit.company_address || "");
         
-        const bal = customerToEdit.balance || 0;
-        setBalance(Math.abs(bal).toString());
-        setBalanceType(bal < 0 ? "pay" : "receive");
+        // Use opening_balance for Opening Balance field, not dynamic ledger balance
+        const opBal = customerToEdit.opening_balance !== undefined
+          ? Number(customerToEdit.opening_balance)
+          : 0;
+        setBalance(Math.abs(opBal).toString());
+        setBalanceType(opBal < 0 ? "pay" : "receive");
         setStatus(customerToEdit.status || "active");
       } else {
         setName("");
@@ -115,12 +121,17 @@ export function CustomerFormModal({
 
     setIsSaving(true);
     try {
-      const finalBalance = balance
+      const finalOpeningBalance = balance
         ? parseFloat(balance) * (balanceType === "pay" ? -1 : 1)
         : 0;
 
       if (customerToEdit) {
         // EDIT MODE
+        const oldOpening = Number(customerToEdit.opening_balance ?? 0);
+        const delta = finalOpeningBalance - oldOpening;
+        const currentBal = Number(customerToEdit.balance ?? 0);
+        const newLiveBalance = currentBal + delta;
+
         const updatedCustomer = {
           ...customerToEdit,
           name,
@@ -128,25 +139,37 @@ export function CustomerFormModal({
           phone,
           company_name: companyName,
           company_address: companyAddress,
-          balance: finalBalance,
+          opening_balance: finalOpeningBalance,
+          balance: newLiveBalance,
           status,
         };
 
         await db.parties.update(customerToEdit.id, updatedCustomer);
-        await SyncEngine.queueOperation("parties", "PUT", `/api/customers/${customerToEdit.id}`, updatedCustomer);
+        await SyncEngine.queueOperation("parties", "PUT", `/api/customers/${customerToEdit.id}`, {
+          name,
+          email,
+          phone,
+          company_name: companyName,
+          company_address: companyAddress,
+          opening_balance: finalOpeningBalance,
+          status,
+        });
         
-        toast.success(t("customerUpdatedSuccess") || "Customer updated successfully!");
+        toast.success(t("customerUpdatedSuccess") || "Party updated successfully!");
       } else {
         // ADD MODE
+        const openingDateIso = toSafeOpeningISOString();
         const newCustomer = {
           name,
           email,
           phone,
           company_name: companyName,
           company_address: companyAddress,
-          balance: finalBalance,
+          opening_balance: finalOpeningBalance,
+          opening_balance_date: openingDateIso,
+          balance: finalOpeningBalance,
           status,
-          created_at: new Date().toISOString(),
+          created_at: openingDateIso,
         };
 
         const customerId = typeof crypto !== 'undefined' && crypto.randomUUID 
@@ -158,7 +181,7 @@ export function CustomerFormModal({
         await db.parties.add(finalCustomer);
         await SyncEngine.queueOperation("parties", "POST", "/api/customers", newCustomer, customerId);
         
-        toast.success(t("customerCreatedSuccess") || "Customer created successfully!");
+        toast.success(t("customerCreatedSuccess") || "Party created successfully!");
       }
 
       onOpenChange(false);
@@ -269,7 +292,7 @@ export function CustomerFormModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="balance" className="text-xs sm:text-sm font-medium">
-                  {!isEditMode ? t("openingBalance") : t("balanceLabel")}
+                  {t("openingBalance")}
                 </Label>
                 <NumericInput
                   id="balance"
@@ -277,13 +300,11 @@ export function CustomerFormModal({
                   onChange={(e) => setBalance(e.target.value)}
                   placeholder={t("balancePlaceholder")}
                   className="h-9 sm:h-10 text-sm"
-                  disabled={isEditMode}
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
                 <Select
-                  disabled={isEditMode}
                   value={balanceType}
                   onValueChange={(val: "receive" | "pay") => setBalanceType(val)}
                 >
@@ -297,15 +318,26 @@ export function CustomerFormModal({
                 </Select>
               </div>
             </div>
-            {isEditMode ? (
-              <p className="text-xs text-amber-600 mt-2 font-medium">
-                {t("cannotUpdateBalanceWarning")}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-2">
-                {t("openingBalanceHelper")}
-              </p>
+
+            {isEditMode && customerToEdit?.balance !== undefined && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border text-xs sm:text-sm">
+                <span className="text-muted-foreground">{t("currentBalance") || "Current Balance"}:</span>
+                <span className={cn(
+                  "font-bold font-mono",
+                  Number(customerToEdit.balance) > 0 ? "text-emerald-600 dark:text-emerald-400" :
+                  Number(customerToEdit.balance) < 0 ? "text-rose-600 dark:text-rose-400" :
+                  "text-slate-700 dark:text-slate-300"
+                )}>
+                  {t("currencySymbol") || "Rs."} {Math.abs(Number(customerToEdit.balance)).toLocaleString()} (
+                  {Number(customerToEdit.balance) > 0 ? (t("receive") || "Receive") : Number(customerToEdit.balance) < 0 ? (t("pay") || "Pay") : "Settled"}
+                  )
+                </span>
+              </div>
             )}
+
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("openingBalanceHelper")}
+            </p>
           </div>
         </div>
 

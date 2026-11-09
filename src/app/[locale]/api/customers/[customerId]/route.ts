@@ -10,7 +10,7 @@ import {
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { NextResponse } from "next/server";
-import { setCustomerBalanceTarget } from "@/lib/ledger/customer-ledger";
+import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
 
 export async function GET(
   request: Request,
@@ -61,19 +61,6 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid customer ID" }, { status: 400 });
   }
 
-  const explicitBalanceProvided = updatedCustomer.balance !== undefined;
-
-  if (updatedCustomer.balance !== undefined) {
-    updatedCustomer.opening_balance = updatedCustomer.balance;
-  }
-
-  // Clean system / immutable keys from payload to avoid mutating _id or user_id
-  delete updatedCustomer.id;
-  delete updatedCustomer._id;
-  delete updatedCustomer.user_id;
-  delete updatedCustomer.created_at;
-  delete updatedCustomer.updated_at;
-
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
   const filter: any = {
     _id: toObjectId(customerId),
@@ -82,6 +69,56 @@ export async function PUT(
       { user_id: user.id }
     ]
   };
+
+  const existingCustomer = await customersCollection.findOne(filter);
+  if (!existingCustomer) {
+    return NextResponse.json(
+      { error: "Customer not found or not authorized" },
+      { status: 404 },
+    );
+  }
+
+  // Handle opening balance delta if opening_balance is provided
+  if (updatedCustomer.opening_balance !== undefined) {
+    const oldOpening = Number(existingCustomer.opening_balance ?? 0);
+    const newOpening = Number(updatedCustomer.opening_balance);
+    const delta = newOpening - oldOpening;
+
+    if (delta !== 0 && Number.isFinite(delta)) {
+      const currentBalance = Number(existingCustomer.balance ?? existingCustomer.opening_balance ?? 0);
+      updatedCustomer.balance = currentBalance + delta;
+
+      try {
+        await appendPartyLedgerEntry({
+          userId: user.id,
+          partyId: customerId,
+          eventKey: `opening_balance_adj:${customerId}:${Date.now()}`,
+          eventType: "opening_balance",
+          eventSource: "party",
+          eventSourceId: customerId,
+          amountDelta: delta,
+          effectiveAt: existingCustomer.created_at || new Date(),
+          metadata: {
+            source: "opening_balance_edit",
+            oldOpening,
+            newOpening,
+          },
+        });
+      } catch (ledgerErr) {
+        console.error("Error appending opening balance delta to ledger:", ledgerErr);
+      }
+    }
+  } else {
+    // If opening_balance wasn't provided, do not overwrite it
+    delete updatedCustomer.opening_balance;
+  }
+
+  // Clean system / immutable keys from payload to avoid mutating _id or user_id
+  delete updatedCustomer.id;
+  delete updatedCustomer._id;
+  delete updatedCustomer.user_id;
+  delete updatedCustomer.created_at;
+  delete updatedCustomer.updated_at;
 
   // Update using setLastUpdated helper
   const updateResult = await setLastUpdated(
@@ -111,19 +148,6 @@ export async function PUT(
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
 
-  if (explicitBalanceProvided && Number.isFinite(Number(updatedCustomer.balance))) {
-    await setCustomerBalanceTarget(
-      user.id,
-      customerId,
-      Number(updatedCustomer.balance),
-      `customer_balance_set:${customerId}:${Number(updatedCustomer.balance)}`,
-      new Date(),
-      {
-        reason: "customer_profile_balance_update",
-      }
-    );
-  }
-
   await updateUserLastActivity();
   return NextResponse.json({
     id: resultDoc._id.toString(),
@@ -132,6 +156,7 @@ export async function PUT(
     phone: resultDoc.phone,
     company_name: resultDoc.company_name,
     company_address: resultDoc.company_address,
+    opening_balance: resultDoc.opening_balance ?? 0,
     balance: resultDoc.balance !== undefined ? resultDoc.balance : resultDoc.opening_balance,
     status: resultDoc.status || "active",
     is_delete: resultDoc.is_delete || 0,

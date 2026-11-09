@@ -9,6 +9,7 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requireAnyPermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
   const user = (await getCurrentUser()) as { id: string } | null;
@@ -60,12 +61,12 @@ export async function GET(request: Request) {
 
     filter.created_at = { $gte: startDate, $lte: endDate };
   } else if (fromDate && toDate) {
-    const startDate = new Date(fromDate + "T00:00:00.000Z");
-    const endDate = new Date(toDate + "T23:59:59.999Z");
+    const startDate = parsePKTDateBoundary(fromDate, false) || new Date(fromDate + "T00:00:00.000Z");
+    const endDate = parsePKTDateBoundary(toDate, true) || new Date(toDate + "T23:59:59.999Z");
     filter.created_at = { $gte: startDate, $lte: endDate };
   } else if (year) {
-    const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-    const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
+    const startOfYear = parsePKTDateBoundary(`${year}-01-01`, false) || new Date(`${year}-01-01T00:00:00.000Z`);
+    const endOfYear = parsePKTDateBoundary(`${year}-12-31`, true) || new Date(`${year}-12-31T23:59:59.999Z`);
     filter.created_at = { $gte: startOfYear, $lte: endOfYear };
   }
 
