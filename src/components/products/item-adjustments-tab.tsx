@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { formatPakistaniDateTime, toHTMLDateString } from "@/lib/date-utils";
+import { formatPakistaniDateTime, toHTMLDateString, parsePKTDateBoundary } from "@/lib/date-utils";
 import { exportStockAdjustmentsToExcel } from "@/lib/excel";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -255,16 +255,14 @@ export function ItemAdjustmentsTab({
       // Date Range
       if (fromDate) {
         const d = new Date(a.date);
-        const from = new Date(fromDate);
-        from.setHours(0, 0, 0, 0);
-        if (d < from) return false;
+        const from = parsePKTDateBoundary(fromDate, false);
+        if (from && d < from) return false;
       }
 
       if (toDate) {
         const d = new Date(a.date);
-        const to = new Date(toDate);
-        to.setHours(23, 59, 59, 999);
-        if (d > to) return false;
+        const to = parsePKTDateBoundary(toDate, true);
+        if (to && d > to) return false;
       }
 
       return true;

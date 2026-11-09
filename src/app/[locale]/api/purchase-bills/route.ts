@@ -385,7 +385,7 @@ export async function POST(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billResult.insertedId.toString(),
           amountDelta: -totalAmount,
-          effectiveAt: now,
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billResult.insertedId.toString(),
             purchase_number: finalPurchaseNo,
@@ -408,7 +408,7 @@ export async function POST(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billResult.insertedId.toString(),
           amountDelta: finalPaidAmount,
-          effectiveAt: now,
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billResult.insertedId.toString(),
             purchase_number: finalPurchaseNo,
@@ -427,7 +427,7 @@ export async function POST(request: Request) {
           category: "purchasing",
           type: "expense",
           description: `Payment for purchase bill #${billResult.insertedId.toString()}`,
-          payment_date: now,
+          payment_date: finalBillDate,
           payment_method_id: paymentMethodId && isValidObjectId(paymentMethodId) ? toObjectId(paymentMethodId) : (paymentMethodId || "cash"),
           order_id: billResult.insertedId,
           created_at: now,
@@ -699,7 +699,7 @@ export async function PUT(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
           amountDelta: -totalAmount,
-          effectiveAt: new Date(),
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billObjId.toString(),
             purchase_number: updateData.purchase_number || oldBill.purchase_number || oldBill.purchase_no || oldBill.bill_number,
@@ -723,7 +723,7 @@ export async function PUT(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
           amountDelta: finalPaidAmount,
-          effectiveAt: new Date(),
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billObjId.toString(),
             purchase_number: updateData.purchase_number || oldBill.purchase_number || oldBill.purchase_no || oldBill.bill_number,
@@ -741,7 +741,7 @@ export async function PUT(request: Request) {
           category: "purchasing",
           type: "expense",
           description: `Payment for purchase bill #${billObjId.toString()}`,
-          payment_date: new Date(),
+          payment_date: finalBillDate,
           payment_method_id: paymentMethodId && isValidObjectId(paymentMethodId) ? toObjectId(paymentMethodId) : (paymentMethodId || "cash"),
           order_id: billObjId,
           created_at: new Date(),

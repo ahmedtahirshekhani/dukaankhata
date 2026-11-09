@@ -9,28 +9,13 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 function parseDateRange(fromDate: string, toDate: string) {
-  let from: Date;
-  let to: Date;
+  const from = parsePKTDateBoundary(fromDate, false);
+  const to = parsePKTDateBoundary(toDate, true);
 
-  if (fromDate.includes('-') && fromDate.length === 10) {
-    const [y, m, d] = fromDate.split('-').map(Number);
-    from = new Date(y, m - 1, d, 0, 0, 0, 0);
-  } else {
-    from = new Date(fromDate);
-    from.setHours(0, 0, 0, 0);
-  }
-
-  if (toDate.includes('-') && toDate.length === 10) {
-    const [y, m, d] = toDate.split('-').map(Number);
-    to = new Date(y, m - 1, d, 23, 59, 59, 999);
-  } else {
-    to = new Date(toDate);
-    to.setHours(23, 59, 59, 999);
-  }
-
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+  if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
     throw new Error("Invalid date range");
   }
 
@@ -325,7 +310,7 @@ export async function GET(request: NextRequest) {
     filteredTransactions.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
     // Virtual Opening Balance record
-    const openingDate = from.getFullYear() === 1970 && bankAccount.created_at
+    const openingDate = from.getFullYear() <= 1970 && bankAccount.created_at
       ? new Date(bankAccount.created_at).toISOString()
       : from.toISOString();
 

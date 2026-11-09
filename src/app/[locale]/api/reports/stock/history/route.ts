@@ -3,6 +3,7 @@ import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, updateUserLast
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from '@/lib/auth/rbac';
+import { parsePKTDateBoundary } from '@/lib/date-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -648,11 +649,8 @@ export async function GET(request: NextRequest) {
     let openingBalanceBeforeFilter = initialOpeningQty;
 
     if (fromDate || toDate) {
-      const from = fromDate ? new Date(fromDate) : null;
-      if (from) from.setHours(0, 0, 0, 0);
-
-      const to = toDate ? new Date(toDate) : null;
-      if (to) to.setHours(23, 59, 59, 999);
+      const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
+      const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
       let openingCostForPeriod = initialOpeningCost;
 

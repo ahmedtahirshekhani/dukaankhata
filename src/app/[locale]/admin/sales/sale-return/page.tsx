@@ -58,7 +58,7 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate, toSafeISOString } from "@/lib/date-utils";
+import { formatReadableDate, getTodayHTMLDate, safeDate, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
 
 type Customer = {
@@ -198,9 +198,7 @@ export default function SaleReturnPage() {
 
   const [formReturnNumber, setFormReturnNumber] = useState(generateReturnNumber());
   const [formCustomerId, setFormCustomerId] = useState("");
-  const [formDate, setFormDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [formDate, setFormDate] = useState(() => getTodayHTMLDate());
   const [formInvoiceDate, setFormInvoiceDate] = useState("");
   const [formInvoiceNo, setFormInvoiceNo] = useState("");
   const [formItems, setFormItems] = useState<ReturnItem[]>([createItem()]);
@@ -292,7 +290,7 @@ export default function SaleReturnPage() {
   const resetForm = useCallback(() => {
     setFormReturnNumber(generateReturnNumber());
     setFormCustomerId("");
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setFormInvoiceDate("");
     setFormInvoiceNo("");
     setFormItems([createItem()]);
@@ -464,7 +462,7 @@ export default function SaleReturnPage() {
             costPrice,
             returnId: newId,
             returnNumber: formReturnNumber,
-            returnDate: formDate,
+            returnDate: payload.date,
           });
         }
       }
@@ -571,13 +569,31 @@ export default function SaleReturnPage() {
           if (pId) await adjustOfflineStock(pId, item.quantity);
         }
 
-        await SyncEngine.queueOperation(
-          "sale_return_transactions", 
-          "PUT", 
-          `/${locale}/api/sale-return-transactions/${selectedId}`, 
-          payload, 
-          selectedId
-        );
+        const isMongoId = /^[0-9a-fA-F]{24}$/.test(selectedId);
+        if (!isMongoId) {
+          const pendingPost = await db.syncQueue.where("localId").equals(selectedId).first();
+          if (pendingPost) {
+            pendingPost.data = payload;
+            pendingPost.status = "pending";
+            await db.syncQueue.put(pendingPost);
+          } else {
+            await SyncEngine.queueOperation(
+              "sale_return_transactions",
+              "PUT",
+              `/${locale}/api/sale-return-transactions/${selectedId}`,
+              payload,
+              selectedId
+            );
+          }
+        } else {
+          await SyncEngine.queueOperation(
+            "sale_return_transactions",
+            "PUT",
+            `/${locale}/api/sale-return-transactions/${selectedId}`,
+            payload,
+            selectedId
+          );
+        }
       }
       setShowEditDialog(false);
       resetForm();
@@ -689,8 +705,8 @@ export default function SaleReturnPage() {
     setSelectedId(item.id);
     setFormReturnNumber(item.returnNumber || generateReturnNumber());
     setFormCustomerId(item.customerId);
-    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
-    setFormInvoiceDate(item.invoiceDate ? item.invoiceDate.split("T")[0] : "");
+    setFormDate(toHTMLDateString((item as any).raw_date || item.date) || getTodayHTMLDate());
+    setFormInvoiceDate(item.invoiceDate ? toHTMLDateString(item.invoiceDate) : "");
     setFormInvoiceNo(item.invoiceNo || "");
     
     // Parse items if they are stored as string (some legacy offline data might be)

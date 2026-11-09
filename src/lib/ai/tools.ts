@@ -18,6 +18,7 @@ import { GET as getStockReportApi } from "@/app/[locale]/api/reports/stock/route
 import { GET as getProfitabilityReportApi } from "@/app/[locale]/api/reports/profitability/route";
 import { GET as getReceivableSummaryReportApi } from "@/app/[locale]/api/reports/receivable-summary/route";
 import { GET as getAccountStatementApi } from "@/app/[locale]/api/account-statement/route";
+import { getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 
 // Helper function to allow using relative URLs like frontend
 const apiRequest = (path: string, options?: RequestInit) => {
@@ -610,11 +611,8 @@ export const appTools = (userId: string) => ({
           let fDate = fromDate;
           let tDate = toDate;
           if (!fDate || !tDate) {
-            const end = new Date();
-            const start = new Date();
-            start.setDate(end.getDate() - 30);
-            tDate = end.toISOString().split('T')[0];
-            fDate = start.toISOString().split('T')[0];
+            tDate = getTodayHTMLDate();
+            fDate = getDaysAgoHTMLDate(30);
           }
           const params = new URLSearchParams({ customerId, fromDate: fDate, toDate: tDate });
           const req = apiRequest(`/api/account-statement?${params.toString()}`);

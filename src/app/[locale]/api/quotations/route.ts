@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "At least one item is required" }, { status: 400 });
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const quotation: any = {
       user_id: toObjectId(user.id),
       party_id: toObjectId(data.party_id),

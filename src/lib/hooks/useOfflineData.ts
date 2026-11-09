@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { liveQuery } from "dexie";
 import { db } from "../db/offline-db";
-import { safeDate } from "@/lib/date-utils";
+import { safeDate, toHTMLDateString, parseSafeDate } from "@/lib/date-utils";
 
 // Custom hook to replace useLiveQuery from dexie-react-hooks
 // This fixes the Next.js App Router bug where navigating back returns an empty/stale state
@@ -221,8 +221,8 @@ export function useOfflineOrders(
       const getOrderDayTime = (order: any) => {
         const raw = order.sale_date || order.order_date || order.date || order.created_at;
         if (!raw) return 0;
-        const parsed = safeDate(raw, new Date(0));
-        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+        const htmlDay = toHTMLDateString(raw);
+        return htmlDay ? parseSafeDate(htmlDay).getTime() : 0;
       };
       const dateA = getOrderDayTime(a);
       const dateB = getOrderDayTime(b);
@@ -242,14 +242,7 @@ export function useOfflineExpenses(searchQuery: string = "") {
     return db.expenses.toArray().then((expenses) => {
       return expenses
         .map((e) => {
-          let formattedDate = e.date;
-          if (
-            formattedDate &&
-            typeof formattedDate === "string" &&
-            formattedDate.includes("T")
-          ) {
-            formattedDate = formattedDate.split("T")[0];
-          }
+          const formattedDate = e.date ? toHTMLDateString(e.date) : "";
           return {
             ...e,
             expenseNumber: e.expenseNumber || e.expense_number || "-",
@@ -316,14 +309,7 @@ export function useOfflineCustomerTransactions(
         )?.toString();
         const paymentNumber = (t.paymentNumber || t.payment_number || t.paymentNo || t.payment_no || "")?.toString();
         const paymentAmount = t.paymentAmount ?? t.payment_amount ?? 0;
-        let formattedDate = t.date;
-        if (
-          formattedDate &&
-          typeof formattedDate === "string" &&
-          formattedDate.includes("T")
-        ) {
-          formattedDate = formattedDate.split("T")[0];
-        }
+        const formattedDate = t.date ? toHTMLDateString(t.date) : "";
 
         return {
           ...t,
@@ -385,10 +371,8 @@ export function useOfflineCustomerTransactions(
         const getTxnDayTime = (item: any): number => {
           const raw = item.raw_date || item.payment_date || item.date || item.created_at || item.createdAt;
           if (raw) {
-            const parsed = safeDate(raw, new Date(0));
-            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
-              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
-            }
+            const htmlDay = toHTMLDateString(raw);
+            if (htmlDay) return parseSafeDate(htmlDay).getTime();
           }
           return 0;
         };
@@ -543,14 +527,8 @@ export function useOfflineSaleReturns(
         const paymentMethodId = (
           t.paymentMethodId || t.payment_method_id
         )?.toString();
-        let formattedDate = t.date;
-        if (
-          formattedDate &&
-          typeof formattedDate === "string" &&
-          formattedDate.includes("T")
-        ) {
-          formattedDate = formattedDate.split("T")[0];
-        }
+        const formattedDate = t.date ? toHTMLDateString(t.date) : "";
+        const rawInvoiceDate = t.invoiceDate || t.invoice_date;
 
         return {
           ...t,
@@ -562,7 +540,7 @@ export function useOfflineSaleReturns(
           paidAmount: t.paidAmount ?? t.paid_amount ?? 0,
           balanceDue: t.balanceDue ?? t.balance_due ?? 0,
           invoiceNo: t.invoiceNo || t.invoice_no || "",
-          invoiceDate: t.invoiceDate || t.invoice_date || "",
+          invoiceDate: rawInvoiceDate ? toHTMLDateString(rawInvoiceDate) : "",
           paymentRefNo: t.paymentRefNo || t.payment_ref_no || "",
           raw_date: t.date,
           return_date: t.return_date || t.date,
@@ -614,10 +592,8 @@ export function useOfflineSaleReturns(
         const getReturnDayTime = (item: any): number => {
           const raw = item.raw_date || item.return_date || item.date || item.created_at || item.createdAt;
           if (raw) {
-            const parsed = safeDate(raw, new Date(0));
-            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
-              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
-            }
+            const htmlDay = toHTMLDateString(raw);
+            if (htmlDay) return parseSafeDate(htmlDay).getTime();
           }
           return 0;
         };
@@ -784,8 +760,8 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
         const getBillDayTime = (bill: any) => {
           const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
           if (!raw) return 0;
-          const parsed = safeDate(raw, new Date(0));
-          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+          const htmlDay = toHTMLDateString(raw);
+          return htmlDay ? parseSafeDate(htmlDay).getTime() : 0;
         };
         const dateA = getBillDayTime(a);
         const dateB = getBillDayTime(b);

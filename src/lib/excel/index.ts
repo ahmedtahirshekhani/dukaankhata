@@ -21,6 +21,7 @@ import {
 } from "@/types/reports";
 import { formatLocalizedUom, getUomShortcut } from "../uom";
 import { formatStatementDate, formatStatementDateTime } from "../utils";
+import { getTodayHTMLDate } from "../date-utils";
 
 /**
  * Exports transactions to an Excel file
@@ -36,11 +37,7 @@ export function exportTransactionsToExcel(
     "Item Name": transaction.productName || "-",
     Description: transaction.productDescription || "-",
     Type: transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1),
-    Date: new Date(transaction.created_at).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }),
+    Date: formatStatementDate((transaction as any).date || transaction.created_at),
     "Amount (Rs.)": Math.floor(transaction.amount),
     UOM: (transaction as any).uom || "Piece",
     Quantity: (transaction as any).quantity || 1,
@@ -426,7 +423,7 @@ export function exportProfitabilityToExcel(
     Category: item.category || "-",
     Description: item.description || "-",
     Amount: Math.floor(item.amount || 0),
-    Date: new Date(item.date).toLocaleDateString(),
+    Date: formatStatementDate(item.date),
     "Payment Method": item.paymentMethod || "-",
   }));
 
@@ -522,7 +519,7 @@ export function exportItemWiseSalesToExcel(
 export function exportPurchaseReportToExcel(
   bills: PurchaseReportBill[],
   summary: PurchaseReportSummary,
-  filename: string = `purchase-report-${new Date().toISOString().split("T")[0]}.xlsx`
+  filename: string = `purchase-report-${getTodayHTMLDate()}.xlsx`
 ): void {
   const workbook = XLSX.utils.book_new();
 
@@ -584,7 +581,7 @@ export function exportPurchaseReportToExcel(
 export function exportSaleReportToExcel(
   invoices: SaleReportInvoice[],
   summary: SaleReportSummary,
-  filename: string = `sale-report-${new Date().toISOString().split("T")[0]}.xlsx`
+  filename: string = `sale-report-${getTodayHTMLDate()}.xlsx`
 ): void {
   const workbook = XLSX.utils.book_new();
 
@@ -646,7 +643,7 @@ export function exportSaleReportToExcel(
 export function exportPartyWiseReportToExcel(
   items: PartyWiseSummaryItem[],
   summary: PartyWiseReportSummary,
-  filename: string = `party-wise-report-${new Date().toISOString().split("T")[0]}.xlsx`
+  filename: string = `party-wise-report-${getTodayHTMLDate()}.xlsx`
 ): void {
   const workbook = XLSX.utils.book_new();
 
@@ -715,7 +712,7 @@ export function exportPartyWiseByModeToExcel(
 ): void {
   const isSale = mode === "sales";
   const title = isSale ? "Sale by Party" : "Purchase by Party";
-  const defaultFilename = `${isSale ? "sale-by-party" : "purchase-by-party"}-${new Date().toISOString().split("T")[0]}.xlsx`;
+  const defaultFilename = `${isSale ? "sale-by-party" : "purchase-by-party"}-${getTodayHTMLDate()}.xlsx`;
 
   const workbook = XLSX.utils.book_new();
 
@@ -886,6 +883,6 @@ export function exportStockValuationLedgerToExcel(
 
   const safeProdName = productName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
   const prefix = isFifo ? "fifo-valuation" : "valuation-ledger";
-  const finalFilename = filename || `${prefix}-${safeProdName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const finalFilename = filename || `${prefix}-${safeProdName}-${getTodayHTMLDate()}.xlsx`;
   XLSX.writeFile(workbook, finalFilename);
 }

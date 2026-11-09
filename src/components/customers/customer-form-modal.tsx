@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { cn } from "@/lib/utils";
+import { toSafeOpeningISOString } from "@/lib/date-utils";
 
 export type Customer = {
   id: string;
@@ -157,6 +158,7 @@ export function CustomerFormModal({
         toast.success(t("customerUpdatedSuccess") || "Party updated successfully!");
       } else {
         // ADD MODE
+        const openingDateIso = toSafeOpeningISOString();
         const newCustomer = {
           name,
           email,
@@ -164,9 +166,10 @@ export function CustomerFormModal({
           company_name: companyName,
           company_address: companyAddress,
           opening_balance: finalOpeningBalance,
+          opening_balance_date: openingDateIso,
           balance: finalOpeningBalance,
           status,
-          created_at: new Date().toISOString(),
+          created_at: openingDateIso,
         };
 
         const customerId = typeof crypto !== 'undefined' && crypto.randomUUID 

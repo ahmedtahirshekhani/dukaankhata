@@ -3,6 +3,7 @@ import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, updateUserLast
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from '@/lib/auth/rbac';
+import { parsePKTDateBoundary } from '@/lib/date-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,27 +60,27 @@ export async function GET(request: NextRequest) {
     };
 
     if (fromDate || toDate) {
-      const from = fromDate ? new Date(fromDate) : null;
-      if (from) from.setHours(0, 0, 0, 0);
-
-      const to = toDate ? new Date(toDate) : null;
-      if (to) to.setHours(23, 59, 59, 999);
+      const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
+      const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
       const dateConditions: any[] = [];
       if (from && to) {
         dateConditions.push(
+          { sale_date: { $gte: from, $lte: to } },
           { sale_date: { $gte: from.toISOString(), $lte: to.toISOString() } },
-          { created_at: { $gte: from, $lte: to } }
+          { sale_date: { $exists: false }, created_at: { $gte: from, $lte: to } }
         );
       } else if (from) {
         dateConditions.push(
+          { sale_date: { $gte: from } },
           { sale_date: { $gte: from.toISOString() } },
-          { created_at: { $gte: from } }
+          { sale_date: { $exists: false }, created_at: { $gte: from } }
         );
       } else if (to) {
         dateConditions.push(
+          { sale_date: { $lte: to } },
           { sale_date: { $lte: to.toISOString() } },
-          { created_at: { $lte: to } }
+          { sale_date: { $exists: false }, created_at: { $lte: to } }
         );
       }
 

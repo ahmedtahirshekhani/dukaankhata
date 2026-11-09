@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { formatDate, getYearsFromDates } from "@/lib/utils";
+import { parsePKTDateBoundary, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   exportTransactionsToExcel,
@@ -217,20 +218,13 @@ export default function CounterSale() {
   // Helper function to convert ISO date string to YYYY-MM-DD format for date input
   const isoToDateInput = (isoString: string | undefined): string => {
     if (!isoString) return "";
-    const date = new Date(isoString);
-    if (isNaN(date.getTime())) return "";
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return toHTMLDateString(isoString);
   };
 
   // Helper function to convert YYYY-MM-DD date input to ISO string
   const dateInputToIso = (dateString: string): string => {
-    if (!dateString) return new Date().toISOString();
-    // Create date at midnight local time and convert to ISO
-    const date = new Date(dateString + "T00:00:00");
-    return date.toISOString();
+    if (!dateString) return toSafeISOString(new Date());
+    return toSafeISOString(dateString);
   };
 
   // Helper to truncate a description to a maximum number of words
@@ -584,9 +578,8 @@ export default function CounterSale() {
       setIsDownloading(true);
 
       // Filter transactions for date range from local state
-      const fromDate = new Date(dateRange.fromDate);
-      const toDate = new Date(dateRange.toDate);
-      toDate.setHours(23, 59, 59, 999); // Include entire end day
+      const fromDate = parsePKTDateBoundary(dateRange.fromDate, false) || new Date(dateRange.fromDate);
+      const toDate = parsePKTDateBoundary(dateRange.toDate, true) || new Date(dateRange.toDate);
 
       const dateRangeTransactions = transactions.filter((t) => {
         const tDate = new Date(t.created_at);

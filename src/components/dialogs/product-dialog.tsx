@@ -25,6 +25,7 @@ import {
 import { ErrorDialog } from "./error-dialog";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { toSafeOpeningISOString } from "@/lib/date-utils";
 import { Info, AlertTriangle } from "lucide-react";
 import { CategorySelector } from "@/components/selectors/category-selector";
 import { BranchSelector } from "@/components/selectors/branch-selector";
@@ -209,7 +210,7 @@ export function ProductDialog({
           sell_price: sellPrice === "" ? 0 : Number(sellPrice),
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
-        created_at: new Date().toISOString(),
+        created_at: toSafeOpeningISOString(),
       };
       const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const addedProduct = { ...newProduct, id: tempId, _id: tempId, is_delete: 0 };
@@ -219,6 +220,7 @@ export function ProductDialog({
       if (addedProduct.quantity && Number(addedProduct.quantity) > 0) {
         const openingQty = Number(addedProduct.quantity);
         const openingCost = Number(addedProduct.cost_price || 0);
+        const openingBatchDate = toSafeOpeningISOString();
         await db.inventory_batches.put({
           id: `batch_opening_${tempId}`,
           product_id: tempId,
@@ -229,8 +231,8 @@ export function ProductDialog({
           remaining_quantity: openingQty,
           cost_price: openingCost,
           status: "active",
-          batch_date: new Date().toISOString(),
-          created_at: new Date().toISOString(),
+          batch_date: openingBatchDate,
+          created_at: openingBatchDate,
           updated_at: new Date().toISOString(),
         });
       }

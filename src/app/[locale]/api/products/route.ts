@@ -4,6 +4,7 @@ import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastA
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
 import { requirePermission } from "@/lib/auth/rbac";
+import { parseSafeOpeningDate } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser() as { id: string } | null
@@ -75,12 +76,13 @@ export async function POST(request: Request) {
 
   const newProduct = await request.json();
   const now = new Date();
+  const createdAt = newProduct.created_at ? parseSafeOpeningDate(newProduct.created_at) : parseSafeOpeningDate(now);
 
   const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
   const result = await productsCollection.insertOne({
     ...newProduct,
     user_id: toObjectId(user.id),
-    created_at: now,
+    created_at: createdAt,
     updated_at: now,
   });
 
@@ -104,8 +106,8 @@ export async function POST(request: Request) {
         remaining_quantity: initQty,
         cost_price: initCost,
         status: "active",
-        batch_date: now,
-        created_at: now,
+        batch_date: createdAt,
+        created_at: createdAt,
         updated_at: now,
       });
     } catch (bErr) {

@@ -35,6 +35,7 @@ import { formatCurrencyString } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { toHTMLDateString } from "@/lib/date-utils";
 
 interface QuotationItem {
     id: string;
@@ -119,7 +120,7 @@ function QuotationFormPageInner({
                         setTax(quot.tax?.toString() || "0");
                         setTaxType(quot.tax_type || "fixed");
                         setValidityDate(
-                            quot.validity_date ? quot.validity_date.split("T")[0] : ""
+                            quot.validity_date ? toHTMLDateString(quot.validity_date) : ""
                         );
                         setNotes(quot.notes || "");
                         setQuotationNo(quot.quotation_no || "");
@@ -132,7 +133,7 @@ function QuotationFormPageInner({
                     // Default validity date: 30 days from now
                     const thirtyDaysLater = new Date();
                     thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
-                    setValidityDate(thirtyDaysLater.toISOString().split("T")[0]);
+                    setValidityDate(toHTMLDateString(thirtyDaysLater));
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);

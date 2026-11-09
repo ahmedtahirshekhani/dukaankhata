@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -44,12 +45,10 @@ export async function GET(request: NextRequest) {
 
     // Date Range Filter (matches on bill_date, purchase_date, date, or created_at)
     if (fromDate && toDate) {
-      const from = new Date(fromDate);
-      from.setHours(0, 0, 0, 0);
-      const to = new Date(toDate);
-      to.setHours(23, 59, 59, 999);
+      const from = parsePKTDateBoundary(fromDate, false);
+      const to = parsePKTDateBoundary(toDate, true);
 
-      if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+      if (from && to && !isNaN(from.getTime()) && !isNaN(to.getTime())) {
         matchQuery.$and = matchQuery.$and || [];
         matchQuery.$and.push({
           $expr: {

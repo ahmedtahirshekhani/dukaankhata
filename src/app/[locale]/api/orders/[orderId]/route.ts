@@ -295,7 +295,7 @@ export async function PUT(
       eventSource: 'order',
       eventSourceId: orderId,
       amountDelta: newNet,
-      effectiveAt: now,
+      effectiveAt: updateData.sale_date || now,
       metadata: { reason: 'order_update_apply', newTotal, newPaid },
     });
   }

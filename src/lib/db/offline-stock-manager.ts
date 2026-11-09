@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/offline-db";
 import { calculateMovingAverage, calculateMovingAverageWithPrior } from "@/lib/inventory/valuation-calc";
 import { SyncEngine } from "@/lib/sync/sync-engine";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 const roundToPrecision = (num: number, decimals: number = 5) => {
   const factor = Math.pow(10, decimals);
@@ -1961,10 +1962,8 @@ export async function getOfflineProductStockValuationHistory(options: {
   let openingBalanceBeforeFilter = initialOpeningQty;
 
   if (fromDate || toDate) {
-    const from = fromDate ? new Date(fromDate) : null;
-    if (from) from.setHours(0, 0, 0, 0);
-    const to = toDate ? new Date(toDate) : null;
-    if (to) to.setHours(23, 59, 59, 999);
+    const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
+    const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
     let openingCostForPeriod = initialOpeningCost;
 

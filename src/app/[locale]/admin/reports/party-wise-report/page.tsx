@@ -48,7 +48,7 @@ import {
 } from "@/components/reports/report-pdf-header";
 import { PdfTable, type PdfTableColumn } from "@/components/reports/pdf-table";
 import { formatCurrency, formatStatementDate, cn } from "@/lib/utils";
-import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate, safeDate, formatPakistaniDateTime } from "@/lib/date-utils";
+import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate, safeDate, formatPakistaniDateTime, parsePKTDateBoundary } from "@/lib/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
 import { exportPartyWiseByModeToExcel } from "@/lib/excel";
@@ -333,10 +333,8 @@ export default function PartyWiseReportPage() {
 
     // Filter by active fromDate / toDate client-side as well
     if (fromDate || toDate) {
-      const from = fromDate ? safeDate(fromDate) : null;
-      if (from) from.setHours(0, 0, 0, 0);
-      const to = toDate ? safeDate(toDate) : null;
-      if (to) to.setHours(23, 59, 59, 999);
+      const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
+      const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
       result = result.filter((tx) => {
         if (!tx.date) return false;
