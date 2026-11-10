@@ -181,13 +181,13 @@ export function ProductStockLedgerModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
         {/* Header */}
-        <DialogHeader className="pb-3 border-b flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
-                  <Package className="w-5 h-5 text-primary" />
-                  {product ? product.name : t("title")}
+        <DialogHeader className="pb-3 border-b flex-shrink-0 text-left sm:text-left">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left">
+            <div className="text-left">
+              <div className="flex items-center gap-2 flex-wrap justify-start text-left">
+                <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-left">
+                  <Package className="w-5 h-5 text-primary shrink-0" />
+                  <span>{product ? product.name : t("title")}</span>
                 </DialogTitle>
                 {product && (
                   <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
@@ -200,24 +200,10 @@ export function ProductStockLedgerModal({
                   </Badge>
                 )}
               </div>
-              <DialogDescription className="text-xs mt-1 text-muted-foreground">
+              <DialogDescription className="text-xs mt-1 text-muted-foreground text-left">
                 {t("description")}
               </DialogDescription>
             </div>
-
-            {product && (
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <Badge
-                  variant="outline"
-                  className="px-2.5 py-1 text-xs font-semibold gap-1.5 border-primary/20 bg-primary/10 text-primary"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>
-                    {product.valuationMethod === "fifo" ? t("valuationFifo") : t("valuationAverage")}
-                  </span>
-                </Badge>
-              </div>
-            )}
           </div>
         </DialogHeader>
 
