@@ -46,7 +46,7 @@ export function ProductStockLedgerModal({
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Date Filters
+  // Date Filters\
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [activePreset, setActivePreset] = useState<string>("all");

@@ -66,7 +66,8 @@ const formatDateLong = (dateStr: string) => {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString("en-US", {
+    timeZone: "Asia/Karachi",
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -78,7 +79,8 @@ const formatDateShort = (dateStr: string) => {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString("en-US", {
+    timeZone: "Asia/Karachi",
     year: "numeric",
     month: "long",
     day: "2-digit",
