@@ -33,6 +33,7 @@ export interface PdfTableProps<T = any> {
   striped?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  tableStyle?: React.CSSProperties;
   children?: React.ReactNode;
   rowKey?: (row: T, index: number) => string | number;
   rowClassName?: (row: T, index: number) => string | undefined;
@@ -51,6 +52,7 @@ export function PdfTable<T = any>({
   striped = true,
   className,
   style,
+  tableStyle,
   children,
   rowKey,
   rowClassName,
@@ -68,6 +70,7 @@ export function PdfTable<T = any>({
             backgroundColor: "#ffffff",
             pageBreakInside: "auto",
             breakInside: "auto",
+            ...tableStyle,
           }}
         >
           {children}
@@ -87,6 +90,7 @@ export function PdfTable<T = any>({
           backgroundColor: "#ffffff",
           pageBreakInside: "auto",
           breakInside: "auto",
+          ...tableStyle,
         }}
       >
         {columns && columns.length > 0 && (
