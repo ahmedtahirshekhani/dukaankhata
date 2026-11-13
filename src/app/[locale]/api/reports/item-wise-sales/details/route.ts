@@ -45,8 +45,17 @@ export async function GET(request: NextRequest) {
     // 2. Build Date Filters
     const orderMatch: any = {
       user_id: userId,
-      status: { $ne: "cancelled" },
-      "items.product_id": { $in: [prodObjId, productId] },
+      is_delete: { $nin: [1, true, "1"] },
+      is_deleted: { $nin: [1, true, "1"] },
+      isDelete: { $nin: [1, true, "1"] },
+      isDeleted: { $ne: true },
+      status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
+      $or: [
+        { "items.product_id": prodObjId },
+        { "items.product_id": productId },
+        { "items.productId": prodObjId },
+        { "items.productId": productId },
+      ],
     };
 
     const returnMatch: any = {
@@ -63,59 +72,106 @@ export async function GET(request: NextRequest) {
       const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
       const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
-      const dateConditions: any[] = [];
-      if (from && to) {
-        dateConditions.push(
-          { sale_date: { $gte: from, $lte: to } },
-          { sale_date: { $gte: from.toISOString(), $lte: to.toISOString() } },
-          { sale_date: { $exists: false }, created_at: { $gte: from, $lte: to } }
-        );
-      } else if (from) {
-        dateConditions.push(
-          { sale_date: { $gte: from } },
-          { sale_date: { $gte: from.toISOString() } },
-          { sale_date: { $exists: false }, created_at: { $gte: from } }
-        );
-      } else if (to) {
-        dateConditions.push(
-          { sale_date: { $lte: to } },
-          { sale_date: { $lte: to.toISOString() } },
-          { sale_date: { $exists: false }, created_at: { $lte: to } }
-        );
+      const dateConditions: any[] = [{ $ne: ["$$parsedDate", null] }];
+      if (from && !isNaN(from.getTime())) dateConditions.push({ $gte: ["$$parsedDate", from] });
+      if (to && !isNaN(to.getTime())) dateConditions.push({ $lte: ["$$parsedDate", to] });
+
+      if (dateConditions.length > 1) {
+        orderMatch.$and = orderMatch.$and || [];
+        orderMatch.$and.push({
+          $expr: {
+            $let: {
+              vars: {
+                rawDate: {
+                  $ifNull: [
+                    "$sale_date",
+                    {
+                      $ifNull: [
+                        "$saleDate",
+                        {
+                          $ifNull: [
+                            "$invoice_date",
+                            {
+                              $ifNull: [
+                                "$invoiceDate",
+                                {
+                                  $ifNull: [
+                                    "$order_date",
+                                    { $ifNull: ["$date", "$created_at"] },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+              in: {
+                $let: {
+                  vars: {
+                    parsedDate: {
+                      $convert: {
+                        input: "$$rawDate",
+                        to: "date",
+                        onError: null,
+                        onNull: null,
+                      },
+                    },
+                  },
+                  in: {
+                    $and: dateConditions,
+                  },
+                },
+              },
+            },
+          },
+        });
       }
 
-      if (dateConditions.length > 0) {
-        orderMatch.$or = dateConditions;
-      }
+      const returnDateConditions: any[] = [{ $ne: ["$$parsedDate", null] }];
+      if (from && !isNaN(from.getTime())) returnDateConditions.push({ $gte: ["$$parsedDate", from] });
+      if (to && !isNaN(to.getTime())) returnDateConditions.push({ $lte: ["$$parsedDate", to] });
 
-      const returnDateConditions: any[] = [];
-      if (from && to) {
-        returnDateConditions.push(
-          { date: { $gte: from, $lte: to } },
-          { date: { $gte: from.toISOString(), $lte: to.toISOString() } },
-          { created_at: { $gte: from, $lte: to } }
-        );
-      } else if (from) {
-        returnDateConditions.push(
-          { date: { $gte: from } },
-          { created_at: { $gte: from } }
-        );
-      } else if (to) {
-        returnDateConditions.push(
-          { date: { $lte: to } },
-          { created_at: { $lte: to } }
-        );
-      }
-
-      if (returnDateConditions.length > 0) {
-        returnMatch.$and = [{ $or: returnDateConditions }];
+      if (returnDateConditions.length > 1) {
+        returnMatch.$and = returnMatch.$and || [];
+        returnMatch.$and.push({
+          $expr: {
+            $let: {
+              vars: {
+                rawDate: {
+                  $ifNull: ["$date", { $ifNull: ["$return_date", "$created_at"] }],
+                },
+              },
+              in: {
+                $let: {
+                  vars: {
+                    parsedDate: {
+                      $convert: {
+                        input: "$$rawDate",
+                        to: "date",
+                        onError: null,
+                        onNull: null,
+                      },
+                    },
+                  },
+                  in: {
+                    $and: returnDateConditions,
+                  },
+                },
+              },
+            },
+          },
+        });
       }
     }
 
-    // 3. Fetch orders & customer details
+    // 3. Fetch orders & customer details (sorted from oldest to latest, i.e. start date invoice first)
     const [matchingOrders, matchingReturns, allCustomers] = await Promise.all([
-      ordersCollection.find(orderMatch).sort({ sale_date: -1, created_at: -1 }).toArray(),
-      saleReturnsCollection.find(returnMatch).sort({ date: -1, created_at: -1 }).toArray(),
+      ordersCollection.find(orderMatch).sort({ sale_date: 1, invoice_date: 1, date: 1, created_at: 1 }).toArray(),
+      saleReturnsCollection.find(returnMatch).sort({ date: 1, created_at: 1 }).toArray(),
       customersCollection.find({ user_id: userId }, { projection: { _id: 1, name: 1, phone: 1, company_name: 1 } }).toArray(),
     ]);
 
@@ -166,9 +222,10 @@ export async function GET(request: NextRequest) {
         phone: "",
       };
 
-      const matchedItems = (order.items || []).filter((it: any) => 
-        it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString()
-      );
+      const matchedItems = (order.items || []).filter((it: any) => {
+        const pId = it.product_id?.toString() || it.productId?.toString();
+        return pId === productId || pId === prodObjId.toString();
+      });
 
       for (const it of matchedItems) {
         const qty = Number(it.quantity) || 0;
@@ -359,6 +416,10 @@ export async function GET(request: NextRequest) {
     const finalNetCogs = Math.round(netQuantitySold * avgUnitCost * 100) / 100;
     const finalNetProfit = Math.round((finalNetRevenue - finalNetCogs) * 100) / 100;
     const finalProfitMargin = finalNetRevenue > 0 ? Math.round(((finalNetProfit / finalNetRevenue) * 100) * 10) / 10 : 0;
+
+    // Ensure oldest to latest sorting (start date invoice first)
+    salesList.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    returnsList.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     await updateUserLastActivity();
 

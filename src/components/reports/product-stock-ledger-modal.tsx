@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Package,
   TrendingUp,
@@ -23,19 +22,24 @@ import {
   AlertCircle,
   ArrowUp,
   ArrowDown,
+  Calendar,
 } from "lucide-react";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { getUomShortcut } from "@/lib/uom";
-import { toHTMLDateString, formatPakistaniDateTime } from "@/lib/date-utils";
+import { formatPakistaniDateTime, formatReadableDate } from "@/lib/date-utils";
 
 interface ProductStockLedgerModalProps {
   productId: string | null;
+  fromDate?: string;
+  toDate?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ProductStockLedgerModal({
   productId,
+  fromDate,
+  toDate,
   open,
   onOpenChange,
 }: ProductStockLedgerModalProps) {
@@ -46,10 +50,7 @@ export function ProductStockLedgerModal({
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Date Filters\
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
-  const [activePreset, setActivePreset] = useState<string>("all");
+  // Default sorting: Oldest to Latest ('asc') so opening/start date transaction is at the top
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const fetchHistory = useCallback(async () => {
@@ -97,30 +98,13 @@ export function ProductStockLedgerModal({
 
   useEffect(() => {
     if (open && productId) {
+      setSortOrder("asc");
       fetchHistory();
     } else {
       setData(null);
       setError(null);
     }
   }, [open, productId, fetchHistory]);
-
-  const handlePresetChange = (preset: "all" | "thisMonth" | "last30Days") => {
-    setActivePreset(preset);
-    const today = new Date();
-    if (preset === "all") {
-      setFromDate("");
-      setToDate("");
-    } else if (preset === "thisMonth") {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      setFromDate(toHTMLDateString(firstDay));
-      setToDate(toHTMLDateString(today));
-    } else if (preset === "last30Days") {
-      const past = new Date(today);
-      past.setDate(past.getDate() - 30);
-      setFromDate(toHTMLDateString(past));
-      setToDate(toHTMLDateString(today));
-    }
-  };
 
   const product = data?.product;
   const summary = data?.summary;
@@ -203,73 +187,45 @@ export function ProductStockLedgerModal({
               <DialogDescription className="text-xs mt-1 text-muted-foreground text-left">
                 {t("description")}
               </DialogDescription>
+              {(fromDate || toDate) && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-medium">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  <span>
+                    {fromDate && toDate
+                      ? `${formatReadableDate(fromDate)} - ${formatReadableDate(toDate)}`
+                      : fromDate
+                      ? `From: ${formatReadableDate(fromDate)}`
+                      : `To: ${formatReadableDate(toDate)}`}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {product && (
+                <Badge
+                  variant="outline"
+                  className="px-2.5 py-1 text-xs font-semibold gap-1.5 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  <span>
+                    {product.currentStock} {getUomShortcut(product.uom)}
+                  </span>
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchHistory}
+                disabled={loading}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                title={tCommon("reload") || "Refresh"}
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
             </div>
           </div>
         </DialogHeader>
-
-        {/* Filters Bar */}
-        <div className="py-2.5 border-b bg-muted/20 -mx-4 sm:-mx-6 px-4 sm:px-6 flex flex-wrap items-center justify-between gap-2.5 flex-shrink-0">
-          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-            <span className="font-semibold text-muted-foreground text-xs mr-1">{t("period")}:</span>
-            <Button
-              variant={activePreset === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("all")}
-              className="h-7 text-xs px-2.5"
-            >
-              {t("allTime")}
-            </Button>
-            <Button
-              variant={activePreset === "thisMonth" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("thisMonth")}
-              className="h-7 text-xs px-2.5"
-            >
-              {t("thisMonth")}
-            </Button>
-            <Button
-              variant={activePreset === "last30Days" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("last30Days")}
-              className="h-7 text-xs px-2.5"
-            >
-              {t("last30Days")}
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="w-[130px]">
-              <DatePicker
-                value={fromDate}
-                onChange={(val) => {
-                  setFromDate(val);
-                  setActivePreset("custom");
-                }}
-                placeholder={t("fromDate")}
-              />
-            </div>
-            <span className="text-xs text-muted-foreground">{t("to")}</span>
-            <div className="w-[130px]">
-              <DatePicker
-                value={toDate}
-                onChange={(val) => {
-                  setToDate(val);
-                  setActivePreset("custom");
-                }}
-                placeholder={t("toDate")}
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchHistory}
-              disabled={loading}
-              className="h-8 text-xs gap-1"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </div>
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto pt-3 space-y-4 pr-1">

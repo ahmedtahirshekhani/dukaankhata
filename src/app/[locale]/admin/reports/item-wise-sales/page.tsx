@@ -1027,8 +1027,8 @@ export default function ItemWiseSaleReportPage() {
       <ItemSalesDetailModal
         productId={selectedProductId}
         productName={selectedProductName}
-        initialFromDate={fromDate}
-        initialToDate={toDate}
+        fromDate={fromDate}
+        toDate={toDate}
         open={!!selectedProductId}
         onOpenChange={(open) => !open && setSelectedProductId(null)}
       />
