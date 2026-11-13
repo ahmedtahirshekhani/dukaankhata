@@ -27,6 +27,7 @@ export interface DataTableProps<T> {
   onSelectRow?: (rowId: any, selected: boolean) => void;
   onSelectAll?: (selected: boolean, pageRowIds: any[]) => void;
   pageSize?: number;
+  pageSizeOptions?: number[];
   currentPage?: number;
   totalCount?: number;
   onPageChange?: (page: number) => void;
@@ -69,6 +70,7 @@ export function DataTable<T>({
   onSelectRow,
   onSelectAll,
   pageSize = 10,
+  pageSizeOptions,
   currentPage = 1,
   totalCount = 0,
   onPageChange,
@@ -91,6 +93,15 @@ export function DataTable<T>({
   const pageRowIds = React.useMemo(() => data.map((row, index) => keyExtractor(row, index)), [data, keyExtractor]);
   const isAllSelected = pageRowIds.length > 0 && pageRowIds.every(id => selectedRowIds.includes(id));
   const isSomeSelected = pageRowIds.some(id => selectedRowIds.includes(id)) && !isAllSelected;
+
+  const effectivePageSizeOptions = React.useMemo(() => {
+    const baseOptions = pageSizeOptions && pageSizeOptions.length > 0 ? pageSizeOptions : [5, 10, 20, 50, 100];
+    const set = new Set(baseOptions);
+    if (pageSize) {
+      set.add(pageSize);
+    }
+    return Array.from(set).filter((s): s is number => typeof s === "number" && s > 0).sort((a, b) => a - b);
+  }, [pageSizeOptions, pageSize]);
 
   return (
     <Card className={cn("flex flex-col flex-1 p-2.5 sm:p-4 shadow-sm", className)}>
@@ -303,11 +314,13 @@ export function DataTable<T>({
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">Rows per page:</span>
                   <Select value={pageSize.toString()} onValueChange={(value) => onPageSizeChange(parseInt(value))} disabled={isLoading}>
-                    <SelectTrigger className="h-8 w-[70px]">
-                      <SelectValue placeholder={pageSize.toString()} />
+                    <SelectTrigger className="h-8 w-[70px] bg-background text-foreground font-medium text-xs">
+                      <SelectValue placeholder={pageSize.toString()}>
+                        {pageSize}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
-                      {[10, 20, 50, 100].map((size) => (
+                    <SelectContent className="z-[9999]">
+                      {effectivePageSizeOptions.map((size) => (
                         <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
                       ))}
                     </SelectContent>

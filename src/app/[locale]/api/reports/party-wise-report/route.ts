@@ -98,8 +98,9 @@ export async function GET(request: NextRequest) {
     });
 
     // --- DRILLDOWN DETAILS FOR A SINGLE PARTY ---
-    if (detailsPartyId) {
-      const partyObjId = isValidObjectId(detailsPartyId) ? toObjectId(detailsPartyId) : null;
+    if (detailsPartyId !== null) {
+      const isWalkIn = !detailsPartyId || detailsPartyId === "walk-in" || detailsPartyId === "null" || detailsPartyId === "undefined" || detailsPartyId.trim() === "";
+      const partyObjId = !isWalkIn && isValidObjectId(detailsPartyId) ? toObjectId(detailsPartyId) : null;
 
       if (mode === "sales") {
         const orderMatch: any = {
@@ -109,7 +110,19 @@ export async function GET(request: NextRequest) {
           isDelete: { $nin: [1, true, "1"] },
           isDeleted: { $ne: true },
           status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
-          $or: [
+        };
+
+        if (isWalkIn) {
+          orderMatch.$or = [
+            { customer_id: null },
+            { customer_id: "" },
+            { customer_id: { $exists: false } },
+            { party_id: null },
+            { party_id: "" },
+            { party_id: { $exists: false } },
+          ];
+        } else {
+          orderMatch.$or = [
             { customer_id: detailsPartyId },
             ...(partyObjId ? [{ customer_id: partyObjId }] : []),
             { "customer._id": detailsPartyId },
@@ -117,8 +130,8 @@ export async function GET(request: NextRequest) {
             { party_id: detailsPartyId },
             ...(partyObjId ? [{ party_id: partyObjId }] : []),
             { "customer.id": detailsPartyId },
-          ],
-        };
+          ];
+        }
 
         const from = parseDateBoundary(fromDate, false);
         const to = parseDateBoundary(toDate, true);
@@ -201,7 +214,24 @@ export async function GET(request: NextRequest) {
         // Purchases Drilldown
         const billMatch: any = {
           user_id: userObjId,
-          $or: [
+          is_delete: { $nin: [1, true, "1"] },
+          is_deleted: { $nin: [1, true, "1"] },
+          isDelete: { $nin: [1, true, "1"] },
+          isDeleted: { $ne: true },
+          status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
+        };
+
+        if (isWalkIn) {
+          billMatch.$or = [
+            { party_id: null },
+            { party_id: "" },
+            { party_id: { $exists: false } },
+            { supplier_id: null },
+            { supplier_id: "" },
+            { supplier_id: { $exists: false } },
+          ];
+        } else {
+          billMatch.$or = [
             { party_id: detailsPartyId },
             ...(partyObjId ? [{ party_id: partyObjId }] : []),
             { "party._id": detailsPartyId },
@@ -210,8 +240,8 @@ export async function GET(request: NextRequest) {
             ...(partyObjId ? [{ supplier_id: partyObjId }] : []),
             { "supplier._id": detailsPartyId },
             ...(partyObjId ? [{ "supplier._id": partyObjId }] : []),
-          ],
-        };
+          ];
+        }
 
         const from = parseDateBoundary(fromDate, false);
         const to = parseDateBoundary(toDate, true);
@@ -582,6 +612,11 @@ export async function GET(request: NextRequest) {
     if (mode === "purchases") {
       const matchQuery: any = {
         user_id: userObjId,
+        is_delete: { $nin: [1, true, "1"] },
+        is_deleted: { $nin: [1, true, "1"] },
+        isDelete: { $nin: [1, true, "1"] },
+        isDeleted: { $ne: true },
+        status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
       };
 
       if (partyId && partyId !== "all") {
