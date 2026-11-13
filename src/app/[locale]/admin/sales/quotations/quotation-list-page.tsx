@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Download, Trash2, EyeIcon, Loader2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ArrowUpDown } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
+import { formatReadableDate } from "@/lib/date-utils";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -466,10 +467,10 @@ export default function QuotationListPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {q.validity_date ? new Date(q.validity_date).toLocaleDateString() : "-"}
+                            {formatReadableDate(q.validity_date)}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {q.created_at ? new Date(q.created_at).toLocaleDateString() : "-"}
+                            {formatReadableDate(q.quotation_date || q.date || q.created_at)}
                           </TableCell>
                           <TableCell className="w-[1%] whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -684,7 +685,7 @@ function QuotationCard({
         </div>
         <div className="text-xs">
           <span className="text-muted-foreground mr-1.5">{tInv("validity")}:</span>
-          <span className="font-medium text-foreground">{quotation.validity_date ? new Date(quotation.validity_date).toLocaleDateString() : "-"}</span>
+          <span className="font-medium text-foreground">{formatReadableDate(quotation.validity_date)}</span>
         </div>
       </div>
 

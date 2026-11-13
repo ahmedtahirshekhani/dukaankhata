@@ -11,6 +11,7 @@ import Link from "next/link";
 import { ArrowLeft, Download, FileText, Loader2, Printer, Replace } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
 import { formatUomDisplay } from "@/lib/uom";
+import { formatReadableDate } from "@/lib/date-utils";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { db } from "@/lib/db/offline-db";
 
@@ -285,14 +286,10 @@ export default function QuotationViewClient({ id }: { id: string }) {
 
     const grandTotal = quotation.total_amount || taxableAmount + taxAmount;
 
-    const formatDate = (dateStr: string) =>
-        dateStr
-            ? new Date(dateStr).toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "long",
-                  day: "2-digit",
-              })
-            : "N/A";
+    const formatDate = (dateStr: string) => {
+        if (!dateStr) return "N/A";
+        return formatReadableDate(dateStr);
+    };
 
     return (
         <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
@@ -564,7 +561,9 @@ export default function QuotationViewClient({ id }: { id: string }) {
                                                         {tInvoice("date") || "Date"}:
                                                     </td>
                                                     <td style={{ fontWeight: 500, color: "#0f172a", paddingBottom: "4px" }}>
-                                                        {quotation.created_at ? formatDate(quotation.created_at) : "N/A"}
+                                                        {quotation.quotation_date || quotation.date || quotation.created_at
+                                                            ? formatDate(quotation.quotation_date || quotation.date || quotation.created_at)
+                                                            : "N/A"}
                                                     </td>
                                                 </tr>
                                                 {quotation.validity_date && (
@@ -593,16 +592,16 @@ export default function QuotationViewClient({ id }: { id: string }) {
                                     <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
                                         {tInvoice("item") || "Item"}
                                     </th>
-                                    <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
-                                        {tInvoice("sellPrice") || "Price"}
-                                    </th>
-                                    <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
+                                    <th style={{ textAlign: "center", padding: "10px 12px", fontWeight: 700, color: "#0f172a", width: "80px" }}>
                                         {tInvoice("qty") || "Qty"}
                                     </th>
-                                    <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
+                                    <th style={{ textAlign: "center", padding: "10px 12px", fontWeight: 700, color: "#0f172a", width: "70px" }}>
                                         {tInvoice("uom") || "UOM"}
                                     </th>
-                                    <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
+                                    <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a", width: "110px" }}>
+                                        {tInvoice("sellPrice") || "Price"}
+                                    </th>
+                                    <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a", width: "120px" }}>
                                         {tInvoice("total") || "Total"}
                                     </th>
                                 </tr>
@@ -618,14 +617,14 @@ export default function QuotationViewClient({ id }: { id: string }) {
                                                 </div>
                                             )}
                                         </td>
-                                        <td style={{ textAlign: "right", padding: "10px 12px", color: "#475569" }}>
-                                            {formatCurrencyString(item.unit_price || item.sell_price)}
-                                        </td>
-                                        <td style={{ textAlign: "right", padding: "10px 12px", color: "#334155" }}>
+                                        <td style={{ textAlign: "center", padding: "10px 12px", color: "#334155" }}>
                                             {item.quantity}
                                         </td>
-                                        <td style={{ textAlign: "right", padding: "10px 12px", color: "#475569" }}>
+                                        <td style={{ textAlign: "center", padding: "10px 12px", color: "#475569" }}>
                                             {formatUomDisplay(item.unit_of_measurement)}
+                                        </td>
+                                        <td style={{ textAlign: "right", padding: "10px 12px", color: "#475569" }}>
+                                            {formatCurrencyString(item.unit_price || item.sell_price)}
                                         </td>
                                         <td style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700, color: "#0f172a" }}>
                                             {formatCurrencyString(item.amount)}
