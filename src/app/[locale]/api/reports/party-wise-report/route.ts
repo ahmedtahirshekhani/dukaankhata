@@ -123,8 +123,10 @@ export async function GET(request: NextRequest) {
         const from = parseDateBoundary(fromDate, false);
         const to = parseDateBoundary(toDate, true);
         const dateExpr = buildDateExpr(from, to, [
-          "invoice_date",
           "sale_date",
+          "saleDate",
+          "invoice_date",
+          "invoiceDate",
           "order_date",
           "date",
           "created_at",
@@ -215,7 +217,9 @@ export async function GET(request: NextRequest) {
         const to = parseDateBoundary(toDate, true);
         const dateExpr = buildDateExpr(from, to, [
           "bill_date",
+          "billDate",
           "purchase_date",
+          "purchaseDate",
           "date",
           "created_at",
         ]);
@@ -305,8 +309,10 @@ export async function GET(request: NextRequest) {
       const from = parseDateBoundary(fromDate, false);
       const to = parseDateBoundary(toDate, true);
       const dateExpr = buildDateExpr(from, to, [
-        "invoice_date",
         "sale_date",
+        "saleDate",
+        "invoice_date",
+        "invoiceDate",
         "order_date",
         "date",
         "created_at",
@@ -434,11 +440,31 @@ export async function GET(request: NextRequest) {
               last_date: {
                 $max: {
                   $ifNull: [
-                    "$invoice_date",
-                    { $ifNull: ["$sale_date", { $ifNull: ["$order_date", { $ifNull: ["$date", "$created_at"] }] }] }
-                  ]
-                }
-              }
+                    "$sale_date",
+                    {
+                      $ifNull: [
+                        "$saleDate",
+                        {
+                          $ifNull: [
+                            "$invoice_date",
+                            {
+                              $ifNull: [
+                                "$invoiceDate",
+                                {
+                                  $ifNull: [
+                                    "$order_date",
+                                    { $ifNull: ["$date", "$created_at"] },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
             }
           }
         ])
@@ -572,7 +598,9 @@ export async function GET(request: NextRequest) {
       const to = parseDateBoundary(toDate, true);
       const dateExpr = buildDateExpr(from, to, [
         "bill_date",
+        "billDate",
         "purchase_date",
+        "purchaseDate",
         "date",
         "created_at",
       ]);
@@ -694,10 +722,25 @@ export async function GET(request: NextRequest) {
                 $max: {
                   $ifNull: [
                     "$bill_date",
-                    { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] }
-                  ]
-                }
-              }
+                    {
+                      $ifNull: [
+                        "$billDate",
+                        {
+                          $ifNull: [
+                            "$purchase_date",
+                            {
+                              $ifNull: [
+                                "$purchaseDate",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
             }
           }
         ])

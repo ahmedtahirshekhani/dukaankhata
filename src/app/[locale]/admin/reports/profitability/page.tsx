@@ -28,6 +28,7 @@ import { exportProfitabilityToExcel } from "@/lib/excel";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 import { ProfitabilityExpense } from "@/types/reports";
+import { ReportDatePresets, getPresetDateRange } from "@/components/reports/report-date-presets";
 import { ReportPdfHeader, ReportPdfKpi } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import {
@@ -46,9 +47,10 @@ export default function ProfitabilityReportPage() {
   const tProfit = useTranslations("profitabilityPage");
   const { can } = usePermissions();
 
-  // Date States
-  const [fromDate, setFromDate] = useState<string>(() => getDaysAgoHTMLDate(30));
-  const [toDate, setToDate] = useState<string>(() => getTodayHTMLDate());
+  // Date States (defaults to thisMonth)
+  const defaultDateRange = useMemo(() => getPresetDateRange("thisMonth"), []);
+  const [fromDate, setFromDate] = useState<string>(defaultDateRange.fromDate);
+  const [toDate, setToDate] = useState<string>(defaultDateRange.toDate);
 
   // Data States
   const [summary, setSummary] = useState<any>({
@@ -173,69 +175,11 @@ export default function ProfitabilityReportPage() {
     setTimeout(() => fetchReport(), 100);
   };
 
-  const applyPreset = (preset: "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "thisYear" | "allTime") => {
+  const handleSelectPreset = (preset: string, newFrom: string, newTo: string) => {
     setActivePreset(preset);
-    const today = new Date();
-    
-    switch (preset) {
-      case "today":
-        setFromDate(toHTMLDateString(today));
-        setToDate(toHTMLDateString(today));
-        break;
-      case "yesterday": {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        setFromDate(toHTMLDateString(yesterday));
-        setToDate(toHTMLDateString(yesterday));
-        break;
-      }
-      case "thisWeek": {
-        const firstDay = new Date(today);
-        const day = firstDay.getDay();
-        const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
-        firstDay.setDate(diff);
-        setFromDate(toHTMLDateString(firstDay));
-        setToDate(toHTMLDateString(today));
-        break;
-      }
-      case "lastWeek": {
-        const lastWeekEnd = new Date(today);
-        const day2 = lastWeekEnd.getDay();
-        const diff2 = lastWeekEnd.getDate() - day2 + (day2 === 0 ? -6 : 1) - 1;
-        lastWeekEnd.setDate(diff2);
-        const lastWeekStart = new Date(lastWeekEnd);
-        lastWeekStart.setDate(lastWeekStart.getDate() - 6);
-        setFromDate(toHTMLDateString(lastWeekStart));
-        setToDate(toHTMLDateString(lastWeekEnd));
-        break;
-      }
-      case "thisMonth": {
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-        setFromDate(toHTMLDateString(firstDay));
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        setToDate(toHTMLDateString(lastDay));
-        break;
-      }
-      case "lastMonth": {
-        const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        setFromDate(toHTMLDateString(firstDay));
-        const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-        setToDate(toHTMLDateString(lastDay));
-        break;
-      }
-      case "thisYear": {
-        const firstDay = new Date(today.getFullYear(), 0, 1);
-        setFromDate(toHTMLDateString(firstDay));
-        const lastDay = new Date(today.getFullYear(), 11, 31);
-        setToDate(toHTMLDateString(lastDay));
-        break;
-      }
-      case "allTime": {
-        setFromDate("2000-01-01");
-        setToDate(toHTMLDateString(today));
-        break;
-      }
-    }
+    setFromDate(newFrom);
+    setToDate(newTo);
+    setCurrentPage(1);
   };
 
   // Refetch report when currentPage changes
@@ -425,27 +369,11 @@ export default function ProfitabilityReportPage() {
       {/* Date Filter */}
       <Card className="bg-card shadow-sm border-border/50">
         <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
-            {[
-              { id: "today", label: tCommon("today") || "Today" },
-              { id: "yesterday", label: tCommon("yesterday") || "Yesterday" },
-              { id: "thisWeek", label: tCommon("thisWeek") || "This Week" },
-              { id: "lastWeek", label: tCommon("lastWeek") || "Last Week" },
-              { id: "thisMonth", label: tCommon("thisMonth") || "This Month" },
-              { id: "lastMonth", label: tCommon("lastMonth") || "Last Month" },
-              { id: "thisYear", label: tCommon("thisYear") || "This Year" },
-              { id: "allTime", label: tCommon("allTime") || "All Time" },
-            ].map((preset) => (
-              <Button
-                key={preset.id}
-                variant={activePreset === preset.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => applyPreset(preset.id as any)}
-                className="text-xs sm:text-sm h-8"
-              >
-                {preset.label}
-              </Button>
-            ))}
+          <div className="mb-4">
+            <ReportDatePresets
+              activePreset={activePreset}
+              onSelectPreset={handleSelectPreset}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 sm:gap-4">
