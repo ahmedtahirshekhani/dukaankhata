@@ -631,9 +631,10 @@ export default function StockValuationLedgerPage() {
                       <th className="py-3 px-3 text-left font-semibold">{t("type")}</th>
                       <th className="py-3 px-3 text-left font-semibold">{t("refNo")}</th>
                       <th className="py-3 px-3 text-left font-semibold">{t("party")}</th>
-                      {/* Qty & Unit Cost (2 clean columns for both FIFO and WAC) */}
+                      {/* Qty, Unit Cost & Total Cost (clean columns for both FIFO and WAC) */}
                       <th className="py-3 px-3 text-right font-semibold">{t("qty")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("unitCost")}</th>
+                      <th className="py-3 px-3 text-right font-semibold">{t("totalCost")}</th>
                       <th className="py-3 px-3 text-right font-semibold">{t("balanceStock")}</th>
                       {valuationMethod !== "fifo" && (
                         <th className="py-3 px-3 text-right font-extrabold text-primary bg-primary/5">
@@ -649,7 +650,7 @@ export default function StockValuationLedgerPage() {
                   <tbody className="divide-y divide-border/60">
                     {groupedMovements.length === 0 ? (
                       <tr>
-                        <td colSpan={valuationMethod === "fifo" ? 9 : 10} className="py-16 text-center text-muted-foreground text-xs">
+                        <td colSpan={valuationMethod === "fifo" ? 10 : 11} className="py-16 text-center text-muted-foreground text-xs">
                           {t("noRecords")}
                         </td>
                       </tr>
@@ -770,6 +771,15 @@ export default function StockValuationLedgerPage() {
                                   : "-"}
                               </td>
 
+                              {/* Total Cost */}
+                              <td className={`py-2.5 px-3 text-right font-mono font-medium text-foreground whitespace-nowrap ${subBorderClass}`}>
+                                {m.inwardQty > 0
+                                  ? formatValuationPrice(m.inwardQty * (m.unitRate || 0))
+                                  : m.outwardQty > 0
+                                  ? formatValuationPrice(m.outwardQty * (m.costPrice || 0))
+                                  : "-"}
+                              </td>
+
                               {/* Running Balance Stock */}
                               <td className={`py-2.5 px-3 text-right whitespace-nowrap ${subBorderClass}`}>
                                 <span
@@ -820,6 +830,7 @@ export default function StockValuationLedgerPage() {
                         <td colSpan={3} className="py-2.5 px-3 text-left font-bold text-foreground">
                           *** Closing Stock ***
                         </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">-</td>
                         <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">-</td>
                         <td className="py-2.5 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">-</td>
                         <td className="py-2.5 px-3 text-right whitespace-nowrap">

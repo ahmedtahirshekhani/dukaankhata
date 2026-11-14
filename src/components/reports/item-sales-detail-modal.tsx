@@ -1,17 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Package,
   TrendingUp,
@@ -20,14 +18,20 @@ import {
   AlertCircle,
   DollarSign,
   Receipt,
+  Calendar,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { formatCurrency, formatStatementDate } from "@/lib/utils";
 import { getUomShortcut } from "@/lib/uom";
-import { toHTMLDateString } from "@/lib/date-utils";
+import { formatReadableDate } from "@/lib/date-utils";
 
 interface ItemSalesDetailModalProps {
   productId: string | null;
   productName?: string;
+  fromDate?: string;
+  toDate?: string;
   initialFromDate?: string;
   initialToDate?: string;
   open: boolean;
@@ -37,6 +41,8 @@ interface ItemSalesDetailModalProps {
 export function ItemSalesDetailModal({
   productId,
   productName,
+  fromDate,
+  toDate,
   initialFromDate,
   initialToDate,
   open,
@@ -48,23 +54,15 @@ export function ItemSalesDetailModal({
   const [loading, setLoading] = useState<boolean>(false);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Date Filters (inherit initial dates if supplied)
-  const [fromDate, setFromDate] = useState<string>(initialFromDate || "");
-  const [toDate, setToDate] = useState<string>(initialToDate || "");
-  const [activePreset, setActivePreset] = useState<string>(initialFromDate ? "custom" : "all");
   const [activeTab, setActiveTab] = useState<"sales" | "returns">("sales");
 
-  // Keep in sync when initial dates change upon opening
-  useEffect(() => {
-    if (open) {
-      if (initialFromDate) setFromDate(initialFromDate);
-      if (initialToDate) setToDate(initialToDate);
-      if (initialFromDate || initialToDate) {
-        setActivePreset("custom");
-      }
-    }
-  }, [open, initialFromDate, initialToDate]);
+  // Sorting state - Defaults to 'date' 'asc' (Oldest to Latest: start date invoice appears at the top)
+  const [salesSortKey, setSalesSortKey] = useState<string>("date");
+  const [salesSortOrder, setSalesSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Active dates strictly inherited from the parent table
+  const activeFromDate = fromDate !== undefined ? fromDate : (initialFromDate || "");
+  const activeToDate = toDate !== undefined ? toDate : (initialToDate || "");
 
   const fetchDetails = useCallback(async () => {
     if (!productId) return;
@@ -73,8 +71,8 @@ export function ItemSalesDetailModal({
     try {
       const url = new URL("/api/reports/item-wise-sales/details", window.location.origin);
       url.searchParams.set("productId", productId);
-      if (fromDate) url.searchParams.set("fromDate", fromDate);
-      if (toDate) url.searchParams.set("toDate", toDate);
+      if (activeFromDate) url.searchParams.set("fromDate", activeFromDate);
+      if (activeToDate) url.searchParams.set("toDate", activeToDate);
 
       const res = await fetch(url.toString());
       if (!res.ok) {
@@ -89,10 +87,13 @@ export function ItemSalesDetailModal({
     } finally {
       setLoading(false);
     }
-  }, [productId, fromDate, toDate, t]);
+  }, [productId, activeFromDate, activeToDate, t]);
 
   useEffect(() => {
     if (open && productId) {
+      // Reset sort to oldest first on new open
+      setSalesSortKey("date");
+      setSalesSortOrder("asc");
       fetchDetails();
     } else {
       setData(null);
@@ -100,28 +101,57 @@ export function ItemSalesDetailModal({
     }
   }, [open, productId, fetchDetails]);
 
-  const handlePresetChange = (preset: "all" | "thisMonth" | "last30Days") => {
-    setActivePreset(preset);
-    const today = new Date();
-    if (preset === "all") {
-      setFromDate("");
-      setToDate("");
-    } else if (preset === "thisMonth") {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      setFromDate(toHTMLDateString(firstDay));
-      setToDate(toHTMLDateString(today));
-    } else if (preset === "last30Days") {
-      const past = new Date(today);
-      past.setDate(past.getDate() - 30);
-      setFromDate(toHTMLDateString(past));
-      setToDate(toHTMLDateString(today));
+  const product = data?.product;
+  const summary = data?.summary;
+  const rawSales: any[] = data?.sales || [];
+  const returns: any[] = data?.returns || [];
+
+  // Sort sales: default is Oldest to Latest (start date invoice first)
+  const sortedSales = useMemo(() => {
+    const list = [...rawSales];
+    list.sort((a: any, b: any) => {
+      let comparison = 0;
+      if (salesSortKey === "date") {
+        const timeA = new Date(a.date).getTime() || 0;
+        const timeB = new Date(b.date).getTime() || 0;
+        comparison = timeA - timeB;
+      } else if (salesSortKey === "invoiceNo") {
+        comparison = (a.invoiceNo || "").localeCompare(b.invoiceNo || "", undefined, { numeric: true });
+      } else if (salesSortKey === "customer") {
+        comparison = (a.customerName || "").localeCompare(b.customerName || "");
+      } else if (salesSortKey === "quantity") {
+        comparison = (Number(a.quantity) || 0) - (Number(b.quantity) || 0);
+      } else if (salesSortKey === "price") {
+        comparison = (Number(a.price) || 0) - (Number(b.price) || 0);
+      } else if (salesSortKey === "lineRevenue") {
+        comparison = (Number(a.lineRevenue) || 0) - (Number(b.lineRevenue) || 0);
+      } else if (salesSortKey === "profit") {
+        comparison = (Number(a.profit) || 0) - (Number(b.profit) || 0);
+      }
+      return salesSortOrder === "asc" ? comparison : -comparison;
+    });
+    return list;
+  }, [rawSales, salesSortKey, salesSortOrder]);
+
+  const handleSort = (key: string) => {
+    if (salesSortKey === key) {
+      setSalesSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSalesSortKey(key);
+      setSalesSortOrder(key === "date" ? "asc" : "desc");
     }
   };
 
-  const product = data?.product;
-  const summary = data?.summary;
-  const sales = data?.sales || [];
-  const returns = data?.returns || [];
+  const renderSortIndicator = (key: string) => {
+    if (salesSortKey !== key) {
+      return <ArrowUpDown className="w-3 h-3 opacity-40 ml-1 inline" />;
+    }
+    return salesSortOrder === "asc" ? (
+      <ArrowUp className="w-3 h-3 text-primary ml-1 inline" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-primary ml-1 inline" />
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,13 +176,26 @@ export function ItemSalesDetailModal({
                   </Badge>
                 )}
               </div>
-              {/* <DialogDescription className="text-xs mt-1 text-muted-foreground">
-                {t("description")}
-              </DialogDescription> */}
+
+              {/* Active Filter Date Display inherited from main table */}
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                <span>
+                  {activeFromDate || activeToDate ? (
+                    activeFromDate && activeToDate
+                      ? `${formatReadableDate(activeFromDate)} - ${formatReadableDate(activeToDate)}`
+                      : activeFromDate
+                      ? `From: ${formatReadableDate(activeFromDate)}`
+                      : `To: ${formatReadableDate(activeToDate)}`
+                  ) : (
+                    t("allTime")
+                  )}
+                </span>
+              </div>
             </div>
 
-            {product && (
-              <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {product && (
                 <Badge
                   variant="outline"
                   className="px-2.5 py-1 text-xs font-semibold gap-1.5 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
@@ -162,74 +205,20 @@ export function ItemSalesDetailModal({
                     {t("currentStock")}: {product.currentStock} {getUomShortcut(product.uom)}
                   </span>
                 </Badge>
-              </div>
-            )}
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchDetails}
+                disabled={loading}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                title={tCommon("reload") || "Refresh"}
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
         </DialogHeader>
-
-        {/* Filter Toolbar */}
-        <div className="py-2.5 border-b bg-muted/20 -mx-4 sm:-mx-6 px-4 sm:px-6 flex flex-wrap items-center justify-between gap-2.5 flex-shrink-0">
-          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-            <span className="font-semibold text-muted-foreground text-xs mr-1">{t("period")}:</span>
-            <Button
-              variant={activePreset === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("all")}
-              className="h-7 text-xs px-2.5"
-            >
-              {t("allTime")}
-            </Button>
-            <Button
-              variant={activePreset === "thisMonth" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("thisMonth")}
-              className="h-7 text-xs px-2.5"
-            >
-              {t("thisMonth")}
-            </Button>
-            <Button
-              variant={activePreset === "last30Days" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handlePresetChange("last30Days")}
-              className="h-7 text-xs px-2.5"
-            >
-              {t("last30Days")}
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="w-[130px]">
-              <DatePicker
-                value={fromDate}
-                onChange={(val) => {
-                  setFromDate(val);
-                  setActivePreset("custom");
-                }}
-                placeholder={t("fromDate")}
-              />
-            </div>
-            <span className="text-xs text-muted-foreground">{t("to")}</span>
-            <div className="w-[130px]">
-              <DatePicker
-                value={toDate}
-                onChange={(val) => {
-                  setToDate(val);
-                  setActivePreset("custom");
-                }}
-                placeholder={t("toDate")}
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchDetails}
-              disabled={loading}
-              className="h-8 text-xs gap-1"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </div>
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto pt-3 space-y-4 pr-1">
@@ -311,7 +300,7 @@ export function ItemSalesDetailModal({
                   }`}
                 >
                   <Receipt className="w-3.5 h-3.5" />
-                  <span>{t("salesInvoicesTab")} ({sales.length})</span>
+                  <span>{t("salesInvoicesTab")} ({rawSales.length})</span>
                 </button>
                 {returns.length > 0 && (
                   <button
@@ -336,27 +325,68 @@ export function ItemSalesDetailModal({
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50 border-b text-muted-foreground text-[11px]">
                         <tr>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("date")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("invoiceNo")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("customer")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("qtySold")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("rate")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("discount")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("netRevenue")}</th>
-                          <th className="py-2.5 px-3 text-left font-semibold">{t("costCogs")}</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">{t("profit")}</th>
+                          <th
+                            onClick={() => handleSort("date")}
+                            className="py-2.5 px-3 text-left font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("date")}
+                            {renderSortIndicator("date")}
+                          </th>
+                          <th
+                            onClick={() => handleSort("invoiceNo")}
+                            className="py-2.5 px-3 text-left font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("invoiceNo")}
+                            {renderSortIndicator("invoiceNo")}
+                          </th>
+                          <th
+                            onClick={() => handleSort("customer")}
+                            className="py-2.5 px-3 text-left font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("customer")}
+                            {renderSortIndicator("customer")}
+                          </th>
+                          <th
+                            onClick={() => handleSort("quantity")}
+                            className="py-2.5 px-3 text-right font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("qtySold")}
+                            {renderSortIndicator("quantity")}
+                          </th>
+                          <th
+                            onClick={() => handleSort("price")}
+                            className="py-2.5 px-3 text-right font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("rate")}
+                            {renderSortIndicator("price")}
+                          </th>
+                          <th className="py-2.5 px-3 text-right font-semibold">{t("discount")}</th>
+                          <th
+                            onClick={() => handleSort("lineRevenue")}
+                            className="py-2.5 px-3 text-right font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("netRevenue")}
+                            {renderSortIndicator("lineRevenue")}
+                          </th>
+                          <th className="py-2.5 px-3 text-right font-semibold">{t("costCogs")}</th>
+                          <th
+                            onClick={() => handleSort("profit")}
+                            className="py-2.5 px-3 text-right font-semibold cursor-pointer hover:text-foreground select-none"
+                          >
+                            {t("profit")}
+                            {renderSortIndicator("profit")}
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {sales.length === 0 ? (
+                        {sortedSales.length === 0 ? (
                           <tr>
                             <td colSpan={9} className="py-12 text-center text-muted-foreground text-xs">
                               {t("noSales")}
                             </td>
                           </tr>
                         ) : (
-                          sales.map((s: any, idx: number) => {
-                            const hasBatchSplits = s.batchSplits && s.batchSplits.length > 0;
+                          sortedSales.map((s: any, idx: number) => {
                             return (
                               <tr key={idx} className="hover:bg-muted/30 transition-colors">
                                 <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">

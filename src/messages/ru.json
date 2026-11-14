@@ -766,6 +766,7 @@
     "party": "Party / Detail",
     "qty": "Qty",
     "unitCost": "Unit Cost",
+    "totalCost": "Общая стоимость",
     "inwardQty": "Inward Qty (+)",
     "unitRate": "Inward Rate",
     "outwardQty": "Outward Qty (-)",

@@ -821,6 +821,12 @@ export function exportStockValuationLedgerToExcel(
 
     const qty = m.inwardQty > 0 ? m.inwardQty : m.outwardQty > 0 ? m.outwardQty : "-";
     const unitCost = m.inwardQty > 0 ? m.unitRate : m.outwardQty > 0 ? m.costPrice : "-";
+    const totalCost =
+      m.inwardQty > 0
+        ? Math.round(m.inwardQty * (m.unitRate || 0) * 100) / 100
+        : m.outwardQty > 0
+        ? Math.round(m.outwardQty * (m.costPrice || 0) * 100) / 100
+        : "-";
 
     if (isFifo) {
       return {
@@ -831,6 +837,7 @@ export function exportStockValuationLedgerToExcel(
         "Party / Detail": m.partyName || "-",
         "Qty": qty,
         "Unit Cost (Rs.)": unitCost,
+        "Total Cost (Rs.)": totalCost,
         "Balance Stock": m.balance,
         "Stock Valuation (Rs.)": m.runningValuation !== undefined ? m.runningValuation : 0,
         "FIFO Depletion Impact": m.wacFormula || "-",
@@ -845,6 +852,7 @@ export function exportStockValuationLedgerToExcel(
       "Party / Detail": m.partyName || "-",
       "Qty": qty,
       "Unit Cost (Rs.)": unitCost,
+      "Total Cost (Rs.)": totalCost,
       "Balance Stock": m.balance,
       "Effective WAC (Rs.)": m.effectiveWac !== undefined ? m.effectiveWac : m.costPrice,
       "Stock Valuation (Rs.)": m.runningValuation !== undefined ? m.runningValuation : Math.round(m.balance * (m.effectiveWac || 0) * 100) / 100,
@@ -862,6 +870,7 @@ export function exportStockValuationLedgerToExcel(
         { wch: 24 },
         { wch: 14 },
         { wch: 18 },
+        { wch: 18 },
         { wch: 15 },
         { wch: 22 },
         { wch: 36 },
@@ -873,6 +882,7 @@ export function exportStockValuationLedgerToExcel(
         { wch: 20 },
         { wch: 24 },
         { wch: 14 },
+        { wch: 18 },
         { wch: 18 },
         { wch: 15 },
         { wch: 20 },

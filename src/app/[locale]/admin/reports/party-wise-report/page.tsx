@@ -295,7 +295,7 @@ export default function PartyWiseReportPage() {
     try {
       const params = new URLSearchParams();
       params.set("mode", mode);
-      params.set("detailsPartyId", item.party_id);
+      params.set("detailsPartyId", item.party_id || "walk-in");
       if (fromDate) params.set("fromDate", fromDate);
       if (toDate) params.set("toDate", toDate);
 
@@ -330,21 +330,6 @@ export default function PartyWiseReportPage() {
   // Filtered, Sorted & Paginated Party Transactions for Drilldown Modal DataTable
   const sortedAndFilteredPartyTransactions = useMemo(() => {
     let result = partyTransactions;
-
-    // Filter by active fromDate / toDate client-side as well
-    if (fromDate || toDate) {
-      const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
-      const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
-
-      result = result.filter((tx) => {
-        if (!tx.date) return false;
-        const d = safeDate(tx.date);
-        if (isNaN(d.getTime())) return false;
-        if (from && d < from) return false;
-        if (to && d > to) return false;
-        return true;
-      });
-    }
 
     if (modalSearch) {
       const s = modalSearch.toLowerCase();
@@ -407,7 +392,7 @@ export default function PartyWiseReportPage() {
       }
       return modalSortOrder === "asc" ? comparison : -comparison;
     });
-  }, [partyTransactions, modalSearch, isSaleMode, modalSortBy, modalSortOrder, fromDate, toDate]);
+  }, [partyTransactions, modalSearch, isSaleMode, modalSortBy, modalSortOrder]);
 
   // Dynamic summary for the modal pills
   const modalSummary = useMemo(() => {
@@ -1117,6 +1102,7 @@ export default function PartyWiseReportPage() {
                 onSort={handleModalSort}
                 currentPage={modalCurrentPage}
                 pageSize={modalPageSize}
+                pageSizeOptions={[5, 10, 20, 50]}
                 totalCount={sortedAndFilteredPartyTransactions.length}
                 onPageChange={(p: number) => setModalCurrentPage(p)}
                 onPageSizeChange={(s: number) => {

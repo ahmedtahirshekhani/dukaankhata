@@ -9,7 +9,7 @@ const PKT_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+05:00 (Pakistan Standard Time)
  * Extracts calendar date and time components in Pakistan Standard Time (UTC+05:00).
  * Ensures consistent date extraction whether running on a PKT client or a UTC cloud server.
  */
-function getPKTParts(dateInput: Date | string): {
+export function getPKTParts(dateInput: Date | string): {
   year: number;
   month: number;
   day: number;
@@ -331,11 +331,11 @@ export function parsePKTDateBoundary(dateStr: string | Date | null | undefined, 
   if (!parts) return null;
 
   if (!isEnd) {
-    // 00:00:00.000 PKT = UTC midnight minus 5 hours
+    // 00:00:00.000 PKT = 19:00:00.000Z of the previous day
     return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0) - PKT_OFFSET_MS);
   } else {
-    // End of day: use 23:59:59.999 UTC (which covers up to 23:59:59.999 PKT = 18:59:59.999Z AND any 12:00:00Z / UTC-stored records for that calendar date)
-    return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999));
+    // 23:59:59.999 PKT = 18:59:59.999Z of this day (exact end of day in Pakistan, preventing any leakage into next day)
+    return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999) - PKT_OFFSET_MS);
   }
 }
 
