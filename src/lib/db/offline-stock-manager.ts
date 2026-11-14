@@ -1666,9 +1666,9 @@ export async function getOfflineProductStockValuationHistory(options: {
         partyName: partyMap.get(String(ret.customerId || ret.customer_id)) || "Customer",
         inwardQty: qty,
         outwardQty: 0,
-        unitRate: rate,
-        costPrice: Number(it.costPrice || product.cost_price || rate) || 0,
-        totalAmount: Math.round(qty * rate * 100) / 100,
+        unitRate: Number(it.costPrice ?? it.cost_price ?? product.cost_price ?? product.purchase_price) || 0,
+        costPrice: Number(it.costPrice ?? it.cost_price ?? product.cost_price ?? product.purchase_price) || 0,
+        totalAmount: Math.round(qty * (Number(it.costPrice ?? it.cost_price ?? product.cost_price ?? product.purchase_price) || 0) * 100) / 100,
       });
     }
   }

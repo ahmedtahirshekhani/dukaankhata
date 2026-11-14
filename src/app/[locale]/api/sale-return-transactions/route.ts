@@ -259,13 +259,31 @@ export async function POST(req: NextRequest) {
     const date = parseSafeDate(dateStr);
     const invoiceDate = invoiceDateRaw ? parseSafeDate(invoiceDateRaw) : null;
 
+    // Attach current cost rate to each returned item for accurate inventory valuation (WAC & FIFO)
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const enrichedLineItems = await Promise.all(
+      lineItems.map(async (item) => {
+        if (!item.productId || !isValidObjectId(item.productId)) return item;
+        const pDoc = await productsCollection.findOne(
+          { _id: toObjectId(item.productId) },
+          { projection: { cost_price: 1, purchase_price: 1 } }
+        );
+        const currentCost = Number((pDoc as any)?.cost_price ?? (pDoc as any)?.purchase_price) || 0;
+        return {
+          ...item,
+          costPrice: currentCost,
+          cost_price: currentCost,
+        };
+      })
+    );
+
     const collection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
     const now = new Date();
     const result = await collection.insertOne({
       user_id: toObjectId(user.id),
       return_number: returnNumber,
       customer_id: toObjectId(customerId),
-      items: lineItems,
+      items: enrichedLineItems,
       total_amount: paymentAmount,
       paid_amount: paidAmount,
       balance_due: balanceDue,
@@ -290,9 +308,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Increment stock for returned products
-    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
     const { adjustStock } = await import('@/lib/db/stock-manager');
-    for (const item of lineItems) {
+    for (const item of enrichedLineItems) {
       if (!item.productId || !isValidObjectId(item.productId)) continue;
       
       const productDoc = await productsCollection.findOne(
@@ -311,10 +328,10 @@ export async function POST(req: NextRequest) {
 
       await adjustStock(item.productId, user.id, returnQty);
 
-      // Re-inward batch into inventory_batches
+      // Re-inward batch into inventory_batches at Current Cost Rate
       try {
-        const { reInwardBatchOnSaleReturnServer } = await import('@/lib/inventory/valuation-engine');
-        const costPrice = Number((item as any).costPrice) || Number((productDoc as any).cost_price) || Number((productDoc as any).purchase_price) || 0;
+        const { reInwardBatchOnSaleReturnServer, resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+        const costPrice = Number((productDoc as any).cost_price) || Number((productDoc as any).purchase_price) || Number((item as any).costPrice) || 0;
         await reInwardBatchOnSaleReturnServer({
           userId: user.id,
           returnId: insertedId.toString(),
@@ -323,6 +340,12 @@ export async function POST(req: NextRequest) {
           quantity: returnQty,
           costPrice,
           returnDate: date,
+        });
+
+        // Real-time dynamic FIFO re-sequencing
+        await resequenceProductFIFOBatchesServer({
+          userId: user.id,
+          productId: item.productId,
         });
       } catch (retBatchErr) {
         console.error("Failed to re-inward batch on sale return:", retBatchErr);

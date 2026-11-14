@@ -849,3 +849,249 @@ export async function reInwardBatchOnSaleReturnServer(options: {
     console.error("Failed to insert inventory batch on sale return:", err);
   }
 }
+
+/**
+ * Fully re-sequences and re-consumes FIFO batches for a single product across its entire timeline.
+ * Called whenever an adjustment, purchase, or sale is created, edited (date/qty change), or deleted.
+ * Guarantees that batch tracking is dynamic, batches match chronological sales, and remaining quantities are accurate.
+ */
+export async function resequenceProductFIFOBatchesServer(options: {
+  userId: string;
+  productId: string;
+}): Promise<{ success: boolean; resequencedBatchesCount: number; resequencedOrdersCount: number }> {
+  const { userId, productId } = options;
+  if (!productId || !isValidObjectId(productId)) {
+    return { success: false, resequencedBatchesCount: 0, resequencedOrdersCount: 0 };
+  }
+
+  const valuationMethod = await getValuationMethod(userId);
+  if (valuationMethod !== "fifo") {
+    return { success: true, resequencedBatchesCount: 0, resequencedOrdersCount: 0 };
+  }
+
+  const uId = toObjectId(userId);
+  const pId = toObjectId(productId);
+
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+  const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+  const stockAdjustmentsCollection = await getCollection(COLLECTIONS.STOCK_ADJUSTMENTS);
+  const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+
+  const product = await productsCollection.findOne({ _id: pId, user_id: uId });
+  if (!product) {
+    return { success: false, resequencedBatchesCount: 0, resequencedOrdersCount: 0 };
+  }
+  const fallbackCost = Number(product.cost_price ?? product.purchase_price) || 0;
+
+  // 1. Fetch all inward batches for this product, ordered chronologically (oldest first)
+  const batches = await batchesCollection
+    .find({
+      user_id: uId,
+      product_id: pId,
+      is_delete: { $ne: true },
+    })
+    .sort({ batch_date: 1, created_at: 1 })
+    .toArray();
+
+  if (batches.length === 0) {
+    return { success: true, resequencedBatchesCount: 0, resequencedOrdersCount: 0 };
+  }
+
+  // Reset in-memory batch state
+  for (const b of batches) {
+    b.remaining_quantity = Number(b.initial_quantity) || 0;
+  }
+
+  // 2. Fetch all outward candidate transactions (Sales and Stock Adjustments Reduce)
+  const orders = await ordersCollection
+    .find({
+      user_id: uId,
+      status: { $ne: "cancelled" },
+      "items.product_id": { $in: [pId, productId] },
+    })
+    .toArray();
+
+  const adjustments = await stockAdjustmentsCollection
+    .find({
+      user_id: uId,
+      product_id: pId,
+      action_type: "reduce",
+      stock_type: "available",
+      is_delete: { $ne: true },
+    })
+    .toArray();
+
+  // 3. Build a unified chronologically ordered list of outward events
+  type OutwardEvent = {
+    type: "order" | "adjustment";
+    id: any;
+    date: Date;
+    createdAt: Date;
+    quantity: number;
+    doc: any;
+    itemIndex?: number;
+  };
+
+  const outwardEvents: OutwardEvent[] = [];
+
+  for (const order of orders) {
+    const orderDate = new Date(order.sale_date || order.date || order.created_at || 0);
+    const orderCreatedAt = new Date(order.created_at || orderDate);
+    (order.items || []).forEach((it: any, idx: number) => {
+      const itProdId = it.product_id?.toString() || it.productId?.toString();
+      if (itProdId === productId || itProdId === pId.toString()) {
+        const qty = Number(it.quantity) || 0;
+        if (qty > 0) {
+          outwardEvents.push({
+            type: "order",
+            id: order._id,
+            date: orderDate,
+            createdAt: orderCreatedAt,
+            quantity: qty,
+            doc: order,
+            itemIndex: idx,
+          });
+        }
+      }
+    });
+  }
+
+  for (const adj of adjustments) {
+    const adjDate = new Date(adj.date || adj.adjustment_date || adj.created_at || 0);
+    const adjCreatedAt = new Date(adj.created_at || adjDate);
+    const qty = Number(adj.quantity) || 0;
+    if (qty > 0) {
+      outwardEvents.push({
+        type: "adjustment",
+        id: adj._id,
+        date: adjDate,
+        createdAt: adjCreatedAt,
+        quantity: qty,
+        doc: adj,
+      });
+    }
+  }
+
+  // Sort chronologically (oldest sale/reduction first)
+  outwardEvents.sort((a, b) => {
+    const da = a.date.getTime();
+    const db = b.date.getTime();
+    if (da !== db) return da - db;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  const modifiedOrders = new Map<string, any>();
+  const modifiedAdjustments = new Map<string, any>();
+
+  // 4. Sequentially consume batches for each outward event
+  for (const event of outwardEvents) {
+    let neededQty = event.quantity;
+    const splits: any[] = [];
+
+    for (const batch of batches) {
+      if (neededQty <= 0) break;
+      const available = Number(batch.remaining_quantity) || 0;
+      if (available <= 0) continue;
+
+      const take = Math.min(available, neededQty);
+      const bCost = Number(batch.cost_price) || 0;
+      const splitTotal = roundToPrecision(take * bCost, 2);
+
+      batch.remaining_quantity = roundToPrecision(available - take, 5);
+      neededQty = roundToPrecision(neededQty - take, 5);
+
+      splits.push({
+        batch_id: batch._id ? toObjectId(batch._id) : batch._id,
+        batch_number: batch.batch_number || "BATCH",
+        quantity: take,
+        cost_price: bCost,
+        total_cost: splitTotal,
+        reconciled_at: new Date(),
+      });
+    }
+
+    if (event.type === "order") {
+      const order = event.doc;
+      const it = order.items[event.itemIndex!];
+      it.batch_splits = splits;
+      it.unfulfilled_quantity = neededQty;
+      it.is_oversold = neededQty > 0;
+
+      const splitsCostTotal = splits.reduce((acc: number, sp: any) => acc + (Number(sp.total_cost) || 0), 0);
+      const unfulfilledFallback = roundToPrecision(neededQty * fallbackCost, 2);
+      const newTotalCogs = roundToPrecision(splitsCostTotal + unfulfilledFallback, 2);
+      it.total_cogs = newTotalCogs;
+      it.cost_price = event.quantity > 0 ? roundToPrecision(newTotalCogs / event.quantity, 2) : fallbackCost;
+
+      modifiedOrders.set(order._id.toString(), order);
+    } else if (event.type === "adjustment") {
+      const adj = event.doc;
+      adj.batch_splits = splits;
+      modifiedAdjustments.set(adj._id.toString(), adj);
+    }
+  }
+
+  // 5. Commit batch updates in DB
+  for (const batch of batches) {
+    const finalRem = Number(batch.remaining_quantity) || 0;
+    await batchesCollection.updateOne(
+      { _id: batch._id },
+      {
+        $set: {
+          remaining_quantity: finalRem,
+          status: finalRem <= 0 ? "depleted" : "active",
+          updated_at: new Date(),
+        },
+      }
+    );
+  }
+
+  // 6. Commit modified orders
+  for (const order of Array.from(modifiedOrders.values())) {
+    await ordersCollection.updateOne(
+      { _id: order._id },
+      {
+        $set: {
+          items: order.items,
+          updated_at: new Date(),
+        },
+      }
+    );
+  }
+
+  // 7. Commit modified adjustments
+  for (const adj of Array.from(modifiedAdjustments.values())) {
+    await stockAdjustmentsCollection.updateOne(
+      { _id: adj._id },
+      {
+        $set: {
+          batch_splits: adj.batch_splits,
+          updated_at: new Date(),
+        },
+      }
+    );
+  }
+
+  // 8. Update product's cost_price to the oldest unexhausted active batch (standard FIFO)
+  const activeBatch = batches.find((b: any) => Number(b.remaining_quantity) > 0);
+  if (activeBatch && Number(activeBatch.cost_price) > 0) {
+    const fifoCost = Number(activeBatch.cost_price);
+    await productsCollection.updateOne(
+      { _id: pId },
+      {
+        $set: {
+          cost_price: fifoCost,
+          cost_price_str: fifoCost.toString(),
+          purchase_price: fifoCost,
+          updated_at: new Date(),
+        },
+      }
+    );
+  }
+
+  return {
+    success: true,
+    resequencedBatchesCount: batches.length,
+    resequencedOrdersCount: modifiedOrders.size,
+  };
+}
