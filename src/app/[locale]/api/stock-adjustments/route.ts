@@ -261,6 +261,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (valuationMethod === "fifo") {
+      try {
+        const { resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+        await resequenceProductFIFOBatchesServer({
+          userId: user.id,
+          productId: prodObjId.toString(),
+        });
+      } catch (reSeqErr) {
+        console.error("Failed to resequence FIFO batches on adjustment create:", reSeqErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       id: newId,
@@ -616,6 +628,16 @@ export async function DELETE(request: NextRequest) {
 
     await stockAdjustmentsCollection.deleteOne({ _id: adj._id });
 
+    try {
+      const { resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+      await resequenceProductFIFOBatchesServer({
+        userId: user.id,
+        productId: prodId.toString(),
+      });
+    } catch (reSeqErr) {
+      console.error("Failed to resequence FIFO batches on adjustment delete:", reSeqErr);
+    }
+
     return NextResponse.json({
       success: true,
       newQuantity: newQty,
@@ -942,6 +964,18 @@ export async function PUT(request: NextRequest) {
     } else {
       // Changed to add: delete any previously linked reduction expense
       await expensesCollection.deleteMany(expQuery);
+    }
+
+    if (valuationMethod === "fifo") {
+      try {
+        const { resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+        await resequenceProductFIFOBatchesServer({
+          userId: user.id,
+          productId: prodObjId.toString(),
+        });
+      } catch (reSeqErr) {
+        console.error("Failed to resequence FIFO batches on adjustment update:", reSeqErr);
+      }
     }
 
     return NextResponse.json({

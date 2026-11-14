@@ -339,7 +339,8 @@ export async function GET(request: NextRequest) {
 
       for (const it of matchedItems) {
         const qty = Number(it.quantity) || 0;
-        const rate = Number(it.rate) || 0;
+        // Inward cost rate: Always use Current Cost Rate of the product (both in WAC and FIFO)
+        const returnCost = Number(it.costPrice ?? it.cost_price ?? product.cost_price ?? product.purchase_price) || 0;
         rawMovements.push({
           id: `sr-${ret._id}-${it.productId || it.product_id}`,
           date: d,
@@ -348,9 +349,9 @@ export async function GET(request: NextRequest) {
           partyName: customerName,
           inwardQty: qty,
           outwardQty: 0,
-          unitRate: rate,
-          costPrice: Number(it.costPrice || product.cost_price || rate) || 0,
-          totalAmount: Math.round(qty * rate * 100) / 100,
+          unitRate: returnCost,
+          costPrice: returnCost,
+          totalAmount: Math.round(qty * returnCost * 100) / 100,
         });
       }
     }

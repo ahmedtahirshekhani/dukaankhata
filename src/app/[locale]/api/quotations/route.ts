@@ -28,6 +28,8 @@ export interface QuotationDoc {
   tax_type?: string;
   total_amount: number;
   validity_date: string;
+  quotation_date?: string;
+  date?: string;
   notes?: string;
   quotation_no?: string;
   status: QuotationStatus;
@@ -164,9 +166,11 @@ export async function POST(request: NextRequest) {
       tax_type: data.tax_type || "fixed",
       total_amount: Number(data.total_amount),
       validity_date: data.validity_date,
+      quotation_date: data.quotation_date || data.date || now,
+      date: data.quotation_date || data.date || now,
       quotation_no: data.quotation_no || "",
       status: data.status || "open",
-      created_at: now,
+      created_at: data.quotation_date ? new Date(data.quotation_date) : now,
       updated_at: now,
     };
 

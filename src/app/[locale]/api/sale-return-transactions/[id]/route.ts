@@ -275,23 +275,37 @@ export async function PUT(
       console.error("Failed to delete old batches on sale return update:", bErr);
     }
 
-    // Apply new stock and re-inward batches
+    // Apply new stock and re-inward batches at Current Cost Rate
     if (lineItems && Array.isArray(lineItems)) {
-      const { reInwardBatchOnSaleReturnServer } = await import('@/lib/inventory/valuation-engine');
+      const { reInwardBatchOnSaleReturnServer, resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+      const productsColl = await getCollection(COLLECTIONS.PRODUCTS);
       for (const item of lineItems) {
         if (item.productId) {
           const retQty = item.quantity || 0;
           await adjustStock(item.productId, user.id, retQty);
           if (retQty > 0) {
             try {
+              const productDoc = await productsColl.findOne(
+                { _id: toObjectId(item.productId) },
+                { projection: { cost_price: 1, purchase_price: 1 } }
+              );
+              const costPrice = Number((productDoc as any)?.cost_price) || Number((productDoc as any)?.purchase_price) || Number((item as any).costPrice) || 0;
+              (item as any).costPrice = costPrice;
+              (item as any).cost_price = costPrice;
+
               await reInwardBatchOnSaleReturnServer({
                 userId: user.id,
                 returnId: id.toString(),
                 returnNumber: existing.return_number || "SR",
                 productId: item.productId,
                 quantity: retQty,
-                costPrice: Number((item as any).costPrice) || Number(item.rate) || 0,
+                costPrice,
                 returnDate: date,
+              });
+
+              await resequenceProductFIFOBatchesServer({
+                userId: user.id,
+                productId: item.productId,
               });
             } catch (retBatchErr) {
               console.error("Failed to re-inward batch on sale return update:", retBatchErr);

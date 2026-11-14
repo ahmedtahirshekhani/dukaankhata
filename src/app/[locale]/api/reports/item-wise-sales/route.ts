@@ -54,12 +54,59 @@ export async function GET(request: NextRequest) {
     const orderMatch: any = {
       user_id: userId,
       status: { $ne: "cancelled" },
-      $or: [
-        { sale_date: { $gte: from, $lte: to } },
-        { sale_date: { $gte: from.toISOString(), $lte: to.toISOString() } },
-        { sale_date: { $exists: false }, created_at: { $gte: from, $lte: to } },
-        { sale_date: { $exists: false }, created_at: { $gte: from.toISOString(), $lte: to.toISOString() } }
-      ]
+      $expr: {
+        $let: {
+          vars: {
+            rawDate: {
+              $ifNull: [
+                "$sale_date",
+                {
+                  $ifNull: [
+                    "$saleDate",
+                    {
+                      $ifNull: [
+                        "$invoice_date",
+                        {
+                          $ifNull: [
+                            "$invoiceDate",
+                            {
+                              $ifNull: [
+                                "$order_date",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          in: {
+            $let: {
+              vars: {
+                parsedDate: {
+                  $convert: {
+                    input: "$$rawDate",
+                    to: "date",
+                    onError: null,
+                    onNull: null,
+                  },
+                },
+              },
+              in: {
+                $and: [
+                  { $ne: ["$$parsedDate", null] },
+                  { $gte: ["$$parsedDate", from] },
+                  { $lte: ["$$parsedDate", to] },
+                ],
+              },
+            },
+          },
+        },
+      },
     };
 
     // 2. Build aggregation pipeline

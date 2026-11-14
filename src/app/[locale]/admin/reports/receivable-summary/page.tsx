@@ -635,7 +635,7 @@ export default function ReceivableSummaryPage() {
         title="PDF Report Preview"
         description="Preparing & downloading your portrait receivable summary PDF..."
         reportRef={reportRef}
-        width="794px"
+        width="700px"
         isPortrait={true}
       >
         <ReportPdfHeader

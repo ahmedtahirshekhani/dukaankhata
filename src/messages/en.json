@@ -771,6 +771,7 @@
     "party": "Party / Detail",
     "qty": "Qty",
     "unitCost": "Unit Cost",
+    "totalCost": "Total Cost",
     "inwardQty": "Inward Qty",
     "unitRate": "Inward Rate",
     "outwardQty": "Outward Qty",

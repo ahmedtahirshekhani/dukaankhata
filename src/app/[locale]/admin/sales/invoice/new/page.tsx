@@ -42,15 +42,9 @@ import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { generateReferenceNumber, setDateToCurrentTime } from "@/lib/utils";
 
 import { DatePicker } from "@/components/ui/date-picker";
-import { toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
+import { toHTMLDateString, toSafeISOString, getTodayHTMLDate } from "@/lib/date-utils";
 
-const getTodayDateString = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
+const getTodayDateString = () => getTodayHTMLDate();
 
 export type Product = {
   id: number | string;
@@ -1562,13 +1556,13 @@ export default function NewInvoicePage() {
           ? {
               method: paymentMethod || "cash",
               paid_amount: Math.floor(finalTotal),
-              paid_date: new Date().toISOString(),
+              paid_date: toSafeISOString(selectedDate),
               no_payment_at_all: false,
             }
           : {
               method: paymentMethod,
               paid_amount: paymentAmount === "" ? 0 : Number(paymentAmount),
-              paid_date: new Date().toISOString(),
+              paid_date: toSafeISOString(selectedDate),
               no_payment_at_all: paymentAmount === "" || Number(paymentAmount) === 0,
             }
         }

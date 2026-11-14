@@ -36,6 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { toHTMLDateString } from "@/lib/date-utils";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface QuotationItem {
     id: string;
@@ -82,6 +83,7 @@ function QuotationFormPageInner({
     );
     const [tax, setTax] = useState<string>("0");
     const [taxType, setTaxType] = useState<"percentage" | "fixed">("fixed");
+    const [quotationDate, setQuotationDate] = useState<string>(() => toHTMLDateString(new Date()));
     const [validityDate, setValidityDate] = useState<string>("");
     const [notes, setNotes] = useState<string>("");
     const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
@@ -119,6 +121,15 @@ function QuotationFormPageInner({
                         setDiscountType(quot.discount_type || "fixed");
                         setTax(quot.tax?.toString() || "0");
                         setTaxType(quot.tax_type || "fixed");
+                        setQuotationDate(
+                            quot.quotation_date
+                                ? toHTMLDateString(quot.quotation_date)
+                                : quot.date
+                                ? toHTMLDateString(quot.date)
+                                : quot.created_at
+                                ? toHTMLDateString(quot.created_at)
+                                : toHTMLDateString(new Date())
+                        );
                         setValidityDate(
                             quot.validity_date ? toHTMLDateString(quot.validity_date) : ""
                         );
@@ -208,10 +219,11 @@ function QuotationFormPageInner({
     }, [selectedProductObj, itemQuantity, editingItemId, quotationItems, tCommon]);
 
     const handleSaveQuotation = async () => {
-        if (!selectedPartyId || quotationItems.length === 0 || !validityDate) {
+        if (!selectedPartyId || quotationItems.length === 0 || !validityDate || !quotationDate) {
             const missing = [];
             if (!selectedPartyId) missing.push("Party");
             if (quotationItems.length === 0) missing.push("Items");
+            if (!quotationDate) missing.push("Quotation Date");
             if (!validityDate) missing.push("Validity Date");
 
             setErrorDialog({
@@ -251,6 +263,8 @@ function QuotationFormPageInner({
                 tax: Number(tax),
                 tax_type: taxType,
                 total_amount: calculations.totalAmount,
+                quotation_date: quotationDate,
+                date: quotationDate,
                 validity_date: validityDate,
                 quotation_no: quotationNo,
                 status: "open",
@@ -265,7 +279,7 @@ function QuotationFormPageInner({
             const fullPayload = {
               ...payload,
               id: editingQuotationId || crypto.randomUUID(),
-              created_at: editingQuotationId ? undefined : new Date().toISOString(),
+              created_at: editingQuotationId ? undefined : new Date(quotationDate || Date.now()).toISOString(),
               updated_at: new Date().toISOString(),
             };
 
@@ -367,16 +381,16 @@ function QuotationFormPageInner({
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr className="text-left">
                                             <th className="p-4 font-medium">{t("item_name")}</th>
-                                            <th className="p-4 font-medium text-center">
+                                            <th className="p-4 font-medium text-center w-36">
                                                 {t("qty")}
                                             </th>
-                                            <th className="p-4 font-medium text-right">
+                                            <th className="p-4 font-medium text-right w-40">
                                                 {t("price")}
                                             </th>
-                                            <th className="p-4 font-medium text-right">
+                                            <th className="p-4 font-medium text-right w-36">
                                                 {t("total")}
                                             </th>
-                                            <th className="p-4 text-center"></th>
+                                            <th className="p-4 text-center w-16"></th>
                                         </tr>
                                     </thead>
                                     {/* <tbody className="divide-y">
@@ -476,46 +490,50 @@ function QuotationFormPageInner({
 
                                                     {/* Quantity - Input Field */}
                                                     <td className="p-4 text-center">
-                                                        <NumericInput
-                                                            min="0"
-                                                            value={item.quantity}
-                                                            onChange={(e) => {
-                                                                const newQuantity = parseFloat(e.target.value) || 0;
-                                                                const updatedItems = quotationItems.map((i) =>
-                                                                    i.id === item.id
-                                                                        ? {
-                                                                            ...i,
-                                                                            quantity: newQuantity,
-                                                                            amount: newQuantity * i.unit_price,
-                                                                        }
-                                                                        : i
-                                                                );
-                                                                setQuotationItems(updatedItems);
-                                                            }}
-                                                            className="w-24 h-8 px-2 py-1 border rounded text-center text-sm"
-                                                        />
+                                                        <div className="flex justify-center">
+                                                            <NumericInput
+                                                                min="0"
+                                                                value={item.quantity}
+                                                                onChange={(e) => {
+                                                                    const newQuantity = parseFloat(e.target.value) || 0;
+                                                                    const updatedItems = quotationItems.map((i) =>
+                                                                        i.id === item.id
+                                                                            ? {
+                                                                                ...i,
+                                                                                quantity: newQuantity,
+                                                                                amount: newQuantity * i.unit_price,
+                                                                            }
+                                                                            : i
+                                                                    );
+                                                                    setQuotationItems(updatedItems);
+                                                                }}
+                                                                className="w-24 h-8 px-2 py-1 border rounded text-center text-sm"
+                                                            />
+                                                        </div>
                                                     </td>
 
                                                     {/* Unit Price - Input Field */}
                                                     <td className="p-4 text-right">
-                                                        <NumericInput
-                                                            min="0"
-                                                            value={item.unit_price}
-                                                            onChange={(e) => {
-                                                                const newPrice = parseFloat(e.target.value) || 0;
-                                                                const updatedItems = quotationItems.map((i) =>
-                                                                    i.id === item.id
-                                                                        ? {
-                                                                            ...i,
-                                                                            unit_price: newPrice,
-                                                                            amount: i.quantity * newPrice,
-                                                                        }
-                                                                        : i
-                                                                );
-                                                                setQuotationItems(updatedItems);
-                                                            }}
-                                                            className="w-28 h-8 px-2 py-1 border rounded text-right text-sm"
-                                                        />
+                                                        <div className="flex justify-end">
+                                                            <NumericInput
+                                                                min="0"
+                                                                value={item.unit_price}
+                                                                onChange={(e) => {
+                                                                    const newPrice = parseFloat(e.target.value) || 0;
+                                                                    const updatedItems = quotationItems.map((i) =>
+                                                                        i.id === item.id
+                                                                            ? {
+                                                                                ...i,
+                                                                                unit_price: newPrice,
+                                                                                amount: i.quantity * newPrice,
+                                                                            }
+                                                                            : i
+                                                                    );
+                                                                    setQuotationItems(updatedItems);
+                                                                }}
+                                                                className="w-28 h-8 px-2 py-1 border rounded text-right text-sm"
+                                                            />
+                                                        </div>
                                                     </td>
 
                                                     {/* Total Amount (Dynamic) */}
@@ -653,11 +671,20 @@ function QuotationFormPageInner({
                                 />
                             </div>
                             <div className="space-y-2">
+                                <Label>{t("date") || "Quotation Date"}</Label>
+                                <DatePicker
+                                    value={quotationDate}
+                                    onChange={(val) => setQuotationDate(val)}
+                                    className="h-9 text-xs"
+                                />
+                            </div>
+                            <div className="space-y-2">
                                 <Label>{t("validity_date")}</Label>
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={validityDate}
-                                    onChange={(e) => setValidityDate(e.target.value)}
+                                    onChange={(val) => setValidityDate(val)}
+                                    min={quotationDate || undefined}
+                                    className="h-9 text-xs"
                                 />
                             </div>
                             <Separator />
