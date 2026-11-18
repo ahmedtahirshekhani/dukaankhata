@@ -223,6 +223,14 @@ export const db = new DukanKhataDB(getDynamicDbName());
 export async function clearUserDatabase(): Promise<void> {
   await db.delete();
   if (typeof window !== 'undefined') {
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith('last_sync_timestamp')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {}
     localStorage.removeItem('last_sync_timestamp');
   }
 }

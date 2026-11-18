@@ -1284,6 +1284,7 @@
     "companyAddressPlaceholder": "Company ka pata daral karain",
     "balancePlaceholder": "0",
     "openingBalanceHelper": "Is party account ke liye ibtidai balance",
+    "currentBalance": "Current Live Balance",
     "cannotUpdateBalanceWarning": "Aap directly balance update nahi kar sakte. Balance theek karne ke liye Payment In ya Payment Out entry karein.",
     "cancel": "Cancel",
     "createCustomer": "Party Banayen",
