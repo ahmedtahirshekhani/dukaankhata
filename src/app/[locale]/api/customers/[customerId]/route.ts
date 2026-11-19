@@ -179,6 +179,24 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid customer ID" }, { status: 400 });
   }
 
+  // Check if customer has associated transactions
+  const { checkPartyHasTransactionsServer } = await import("@/lib/entity-checks/server");
+  const checkResult = await checkPartyHasTransactionsServer({
+    userId: user.id,
+    partyId: customerId,
+  });
+
+  if (checkResult.hasTransactions) {
+    return NextResponse.json(
+      {
+        error: "has_associated_transactions",
+        message: `Cannot delete party because it has associated transactions (${checkResult.summary}).`,
+        details: checkResult.details,
+      },
+      { status: 400 }
+    );
+  }
+
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
 
   // Soft delete: update status to inactive and is_delete to 1
