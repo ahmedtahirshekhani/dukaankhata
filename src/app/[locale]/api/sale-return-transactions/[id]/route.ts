@@ -251,6 +251,31 @@ export async function PUT(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    if (paidAmount > 0) {
+      const pmId = (paymentMethodId || existing.payment_method_id || "cash").toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+        excludeTransaction: {
+          amount: Number(existing.paid_amount) || 0,
+          paymentMethodId: existing.payment_method_id?.toString(),
+        },
+      });
+
+      if (paidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${paidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: paidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Ledger adjustments (reverse old, apply new)
     const oldCustomerId = existing.customer_id?.toString();
     const oldAmount = existing.payment_amount ?? 0;
