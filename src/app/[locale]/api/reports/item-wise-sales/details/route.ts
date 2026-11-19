@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from '@/lib/auth/rbac';
 import { parsePKTDateBoundary } from '@/lib/date-utils';
+import { calculateProductDynamicSalesValuation } from '@/lib/inventory/valuation-engine';
 
 export async function GET(request: NextRequest) {
   try {
@@ -169,11 +170,21 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. Fetch orders & customer details (sorted from oldest to latest, i.e. start date invoice first)
-    const [matchingOrders, matchingReturns, allCustomers] = await Promise.all([
+    // along with dynamic product valuation timeline (identically matching Inventory Valuation ledger)
+    const [matchingOrders, matchingReturns, allCustomers, dynamicValuation] = await Promise.all([
       ordersCollection.find(orderMatch).sort({ sale_date: 1, invoice_date: 1, date: 1, created_at: 1 }).toArray(),
       saleReturnsCollection.find(returnMatch).sort({ date: 1, created_at: 1 }).toArray(),
       customersCollection.find({ user_id: userId }, { projection: { _id: 1, name: 1, phone: 1, company_name: 1 } }).toArray(),
+      calculateProductDynamicSalesValuation({
+        userId: user.id,
+        productId,
+        fromDate,
+        toDate,
+        syncDatabase: true,
+      }),
     ]);
+
+    const { orderCostMap, valuationMethod } = dynamicValuation;
 
     const customerMap = new Map<string, { name: string; phone: string }>();
     for (const c of allCustomers) {
@@ -242,10 +253,23 @@ export async function GET(request: NextRequest) {
         }
         const lineRevenue = Math.max(0, Math.round((lineGross - lineDiscount) * 100) / 100);
 
-        const unitCost = Number(it.cost_price ?? it.purchase_price ?? product.cost_price) || 0;
-        const lineCogs = typeof it.total_cogs === "number" 
-          ? it.total_cogs 
-          : Math.round(qty * unitCost * 100) / 100;
+        // Resolve dynamic valuation rate & COGS matching the Inventory Valuation ledger exactly
+        const orderIdStr = order._id.toString();
+        const dynVal =
+          orderCostMap.get(orderIdStr) ||
+          (order.invoice_no ? orderCostMap.get(order.invoice_no) : undefined);
+
+        const unitCost =
+          dynVal && dynVal.unitCost > 0
+            ? dynVal.unitCost
+            : Number(it.cost_price ?? it.purchase_price ?? product.cost_price) || 0;
+
+        const lineCogs =
+          dynVal && dynVal.totalCogs > 0
+            ? dynVal.totalCogs
+            : typeof it.total_cogs === "number"
+            ? it.total_cogs
+            : Math.round(qty * unitCost * 100) / 100;
 
         totalQuantitySold += qty;
         totalGrossRevenue += lineGross;
@@ -253,7 +277,12 @@ export async function GET(request: NextRequest) {
         totalNetRevenue += lineRevenue;
         totalCogsSum += lineCogs;
 
-        const splits = Array.isArray(it.batch_splits) && it.batch_splits.length > 0 ? it.batch_splits : null;
+        const splits =
+          valuationMethod === "fifo" && dynVal?.batchSplits && dynVal.batchSplits.length > 0
+            ? dynVal.batchSplits
+            : Array.isArray(it.batch_splits) && it.batch_splits.length > 0
+            ? it.batch_splits
+            : null;
 
         if (splits && splits.length > 0) {
           const fulfilledQty = splits.reduce((acc: number, s: any) => acc + (Number(s.quantity) || 0), 0);

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from "@/lib/auth/rbac";
 import { parsePKTDateBoundary } from "@/lib/date-utils";
+import { calculateProductDynamicSalesValuation } from '@/lib/inventory/valuation-engine';
 
 export async function GET(request: NextRequest) {
   try {
@@ -398,6 +399,33 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Merge Sales and Returns to compute Net Sales
+    // Pre-calculate dynamic valuation COGS for all products sold in this period
+    const dynamicValuations = await Promise.all(
+      allMatchingSales.map(async (saleItem) => {
+        const pId = String(saleItem.productId);
+        try {
+          const valResult = await calculateProductDynamicSalesValuation({
+            userId: user.id,
+            productId: pId,
+            fromDate: from,
+            toDate: to,
+            syncDatabase: true,
+          });
+          return { productId: pId, valResult };
+        } catch (e) {
+          console.error(`Failed dynamic valuation for product ${pId}:`, e);
+          return { productId: pId, valResult: null };
+        }
+      })
+    );
+
+    const dynamicValuationMap = new Map<string, any>();
+    for (const dv of dynamicValuations) {
+      if (dv.valResult) {
+        dynamicValuationMap.set(dv.productId, dv.valResult);
+      }
+    }
+
     const processedMap = new Map<string, any>();
 
     for (const item of allMatchingSales) {
@@ -408,7 +436,13 @@ export async function GET(request: NextRequest) {
 
       const grossQuantity = item.totalQuantitySold || 0;
       const grossRevenue = item.totalRevenue || 0;
-      const grossCost = item.totalCost || 0;
+
+      // Dynamic COGS from valuation engine (matches Valuation Ledger exactly)
+      const dynVal = dynamicValuationMap.get(prodId);
+      const grossCost =
+        dynVal && dynVal.periodCogs > 0
+          ? dynVal.periodCogs
+          : item.totalCost || 0;
 
       // Net Quantity Sold
       const netQuantitySold = Math.max(0, grossQuantity - totalReturnedQuantity);
