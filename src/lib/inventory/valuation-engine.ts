@@ -1525,8 +1525,13 @@ export async function calculateProductDynamicSalesValuation(options: {
         }
         runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
       } else if (m.type === "sale_return") {
+        const dynamicRate = runningWac > 0 ? runningWac : (m.unitRate > 0 ? m.unitRate : prevWac);
+        m.unitRate = dynamicRate;
+        m.costPrice = dynamicRate;
+        m.totalAmount = Math.round(m.inwardQty * dynamicRate * 100) / 100;
         runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
-        effectiveWac = runningWac;
+        effectiveWac = runningWac > 0 ? runningWac : dynamicRate;
+        runningWac = effectiveWac;
       } else if (m.type === "sale") {
         const outQty = m.outwardQty;
         effectiveWac = runningWac;

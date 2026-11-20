@@ -25,7 +25,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { exportProfitabilityToExcel } from "@/lib/excel";
-import { formatCurrency, formatStatementDate } from "@/lib/utils";
+import { formatCurrency, formatStatementDate, cn } from "@/lib/utils";
 import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
 import { ProfitabilityExpense } from "@/types/reports";
 import { ReportDatePresets, getPresetDateRange } from "@/components/reports/report-date-presets";
@@ -507,7 +507,12 @@ export default function ProfitabilityReportPage() {
                     {expensesByCategory.map((exp: any, idx: number) => (
                       <tr key={idx} className="border-b border-border/50">
                         <td className="py-2.5 px-6 sm:px-10 text-muted-foreground break-words whitespace-normal max-w-[150px] sm:max-w-none">{exp.category}</td>
-                        <td className="text-right py-2.5 px-4 sm:px-6 font-medium">{formatCurrency(exp.amount)}</td>
+                        <td className={cn(
+                          "text-right py-2.5 px-4 sm:px-6 font-medium",
+                          exp.amount < 0 ? "text-emerald-600 dark:text-emerald-400 font-semibold" : ""
+                        )}>
+                          {formatCurrency(exp.amount)}
+                        </td>
                       </tr>
                     ))}
                     <tr className="border-b border-b-muted-foreground/30 bg-muted/30">
@@ -661,7 +666,17 @@ export default function ProfitabilityReportPage() {
                 <PdfTableCell width="70%" style={{ padding: "5.5px 12px 5.5px 24px", color: "#475569" }}>
                   {exp.category}
                 </PdfTableCell>
-                <PdfTableCell width="30%" align="right" bold style={{ padding: "5.5px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                <PdfTableCell
+                  width="30%"
+                  align="right"
+                  bold
+                  style={{
+                    padding: "5.5px 12px",
+                    textAlign: "right",
+                    whiteSpace: "nowrap",
+                    color: exp.amount < 0 ? "#059669" : undefined,
+                  }}
+                >
                   {formatCurrency(exp.amount)}
                 </PdfTableCell>
               </PdfTableRow>

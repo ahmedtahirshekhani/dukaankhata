@@ -685,7 +685,10 @@ export default function SaleReturnPage() {
         }
 
         // Delete batches associated with this sale return
-        const retBatches = await db.inventory_batches.where("source_id").equals(transactionToDelete.id.toString()).toArray();
+        const delTargetId = transactionToDelete.id.toString();
+        const retBatches = await db.inventory_batches
+          .filter((b: any) => String(b.source_id || b.sourceId) === delTargetId)
+          .toArray();
         for (const b of retBatches) {
           if (b.id) await db.inventory_batches.delete(b.id);
         }

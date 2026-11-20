@@ -526,6 +526,9 @@ export async function GET(request: NextRequest) {
         } else if (m.type === "sale_return") {
           runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
           effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
+          m.unitRate = effectiveRate;
+          m.costPrice = effectiveRate;
+          m.totalAmount = roundToPrecision(m.inwardQty * effectiveRate, 2);
           runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
           impactFormula = `Sale Return (${m.inwardQty} units) returned to inventory @ ${effectiveRate}`;
         } else if (m.type === "sale") {
@@ -548,6 +551,8 @@ export async function GET(request: NextRequest) {
 
         return {
           ...m,
+          unitRate: m.type === "sale_return" ? effectiveRate : m.unitRate,
+          totalAmount: m.type === "sale_return" ? roundToPrecision(m.inwardQty * effectiveRate, 2) : m.totalAmount,
           date: m.date.toISOString(),
           costPrice: effectiveRate,
           cogs,
@@ -602,9 +607,14 @@ export async function GET(request: NextRequest) {
           }
           runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
         } else if (m.type === "sale_return") {
+          const dynamicRate = runningWac > 0 ? runningWac : (m.unitRate > 0 ? m.unitRate : prevWac);
+          m.unitRate = dynamicRate;
+          m.costPrice = dynamicRate;
+          m.totalAmount = Math.round(m.inwardQty * dynamicRate * 100) / 100;
           runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
-          effectiveWac = runningWac;
-          wacFormula = `Sale Return (${m.inwardQty}) returned to inventory (WAC: ${runningWac})`;
+          effectiveWac = runningWac > 0 ? runningWac : dynamicRate;
+          runningWac = effectiveWac;
+          wacFormula = `Sale Return (${m.inwardQty}) returned to inventory @ WAC (${dynamicRate})`;
         } else if (m.type === "sale") {
           const outQty = m.outwardQty;
           effectiveWac = runningWac;
@@ -624,7 +634,7 @@ export async function GET(request: NextRequest) {
         const runningValuation = roundToPrecision(runningBalance * effectiveWac, 2);
 
         // Cost price & outward COGS
-        const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce")
+        const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce" || m.type === "sale_return")
           ? effectiveWac
           : (m.costPrice || m.unitRate || effectiveWac);
 
@@ -634,6 +644,8 @@ export async function GET(request: NextRequest) {
 
         return {
           ...m,
+          unitRate: m.type === "sale_return" ? effectiveWac : m.unitRate,
+          totalAmount: m.type === "sale_return" ? Math.round(m.inwardQty * effectiveWac * 100) / 100 : m.totalAmount,
           date: m.date.toISOString(),
           costPrice: finalCostPrice,
           cogs: outwardCogs,
