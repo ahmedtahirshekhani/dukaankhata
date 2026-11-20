@@ -151,6 +151,24 @@ export async function DELETE(
   if (!isValidObjectId(productId)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
 
   try {
+    // Check if product has associated transactions
+    const { checkProductHasTransactionsServer } = await import("@/lib/entity-checks/server");
+    const checkResult = await checkProductHasTransactionsServer({
+      userId: user.id,
+      productId,
+    });
+
+    if (checkResult.hasTransactions) {
+      return NextResponse.json(
+        {
+          error: "has_associated_transactions",
+          message: `Cannot delete product because it has associated transactions (${checkResult.summary}).`,
+          details: checkResult.details,
+        },
+        { status: 400 }
+      );
+    }
+
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
     const result = await productsCollection.deleteOne({
       _id: toObjectId(productId),

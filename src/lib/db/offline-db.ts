@@ -200,6 +200,10 @@ export class DukanKhataDB extends Dexie {
       stock_adjustments: 'id, product_id, date, created_at',
       syncQueue: '++id, status, timestamp, collection'
     });
+    // v6: added source_id index to inventory_batches
+    this.version(6).stores({
+      inventory_batches: 'id, product_id, source_id, status, batch_date, created_at'
+    });
   }
 }
 
@@ -223,6 +227,14 @@ export const db = new DukanKhataDB(getDynamicDbName());
 export async function clearUserDatabase(): Promise<void> {
   await db.delete();
   if (typeof window !== 'undefined') {
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith('last_sync_timestamp')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {}
     localStorage.removeItem('last_sync_timestamp');
   }
 }

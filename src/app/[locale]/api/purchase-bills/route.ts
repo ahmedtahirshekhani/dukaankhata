@@ -306,6 +306,7 @@ export async function POST(request: Request) {
       })
     );
 
+    // Validate payment amount & method balance for new purchase bill
     const finalPaidAmount = Number(paidAmount) || 0;
     if (finalPaidAmount > totalAmount) {
       return NextResponse.json(
@@ -313,6 +314,28 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    if (finalPaidAmount > 0) {
+      const pmId = (paymentMethodId || "cash").toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+      });
+
+      if (finalPaidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${finalPaidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: finalPaidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const finalBalanceDue = totalAmount - finalPaidAmount;
     const finalIsPaid = finalBalanceDue === 0;
 
@@ -516,6 +539,39 @@ export async function PUT(request: Request) {
       );
     }
 
+    const finalPaidAmount = Number(paidAmount) || 0;
+    if (finalPaidAmount > totalAmount) {
+      return NextResponse.json(
+        { error: "Paid amount cannot exceed total amount" },
+        { status: 400 }
+      );
+    }
+
+    if (finalPaidAmount > 0) {
+      const pmId = (paymentMethodId || oldBill.payment_method_id || "cash").toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+        excludeTransaction: {
+          amount: Number(oldBill.paid_amount) || 0,
+          paymentMethodId: oldBill.payment_method_id?.toString(),
+        },
+      });
+
+      if (finalPaidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${finalPaidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: finalPaidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
     // Revert stock and batches of old items
@@ -574,13 +630,6 @@ export async function PUT(request: Request) {
       billDate: finalBillDate,
     });
 
-    const finalPaidAmount = Number(paidAmount) || 0;
-    if (finalPaidAmount > totalAmount) {
-      return NextResponse.json(
-        { error: "Paid amount cannot exceed total amount" },
-        { status: 400 }
-      );
-    }
     const finalBalanceDue = totalAmount - finalPaidAmount;
     const finalIsPaid = finalBalanceDue === 0;
 

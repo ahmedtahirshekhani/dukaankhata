@@ -72,6 +72,7 @@ import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
 import * as XLSX from "xlsx";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { usePermissions } from "@/hooks/use-permissions";
+import { checkProductHasTransactionsOffline } from "@/lib/entity-checks/offline";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -189,7 +190,30 @@ export default function Products() {
     if (!productToDelete) return;
     try {
       setIsDeleting(true);
+
+      const checkResult = await checkProductHasTransactionsOffline(productToDelete.id);
+      if (checkResult.hasTransactions) {
+        setIsDeleteConfirmationOpen(false);
+        setProductToDelete(null);
+        setErrorDialog({
+          open: true,
+          title: t("cannotDelete") || "Cannot Delete",
+          message: t("hasAssociatedTransactions", { details: checkResult.summary }) ||
+            `Cannot delete item because it has associated transactions (${checkResult.summary}).`,
+        });
+        return;
+      }
+
       await db.products.delete(productToDelete.id);
+      // Clean up untouched opening stock batch if exists
+      const openingBatches = await db.inventory_batches
+        .where("product_id")
+        .equals(String(productToDelete.id))
+        .toArray();
+      for (const b of openingBatches) {
+        if (b.id) await db.inventory_batches.delete(b.id);
+      }
+
       await SyncEngine.queueOperation("products", "DELETE", `/api/products/${productToDelete.id}`, {}, String(productToDelete.id));
       setIsDeleteConfirmationOpen(false);
       setProductToDelete(null);
@@ -198,7 +222,7 @@ export default function Products() {
     } finally {
       setIsDeleting(false);
     }
-  }, [productToDelete]);
+  }, [productToDelete, t]);
 
   const currentProducts = products;
 

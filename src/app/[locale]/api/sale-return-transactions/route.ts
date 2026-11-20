@@ -249,6 +249,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (paidAmount > 0) {
+      const pmId = paymentMethodId.toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+      });
+
+      if (paidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${paidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: paidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (lineItems.length === 0) {
       return NextResponse.json(
         { error: "At least one return item is required" },

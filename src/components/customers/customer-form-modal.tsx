@@ -198,20 +198,21 @@ export function CustomerFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-xl sm:text-2xl">
+          <DialogTitle className="text-lg sm:text-2xl font-bold">
             {!isEditMode ? t("createNewCustomer") : t("editCustomerTitle")}
           </DialogTitle>
         </DialogHeader>
         
-        <div className="grid gap-4 sm:gap-6 py-3 sm:py-4">
-          <div className="space-y-3 sm:space-y-4">
+        <div className="grid gap-4 sm:gap-5 py-2 sm:py-3">
+          {/* Contact Information */}
+          <div className="space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold text-foreground">
               {t("contactInformation")}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="name" className="text-xs sm:text-sm font-medium">
                   {t("nameLabel")}<span className="text-red-500 ml-1">*</span>
                 </Label>
@@ -223,7 +224,7 @@ export function CustomerFormModal({
                   className="h-9 sm:h-10 text-sm"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-xs sm:text-sm font-medium">
                   {t("phoneLabel")}
                 </Label>
@@ -240,7 +241,7 @@ export function CustomerFormModal({
                 />
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs sm:text-sm font-medium">
                 {t("emailLabel")}
               </Label>
@@ -255,11 +256,12 @@ export function CustomerFormModal({
             </div>
           </div>
 
-          <div className="space-y-3 sm:space-y-4">
+          {/* Company Information */}
+          <div className="space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold text-foreground">
               {t("companyInformation")}
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="company_name" className="text-xs sm:text-sm font-medium">
                 {t("companyNameLabel")}
               </Label>
@@ -271,7 +273,7 @@ export function CustomerFormModal({
                 className="h-9 sm:h-10 text-sm"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="company_address" className="text-xs sm:text-sm font-medium">
                 {t("companyAddressLabel")}
               </Label>
@@ -285,12 +287,13 @@ export function CustomerFormModal({
             </div>
           </div>
 
-          <div className="space-y-3 sm:space-y-4">
+          {/* Financial Information */}
+          <div className="space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold text-foreground">
               {t("financialInformation")}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="balance" className="text-xs sm:text-sm font-medium">
                   {t("openingBalance")}
                 </Label>
@@ -301,8 +304,11 @@ export function CustomerFormModal({
                   placeholder={t("balancePlaceholder")}
                   className="h-9 sm:h-10 text-sm"
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {t("openingBalanceHelper")}
+                </p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs sm:text-sm font-medium">{t("balanceType")}</Label>
                 <Select
                   value={balanceType}
@@ -319,13 +325,16 @@ export function CustomerFormModal({
               </div>
             </div>
 
+            {/* Current Live Balance Box (In Edit Mode) */}
             {isEditMode && customerToEdit?.balance !== undefined && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border text-xs sm:text-sm">
-                <span className="text-muted-foreground">{t("currentBalance") || "Current Balance"}:</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-3 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-xs sm:text-sm">
+                <span className="text-muted-foreground font-medium">
+                  {t("currentBalance") || "Current Live Balance"}:
+                </span>
                 <span className={cn(
-                  "font-bold font-mono",
-                  Number(customerToEdit.balance) > 0 ? "text-emerald-600 dark:text-emerald-400" :
-                  Number(customerToEdit.balance) < 0 ? "text-rose-600 dark:text-rose-400" :
+                  "font-bold font-mono text-xs sm:text-sm",
+                  Number(customerToEdit.balance) > 0 ? "text-emerald-700 dark:text-emerald-400" :
+                  Number(customerToEdit.balance) < 0 ? "text-rose-700 dark:text-rose-400" :
                   "text-slate-700 dark:text-slate-300"
                 )}>
                   {t("currencySymbol") || "Rs."} {Math.abs(Number(customerToEdit.balance)).toLocaleString()} (
@@ -334,10 +343,6 @@ export function CustomerFormModal({
                 </span>
               </div>
             )}
-
-            <p className="text-xs text-muted-foreground mt-1">
-              {t("openingBalanceHelper")}
-            </p>
           </div>
         </div>
 

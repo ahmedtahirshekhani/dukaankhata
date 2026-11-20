@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { db } from "@/lib/db/offline-db";
-import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethodsWithBalance } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrencyString } from "@/lib/utils";
+import { formatCurrencyString, cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -263,25 +263,48 @@ export default function SaleReturnPage() {
   }, [customers, filterCustomerPage]);
   const hasMoreFilterCustomers = displayCustomers.length < customers.length;
 
-  const offlinePaymentMethods = useOfflinePaymentMethods() || [];
+  const offlinePaymentMethods = useOfflinePaymentMethodsWithBalance() || [];
   
   const paymentMethods = useMemo(() => {
     const list = offlinePaymentMethods.map((item: any) => ({
       id: item.id || item._id,
       name: item.bankName || item.name || item.bank_name,
       bankDetails: item.bankDetails || item.bank_details,
-    })).filter((item) => item.id && item.name);
+      currentBalance: typeof item.currentBalance === "number" ? item.currentBalance : 0,
+      is_default: item.is_default,
+    })).filter((item: any) => item.id && item.name);
+
+    const cashAccount = list.find((m: any) => m.id === "cash" || m.name?.toLowerCase().includes("cash") || m.is_default);
+    const cashBalance = cashAccount ? cashAccount.currentBalance : 0;
 
     const allMethods = [
-      { id: "cash", name: "Cash" },
-      { id: "cheque", name: "Cheque" },
+      { id: "cash", name: "Cash", currentBalance: cashBalance },
+      { id: "cheque", name: "Cheque", currentBalance: 0 },
       ...list,
     ];
 
     const uniqueMap = new Map();
-    allMethods.forEach(m => uniqueMap.set(m.id, m));
+    allMethods.forEach(m => {
+      if (!uniqueMap.has(m.id) || (m.currentBalance !== 0 && uniqueMap.get(m.id).currentBalance === 0)) {
+        uniqueMap.set(m.id, m);
+      }
+    });
     return Array.from(uniqueMap.values());
   }, [offlinePaymentMethods]);
+
+  const selectedMethodBalance = useMemo(() => {
+    if (!formPaymentMethodId) return null;
+    const found = paymentMethods.find((p: any) => p.id === formPaymentMethodId);
+    let bal = found ? (Number(found.currentBalance) || 0) : 0;
+    if (selectedId) {
+      const existing = (allOfflineTransactions || []).find((r: any) => r.id === selectedId);
+      const existingMethodId = existing?.paymentMethodId || existing?.payment_method_id;
+      if (existing && existingMethodId === formPaymentMethodId) {
+        bal += Number(existing.paidAmount ?? existing.paid_amount ?? 0);
+      }
+    }
+    return bal;
+  }, [formPaymentMethodId, paymentMethods, selectedId, allOfflineTransactions]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -384,6 +407,18 @@ export default function SaleReturnPage() {
         open: true,
         title: t("validationError"),
         message: t("paidAmountValidationError"),
+      });
+      return false;
+    }
+
+    if (paidAmount > 0 && selectedMethodBalance !== null && paidAmount > selectedMethodBalance) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("insufficientBalance", {
+          available: selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          required: paidAmount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        }),
       });
       return false;
     }
@@ -650,7 +685,10 @@ export default function SaleReturnPage() {
         }
 
         // Delete batches associated with this sale return
-        const retBatches = await db.inventory_batches.where("source_id").equals(transactionToDelete.id.toString()).toArray();
+        const delTargetId = transactionToDelete.id.toString();
+        const retBatches = await db.inventory_batches
+          .filter((b: any) => String(b.source_id || b.sourceId) === delTargetId)
+          .toArray();
         for (const b of retBatches) {
           if (b.id) await db.inventory_batches.delete(b.id);
         }
@@ -772,6 +810,19 @@ export default function SaleReturnPage() {
             addButtonPosition="bottom"
             // includeDefaultMethods={true}
           />
+          {selectedMethodBalance !== null && (
+            <div className="text-xs flex items-center justify-between pt-1 px-1">
+              <span className="text-muted-foreground">{t("availableBalance") || "Available Balance"}:</span>
+              <span className={cn(
+                "font-mono font-bold",
+                (selectedMethodBalance >= paidAmount)
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400"
+              )}>
+                Rs. {selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           <Label>{t("invoiceDate")}</Label>

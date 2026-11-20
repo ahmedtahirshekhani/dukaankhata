@@ -1095,3 +1095,596 @@ export async function resequenceProductFIFOBatchesServer(options: {
     resequencedOrdersCount: modifiedOrders.size,
   };
 }
+
+export interface DynamicSaleValuation {
+  orderId: string;
+  refNo: string;
+  date: Date;
+  quantity: number;
+  unitCost: number;
+  totalCogs: number;
+  batchSplits?: any[];
+}
+
+export interface ProductSalesValuationResult {
+  orderCostMap: Map<string, DynamicSaleValuation>;
+  periodCogs: number;
+  periodSoldQty: number;
+  allTimeCogs: number;
+  allTimeSoldQty: number;
+  valuationMethod: string;
+}
+
+/**
+ * Dynamically calculates the exact valuation cost rate and COGS for all sales of a product
+ * using the real-time Moving Average / FIFO sequence timeline (identical to Valuation Ledger).
+ */
+export async function calculateProductDynamicSalesValuation(options: {
+  userId: string;
+  productId: string;
+  fromDate?: Date | string | null;
+  toDate?: Date | string | null;
+  syncDatabase?: boolean;
+}): Promise<ProductSalesValuationResult> {
+  const { userId, productId, fromDate, toDate, syncDatabase = true } = options;
+  const orderCostMap = new Map<string, DynamicSaleValuation>();
+
+  if (!productId || !isValidObjectId(productId)) {
+    return {
+      orderCostMap,
+      periodCogs: 0,
+      periodSoldQty: 0,
+      allTimeCogs: 0,
+      allTimeSoldQty: 0,
+      valuationMethod: "average",
+    };
+  }
+
+  const uId = toObjectId(userId);
+  const pId = toObjectId(productId);
+  const valuationMethod = await getValuationMethod(userId);
+
+  const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+  const product = await productsCollection.findOne({ _id: pId, user_id: uId });
+
+  if (!product) {
+    return {
+      orderCostMap,
+      periodCogs: 0,
+      periodSoldQty: 0,
+      allTimeCogs: 0,
+      allTimeSoldQty: 0,
+      valuationMethod,
+    };
+  }
+
+  const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+  const purchaseBillsCollection = await getCollection(COLLECTIONS.PURCHASE_BILLS);
+  const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
+  const saleReturnsCollection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
+  const stockAdjustmentsCollection = await getCollection(
+    (COLLECTIONS as any).STOCK_ADJUSTMENTS || "stock_adjustments"
+  );
+
+  const [batches, purchaseBills, orders, saleReturns, stockAdjustments] = await Promise.all([
+    batchesCollection.find({ user_id: uId, product_id: { $in: [pId, productId] } }).toArray(),
+    purchaseBillsCollection.find({ user_id: uId, "items.product_id": { $in: [pId, productId] } }).toArray(),
+    ordersCollection.find({ user_id: uId, status: { $ne: "cancelled" }, "items.product_id": { $in: [pId, productId] } }).toArray(),
+    saleReturnsCollection.find({
+      user_id: uId,
+      $or: [
+        { "items.productId": productId },
+        { "items.product_id": productId },
+        { "items.productId": pId },
+        { "items.product_id": pId },
+      ],
+    }).toArray(),
+    stockAdjustmentsCollection.find({ user_id: uId, product_id: { $in: [pId, productId] } }).toArray(),
+  ]);
+
+  const getExactTimestamp = (dateVal: any, createdAtVal: any): Date => {
+    if (!dateVal && !createdAtVal) return new Date();
+    const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
+    if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
+
+    if (base.getHours() === 0 && base.getMinutes() === 0 && base.getSeconds() === 0 && createdAtVal) {
+      const created = new Date(createdAtVal);
+      if (!isNaN(created.getTime())) {
+        base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
+      }
+    }
+    return base;
+  };
+
+  interface RawMovement {
+    id: string;
+    orderId?: string;
+    date: Date;
+    type: "opening_stock" | "purchase" | "sale" | "sale_return" | "adjustment_add" | "adjustment_reduce";
+    refNo: string;
+    inwardQty: number;
+    outwardQty: number;
+    unitRate: number;
+    costPrice: number;
+    totalAmount: number;
+    batchSplits?: any[];
+  }
+
+  const rawMovements: RawMovement[] = [];
+
+  // Opening stock determination
+  const openingBatch = batches.find(
+    (b: any) => b.source_type === "opening_stock" || b.batch_number === "OPENING"
+  );
+  let initialOpeningQty = openingBatch
+    ? Number(openingBatch.initial_quantity) || 0
+    : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
+  let initialOpeningCost = openingBatch
+    ? Number(openingBatch.cost_price) || 0
+    : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+  if (initialOpeningCost <= 0) {
+    const sortedOrders = [...orders].sort(
+      (a, b) =>
+        new Date(a.date || a.sale_date || a.created_at).getTime() -
+        new Date(b.date || b.sale_date || b.created_at).getTime()
+    );
+    for (const ord of sortedOrders) {
+      const item = (ord.items || []).find(
+        (it: any) =>
+          it.product_id?.toString() === productId ||
+          it.product_id?.toString() === pId.toString()
+      );
+      if (item && Number(item.cost_price) > 0) {
+        initialOpeningCost = Number(item.cost_price);
+        break;
+      }
+    }
+  }
+
+  if (initialOpeningCost <= 0) {
+    initialOpeningCost = Number((product as any).purchase_price || product.cost_price || 0);
+  }
+
+  const allTxDates: number[] = [];
+  if (product.created_at) allTxDates.push(new Date(product.created_at).getTime());
+  if (openingBatch?.batch_date) allTxDates.push(new Date(openingBatch.batch_date).getTime());
+  if (openingBatch?.created_at) allTxDates.push(new Date(openingBatch.created_at).getTime());
+  for (const b of purchaseBills) allTxDates.push(new Date(b.bill_date || b.created_at).getTime());
+  for (const o of orders) allTxDates.push(new Date(o.sale_date || o.created_at).getTime());
+  for (const a of stockAdjustments) allTxDates.push(new Date(a.date || a.created_at).getTime());
+  const validTxDates = allTxDates.filter((t) => !isNaN(t) && t > 0);
+  const earliestTx = validTxDates.length > 0 ? Math.min(...validTxDates) : Date.now();
+  const openingDate = new Date(earliestTx);
+
+  if (initialOpeningQty <= 0) {
+    const totalPurchased = purchaseBills.reduce((acc, b) => {
+      const matched = (b.items || []).filter(
+        (it: any) =>
+          it.product_id?.toString() === productId ||
+          it.product_id?.toString() === pId.toString()
+      );
+      return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+    }, 0);
+    const totalSold = orders.reduce((acc, o) => {
+      const matched = (o.items || []).filter(
+        (it: any) =>
+          it.product_id?.toString() === productId ||
+          it.product_id?.toString() === pId.toString()
+      );
+      return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+    }, 0);
+    const totalAdjustAdd = stockAdjustments
+      .filter((a: any) => a.action_type === "add")
+      .reduce((acc: number, a: any) => acc + (Number(a.quantity) || 0), 0);
+    const totalAdjustReduce = stockAdjustments
+      .filter((a: any) => a.action_type !== "add")
+      .reduce((acc: number, a: any) => acc + (Number(a.quantity) || 0), 0);
+    const totalReturned = saleReturns.reduce((acc, r) => {
+      const matched = (r.items || []).filter(
+        (it: any) =>
+          (it.productId || it.product_id)?.toString() === productId ||
+          (it.productId || it.product_id)?.toString() === pId.toString()
+      );
+      return acc + matched.reduce((mAcc: number, it: any) => mAcc + (Number(it.quantity) || 0), 0);
+    }, 0);
+    const curStockNum = Number(product.quantity || product.in_stock || 0);
+    const impliedOpening =
+      Math.round(
+        (curStockNum - (totalPurchased + totalAdjustAdd + totalReturned - totalSold - totalAdjustReduce)) * 1000
+      ) / 1000;
+    if (impliedOpening > 0) {
+      initialOpeningQty = impliedOpening;
+    }
+  }
+
+  rawMovements.push({
+    id: `opening-${product._id}`,
+    date: openingDate,
+    type: "opening_stock",
+    refNo: "OPENING",
+    inwardQty: initialOpeningQty > 0 ? initialOpeningQty : 0,
+    outwardQty: 0,
+    unitRate: initialOpeningCost,
+    costPrice: initialOpeningCost,
+    totalAmount: Math.round(initialOpeningQty * initialOpeningCost * 100) / 100,
+  });
+
+  // Map Purchase Bills
+  for (const bill of purchaseBills) {
+    const d = getExactTimestamp(bill.bill_date || bill.date, bill.created_at);
+    const matchedItems = (bill.items || []).filter(
+      (it: any) =>
+        it.product_id?.toString() === productId ||
+        it.product_id?.toString() === pId.toString()
+    );
+
+    for (const it of matchedItems) {
+      const qty = Number(it.quantity) || 0;
+      const rate = Number(it.cost_price ?? it.unit_price) || 0;
+      rawMovements.push({
+        id: `pb-${bill._id}-${it.product_id}`,
+        date: d,
+        type: "purchase",
+        refNo: bill.bill_number || `BILL-${bill._id.toString().slice(-6)}`,
+        inwardQty: qty,
+        outwardQty: 0,
+        unitRate: rate,
+        costPrice: rate,
+        totalAmount: Math.round(qty * rate * 100) / 100,
+      });
+    }
+  }
+
+  // Map Sales Orders
+  for (const order of orders) {
+    const d = getExactTimestamp(order.sale_date || order.date, order.created_at);
+    const matchedItems = (order.items || []).filter(
+      (it: any) =>
+        it.product_id?.toString() === productId ||
+        it.product_id?.toString() === pId.toString()
+    );
+
+    for (const it of matchedItems) {
+      const qty = Number(it.quantity) || 0;
+      const price = Number(it.price) || 0;
+      const costPrice = Number(it.cost_price) || 0;
+      const splits = Array.isArray(it.batch_splits) && it.batch_splits.length > 0 ? it.batch_splits : null;
+
+      rawMovements.push({
+        id: `so-${order._id}-${it.product_id}`,
+        orderId: order._id.toString(),
+        date: d,
+        type: "sale",
+        refNo: order.invoice_no || `INV-${order._id.toString().slice(-6)}`,
+        inwardQty: 0,
+        outwardQty: qty,
+        unitRate: price,
+        costPrice,
+        totalAmount: Math.round(qty * price * 100) / 100,
+        batchSplits: splits || [],
+      });
+    }
+  }
+
+  // Map Sale Returns
+  for (const ret of saleReturns) {
+    const d = getExactTimestamp(ret.return_date || ret.date, ret.created_at);
+    const matchedItems = (ret.items || []).filter(
+      (it: any) =>
+        (it.productId || it.product_id)?.toString() === productId ||
+        (it.productId || it.product_id)?.toString() === pId.toString()
+    );
+
+    for (const it of matchedItems) {
+      const qty = Number(it.quantity) || 0;
+      const returnCost =
+        Number(it.costPrice ?? it.cost_price ?? product.cost_price ?? product.purchase_price) || 0;
+      rawMovements.push({
+        id: `sr-${ret._id}-${it.productId || it.product_id}`,
+        date: d,
+        type: "sale_return",
+        refNo: ret.returnNumber || ret.return_number || `RET-${ret._id.toString().slice(-6)}`,
+        inwardQty: qty,
+        outwardQty: 0,
+        unitRate: returnCost,
+        costPrice: returnCost,
+        totalAmount: Math.round(qty * returnCost * 100) / 100,
+      });
+    }
+  }
+
+  // Map Stock Adjustments
+  for (const adj of stockAdjustments) {
+    const d = getExactTimestamp(adj.date, adj.created_at);
+    const qty = Number(adj.quantity) || 0;
+    const isAdd = adj.action_type === "add";
+    const rate = Number(adj.cost_price ?? (product as any).cost_price) || 0;
+
+    rawMovements.push({
+      id: `adj-${adj._id}`,
+      date: d,
+      type: isAdd ? "adjustment_add" : "adjustment_reduce",
+      refNo: adj.ref_no || `ADJ-${adj._id.toString().slice(-6)}`,
+      inwardQty: isAdd ? qty : 0,
+      outwardQty: !isAdd ? qty : 0,
+      unitRate: rate,
+      costPrice: rate,
+      totalAmount: Math.round(qty * rate * 100) / 100,
+    });
+  }
+
+  let calculatedSales: Array<{
+    orderId: string;
+    refNo: string;
+    date: Date;
+    quantity: number;
+    unitCost: number;
+    totalCogs: number;
+    batchSplits?: any[];
+  }> = [];
+
+  if (valuationMethod !== "fifo") {
+    // Interleaved sequence for WAC
+    const opening = rawMovements.find((m) => m.type === "opening_stock");
+    const otherMoves = rawMovements.filter((m) => m.type !== "opening_stock");
+
+    const inwardQueue = otherMoves
+      .filter((m) => (m.inwardQty || 0) > 0)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const outwardQueue = otherMoves
+      .filter((m) => (m.outwardQty || 0) > 0)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const sequence: RawMovement[] = [];
+    let runningStock = 0;
+
+    if (opening) {
+      sequence.push(opening);
+      runningStock += opening.inwardQty || 0;
+    }
+
+    while (outwardQueue.length > 0) {
+      const nextSale = outwardQueue[0];
+
+      while (
+        inwardQueue.length > 0 &&
+        new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()
+      ) {
+        const naturalInward = inwardQueue.shift()!;
+        sequence.push(naturalInward);
+        runningStock += naturalInward.inwardQty || 0;
+      }
+
+      while (runningStock < nextSale.outwardQty && inwardQueue.length > 0) {
+        const deficitInward = inwardQueue.shift()!;
+        sequence.push(deficitInward);
+        runningStock += deficitInward.inwardQty || 0;
+      }
+
+      outwardQueue.shift();
+      sequence.push(nextSale);
+      runningStock -= nextSale.outwardQty;
+    }
+
+    while (inwardQueue.length > 0) {
+      const remainingInward = inwardQueue.shift()!;
+      sequence.push(remainingInward);
+      runningStock += remainingInward.inwardQty || 0;
+    }
+
+    let runningBalance = 0;
+    let runningWac =
+      initialOpeningCost > 0
+        ? initialOpeningCost
+        : Number(product.cost_price ?? product.purchase_price) || 0;
+    let priorFulfilledBudget = 0;
+
+    for (const m of sequence) {
+      const prevBal = runningBalance;
+      const prevWac = runningWac;
+      let effectiveWac = runningWac;
+
+      if (m.type === "opening_stock") {
+        runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
+        effectiveWac = m.unitRate > 0 ? m.unitRate : runningWac;
+        runningWac = effectiveWac;
+      } else if (m.type === "purchase") {
+        const inQty = m.inwardQty;
+        const inRate = m.unitRate;
+        if (prevBal < 0 && prevWac > 0) {
+          effectiveWac = calculateMovingAverageWithPrior(
+            prevBal,
+            prevWac,
+            inQty,
+            inRate,
+            priorFulfilledBudget
+          );
+        } else {
+          effectiveWac = calculateMovingAverage(prevBal, prevWac, inQty, inRate);
+        }
+        runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
+        runningWac = effectiveWac;
+      } else if (m.type === "adjustment_add") {
+        const inQty = m.inwardQty;
+        const inRate = m.costPrice > 0 ? m.costPrice : prevWac;
+        if (inRate > 0 && inRate !== prevWac) {
+          effectiveWac =
+            prevBal < 0
+              ? calculateMovingAverageWithPrior(
+                  prevBal,
+                  prevWac,
+                  inQty,
+                  inRate,
+                  priorFulfilledBudget
+                )
+              : calculateMovingAverage(prevBal, prevWac, inQty, inRate);
+          runningWac = effectiveWac;
+        } else {
+          effectiveWac = runningWac;
+        }
+        runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
+      } else if (m.type === "sale_return") {
+        const dynamicRate = runningWac > 0 ? runningWac : (m.unitRate > 0 ? m.unitRate : prevWac);
+        m.unitRate = dynamicRate;
+        m.costPrice = dynamicRate;
+        m.totalAmount = Math.round(m.inwardQty * dynamicRate * 100) / 100;
+        runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
+        effectiveWac = runningWac > 0 ? runningWac : dynamicRate;
+        runningWac = effectiveWac;
+      } else if (m.type === "sale") {
+        const outQty = m.outwardQty;
+        effectiveWac = runningWac;
+        if (prevBal > 0) {
+          priorFulfilledBudget += Math.min(prevBal, outQty);
+        }
+        runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
+        const saleCogs = roundToPrecision(outQty * effectiveWac, 2);
+
+        calculatedSales.push({
+          orderId: m.orderId || "",
+          refNo: m.refNo,
+          date: m.date,
+          quantity: outQty,
+          unitCost: effectiveWac,
+          totalCogs: saleCogs,
+        });
+      } else if (m.type === "adjustment_reduce") {
+        const outQty = m.outwardQty;
+        runningBalance = Math.round((runningBalance - outQty) * 1000) / 1000;
+      }
+    }
+  } else {
+    // FIFO mode: use batch splits
+    for (const m of rawMovements) {
+      if (m.type === "sale") {
+        const splits = m.batchSplits || [];
+        let saleCogs = 0;
+        if (splits.length > 0) {
+          saleCogs = splits.reduce(
+            (acc: number, s: any) =>
+              acc + (Number(s.total_cost) || Number(s.quantity) * Number(s.cost_price)),
+            0
+          );
+        } else {
+          saleCogs = roundToPrecision(m.outwardQty * m.costPrice, 2);
+        }
+        const unitCost =
+          m.outwardQty > 0
+            ? roundToPrecision(saleCogs / m.outwardQty, 4)
+            : Number(product.cost_price) || 0;
+
+        calculatedSales.push({
+          orderId: m.orderId || "",
+          refNo: m.refNo,
+          date: m.date,
+          quantity: m.outwardQty,
+          unitCost,
+          totalCogs: saleCogs,
+          batchSplits: splits,
+        });
+      }
+    }
+  }
+
+  // Populate orderCostMap and calculate totals
+  let allTimeCogs = 0;
+  let allTimeSoldQty = 0;
+  let periodCogs = 0;
+  let periodSoldQty = 0;
+
+  const from = fromDate ? new Date(fromDate) : null;
+  const to = toDate ? new Date(toDate) : null;
+
+  for (const cs of calculatedSales) {
+    if (!cs.orderId && !cs.refNo) continue;
+
+    const existing = orderCostMap.get(cs.orderId) || orderCostMap.get(cs.refNo);
+    if (existing) {
+      existing.quantity = roundToPrecision(existing.quantity + cs.quantity, 5);
+      existing.totalCogs = roundToPrecision(existing.totalCogs + cs.totalCogs, 2);
+      existing.unitCost =
+        existing.quantity > 0
+          ? roundToPrecision(existing.totalCogs / existing.quantity, 4)
+          : cs.unitCost;
+      if (cs.batchSplits && cs.batchSplits.length > 0) {
+        existing.batchSplits = [...(existing.batchSplits || []), ...cs.batchSplits];
+      }
+    } else {
+      const entry: DynamicSaleValuation = {
+        orderId: cs.orderId,
+        refNo: cs.refNo,
+        date: cs.date,
+        quantity: cs.quantity,
+        unitCost: cs.unitCost,
+        totalCogs: cs.totalCogs,
+        batchSplits: cs.batchSplits,
+      };
+      if (cs.orderId) orderCostMap.set(cs.orderId, entry);
+      if (cs.refNo) orderCostMap.set(cs.refNo, entry);
+    }
+
+    allTimeCogs += cs.totalCogs;
+    allTimeSoldQty += cs.quantity;
+
+    const dTime = cs.date.getTime();
+    const matchesFrom = !from || dTime >= from.getTime();
+    const matchesTo = !to || dTime <= to.getTime();
+    if (matchesFrom && matchesTo) {
+      periodCogs += cs.totalCogs;
+      periodSoldQty += cs.quantity;
+    }
+  }
+
+  // Background sync to MongoDB order documents if in Average mode
+  if (syncDatabase && valuationMethod !== "fifo") {
+    try {
+      for (const order of orders) {
+        const orderIdStr = order._id.toString();
+        const dyn = orderCostMap.get(orderIdStr) || orderCostMap.get(order.invoice_no);
+        if (!dyn || dyn.unitCost <= 0) continue;
+
+        let needsUpdate = false;
+        const newItems = (order.items || []).map((it: any) => {
+          const itProdId = it.product_id?.toString() || it.productId?.toString();
+          if (itProdId === productId || itProdId === pId.toString()) {
+            const curCost = Number(it.cost_price) || 0;
+            const curCogs = Number(it.total_cogs) || 0;
+            if (
+              Math.abs(curCost - dyn.unitCost) > 0.001 ||
+              Math.abs(curCogs - dyn.totalCogs) > 0.01
+            ) {
+              needsUpdate = true;
+              return {
+                ...it,
+                cost_price: dyn.unitCost,
+                total_cogs: dyn.totalCogs,
+              };
+            }
+          }
+          return it;
+        });
+
+        if (needsUpdate) {
+          ordersCollection
+            .updateOne(
+              { _id: order._id },
+              { $set: { items: newItems, updated_at: new Date() } }
+            )
+            .catch((e) => console.error("Order valuation sync error:", e));
+        }
+      }
+    } catch (syncErr) {
+      console.error("Failed to sync dynamic order valuation to db:", syncErr);
+    }
+  }
+
+  return {
+    orderCostMap,
+    periodCogs: roundToPrecision(periodCogs, 2),
+    periodSoldQty: roundToPrecision(periodSoldQty, 5),
+    allTimeCogs: roundToPrecision(allTimeCogs, 2),
+    allTimeSoldQty: roundToPrecision(allTimeSoldQty, 5),
+    valuationMethod,
+  };
+}

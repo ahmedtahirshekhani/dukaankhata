@@ -793,7 +793,7 @@ export async function recordStockAdjustmentOffline(options: {
     created_at: new Date().toISOString(),
   });
 
-  // Auto-create expense entry when stock is reduced (Stock Adjustment Loss)
+  // Auto-create expense entry when stock is reduced (Stock Adjustment Loss) or increased (Stock Adjustment Gain / Negative Expense)
   if (actionType === "reduce") {
     let totalReductionAmount = 0;
     if (valuationMethod === "fifo" && consumedBatchSplits.length > 0) {
@@ -816,11 +816,32 @@ export async function recordStockAdjustmentOffline(options: {
         expenseNumber: `EXP-${refNo}`,
         date: dateIso,
         category: "Stock Adjustment",
-        itemName: `${product.name} (Qty: ${quantity} ${product.uom || 'pcs'})`,
+        itemName: `${product.name} (Qty: -${quantity} ${product.uom || 'pcs'})`,
         description: `Stock Adjustment (${refNo}) - ${reason || 'Physical Count'}`,
         qty: quantity,
         rate: effectiveUnitCost,
         amount: totalReductionAmount,
+        source_type: "stock_adjustment",
+        source_id: adjId,
+        ref_no: refNo,
+        created_at: dateIso,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } else if (actionType === "add") {
+    const totalAdditionAmount = roundToPrecision(quantity * finalAdjCost, 2);
+    if (totalAdditionAmount > 0) {
+      const expenseId = `exp_adj_${adjId}`;
+      await db.expenses.put({
+        id: expenseId,
+        expenseNumber: `EXP-${refNo}`,
+        date: dateIso,
+        category: "Stock Adjustment",
+        itemName: `${product.name} (Qty: +${quantity} ${product.uom || 'pcs'})`,
+        description: `Stock Adjustment Gain (${refNo}) - ${reason || 'Physical Count'}`,
+        qty: quantity,
+        rate: finalAdjCost,
+        amount: -totalAdditionAmount, // Negative expense = Extra profit
         source_type: "stock_adjustment",
         source_id: adjId,
         ref_no: refNo,
@@ -1359,8 +1380,27 @@ export async function updateStockAdjustmentOffline(options: {
           updated_at: new Date().toISOString(),
         });
       }
-    } else {
-      if (existingExp) {
+    } else if (actionType === "add") {
+      const totalAdditionAmount = roundToPrecision(quantity * finalAdjCost, 2);
+      if (totalAdditionAmount > 0) {
+        const expenseId = existingExp?.id || `exp_adj_${adjustmentId}`;
+        await db.expenses.put({
+          id: expenseId,
+          expenseNumber: `EXP-${oldAdj?.ref_no || `ADJ-${String(adjustmentId).slice(-6)}`}`,
+          date: dateIso,
+          category: "Stock Adjustment",
+          itemName: `${product.name} (Qty: +${quantity} ${product.uom || 'pcs'})`,
+          description: `Stock Adjustment Gain (${oldAdj?.ref_no || ''}) - ${reason || 'Physical Count'}`,
+          qty: quantity,
+          rate: finalAdjCost,
+          amount: -totalAdditionAmount, // Negative expense = Extra profit
+          source_type: "stock_adjustment",
+          source_id: adjustmentId,
+          ref_no: oldAdj?.ref_no,
+          created_at: existingExp?.created_at || dateIso,
+          updated_at: new Date().toISOString(),
+        });
+      } else if (existingExp) {
         await db.expenses.delete(existingExp.id);
       }
     }
@@ -1839,6 +1879,9 @@ export async function getOfflineProductStockValuationHistory(options: {
       } else if (m.type === "sale_return") {
         runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
         effectiveRate = m.costPrice > 0 ? m.costPrice : lastKnownCost;
+        m.unitRate = effectiveRate;
+        m.costPrice = effectiveRate;
+        m.totalAmount = roundToPrecision(m.inwardQty * effectiveRate, 2);
         runningValuation = roundToPrecision(runningValuation + (m.inwardQty * effectiveRate), 2);
         impactFormula = `Sale Return (${m.inwardQty} units) returned to inventory @ ${effectiveRate}`;
       } else if (m.type === "sale") {
@@ -1861,6 +1904,8 @@ export async function getOfflineProductStockValuationHistory(options: {
 
       return {
         ...m,
+        unitRate: m.type === "sale_return" ? effectiveRate : m.unitRate,
+        totalAmount: m.type === "sale_return" ? roundToPrecision(m.inwardQty * effectiveRate, 2) : m.totalAmount,
         date: m.date.toISOString(),
         costPrice: effectiveRate,
         cogs,
@@ -1915,9 +1960,14 @@ export async function getOfflineProductStockValuationHistory(options: {
         }
         runningBalance = Math.round((runningBalance + inQty) * 1000) / 1000;
       } else if (m.type === "sale_return") {
+        const dynamicRate = runningWac > 0 ? runningWac : (m.unitRate > 0 ? m.unitRate : prevWac);
+        m.unitRate = dynamicRate;
+        m.costPrice = dynamicRate;
+        m.totalAmount = Math.round(m.inwardQty * dynamicRate * 100) / 100;
         runningBalance = Math.round((runningBalance + m.inwardQty) * 1000) / 1000;
-        effectiveWac = runningWac;
-        wacFormula = `Sale Return (${m.inwardQty}) returned to inventory (WAC: ${runningWac})`;
+        effectiveWac = runningWac > 0 ? runningWac : dynamicRate;
+        runningWac = effectiveWac;
+        wacFormula = `Sale Return (${m.inwardQty}) returned to inventory @ WAC (${dynamicRate})`;
       } else if (m.type === "sale") {
         const outQty = m.outwardQty;
         effectiveWac = runningWac;
@@ -1937,7 +1987,7 @@ export async function getOfflineProductStockValuationHistory(options: {
       const runningValuation = roundToPrecision(runningBalance * effectiveWac, 2);
 
       // Cost price & outward COGS
-      const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce")
+      const finalCostPrice = (m.type === "sale" || m.type === "adjustment_reduce" || m.type === "sale_return")
         ? effectiveWac
         : (m.costPrice || m.unitRate || effectiveWac);
 
@@ -1947,6 +1997,8 @@ export async function getOfflineProductStockValuationHistory(options: {
 
       return {
         ...m,
+        unitRate: m.type === "sale_return" ? effectiveWac : m.unitRate,
+        totalAmount: m.type === "sale_return" ? Math.round(m.inwardQty * effectiveWac * 100) / 100 : m.totalAmount,
         date: m.date.toISOString(),
         costPrice: finalCostPrice,
         cogs: outwardCogs,

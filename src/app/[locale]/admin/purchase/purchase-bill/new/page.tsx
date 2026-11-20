@@ -29,7 +29,8 @@ import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
-import { generateReferenceNumber } from "@/lib/utils";
+import { generateReferenceNumber, cn } from "@/lib/utils";
+import { useOfflinePaymentMethodsWithBalance } from "@/lib/hooks/useOfflineData";
 import { ArrowLeftIcon, Loader2Icon } from "lucide-react";
 
 const getTodayDateString = () => {
@@ -81,6 +82,50 @@ function AddPurchaseBillPageInner() {
 
   const [saveError, setSaveError] = useState<string>("");
   const [showSaveErrorDialog, setShowSaveErrorDialog] = useState(false);
+  const [oldBillData, setOldBillData] = useState<any>(null);
+
+  const offlinePaymentMethods = useOfflinePaymentMethodsWithBalance() || [];
+
+  const paymentMethods = useMemo(() => {
+    const list = offlinePaymentMethods.map((item: any) => ({
+      id: item.id || item._id,
+      name: item.bankName || item.name || item.bank_name,
+      bankDetails: item.bankDetails || item.bank_details,
+      currentBalance: typeof item.currentBalance === "number" ? item.currentBalance : 0,
+      is_default: item.is_default,
+    })).filter((item: any) => item.id && item.name);
+
+    const cashAccount = list.find((m: any) => m.id === "cash" || m.name?.toLowerCase().includes("cash") || m.is_default);
+    const cashBalance = cashAccount ? cashAccount.currentBalance : 0;
+
+    const allMethods = [
+      { id: "cash", name: "Cash", currentBalance: cashBalance },
+      { id: "cheque", name: "Cheque", currentBalance: 0 },
+      ...list,
+    ];
+
+    const uniqueMap = new Map();
+    allMethods.forEach(m => {
+      if (!uniqueMap.has(m.id) || (m.currentBalance !== 0 && uniqueMap.get(m.id).currentBalance === 0)) {
+        uniqueMap.set(m.id, m);
+      }
+    });
+    return Array.from(uniqueMap.values());
+  }, [offlinePaymentMethods]);
+
+  const selectedMethodBalance = useMemo(() => {
+    if (!paymentMethod) return null;
+    const found = paymentMethods.find((p: any) => p.id === paymentMethod);
+    let bal = found ? (Number(found.currentBalance) || 0) : 0;
+    if (editingId && oldBillData) {
+      const oldMethod = oldBillData.payment_method_id || oldBillData.paymentMethodId || "cash";
+      const currentMethod = paymentMethod || "cash";
+      if (oldMethod === currentMethod) {
+        bal += Number(oldBillData.paid_amount || 0);
+      }
+    }
+    return bal;
+  }, [paymentMethod, paymentMethods, editingId, oldBillData]);
 
   useEffect(() => {
     const loadBillData = async () => {
@@ -145,6 +190,7 @@ function AddPurchaseBillPageInner() {
 
             setPaymentMethod(bill.payment_method_id || bill.paymentMethodId || "");
             setDescription(bill.description || "");
+            setOldBillData(bill);
           }
         } catch (error) {
           console.error("Error loading purchase bill for edit:", error);
@@ -152,6 +198,7 @@ function AddPurchaseBillPageInner() {
           setLoading(false);
         }
       } else {
+        setOldBillData(null);
         setPurchaseNumber(generateReferenceNumber("PUR"));
         setLoading(false);
       }
@@ -178,6 +225,7 @@ function AddPurchaseBillPageInner() {
     setPaymentMethod("");
     setDescription("");
     setSaveError("");
+    setOldBillData(null);
   };
 
   // Calculations
@@ -423,6 +471,17 @@ function AddPurchaseBillPageInner() {
         t("paymentMethodRequired") ||
           tInvoice("paymentMethodRequired") ||
           "Payment Method is required"
+      );
+      setShowSaveErrorDialog(true);
+      return;
+    }
+
+    if (currentPaid > 0 && selectedMethodBalance !== null && currentPaid > selectedMethodBalance) {
+      setSaveError(
+        t("insufficientBalance", {
+          available: selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          required: currentPaid.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        })
       );
       setShowSaveErrorDialog(true);
       return;
@@ -865,6 +924,19 @@ function AddPurchaseBillPageInner() {
                           placeholder="Cash in Hand"
                           defaultToCash={true}
                         />
+                        {selectedMethodBalance !== null && (
+                          <div className="text-xs flex items-center justify-between pt-1 px-1">
+                            <span className="text-muted-foreground">{t("availableBalance") || "Available Balance"}:</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              (selectedMethodBalance >= (paidAmount === "" ? 0 : Number(paidAmount)))
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            )}>
+                              Rs. {selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

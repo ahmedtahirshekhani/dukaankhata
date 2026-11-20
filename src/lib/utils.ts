@@ -101,6 +101,10 @@ export function formatCurrency(amount: number | string | undefined | null, useCo
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
   if (isNaN(num)) return "Rs. 0";
   const rounded = Math.round(num);
+  if (rounded < 0) {
+    const absVal = Math.abs(rounded);
+    return useCommas ? `-Rs. ${absVal.toLocaleString()}` : `-Rs. ${absVal}`;
+  }
   return useCommas ? `Rs. ${rounded.toLocaleString()}` : `Rs. ${rounded}`;
 }
 

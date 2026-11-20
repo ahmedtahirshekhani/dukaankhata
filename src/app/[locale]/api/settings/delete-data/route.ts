@@ -57,6 +57,8 @@ export async function POST(request: Request) {
       COLLECTIONS.CATEGORIES,
       COLLECTIONS.BRANCHES,
       COLLECTIONS.PAYMENT_METHODS,
+      COLLECTIONS.STOCK_ADJUSTMENTS,
+      COLLECTIONS.INVENTORY_BATCHES,
     ];
 
     console.log(`\n========================================`);
