@@ -1527,9 +1527,24 @@ export async function getOfflineProductStockValuationHistory(options: {
   let initialOpeningQty = openingBatch
     ? Number(openingBatch.initial_quantity) || 0
     : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
-  let initialOpeningCost = openingBatch
-    ? Number(openingBatch.cost_price) || 0
-    : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+  const productMasterCost = Number((product as any).cost_price ?? (product as any).purchase_price ?? (product as any).initial_cost) || 0;
+  let initialOpeningCost = 0;
+
+  // Rule: If there are NO purchase bills yet, the opening cost MUST match the product's live master cost_price!
+  if (allPurchaseBills.length === 0 && productMasterCost > 0) {
+    initialOpeningCost = productMasterCost;
+    if (openingBatch && Math.abs(Number(openingBatch.cost_price) - productMasterCost) > 0.001 && openingBatch.id) {
+      db.inventory_batches.update(openingBatch.id, {
+        cost_price: productMasterCost,
+        updated_at: new Date().toISOString()
+      }).catch(err => console.error("Failed to sync offline opening batch cost:", err));
+    }
+  } else if (openingBatch && Number(openingBatch.cost_price) > 0) {
+    initialOpeningCost = Number(openingBatch.cost_price);
+  } else {
+    initialOpeningCost = productMasterCost;
+  }
 
   // If opening cost is not directly available, check earliest sales invoice before purchases (which preserved the initial cost)
   if (initialOpeningCost <= 0) {
@@ -2123,16 +2138,20 @@ export async function getOfflineProductStockValuationHistory(options: {
       activeBatchesCount: batches.filter((b: any) => b.status === "active" && Number(b.remaining_quantity) > 0).length,
     },
     batches: (() => {
-      const list = batches.map((b: any) => ({
-        id: String(b.id || b._id),
-        batch_number: b.batch_number || "BATCH",
-        source_type: b.source_type || "purchase_bill",
-        initial_quantity: Number(b.initial_quantity) || 0,
-        remaining_quantity: Number(b.remaining_quantity) || 0,
-        cost_price: Number(b.cost_price) || 0,
-        status: b.status || "active",
-        batch_date: b.batch_date || b.created_at || new Date().toISOString(),
-      }));
+      const list = batches.map((b: any) => {
+        const isOpening = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+        const bCost = isOpening ? initialOpeningCost : (Number(b.cost_price) || 0);
+        return {
+          id: String(b.id || b._id),
+          batch_number: b.batch_number || "BATCH",
+          source_type: b.source_type || "purchase_bill",
+          initial_quantity: Number(b.initial_quantity) || 0,
+          remaining_quantity: Number(b.remaining_quantity) || 0,
+          cost_price: bCost,
+          status: b.status || "active",
+          batch_date: b.batch_date || b.created_at || new Date().toISOString(),
+        };
+      });
 
       // Add Opening Stock batch if not already represented
       if (initialOpeningQty > 0 && !list.some((b: any) => b.batch_number === "OPENING" || b.source_type === "opening_stock")) {
