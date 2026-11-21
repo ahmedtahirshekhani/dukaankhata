@@ -123,8 +123,7 @@ export async function GET(request: NextRequest) {
       const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
       if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
 
-      // If base date has no time (hours=0, min=0, sec=0) but createdAt has exact time, merge time
-      if (base.getHours() === 0 && base.getMinutes() === 0 && base.getSeconds() === 0 && createdAtVal) {
+      if (createdAtVal) {
         const created = new Date(createdAtVal);
         if (!isNaN(created.getTime())) {
           base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
@@ -158,9 +157,25 @@ export async function GET(request: NextRequest) {
     let initialOpeningQty = openingBatch
       ? Number(openingBatch.initial_quantity) || 0
       : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
-    let initialOpeningCost = openingBatch
-      ? Number(openingBatch.cost_price) || 0
-      : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+    const productMasterCost = Number(product.cost_price ?? product.purchase_price ?? (product as any).initial_cost) || 0;
+    let initialOpeningCost = 0;
+
+    // Rule: If there are NO purchase bills yet, the opening cost MUST match the product's live master cost_price!
+    if (purchaseBills.length === 0 && productMasterCost > 0) {
+      initialOpeningCost = productMasterCost;
+      // Auto-heal opening batch in MongoDB if it had an outdated cost
+      if (openingBatch && Math.abs(Number(openingBatch.cost_price) - productMasterCost) > 0.001) {
+        batchesCollection.updateOne(
+          { _id: openingBatch._id },
+          { $set: { cost_price: productMasterCost, updated_at: new Date() } }
+        ).catch(err => console.error("Failed to sync opening batch cost:", err));
+      }
+    } else if (openingBatch && Number(openingBatch.cost_price) > 0) {
+      initialOpeningCost = Number(openingBatch.cost_price);
+    } else {
+      initialOpeningCost = productMasterCost;
+    }
 
     // If opening cost is not directly available, check earliest sales invoice before purchases (which preserved the initial cost)
     if (initialOpeningCost <= 0) {
@@ -232,8 +247,8 @@ export async function GET(request: NextRequest) {
     for (const bill of purchaseBills) {
       const d = getExactTimestamp(bill.bill_date || bill.date, bill.created_at);
       const supplierName = bill.party_name || partyMap.get(bill.party_id?.toString()) || "Supplier";
-      
-      const matchedItems = (bill.items || []).filter((it: any) => 
+
+      const matchedItems = (bill.items || []).filter((it: any) =>
         it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString()
       );
 
@@ -261,7 +276,7 @@ export async function GET(request: NextRequest) {
       const d = getExactTimestamp(order.sale_date || order.date, order.created_at);
       const customerName = order.customer_name || partyMap.get(order.customer_id?.toString()) || "Customer";
 
-      const matchedItems = (order.items || []).filter((it: any) => 
+      const matchedItems = (order.items || []).filter((it: any) =>
         it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString()
       );
 
@@ -333,7 +348,7 @@ export async function GET(request: NextRequest) {
       const d = getExactTimestamp(ret.return_date || ret.date, ret.created_at);
       const customerName = ret.customerName || partyMap.get(ret.customerId?.toString() || ret.customer_id?.toString()) || "Customer";
 
-      const matchedItems = (ret.items || []).filter((it: any) => 
+      const matchedItems = (ret.items || []).filter((it: any) =>
         (it.productId || it.product_id)?.toString() === productId || (it.productId || it.product_id)?.toString() === prodObjId.toString()
       );
 
@@ -434,8 +449,8 @@ export async function GET(request: NextRequest) {
         while (outwardQueue.length > 0) {
           const nextSale = outwardQueue[0];
 
-          // 1. Emit inwards that occurred at or before this sale's timestamp
-          while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()) {
+          // 1. Emit inwards that occurred strictly before this sale's timestamp
+          while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() < new Date(nextSale.date).getTime()) {
             const naturalInward = inwardQueue.shift()!;
             result.push(naturalInward);
             runningStock += (naturalInward.inwardQty || 0);
@@ -508,8 +523,8 @@ export async function GET(request: NextRequest) {
           effectiveRate = m.unitRate > 0 ? m.unitRate : lastKnownCost;
           lastKnownCost = effectiveRate;
           runningValuation = roundToPrecision(runningBalance * effectiveRate, 2);
-          impactFormula = m.inwardQty > 0 
-            ? `Opening Batch: ${m.inwardQty} units @ ${effectiveRate}` 
+          impactFormula = m.inwardQty > 0
+            ? `Opening Batch: ${m.inwardQty} units @ ${effectiveRate}`
             : `Opening balance @ 0`;
         } else if (m.type === "purchase") {
           runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
@@ -586,7 +601,7 @@ export async function GET(request: NextRequest) {
             wacFormula = `Reconciled Deficit (${prevBal}) + Inward (${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
           } else {
             effectiveWac = calculateMovingAverage(prevBal, prevWac, inQty, inRate);
-            wacFormula = prevBal > 0 
+            wacFormula = prevBal > 0
               ? `(${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) / ${roundToPrecision(prevBal + inQty, 3)} = ${effectiveWac}`
               : `New inward @ ${inRate}`;
           }
@@ -748,13 +763,15 @@ export async function GET(request: NextRequest) {
     // Format batches for client (includes Purchase Bills, Stock Adjustments, and Opening Stock)
     const formattedBatches = batches.map(b => {
       const rem = Number(b.remaining_quantity) || 0;
+      const isOpening = b.source_type === "opening_stock" || b.batch_number === "OPENING";
+      const bCost = isOpening ? initialOpeningCost : (Number(b.cost_price) || 0);
       return {
         id: b._id.toString(),
         batch_number: b.batch_number || "BATCH",
         source_type: b.source_type || "purchase_bill",
         initial_quantity: Number(b.initial_quantity) || 0,
         remaining_quantity: rem,
-        cost_price: Number(b.cost_price) || 0,
+        cost_price: bCost,
         status: rem > 0 ? (b.status || "active") : "depleted",
         batch_date: b.batch_date ? new Date(b.batch_date).toISOString() : new Date(b.created_at).toISOString(),
       };
@@ -858,8 +875,8 @@ export async function GET(request: NextRequest) {
         openingStock: openingBalanceBeforeFilter,
         totalInward: Math.round(periodInward * 1000) / 1000,
         totalOutward: Math.round(periodOutward * 1000) / 1000,
-        closingStock: filteredMovements.length > 0 
-          ? filteredMovements[filteredMovements.length - 1].balance 
+        closingStock: filteredMovements.length > 0
+          ? filteredMovements[filteredMovements.length - 1].balance
           : openingBalanceBeforeFilter,
         closingWac: filteredMovements.length > 0
           ? filteredMovements[filteredMovements.length - 1].effectiveWac

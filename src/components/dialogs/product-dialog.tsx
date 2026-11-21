@@ -255,34 +255,74 @@ export function ProductDialog({
     try {
       setLoading(true);
       setValidationError(null);
+      const newCostPrice = costPrice === "" ? 0 : Number(costPrice);
+      const newSellPrice = sellPrice === "" ? 0 : Number(sellPrice);
       const updatedProduct = {
         type: itemType,
         name: productName,
         description: productDescription,
         category: productCategory,
         ...(itemType === "goods" && {
-          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price: newSellPrice,
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
-          cost_price: costPrice === "" ? 0 : Number(costPrice),
+          cost_price: newCostPrice,
           cost_price_str: costPrice === "" ? "" : String(costPrice),
+          purchase_price: newCostPrice,
           // Keep existing live inventory and opening baseline - do NOT overwrite opening stock/batch with live stock!
           quantity: selectedProduct.quantity ?? selectedProduct.in_stock ?? 0,
           quantity_str: selectedProduct.quantity_str || String(selectedProduct.quantity ?? selectedProduct.in_stock ?? 0),
           in_stock: selectedProduct.in_stock ?? selectedProduct.quantity ?? 0,
           initial_quantity: (selectedProduct as any).initial_quantity ?? (selectedProduct as any).opening_stock ?? 0,
-          initial_cost: (selectedProduct as any).initial_cost ?? (selectedProduct as any).opening_cost ?? selectedProduct.cost_price ?? 0,
+          initial_cost: newCostPrice,
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
           branch: branch,
         }),
         ...(itemType === "services" && {
-          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price: newSellPrice,
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
       };
       const updatedProductFromServer = { ...selectedProduct, ...updatedProduct };
       await db.products.update(selectedProduct.id, updatedProduct);
+
+      // Sync opening stock batch cost in Dexie if cost price was updated
+      if (itemType === "goods") {
+        const prodIdStr = String(selectedProduct.id);
+        const openingBatches = await db.inventory_batches
+          .filter((b: any) => 
+            (String(b.product_id) === prodIdStr || String(b.productId) === prodIdStr) && 
+            (b.source_type === "opening_stock" || b.batch_number === "OPENING")
+          )
+          .toArray();
+        if (openingBatches.length > 0) {
+          for (const ob of openingBatches) {
+            if (ob.id) {
+              await db.inventory_batches.update(ob.id, {
+                cost_price: newCostPrice,
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
+        } else if (Number((selectedProduct as any).initial_quantity || (selectedProduct as any).opening_stock || selectedProduct.quantity) > 0) {
+          const openingQty = Number((selectedProduct as any).initial_quantity || (selectedProduct as any).opening_stock || selectedProduct.quantity);
+          await db.inventory_batches.put({
+            id: `batch_opening_${prodIdStr}`,
+            product_id: prodIdStr,
+            source_type: "opening_stock",
+            source_id: prodIdStr,
+            batch_number: "OPENING",
+            initial_quantity: openingQty,
+            remaining_quantity: openingQty,
+            cost_price: newCostPrice,
+            status: "active",
+            batch_date: (selectedProduct as any).created_at || new Date().toISOString(),
+            created_at: (selectedProduct as any).created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
 
       await SyncEngine.queueOperation("products", "PUT", `/api/products/${selectedProduct.id}`, updatedProduct, String(selectedProduct.id));
       

@@ -91,6 +91,13 @@ export async function PUT(
       updatedProduct.in_stock = updatedProduct.quantity;
     }
 
+    const newCost = Number(updatedProduct.cost_price ?? updatedProduct.purchase_price);
+    if (!isNaN(newCost) && newCost >= 0) {
+      updatedProduct.cost_price = newCost;
+      updatedProduct.purchase_price = newCost;
+      updatedProduct.initial_cost = newCost;
+    }
+
     const updateResult = await productsCollection.updateOne(filter, { 
       $set: {
         ...updatedProduct,
@@ -105,6 +112,52 @@ export async function PUT(
         productId,
       })
       return NextResponse.json({ error: 'Product not found or not authorized' }, { status: 404 })
+    }
+
+    // Synchronize opening stock batch in INVENTORY_BATCHES collection
+    if (!isNaN(newCost) && newCost >= 0) {
+      try {
+        const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+        const prodObjId = toObjectId(productId);
+        const batchFilter = {
+          user_id: toObjectId(user.id),
+          product_id: { $in: [prodObjId, productId] },
+          $or: [
+            { source_type: "opening_stock" },
+            { batch_number: "OPENING" }
+          ]
+        };
+        const updateBatchRes = await batchesCollection.updateMany(batchFilter, {
+          $set: {
+            cost_price: newCost,
+            updated_at: new Date()
+          }
+        });
+
+        // If no opening batch existed yet, but product had initial quantity, create it now
+        if (updateBatchRes.matchedCount === 0) {
+          const currentProd = await productsCollection.findOne({ _id: prodObjId });
+          const initQty = Number((currentProd as any)?.initial_quantity ?? (currentProd as any)?.opening_stock ?? (currentProd as any)?.quantity) || 0;
+          if (initQty > 0) {
+            await batchesCollection.insertOne({
+              user_id: toObjectId(user.id),
+              product_id: prodObjId,
+              source_type: "opening_stock",
+              source_id: productId,
+              batch_number: "OPENING",
+              initial_quantity: initQty,
+              remaining_quantity: initQty,
+              cost_price: newCost,
+              status: "active",
+              batch_date: (currentProd as any)?.created_at || new Date(),
+              created_at: (currentProd as any)?.created_at || new Date(),
+              updated_at: new Date(),
+            });
+          }
+        }
+      } catch (batchErr) {
+        console.error("Failed to update opening batch cost price on product edit:", batchErr);
+      }
     }
 
     // Fetch updated document

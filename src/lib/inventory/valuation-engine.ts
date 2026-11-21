@@ -1187,7 +1187,7 @@ export async function calculateProductDynamicSalesValuation(options: {
     const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
     if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
 
-    if (base.getHours() === 0 && base.getMinutes() === 0 && base.getSeconds() === 0 && createdAtVal) {
+    if (createdAtVal) {
       const created = new Date(createdAtVal);
       if (!isNaN(created.getTime())) {
         base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
@@ -1219,9 +1219,24 @@ export async function calculateProductDynamicSalesValuation(options: {
   let initialOpeningQty = openingBatch
     ? Number(openingBatch.initial_quantity) || 0
     : Number((product as any).opening_stock || (product as any).initial_quantity || 0);
-  let initialOpeningCost = openingBatch
-    ? Number(openingBatch.cost_price) || 0
-    : Number((product as any).initial_cost || (product as any).opening_cost || 0);
+
+  const productMasterCost = Number(product.cost_price ?? product.purchase_price ?? (product as any).initial_cost) || 0;
+  let initialOpeningCost = 0;
+
+  // Rule: If there are NO purchase bills yet, the opening cost MUST match the product's live master cost_price!
+  if (purchaseBills.length === 0 && productMasterCost > 0) {
+    initialOpeningCost = productMasterCost;
+    if (openingBatch && Math.abs(Number(openingBatch.cost_price) - productMasterCost) > 0.001) {
+      batchesCollection.updateOne(
+        { _id: openingBatch._id },
+        { $set: { cost_price: productMasterCost, updated_at: new Date() } }
+      ).catch(err => console.error("Failed to sync opening batch cost in engine:", err));
+    }
+  } else if (openingBatch && Number(openingBatch.cost_price) > 0) {
+    initialOpeningCost = Number(openingBatch.cost_price);
+  } else {
+    initialOpeningCost = productMasterCost;
+  }
 
   if (initialOpeningCost <= 0) {
     const sortedOrders = [...orders].sort(
@@ -1449,7 +1464,7 @@ export async function calculateProductDynamicSalesValuation(options: {
 
       while (
         inwardQueue.length > 0 &&
-        new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()
+        new Date(inwardQueue[0].date).getTime() < new Date(nextSale.date).getTime()
       ) {
         const naturalInward = inwardQueue.shift()!;
         sequence.push(naturalInward);
@@ -1512,12 +1527,12 @@ export async function calculateProductDynamicSalesValuation(options: {
           effectiveWac =
             prevBal < 0
               ? calculateMovingAverageWithPrior(
-                  prevBal,
-                  prevWac,
-                  inQty,
-                  inRate,
-                  priorFulfilledBudget
-                )
+                prevBal,
+                prevWac,
+                inQty,
+                inRate,
+                priorFulfilledBudget
+              )
               : calculateMovingAverage(prevBal, prevWac, inQty, inRate);
           runningWac = effectiveWac;
         } else {
