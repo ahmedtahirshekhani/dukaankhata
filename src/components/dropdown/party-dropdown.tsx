@@ -270,6 +270,9 @@ export const PartyDropdown = forwardRef<HTMLButtonElement, PartyDropdownProps>(
           phone: newPartyPhone,
           company_name: newPartyCompanyName,
           company_address: newPartyCompanyAddress,
+          opening_balance: newPartyOpeningBalance
+            ? parseFloat(newPartyOpeningBalance) * (newPartyOpeningBalanceType === "pay" ? -1 : 1)
+            : 0,
           balance: newPartyOpeningBalance
             ? parseFloat(newPartyOpeningBalance) * (newPartyOpeningBalanceType === "pay" ? -1 : 1)
             : 0,

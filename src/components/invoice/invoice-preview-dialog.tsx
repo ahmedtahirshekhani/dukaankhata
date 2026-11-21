@@ -27,6 +27,7 @@ import { PaymentDialog } from "@/components/invoice/payment-dialog";
 import { Switch } from "../ui/switch";
 import { toast } from "sonner";
 import { db } from "@/lib/db/offline-db";
+import { getTodayHTMLDate, toHTMLDateString } from "@/lib/date-utils";
 
 export const normalizeWhatsAppNumber = (phone?: string) => {
   if (!phone) return "";
@@ -141,7 +142,7 @@ export function InvoicePreviewDialog({
   );
   const [paidDate, setPaidDate] = useState<string | null>(
     initialPayment?.paid_date
-      ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+      ? toHTMLDateString(initialPayment.paid_date)
       : null,
   );
   const invoiceRef = useRef<HTMLDivElement | null>(null);
@@ -181,13 +182,7 @@ export function InvoicePreviewDialog({
     return () => window.removeEventListener('resize', updateZoom);
   }, [printFormat, open]);
 
-  const getToday = () => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
+  const getToday = () => getTodayHTMLDate();
 
   const [todayStr, setTodayStr] = useState(getToday());
   const [paymentSeed, setPaymentSeed] = useState<{
@@ -198,7 +193,7 @@ export function InvoicePreviewDialog({
     amount: initialPayment?.paid_amount || total,
     method: initialPayment?.method || "",
     date: initialPayment?.paid_date
-      ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+      ? toHTMLDateString(initialPayment.paid_date)
       : getToday(),
   }));
 
@@ -206,7 +201,7 @@ export function InvoicePreviewDialog({
     setPaidAmount(initialPayment?.paid_amount || 0);
     setPaymentMethod(initialPayment?.method || "");
     setPaidDate(initialPayment?.paid_date
-      ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+      ? toHTMLDateString(initialPayment.paid_date)
       : null);
     setNoPaymentAtAll(initialPayment?.no_payment_at_all || false);
 
@@ -215,7 +210,7 @@ export function InvoicePreviewDialog({
       amount: initialPayment?.paid_amount || total,
       method: initialPayment?.method || "",
       date: initialPayment?.paid_date
-        ? new Date(initialPayment.paid_date).toISOString().split("T")[0]
+        ? toHTMLDateString(initialPayment.paid_date)
         : getToday(),
     });
   }, [initialPayment, total]);

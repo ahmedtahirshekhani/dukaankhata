@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -59,14 +60,16 @@ export async function GET(request: NextRequest) {
       status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
     };
 
-    // Date Range Filter (effective date based on sale_date, order_date, date, or created_at)
-    if (fromDate && toDate) {
-      const from = new Date(fromDate);
-      from.setHours(0, 0, 0, 0);
-      const to = new Date(toDate);
-      to.setHours(23, 59, 59, 999);
+    // Date Range Filter (effective date based on sale_date, invoice_date, order_date, date, or created_at)
+    if (fromDate || toDate) {
+      const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
+      const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
-      if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+      const dateConditions: any[] = [{ $ne: ["$$parsedDate", null] }];
+      if (from && !isNaN(from.getTime())) dateConditions.push({ $gte: ["$$parsedDate", from] });
+      if (to && !isNaN(to.getTime())) dateConditions.push({ $lte: ["$$parsedDate", to] });
+
+      if (dateConditions.length > 1) {
         matchQuery.$and = matchQuery.$and || [];
         matchQuery.$and.push({
           $expr: {
@@ -77,8 +80,23 @@ export async function GET(request: NextRequest) {
                     "$sale_date",
                     {
                       $ifNull: [
-                        "$order_date",
-                        { $ifNull: ["$date", "$created_at"] },
+                        "$saleDate",
+                        {
+                          $ifNull: [
+                            "$invoice_date",
+                            {
+                              $ifNull: [
+                                "$invoiceDate",
+                                {
+                                  $ifNull: [
+                                    "$order_date",
+                                    { $ifNull: ["$date", "$created_at"] },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
                       ],
                     },
                   ],
@@ -97,11 +115,7 @@ export async function GET(request: NextRequest) {
                     },
                   },
                   in: {
-                    $and: [
-                      { $ne: ["$$parsedDate", null] },
-                      { $gte: ["$$parsedDate", from] },
-                      { $lte: ["$$parsedDate", to] },
-                    ],
+                    $and: dateConditions,
                   },
                 },
               },
@@ -146,8 +160,23 @@ export async function GET(request: NextRequest) {
                 "$sale_date",
                 {
                   $ifNull: [
-                    "$order_date",
-                    { $ifNull: ["$date", "$created_at"] },
+                    "$saleDate",
+                    {
+                      $ifNull: [
+                        "$invoice_date",
+                        {
+                          $ifNull: [
+                            "$invoiceDate",
+                            {
+                              $ifNull: [
+                                "$order_date",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
                   ],
                 },
               ],
@@ -436,7 +465,11 @@ export async function GET(request: NextRequest) {
 
       const invoiceDate =
         order.sale_date ||
+        order.saleDate ||
+        order.invoice_date ||
+        order.invoiceDate ||
         order.order_date ||
+        order.orderDate ||
         order.date ||
         order.created_at ||
         new Date().toISOString();

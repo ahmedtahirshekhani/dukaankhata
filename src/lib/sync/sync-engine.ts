@@ -1,4 +1,5 @@
 import { db, SyncOperation } from '../db/offline-db';
+import { toast } from 'sonner';
 
 export class SyncEngine {
   
@@ -61,6 +62,7 @@ export class SyncEngine {
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.branches, db.payment_methods,
         db.vendor_transactions, db.sale_return_transactions,
         db.transactions, db.subscriptions, db.configurations,
+        db.inventory_batches, db.stock_adjustments,
         db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
         async () => {
           const promises = [];
@@ -79,6 +81,33 @@ export class SyncEngine {
           if (data.sale_return_transactions?.length) promises.push(db.sale_return_transactions.bulkPut(data.sale_return_transactions));
           if (data.transactions?.length) promises.push(db.transactions.bulkPut(data.transactions));
           if (data.subscriptions?.length) promises.push(db.subscriptions.bulkPut(data.subscriptions));
+          if (data.inventory_batches?.length) {
+            const localBatches = await db.inventory_batches.toArray();
+            const tempBatches = localBatches.filter((b: any) => b.id && String(b.id).startsWith("local_adj_batch_"));
+            for (const loc of tempBatches) {
+              const matchedServer = data.inventory_batches.find((srv: any) =>
+                srv.source_type === "stock_adjustment" &&
+                String(srv.product_id) === String(loc.product_id) &&
+                Number(srv.initial_quantity) === Number(loc.initial_quantity)
+              );
+              if (matchedServer) await db.inventory_batches.delete(loc.id);
+            }
+            promises.push(db.inventory_batches.bulkPut(data.inventory_batches));
+          }
+          if (data.stock_adjustments?.length) {
+            const localAdjs = await db.stock_adjustments.toArray();
+            const tempAdjs = localAdjs.filter((a: any) => a.id && String(a.id).startsWith("adj_"));
+            for (const loc of tempAdjs) {
+              const matchedServer = data.stock_adjustments.find((srv: any) =>
+                (srv.ref_no && loc.ref_no && srv.ref_no === loc.ref_no) ||
+                (String(srv.product_id) === String(loc.product_id) &&
+                 srv.action_type === loc.action_type &&
+                 Number(srv.quantity) === Number(loc.quantity))
+              );
+              if (matchedServer) await db.stock_adjustments.delete(loc.id);
+            }
+            promises.push(db.stock_adjustments.bulkPut(data.stock_adjustments));
+          }
           if (data.users?.length) promises.push(db.users.bulkPut(data.users));
           if (data.modules?.length) promises.push(db.modules.bulkPut(data.modules));
           
@@ -100,7 +129,11 @@ export class SyncEngine {
                 localStorage.setItem("setting_counterSale", String(config.is_counterSale_enable || false));
                 localStorage.setItem("setting_aiChat", String(config.is_AI_Chat_Enable || false));
                 localStorage.setItem("setting_wa", String(config.is_Whatsapp_enable || false));
-                if (typeof window !== "undefined") window.dispatchEvent(new Event("featureSettingsUpdated"));
+                localStorage.setItem("setting_stockValuationMethod", String(config.stock_valuation_method || "average"));
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new Event("featureSettingsUpdated"));
+                  window.dispatchEvent(new Event("stockValuationMethodUpdated"));
+                }
               }
             }));
           }
@@ -185,10 +218,11 @@ export class SyncEngine {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for cloud DB operations
 
+        const isBodyAllowed = op.data !== null && op.data !== undefined;
         const response = await fetch(op.url, {
           method: op.method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(op.data),
+          headers: isBodyAllowed ? { 'Content-Type': 'application/json' } : {},
+          body: isBodyAllowed ? JSON.stringify(op.data) : undefined,
           signal: controller.signal
         });
         
@@ -211,16 +245,29 @@ export class SyncEngine {
             const collectionName = op.collection as keyof typeof db;
             const table = db[collectionName] as any; // Cast to bypass strict typings for dynamic access
             
-            const item = await table.get(op.localId);
-            if (item) {
-              item.id = newId;
-              await table.put(item);
-              await table.delete(op.localId);
-              
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('localIdReplaced', { 
-                  detail: { collection: op.collection, oldId: op.localId, newId: newId } 
-                }));
+            if (table && typeof table.get === 'function') {
+              const item = await table.get(op.localId);
+              if (item) {
+                item.id = newId;
+                if (result.refNo || result.ref_no) {
+                  item.ref_no = result.refNo || result.ref_no;
+                }
+                await table.put(item);
+                await table.delete(op.localId);
+
+                if (op.collection === 'stock_adjustments') {
+                  const batches = await db.inventory_batches.filter((b: any) => b.source_id === op.localId).toArray();
+                  for (const b of batches) {
+                    b.source_id = newId;
+                    await db.inventory_batches.put(b);
+                  }
+                }
+                
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('localIdReplaced', { 
+                    detail: { collection: op.collection, oldId: op.localId, newId: newId } 
+                  }));
+                }
               }
             }
 
@@ -275,7 +322,6 @@ export class SyncEngine {
           
           // Show success toast for data addition if we're in the browser
           if (typeof window !== 'undefined' && op.method === 'POST') {
-            const { toast } = await import('sonner');
             // toast.success('Data successfully synced to server');
           }
         } else {
@@ -289,15 +335,17 @@ export class SyncEngine {
           await db.syncQueue.update(op.id!, { status: 'failed', error: errorText });
           
           if (typeof window !== 'undefined') {
-            const { toast } = await import('sonner');
-            toast.error(`Failed to sync ${op.collection}: ${errorMessage}`);
+            try {
+              toast.error(`Failed to sync ${op.collection}: ${errorMessage}`);
+            } catch (_) {}
           }
         }
       } catch (error: any) {
         console.error(`Sync error on ${originalOp.collection}:`, error);
         if (typeof window !== 'undefined' && error.name !== 'AbortError') {
-          const { toast } = await import('sonner');
-          toast.error(`Sync error: ${error.message}`);
+          try {
+            toast.error(`Sync error: ${error.message || 'Unknown error'}`);
+          } catch (_) {}
         }
         await db.syncQueue.update(originalOp.id!, { status: 'failed', error: error.message });
       }

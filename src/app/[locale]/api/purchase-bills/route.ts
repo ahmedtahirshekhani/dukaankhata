@@ -11,7 +11,8 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime, generateReferenceNumber } from "@/lib/utils";
+import { generateReferenceNumber } from "@/lib/utils";
+import { parseSafeDate } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { ObjectId } from "mongodb";
 
@@ -305,6 +306,7 @@ export async function POST(request: Request) {
       })
     );
 
+    // Validate payment amount & method balance for new purchase bill
     const finalPaidAmount = Number(paidAmount) || 0;
     if (finalPaidAmount > totalAmount) {
       return NextResponse.json(
@@ -312,6 +314,28 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    if (finalPaidAmount > 0) {
+      const pmId = (paymentMethodId || "cash").toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+      });
+
+      if (finalPaidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${finalPaidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: finalPaidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const finalBalanceDue = totalAmount - finalPaidAmount;
     const finalIsPaid = finalBalanceDue === 0;
 
@@ -319,8 +343,23 @@ export async function POST(request: Request) {
     const now = new Date();
 
     const rawDateInput = customBillDate || customDate;
-    const finalBillDate = rawDateInput ? new Date(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
+    const finalBillDate = rawDateInput ? parseSafeDate(rawDateInput) : (customCreatedAt ? new Date(customCreatedAt) : now);
     const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt) : now;
+
+    const existingBill = await purchaseBillsCollection.findOne({
+      user_id: userObjId,
+      $or: [
+        { bill_number: finalPurchaseNo },
+        { purchase_number: finalPurchaseNo },
+        { purchase_no: finalPurchaseNo },
+      ],
+    });
+    if (existingBill) {
+      return NextResponse.json(
+        { error: "Purchase bill with this bill number already exists" },
+        { status: 409 }
+      );
+    }
 
     const billResult = await purchaseBillsCollection.insertOne({
       user_id: userObjId,
@@ -348,8 +387,15 @@ export async function POST(request: Request) {
       updated_at: now,
     });
 
-    // Apply stock increment for purchase
-    await applyPurchaseBillStock(productsCollection, enrichedItems, user.id);
+    // Apply stock increment and update valuation (Average cost or FIFO batches)
+    const { applyPurchaseInwardServer } = await import("@/lib/inventory/valuation-engine");
+    await applyPurchaseInwardServer({
+      userId: user.id,
+      billId: billResult.insertedId.toString(),
+      billNumber: finalPurchaseNo,
+      items: enrichedItems,
+      billDate: finalBillDate,
+    });
 
     // Record ledger entry
     if (totalAmount !== 0) {
@@ -362,7 +408,7 @@ export async function POST(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billResult.insertedId.toString(),
           amountDelta: -totalAmount,
-          effectiveAt: now,
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billResult.insertedId.toString(),
             purchase_number: finalPurchaseNo,
@@ -385,7 +431,7 @@ export async function POST(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billResult.insertedId.toString(),
           amountDelta: finalPaidAmount,
-          effectiveAt: now,
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billResult.insertedId.toString(),
             purchase_number: finalPurchaseNo,
@@ -404,7 +450,7 @@ export async function POST(request: Request) {
           category: "purchasing",
           type: "expense",
           description: `Payment for purchase bill #${billResult.insertedId.toString()}`,
-          payment_date: now,
+          payment_date: finalBillDate,
           payment_method_id: paymentMethodId && isValidObjectId(paymentMethodId) ? toObjectId(paymentMethodId) : (paymentMethodId || "cash"),
           order_id: billResult.insertedId,
           created_at: now,
@@ -493,11 +539,49 @@ export async function PUT(request: Request) {
       );
     }
 
+    const finalPaidAmount = Number(paidAmount) || 0;
+    if (finalPaidAmount > totalAmount) {
+      return NextResponse.json(
+        { error: "Paid amount cannot exceed total amount" },
+        { status: 400 }
+      );
+    }
+
+    if (finalPaidAmount > 0) {
+      const pmId = (paymentMethodId || oldBill.payment_method_id || "cash").toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+        excludeTransaction: {
+          amount: Number(oldBill.paid_amount) || 0,
+          paymentMethodId: oldBill.payment_method_id?.toString(),
+        },
+      });
+
+      if (finalPaidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${finalPaidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: finalPaidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
-    // Revert stock of old items
+    // Revert stock and batches of old items
+    const { reversePurchaseInwardServer, applyPurchaseInwardServer } = await import("@/lib/inventory/valuation-engine");
     if (oldBill.items && oldBill.items.length > 0) {
-      await reversePurchaseBillStock(productsCollection, oldBill.items, user.id);
+      await reversePurchaseInwardServer({
+        userId: user.id,
+        billId: billObjId.toString(),
+        items: oldBill.items,
+      });
     }
 
     // Process new items if provided in request
@@ -534,16 +618,18 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Apply new stock
-    await applyPurchaseBillStock(productsCollection, enrichedItems, user.id);
+    const rawBillDate = customBillDate || customDate || customPurchaseDate;
+    const finalBillDate = rawBillDate ? parseSafeDate(rawBillDate) : (oldBill.bill_date || new Date());
 
-    const finalPaidAmount = Number(paidAmount) || 0;
-    if (finalPaidAmount > totalAmount) {
-      return NextResponse.json(
-        { error: "Paid amount cannot exceed total amount" },
-        { status: 400 }
-      );
-    }
+    // Apply new stock and valuation
+    await applyPurchaseInwardServer({
+      userId: user.id,
+      billId: billObjId.toString(),
+      billNumber: purchase_number || purchase_no || bill_number || oldBill.purchase_number || "PUR",
+      items: enrichedItems,
+      billDate: finalBillDate,
+    });
+
     const finalBalanceDue = totalAmount - finalPaidAmount;
     const finalIsPaid = finalBalanceDue === 0;
 
@@ -562,9 +648,8 @@ export async function PUT(request: Request) {
       description: description || null,
     };
 
-    const rawBillDate = customBillDate || customDate || customPurchaseDate;
     if (rawBillDate) {
-      const bDate = new Date(rawBillDate);
+      const bDate = parseSafeDate(rawBillDate);
       updateData.bill_date = bDate;
       updateData.purchase_date = bDate;
       updateData.date = bDate;
@@ -663,7 +748,7 @@ export async function PUT(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
           amountDelta: -totalAmount,
-          effectiveAt: new Date(),
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billObjId.toString(),
             purchase_number: updateData.purchase_number || oldBill.purchase_number || oldBill.purchase_no || oldBill.bill_number,
@@ -687,7 +772,7 @@ export async function PUT(request: Request) {
           eventSource: "party_transaction",
           eventSourceId: billObjId.toString(),
           amountDelta: finalPaidAmount,
-          effectiveAt: new Date(),
+          effectiveAt: finalBillDate,
           metadata: {
             bill_id: billObjId.toString(),
             purchase_number: updateData.purchase_number || oldBill.purchase_number || oldBill.purchase_no || oldBill.bill_number,
@@ -705,7 +790,7 @@ export async function PUT(request: Request) {
           category: "purchasing",
           type: "expense",
           description: `Payment for purchase bill #${billObjId.toString()}`,
-          payment_date: new Date(),
+          payment_date: finalBillDate,
           payment_method_id: paymentMethodId && isValidObjectId(paymentMethodId) ? toObjectId(paymentMethodId) : (paymentMethodId || "cash"),
           order_id: billObjId,
           created_at: new Date(),
@@ -775,9 +860,14 @@ export async function DELETE(request: Request) {
 
     const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
 
-    // Reverse stock of all items
+    // Reverse stock and inventory batches of all items
+    const { reversePurchaseInwardServer } = await import("@/lib/inventory/valuation-engine");
     if (oldBill.items && oldBill.items.length > 0) {
-      await reversePurchaseBillStock(productsCollection, oldBill.items, user.id);
+      await reversePurchaseInwardServer({
+        userId: user.id,
+        billId: billObjId.toString(),
+        items: oldBill.items,
+      });
     }
 
     const result = await purchaseBillsCollection.deleteOne({

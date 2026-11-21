@@ -4,6 +4,7 @@ import { getCollection, COLLECTIONS, toObjectId, setLastUpdated, updateUserLastA
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
 import { requirePermission } from "@/lib/auth/rbac";
+import { parseSafeOpeningDate } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser() as { id: string } | null
@@ -75,17 +76,43 @@ export async function POST(request: Request) {
 
   const newProduct = await request.json();
   const now = new Date();
+  const createdAt = newProduct.created_at ? parseSafeOpeningDate(newProduct.created_at) : parseSafeOpeningDate(now);
 
   const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
   const result = await productsCollection.insertOne({
     ...newProduct,
     user_id: toObjectId(user.id),
-    created_at: now,
+    created_at: createdAt,
     updated_at: now,
   });
 
   if (!result.insertedId) {
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
+  }
+
+  // Create opening stock batch if initial quantity is present
+  const initQty = Number(newProduct.quantity || newProduct.in_stock) || 0;
+  const initCost = Number(newProduct.cost_price || newProduct.purchase_price) || 0;
+  if (initQty > 0) {
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.insertOne({
+        user_id: toObjectId(user.id),
+        product_id: result.insertedId,
+        source_type: "opening_stock",
+        source_id: result.insertedId.toString(),
+        batch_number: "OPENING",
+        initial_quantity: initQty,
+        remaining_quantity: initQty,
+        cost_price: initCost,
+        status: "active",
+        batch_date: createdAt,
+        created_at: createdAt,
+        updated_at: now,
+      });
+    } catch (bErr) {
+      console.error("Failed to create opening stock batch:", bErr);
+    }
   }
 
   // ✅ Update user's last activity

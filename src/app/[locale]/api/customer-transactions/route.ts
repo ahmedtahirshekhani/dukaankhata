@@ -8,7 +8,8 @@ import {
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime, generateReferenceNumber } from '@/lib/utils';
+import { generateReferenceNumber } from '@/lib/utils';
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 export async function GET(req: NextRequest) {
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
     const customerId = body?.customerId ?? body?.customer_id ?? '';
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
-    const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json({ error: 'Valid customer is required' }, { status: 400 });
@@ -136,7 +137,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = setDateToCurrentTime(dateStr);
+    if (type === 'payment-out') {
+      const { getServerPaymentMethodBalance } = await import('@/lib/payment-methods/balance-check');
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId,
+      });
+
+      if (paymentAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: 'insufficient_balance',
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${paymentAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: paymentAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    const date = parseSafeDate(dateStr);
 
     const collection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const now = new Date();
@@ -180,7 +201,7 @@ export async function POST(req: NextRequest) {
       customerId,
       paymentAmount,
       paymentMethodId,
-      date: date.toISOString().split('T')[0],
+      date: toHTMLDateString(date),
     });
   } catch (err: unknown) {
     console.error('customer-transactions POST error', err);

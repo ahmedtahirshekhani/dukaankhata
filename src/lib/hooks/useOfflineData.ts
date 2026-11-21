@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { liveQuery } from "dexie";
 import { db } from "../db/offline-db";
-import { safeDate } from "@/lib/date-utils";
+import { safeDate, toHTMLDateString, parseSafeDate } from "@/lib/date-utils";
 
 // Custom hook to replace useLiveQuery from dexie-react-hooks
 // This fixes the Next.js App Router bug where navigating back returns an empty/stale state
@@ -221,8 +221,8 @@ export function useOfflineOrders(
       const getOrderDayTime = (order: any) => {
         const raw = order.sale_date || order.order_date || order.date || order.created_at;
         if (!raw) return 0;
-        const parsed = safeDate(raw, new Date(0));
-        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+        const htmlDay = toHTMLDateString(raw);
+        return htmlDay ? parseSafeDate(htmlDay).getTime() : 0;
       };
       const dateA = getOrderDayTime(a);
       const dateB = getOrderDayTime(b);
@@ -242,14 +242,7 @@ export function useOfflineExpenses(searchQuery: string = "") {
     return db.expenses.toArray().then((expenses) => {
       return expenses
         .map((e) => {
-          let formattedDate = e.date;
-          if (
-            formattedDate &&
-            typeof formattedDate === "string" &&
-            formattedDate.includes("T")
-          ) {
-            formattedDate = formattedDate.split("T")[0];
-          }
+          const formattedDate = e.date ? toHTMLDateString(e.date) : "";
           return {
             ...e,
             expenseNumber: e.expenseNumber || e.expense_number || "-",
@@ -316,14 +309,7 @@ export function useOfflineCustomerTransactions(
         )?.toString();
         const paymentNumber = (t.paymentNumber || t.payment_number || t.paymentNo || t.payment_no || "")?.toString();
         const paymentAmount = t.paymentAmount ?? t.payment_amount ?? 0;
-        let formattedDate = t.date;
-        if (
-          formattedDate &&
-          typeof formattedDate === "string" &&
-          formattedDate.includes("T")
-        ) {
-          formattedDate = formattedDate.split("T")[0];
-        }
+        const formattedDate = t.date ? toHTMLDateString(t.date) : "";
 
         return {
           ...t,
@@ -385,10 +371,8 @@ export function useOfflineCustomerTransactions(
         const getTxnDayTime = (item: any): number => {
           const raw = item.raw_date || item.payment_date || item.date || item.created_at || item.createdAt;
           if (raw) {
-            const parsed = safeDate(raw, new Date(0));
-            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
-              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
-            }
+            const htmlDay = toHTMLDateString(raw);
+            if (htmlDay) return parseSafeDate(htmlDay).getTime();
           }
           return 0;
         };
@@ -417,7 +401,14 @@ export function useOfflinePaymentMethods() {
 
 export function useOfflinePaymentMethodsWithBalance() {
   return useSafeLiveQuery(async () => {
-    const methods = await db.payment_methods.toArray();
+    const rawMethods = await db.payment_methods.toArray();
+    
+    // Ensure "Cash" and "Cheque" are in the list if not already present
+    const methods = [...rawMethods];
+    const hasCash = methods.some(m => m.id === "cash" || m.name?.toLowerCase().includes("cash") || m.bank_name?.toLowerCase().includes("cash") || m.is_default);
+    if (!hasCash) {
+      methods.unshift({ id: "cash", name: "Cash", bank_name: "Cash", opening_balance: 0, is_default: true });
+    }
     
     const [partyTransactions, orders, purchaseBills, saleReturns, expenses, vendorTransactions] = await Promise.all([
       db.party_transactions.toArray(),
@@ -430,10 +421,22 @@ export function useOfflinePaymentMethodsWithBalance() {
 
     return methods.map(method => {
       const methodIdStr = (method.id || method._id)?.toString();
+      const isCash = Boolean(method.is_default || method.bank_name?.toLowerCase().includes("cash") || method.name?.toLowerCase().includes("cash") || methodIdStr === "cash");
+      const isCheque = Boolean(method.bank_name?.toLowerCase().includes("cheque") || method.name?.toLowerCase().includes("cheque") || methodIdStr === "cheque");
+
+      const matchMethod = (val?: any) => {
+        const str = val?.toString();
+        if (!str) return isCash;
+        if (str === methodIdStr) return true;
+        if (isCash && (str.toLowerCase() === "cash" || str === "")) return true;
+        if (isCheque && str.toLowerCase() === "cheque") return true;
+        return false;
+      };
+
       let currentBalance = parseFloat(method.opening_balance || method.openingBalance) || 0;
 
       partyTransactions.forEach(t => {
-        if ((t.paymentMethodId || t.payment_method_id)?.toString() === methodIdStr) {
+        if (matchMethod(t.paymentMethodId || t.payment_method_id)) {
           const amount = parseFloat(t.paymentAmount || t.payment_amount || t.amount) || 0;
           if (t.type === 'payment-in') currentBalance += amount;
           if (t.type === 'payment-out') currentBalance -= amount;
@@ -441,7 +444,7 @@ export function useOfflinePaymentMethodsWithBalance() {
       });
       
       vendorTransactions.forEach(t => {
-        if ((t.paymentMethodId || t.payment_method_id)?.toString() === methodIdStr) {
+        if (matchMethod(t.paymentMethodId || t.payment_method_id)) {
           const amount = parseFloat(t.paymentAmount || t.payment_amount || t.amount) || 0;
           if (t.type === 'payment-in') currentBalance += amount;
           if (t.type === 'payment-out') currentBalance -= amount;
@@ -449,32 +452,32 @@ export function useOfflinePaymentMethodsWithBalance() {
       });
 
       orders.forEach(o => {
-        const orderMethod = (o.payment?.method || o.payment_method_id || o.paymentMethodId)?.toString();
-        if (orderMethod === methodIdStr) {
+        const orderMethod = (o.payment?.method || o.payment_method_id || o.paymentMethodId);
+        if (matchMethod(orderMethod)) {
           const amount = parseFloat(o.payment?.paid_amount || o.paid_amount || o.paidAmount) || 0;
           currentBalance += amount; // IN
         }
       });
 
       purchaseBills.forEach(p => {
-        const pMethod = (p.payment?.method || p.payment_method_id || p.paymentMethodId)?.toString();
-        if (pMethod === methodIdStr) {
+        const pMethod = (p.payment?.method || p.payment_method_id || p.paymentMethodId);
+        if (matchMethod(pMethod)) {
           const amount = parseFloat(p.payment?.paid_amount || p.paid_amount || p.paidAmount) || 0;
           currentBalance -= amount; // OUT
         }
       });
 
       saleReturns.forEach(s => {
-        const sMethod = (s.paymentMethodId || s.payment_method_id)?.toString();
-        if (sMethod === methodIdStr) {
+        const sMethod = (s.paymentMethodId || s.payment_method_id);
+        if (matchMethod(sMethod)) {
           const amount = parseFloat(s.paidAmount || s.paid_amount) || 0;
           currentBalance -= amount; // OUT
         }
       });
 
       expenses.forEach(e => {
-        const eMethod = (e.paymentMethodId || e.payment_method_id)?.toString();
-        if (eMethod === methodIdStr) {
+        const eMethod = (e.paymentMethodId || e.payment_method_id);
+        if (matchMethod(eMethod)) {
           const amount = parseFloat(e.amount) || 0;
           currentBalance -= amount; // OUT
         }
@@ -482,7 +485,7 @@ export function useOfflinePaymentMethodsWithBalance() {
 
       return {
         ...method,
-        currentBalance
+        currentBalance: Math.round(currentBalance * 100) / 100
       };
     });
   });
@@ -543,14 +546,8 @@ export function useOfflineSaleReturns(
         const paymentMethodId = (
           t.paymentMethodId || t.payment_method_id
         )?.toString();
-        let formattedDate = t.date;
-        if (
-          formattedDate &&
-          typeof formattedDate === "string" &&
-          formattedDate.includes("T")
-        ) {
-          formattedDate = formattedDate.split("T")[0];
-        }
+        const formattedDate = t.date ? toHTMLDateString(t.date) : "";
+        const rawInvoiceDate = t.invoiceDate || t.invoice_date;
 
         return {
           ...t,
@@ -562,7 +559,7 @@ export function useOfflineSaleReturns(
           paidAmount: t.paidAmount ?? t.paid_amount ?? 0,
           balanceDue: t.balanceDue ?? t.balance_due ?? 0,
           invoiceNo: t.invoiceNo || t.invoice_no || "",
-          invoiceDate: t.invoiceDate || t.invoice_date || "",
+          invoiceDate: rawInvoiceDate ? toHTMLDateString(rawInvoiceDate) : "",
           paymentRefNo: t.paymentRefNo || t.payment_ref_no || "",
           raw_date: t.date,
           return_date: t.return_date || t.date,
@@ -614,10 +611,8 @@ export function useOfflineSaleReturns(
         const getReturnDayTime = (item: any): number => {
           const raw = item.raw_date || item.return_date || item.date || item.created_at || item.createdAt;
           if (raw) {
-            const parsed = safeDate(raw, new Date(0));
-            if (!isNaN(parsed.getTime()) && parsed.getTime() > 0) {
-              return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
-            }
+            const htmlDay = toHTMLDateString(raw);
+            if (htmlDay) return parseSafeDate(htmlDay).getTime();
           }
           return 0;
         };
@@ -784,8 +779,8 @@ export function useOfflinePurchaseBills(searchQuery: string = "") {
         const getBillDayTime = (bill: any) => {
           const raw = bill.bill_date || bill.date || bill.purchase_date || bill.created_at;
           if (!raw) return 0;
-          const parsed = safeDate(raw, new Date(0));
-          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
+          const htmlDay = toHTMLDateString(raw);
+          return htmlDay ? parseSafeDate(htmlDay).getTime() : 0;
         };
         const dateA = getBillDayTime(a);
         const dateB = getBillDayTime(b);

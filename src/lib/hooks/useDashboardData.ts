@@ -133,7 +133,7 @@ export function useDashboardData(
       const rangeDates = getRangeDates(salesRange);
       let totalRevenue = 0;
       for (const order of allOrders) {
-        const orderDate = new Date(order.created_at || order.sale_date || 0);
+        const orderDate = new Date(order.sale_date || order.order_date || order.date || order.created_at || 0);
         if (orderDate >= rangeDates.start && orderDate <= rangeDates.end) {
           totalRevenue += Number(order.total_amount || 0);
         }
@@ -169,7 +169,7 @@ export function useDashboardData(
       const rangeDates = getRangeDates(expensesRange);
       let totalExpenses = 0;
       for (const exp of allExpenses) {
-        const expDate = new Date(exp.created_at || exp.date || 0);
+        const expDate = new Date(exp.date || exp.created_at || 0);
         if (expDate >= rangeDates.start && expDate <= rangeDates.end) {
           totalExpenses += Number(exp.amount || 0);
         }
@@ -187,7 +187,7 @@ export function useDashboardData(
       const rangeDates = getRangeDates(counterSalesRange);
       let counterSales = 0;
       for (const t of allTransactions) {
-        const tDate = new Date(t.created_at || t.date || t.timestamp || 0);
+        const tDate = new Date(t.date || t.created_at || t.timestamp || 0);
         if (tDate >= rangeDates.start && tDate <= rangeDates.end) {
           if ((t.type === "income" || t.type === "sale") && !t.order_id) {
             counterSales += Number(t.amount || 0);
@@ -207,7 +207,7 @@ export function useDashboardData(
       const rangeDates = getRangeDates(counterExpensesRange);
       let counterExpenses = 0;
       for (const t of allTransactions) {
-        const tDate = new Date(t.created_at || t.date || t.timestamp || 0);
+        const tDate = new Date(t.date || t.created_at || t.timestamp || 0);
         if (tDate >= rangeDates.start && tDate <= rangeDates.end) {
           if (t.type === "expense") {
             counterExpenses += Number(t.amount || 0);

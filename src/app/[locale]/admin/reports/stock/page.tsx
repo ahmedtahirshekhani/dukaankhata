@@ -24,7 +24,9 @@ import {
   ArrowLeft,
   Loader2,
   Printer,
+  Layers,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportStockReportToExcel } from "@/lib/excel";
 import { useCategories, useBranches } from "@/components/products/use-products-data";
@@ -37,6 +39,7 @@ import {
 } from "@/components/reports/report-pdf-header";
 import { ReportPdfModal } from "@/components/reports/report-pdf-modal";
 import { PdfTable, PdfTableColumn, PdfTableFooterCell } from "@/components/reports/pdf-table";
+import { ProductStockLedgerModal } from "@/components/reports/product-stock-ledger-modal";
 import { getUomShortcut } from "@/lib/uom";
 
 export default function StockReportPage() {
@@ -45,6 +48,9 @@ export default function StockReportPage() {
   const { can } = usePermissions();
   const tCommon = useTranslations("common");
   const tStock = useTranslations("stockReportPage");
+
+  // Selected Product for Ledger Drilldown Modal
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   // Search and Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,6 +76,7 @@ export default function StockReportPage() {
   });
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [valuationMethod, setValuationMethod] = useState<string>("average");
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -151,6 +158,9 @@ export default function StockReportPage() {
       } else {
         setProducts(data.products || []);
         setSummary(data.summary || {});
+        if (data.summary?.valuationMethod) {
+          setValuationMethod(data.summary.valuationMethod);
+        }
         setTotalCount(data.pagination?.totalCount || 0);
         setTotalPages(data.pagination?.totalPages || 1);
       }
@@ -322,7 +332,7 @@ export default function StockReportPage() {
         header: tStock("costPrice") || "Cost Price",
         width: "85px",
         align: "right",
-        render: (row) => formatCurrency(row.cost_price || 0),
+        render: (row) => formatCurrency(row.effective_cost_price ?? row.cost_price ?? 0),
       },
       {
         id: "sellPrice",
@@ -338,7 +348,7 @@ export default function StockReportPage() {
         align: "right",
         render: (row) => (
           <span className="text-slate-700">
-            {formatCurrency((row.quantity || 0) * (row.cost_price || 0))}
+            {formatCurrency(row.total_cost_value ?? ((row.quantity || 0) * (row.cost_price || 0)))}
           </span>
         ),
       },
@@ -445,18 +455,19 @@ export default function StockReportPage() {
   ], [summary, tStock]);
 
   const pdfKpis: ReportPdfKpi[] = useMemo(() => [
-    { label: tStock("totalStockItems") || "Total Units", value: summary.totalStock || 0 },
-    { label: tStock("costValuation") || "Cost Valuation", value: formatCurrency(summary.totalCostValue) },
-    { label: tStock("retailValuation") || "Retail Valuation", value: formatCurrency(summary.totalSellValue), highlight: true },
-    { label: tStock("profitPotential") || "Potential Profit", value: formatCurrency(summary.totalProfitPotential), highlight: true },
+    { label: tStock("totalStockItems"), value: summary.totalStock || 0 },
+    { label: tStock("costValuation"), value: formatCurrency(summary.totalCostValue) },
+    { label: tStock("retailValuation"), value: formatCurrency(summary.totalSellValue), highlight: true },
+    { label: tStock("profitPotential"), value: formatCurrency(summary.totalProfitPotential), highlight: true },
   ], [summary, tStock]);
 
   const pdfMetaItems: ReportPdfMetaItem[] = useMemo(() => [
     { label: "Category", value: categoryFilter === "all" ? "All Categories" : categoryFilter },
     { label: "Branch", value: branchFilter === "all" ? "All Branches" : branchFilter },
+    { label: "Valuation Method", value: valuationMethod === "fifo" ? "FIFO" : "Weighted Average" },
     { label: "Total Products", value: String(summary.totalProducts || 0) },
     { label: "Generated", value: new Date().toLocaleDateString("en-GB") },
-  ], [categoryFilter, branchFilter, summary.totalProducts]);
+  ], [categoryFilter, branchFilter, summary.totalProducts, valuationMethod]);
 
   // DataTable Columns Definition
   const columns: ColumnDef<StockProduct>[] = useMemo(
@@ -466,8 +477,10 @@ export default function StockReportPage() {
         header: tStock("productName"),
         className: "min-w-[200px] font-bold text-foreground text-xs sm:text-sm",
         cell: (product) => (
-          <div>
-            <div className="font-semibold text-foreground text-xs sm:text-sm">{product.name}</div>
+          <div className="group cursor-pointer">
+            <div className="font-semibold text-foreground group-hover:text-primary transition-colors text-xs sm:text-sm flex items-center gap-1.5">
+              <span>{product.name}</span>
+            </div>
             {product.sku && <div className="text-[10px] text-muted-foreground">SKU: {product.sku}</div>}
           </div>
         ),
@@ -515,7 +528,16 @@ export default function StockReportPage() {
         id: "costPrice",
         header: tStock("costPrice"),
         className: "w-[110px] text-right text-xs",
-        cell: (product) => formatCurrency(product.cost_price || 0),
+        cell: (product) => (
+          <div className="text-right">
+            <div>{formatCurrency(product.effective_cost_price ?? product.cost_price ?? 0)}</div>
+            {product.batch_count && product.batch_count > 1 ? (
+              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
+                {product.batch_count} Lots
+              </span>
+            ) : null}
+          </div>
+        ),
       },
       {
         id: "sellPrice",
@@ -527,7 +549,7 @@ export default function StockReportPage() {
         id: "totalCostValuation",
         header: tStock("totalCostValuation"),
         className: "w-[120px] text-right font-bold text-muted-foreground text-xs",
-        cell: (product) => formatCurrency((product.quantity || 0) * (product.cost_price || 0)),
+        cell: (product) => formatCurrency(product.total_cost_value ?? ((product.quantity || 0) * (product.cost_price || 0))),
       },
       {
         id: "totalRetailValuation",
@@ -562,7 +584,13 @@ export default function StockReportPage() {
         description={tStock("description")}
         className="mb-1"
         actions={
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="h-8 px-2.5 text-xs font-semibold gap-1.5 border-primary/20 bg-primary/5 text-primary">
+              <Layers className="w-3.5 h-3.5" />
+              <span>
+                {valuationMethod === "fifo" ? "Valuation: FIFO (First In, First Out)" : "Valuation: Weighted Average Cost"}
+              </span>
+            </Badge>
             {can("reports", "export_stock") && (
               <>
                 <Button
@@ -634,6 +662,7 @@ export default function StockReportPage() {
         onSearchChange={(term) => setSearchTerm(term)}
         searchPlaceholder={tStock("searchPlaceholder") || "Search products..."}
         keyExtractor={(item, idx) => String(item.id || item._id || idx)}
+        onRowClick={(product) => setSelectedProductId(String(product.id || (product as any)._id))}
         toolbarActions={
           <div className="flex items-center gap-2 flex-wrap">
             <Select
@@ -693,7 +722,10 @@ export default function StockReportPage() {
           const isOut = qty <= 0;
           const isLow = qty > 0 && qty <= 5;
           return (
-            <div className="bg-card border rounded-lg p-3.5 shadow-sm space-y-2.5">
+            <div
+              onClick={() => setSelectedProductId(String(product.id || (product as any)._id))}
+              className="bg-card border rounded-lg p-3.5 shadow-sm space-y-2.5 cursor-pointer hover:border-primary/50 transition-colors"
+            >
               <div className="flex justify-between items-start gap-2 border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
                 <div>
                   <h3 className="font-semibold text-sm text-foreground truncate max-w-[200px]">
@@ -725,6 +757,13 @@ export default function StockReportPage() {
             </div>
           );
         }}
+      />
+
+      {/* Stock Ledger & Movement History Drilldown Modal */}
+      <ProductStockLedgerModal
+        productId={selectedProductId}
+        open={!!selectedProductId}
+        onOpenChange={(open) => !open && setSelectedProductId(null)}
       />
 
       {/* PDF Preview & Auto-Download Dialog Modal */}

@@ -11,7 +11,7 @@ import {
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime } from '@/lib/utils';
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
 interface CustomerTransactionDoc {
@@ -20,6 +20,7 @@ interface CustomerTransactionDoc {
   customer_id: ObjectId;
   payment_number?: string;
   payment_amount: number;
+  amount?: number;
   payment_method_id: ObjectId | string;
   date: Date;
   type?: string;
@@ -102,7 +103,7 @@ export async function PUT(
     const customerId = body?.customerId ?? body?.customer_id ?? '';
     const paymentAmount = typeof body?.paymentAmount === 'number' ? body.paymentAmount : parseFloat(body?.paymentAmount) || 0;
     const paymentMethodId = body?.paymentMethodId ?? body?.payment_method_id ?? '';
-    const dateStr = body?.date ?? new Date().toISOString().split('T')[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
     const type = body?.type ?? 'payment-in';
     const paymentNumber = body?.paymentNumber ?? body?.payment_number;
 
@@ -117,7 +118,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
 
-    const date = setDateToCurrentTime(dateStr);
+    const date = parseSafeDate(dateStr);
 
     const collection = await getCollection<CustomerTransactionDoc>(COLLECTIONS.CUSTOMER_TRANSACTIONS);
     const existing = await collection.findOne({
@@ -127,6 +128,30 @@ export async function PUT(
 
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    if (type === 'payment-out') {
+      const { getServerPaymentMethodBalance } = await import('@/lib/payment-methods/balance-check');
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId,
+        excludeTransaction: {
+          amount: Number(existing.payment_amount) || 0,
+          paymentMethodId: existing.payment_method_id?.toString(),
+        },
+      });
+
+      if (paymentAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: 'insufficient_balance',
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${paymentAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: paymentAmount,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const oldCustomerId = existing.customer_id?.toString();
@@ -212,7 +237,7 @@ export async function PUT(
       customerId: updatedDoc.customer_id.toString(),
       paymentAmount: updatedDoc.payment_amount,
       paymentMethodId: typeof pmId === 'string' ? pmId : pmId.toString(),
-      date: new Date(updatedDoc.date).toISOString().split('T')[0],
+      date: toHTMLDateString(updatedDoc.date),
       type: updatedDoc.type ?? 'payment-in',
     });
   } catch (err: unknown) {

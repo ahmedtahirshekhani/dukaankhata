@@ -121,6 +121,8 @@ export async function POST(request: Request) {
       COLLECTIONS.BRANCHES,
       COLLECTIONS.PAYMENT_METHODS,
       COLLECTIONS.CONFIGURATIONS,
+      COLLECTIONS.STOCK_ADJUSTMENTS,
+      COLLECTIONS.INVENTORY_BATCHES,
     ];
 
     for (const collectionName of collectionsToClear) {

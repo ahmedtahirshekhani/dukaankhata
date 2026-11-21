@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Download, Trash2, EyeIcon, Loader2, SearchIcon, X, Edit, PlusCircle, FilterIcon, ArrowUpDown } from "lucide-react";
 import { formatCurrencyString } from "@/lib/utils";
+import { formatReadableDate } from "@/lib/date-utils";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -177,13 +178,28 @@ export default function QuotationListPage() {
         };
         await db.orders.put(orderDoc);
 
-        // Deduct stock offline
+        // Deduct stock and update selling price offline
         const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
         if (quotation.items && Array.isArray(quotation.items)) {
           for (const item of quotation.items) {
-             const productId = item.product_id || item.productId || item.id;
+             const productId = (item.product_id || item.productId || item.id || "").toString();
              if (productId) {
-               await adjustOfflineStock(productId.toString(), -(Number(item.quantity) || 0));
+               await adjustOfflineStock(productId, -(Number(item.quantity) || 0));
+
+               // Update latest selling price in Dexie
+               const salePrice = Number(item.unit_price ?? item.sell_price ?? item.price ?? 0);
+               if (!isNaN(salePrice) && salePrice > 0) {
+                 let productDoc = await db.products.get(productId);
+                 if (!productDoc) {
+                   productDoc = await db.products.where("_id").equals(productId).first();
+                 }
+                 const actualKey = (productDoc?.id || productId).toString();
+                 await db.products.update(actualKey, {
+                   sell_price: salePrice,
+                   sell_price_str: String(salePrice),
+                   price: salePrice,
+                 });
+               }
              }
           }
         }
@@ -451,10 +467,10 @@ export default function QuotationListPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {q.validity_date ? new Date(q.validity_date).toLocaleDateString() : "-"}
+                            {formatReadableDate(q.validity_date)}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {q.created_at ? new Date(q.created_at).toLocaleDateString() : "-"}
+                            {formatReadableDate(q.quotation_date || q.date || q.created_at)}
                           </TableCell>
                           <TableCell className="w-[1%] whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -669,7 +685,7 @@ function QuotationCard({
         </div>
         <div className="text-xs">
           <span className="text-muted-foreground mr-1.5">{tInv("validity")}:</span>
-          <span className="font-medium text-foreground">{quotation.validity_date ? new Date(quotation.validity_date).toLocaleDateString() : "-"}</span>
+          <span className="font-medium text-foreground">{formatReadableDate(quotation.validity_date)}</span>
         </div>
       </div>
 

@@ -4,6 +4,8 @@ import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
+import { calculateProductDynamicSalesValuation } from '@/lib/inventory/valuation-engine';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,18 +38,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
+    const from = parsePKTDateBoundary(fromDate, false);
+    const to = parsePKTDateBoundary(toDate, true);
 
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       return NextResponse.json(
         { error: "Invalid date range" },
         { status: 400 }
       );
     }
-
-    from.setHours(0, 0, 0, 0);
-    to.setHours(23, 59, 59, 999);
 
     const userId = toObjectId(user.id);
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
@@ -56,11 +55,59 @@ export async function GET(request: NextRequest) {
     const orderMatch: any = {
       user_id: userId,
       status: { $ne: "cancelled" },
-      $or: [
-        { sale_date: { $gte: from.toISOString(), $lte: to.toISOString() } },
-        { created_at: { $gte: from, $lte: to } },
-        { created_at: { $gte: from.toISOString(), $lte: to.toISOString() } }
-      ]
+      $expr: {
+        $let: {
+          vars: {
+            rawDate: {
+              $ifNull: [
+                "$sale_date",
+                {
+                  $ifNull: [
+                    "$saleDate",
+                    {
+                      $ifNull: [
+                        "$invoice_date",
+                        {
+                          $ifNull: [
+                            "$invoiceDate",
+                            {
+                              $ifNull: [
+                                "$order_date",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          in: {
+            $let: {
+              vars: {
+                parsedDate: {
+                  $convert: {
+                    input: "$$rawDate",
+                    to: "date",
+                    onError: null,
+                    onNull: null,
+                  },
+                },
+              },
+              in: {
+                $and: [
+                  { $ne: ["$$parsedDate", null] },
+                  { $gte: ["$$parsedDate", from] },
+                  { $lte: ["$$parsedDate", to] },
+                ],
+              },
+            },
+          },
+        },
+      },
     };
 
     // 2. Build aggregation pipeline
@@ -113,7 +160,16 @@ export async function GET(request: NextRequest) {
               onNull: 0
             }
           },
-          discountType: { $ifNull: ["$items.discountType", "value"] }
+          discountType: { $ifNull: ["$items.discountType", "value"] },
+          batchSplits: { $ifNull: ["$items.batch_splits", []] },
+          totalCogs: {
+            $convert: {
+              input: "$items.total_cogs",
+              to: "double",
+              onError: null,
+              onNull: null,
+            }
+          }
         }
       },
 
@@ -135,7 +191,9 @@ export async function GET(request: NextRequest) {
           netRevenue: {
             $max: [0, { $subtract: ["$grossAmount", "$discountAmount"] }]
           },
-          totalCost: { $multiply: ["$qty", "$costPrice"] }
+          totalCost: {
+            $ifNull: ["$totalCogs", { $multiply: ["$qty", "$costPrice"] }]
+          }
         }
       },
       {
@@ -160,7 +218,8 @@ export async function GET(request: NextRequest) {
           totalProfit: { $sum: "$profit" },
           invoicesCount: { $sum: 1 },
           minSellPrice: { $min: "$price" },
-          maxSellPrice: { $max: "$price" }
+          maxSellPrice: { $max: "$price" },
+          batchSplits: { $push: "$batchSplits" }
         }
       },
 
@@ -190,6 +249,36 @@ export async function GET(request: NextRequest) {
         }
       },
       {
+        $addFields: {
+          liveCostPrice: {
+            $convert: {
+              input: { $ifNull: ["$productInfo.cost_price", { $ifNull: ["$productInfo.purchase_price", 0] }] },
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          resolvedTotalCost: {
+            $cond: [
+              { $gt: ["$totalCost", 0] },
+              "$totalCost",
+              { $multiply: ["$totalQuantitySold", "$liveCostPrice"] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          resolvedTotalProfit: {
+            $subtract: ["$totalRevenue", "$resolvedTotalCost"]
+          }
+        }
+      },
+      {
         $project: {
           _id: 1,
           productId: "$_id",
@@ -202,8 +291,8 @@ export async function GET(request: NextRequest) {
           totalGrossAmount: { $round: ["$totalGrossAmount", 2] },
           totalDiscount: { $round: ["$totalDiscount", 2] },
           totalRevenue: { $round: ["$totalRevenue", 2] },
-          totalCost: { $round: ["$totalCost", 2] },
-          totalProfit: { $round: ["$totalProfit", 2] },
+          totalCost: { $round: ["$resolvedTotalCost", 2] },
+          totalProfit: { $round: ["$resolvedTotalProfit", 2] },
           invoicesCount: 1,
           minSellPrice: { $round: ["$minSellPrice", 2] },
           maxSellPrice: { $round: ["$maxSellPrice", 2] },
@@ -217,10 +306,18 @@ export async function GET(request: NextRequest) {
           profitMargin: {
             $cond: [
               { $gt: ["$totalRevenue", 0] },
-              { $round: [{ $multiply: [{ $divide: ["$totalProfit", "$totalRevenue"] }, 100] }, 1] },
+              { $round: [{ $multiply: [{ $divide: ["$resolvedTotalProfit", "$totalRevenue"] }, 100] }, 1] },
               0
             ]
-          }
+          },
+          avgCostPrice: {
+            $cond: [
+              { $gt: ["$totalQuantitySold", 0] },
+              { $round: [{ $divide: ["$resolvedTotalCost", "$totalQuantitySold"] }, 2] },
+              0
+            ]
+          },
+          batchSplits: "$batchSplits"
         }
       }
     ];
@@ -302,6 +399,33 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Merge Sales and Returns to compute Net Sales
+    // Pre-calculate dynamic valuation COGS for all products sold in this period
+    const dynamicValuations = await Promise.all(
+      allMatchingSales.map(async (saleItem) => {
+        const pId = String(saleItem.productId);
+        try {
+          const valResult = await calculateProductDynamicSalesValuation({
+            userId: user.id,
+            productId: pId,
+            fromDate: from,
+            toDate: to,
+            syncDatabase: true,
+          });
+          return { productId: pId, valResult };
+        } catch (e) {
+          console.error(`Failed dynamic valuation for product ${pId}:`, e);
+          return { productId: pId, valResult: null };
+        }
+      })
+    );
+
+    const dynamicValuationMap = new Map<string, any>();
+    for (const dv of dynamicValuations) {
+      if (dv.valResult) {
+        dynamicValuationMap.set(dv.productId, dv.valResult);
+      }
+    }
+
     const processedMap = new Map<string, any>();
 
     for (const item of allMatchingSales) {
@@ -312,7 +436,13 @@ export async function GET(request: NextRequest) {
 
       const grossQuantity = item.totalQuantitySold || 0;
       const grossRevenue = item.totalRevenue || 0;
-      const grossCost = item.totalCost || 0;
+
+      // Dynamic COGS from valuation engine (matches Valuation Ledger exactly)
+      const dynVal = dynamicValuationMap.get(prodId);
+      const grossCost =
+        dynVal && dynVal.periodCogs > 0
+          ? dynVal.periodCogs
+          : item.totalCost || 0;
 
       // Net Quantity Sold
       const netQuantitySold = Math.max(0, grossQuantity - totalReturnedQuantity);
@@ -356,7 +486,9 @@ export async function GET(request: NextRequest) {
         minSellPrice: item.minSellPrice,
         maxSellPrice: item.maxSellPrice,
         avgSellingPrice,
-        profitMargin
+        avgCostPrice: Math.round(unitCost * 100) / 100,
+        profitMargin,
+        batchSplits: (item.batchSplits || []).flat().filter(Boolean),
       });
     }
 

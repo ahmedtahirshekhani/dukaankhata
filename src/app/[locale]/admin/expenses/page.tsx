@@ -36,7 +36,7 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { TableRowActions } from "@/components/ui/table-row-actions";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate } from "@/lib/date-utils";
+import { formatReadableDate, getTodayHTMLDate, safeDate, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/page-header";
 import { ExpenseCategorySelector, DEFAULT_EXPENSE_CATEGORIES } from "@/components/selectors/expense-category-selector";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -117,7 +117,7 @@ export default function ExpensesPage() {
 
   // Form State
   const [formExpenseNumber, setFormExpenseNumber] = useState("");
-  const [formDate, setFormDate] = useState("");
+  const [formDate, setFormDate] = useState(() => getTodayHTMLDate());
   const [formCategory, setFormCategory] = useState("");
   const [formItemName, setFormItemName] = useState("");
   const [formQty, setFormQty] = useState("1");
@@ -175,7 +175,7 @@ export default function ExpensesPage() {
   const openAddModal = () => {
     setEditingExpense(null);
     setFormExpenseNumber(generateExpenseNumber());
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setFormCategory("");
     setFormItemName("");
     setFormQty("1");
@@ -186,7 +186,7 @@ export default function ExpensesPage() {
   const openEditModal = (expense: ExpenseRow) => {
     setEditingExpense(expense);
     setFormExpenseNumber(expense.expenseNumber || "");
-    setFormDate(expense.date || new Date().toISOString().split("T")[0]);
+    setFormDate(toHTMLDateString(expense.date) || getTodayHTMLDate());
     setFormCategory(expense.category || "");
     setFormItemName(expense.itemName || "");
     setFormQty((expense.qty || 1).toString());
@@ -231,10 +231,11 @@ export default function ExpensesPage() {
     try {
       if (editingExpense) {
         // Edit Mode
+        const safeDateISO = toSafeISOString(formDate);
         const updatedExpense = {
           ...editingExpense,
           expenseNumber: formExpenseNumber.trim(),
-          date: formDate,
+          date: safeDateISO,
           category: formCategory.trim(),
           itemName: formItemName.trim(),
           qty,
@@ -278,16 +279,17 @@ export default function ExpensesPage() {
           amount: Number((qty * rate).toFixed(2)),
         };
 
+        const safeDateISO = toSafeISOString(formDate);
         const payload = {
           expenseNumber: formExpenseNumber.trim(),
-          date: formDate,
+          date: safeDateISO,
           items: [payloadItem],
         };
 
         const expenseDoc = {
           id: payloadItem.id,
           expenseNumber: payload.expenseNumber,
-          date: payload.date,
+          date: safeDateISO,
           category: payloadItem.category,
           itemName: payloadItem.itemName,
           qty: payloadItem.qty,

@@ -57,6 +57,7 @@ declare module 'lucide-react' {
   export const Printer: Icon;
   export const Replace: Icon;
   export const Calculator: Icon;
+  export const Layers: Icon;
   export const MinusIcon: Icon;
   export const Edit: Icon;
   export const EditIcon: Icon;
@@ -229,6 +230,7 @@ declare module 'lucide-react' {
   export const Shuffle: Icon;
   export const Play: Icon;
   export const Pause: Icon;
+  export const SlidersHorizontal: Icon;
 
   // Catch-all for any other icons that might be used
   const lucideReact: {

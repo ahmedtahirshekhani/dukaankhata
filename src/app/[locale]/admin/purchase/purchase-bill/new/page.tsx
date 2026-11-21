@@ -22,14 +22,15 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
-import { toHTMLDateString } from "@/lib/date-utils";
+import { toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { ItemSelectTable } from "@/components/invoice/item-select-table";
 import { type POSProduct, type Product } from "@/app/[locale]/admin/sales/invoice/new/page";
 import { calculateLineTotal } from "@/lib/invoice/calculations";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
-import { generateReferenceNumber } from "@/lib/utils";
+import { generateReferenceNumber, cn } from "@/lib/utils";
+import { useOfflinePaymentMethodsWithBalance } from "@/lib/hooks/useOfflineData";
 import { ArrowLeftIcon, Loader2Icon } from "lucide-react";
 
 const getTodayDateString = () => {
@@ -81,6 +82,50 @@ function AddPurchaseBillPageInner() {
 
   const [saveError, setSaveError] = useState<string>("");
   const [showSaveErrorDialog, setShowSaveErrorDialog] = useState(false);
+  const [oldBillData, setOldBillData] = useState<any>(null);
+
+  const offlinePaymentMethods = useOfflinePaymentMethodsWithBalance() || [];
+
+  const paymentMethods = useMemo(() => {
+    const list = offlinePaymentMethods.map((item: any) => ({
+      id: item.id || item._id,
+      name: item.bankName || item.name || item.bank_name,
+      bankDetails: item.bankDetails || item.bank_details,
+      currentBalance: typeof item.currentBalance === "number" ? item.currentBalance : 0,
+      is_default: item.is_default,
+    })).filter((item: any) => item.id && item.name);
+
+    const cashAccount = list.find((m: any) => m.id === "cash" || m.name?.toLowerCase().includes("cash") || m.is_default);
+    const cashBalance = cashAccount ? cashAccount.currentBalance : 0;
+
+    const allMethods = [
+      { id: "cash", name: "Cash", currentBalance: cashBalance },
+      { id: "cheque", name: "Cheque", currentBalance: 0 },
+      ...list,
+    ];
+
+    const uniqueMap = new Map();
+    allMethods.forEach(m => {
+      if (!uniqueMap.has(m.id) || (m.currentBalance !== 0 && uniqueMap.get(m.id).currentBalance === 0)) {
+        uniqueMap.set(m.id, m);
+      }
+    });
+    return Array.from(uniqueMap.values());
+  }, [offlinePaymentMethods]);
+
+  const selectedMethodBalance = useMemo(() => {
+    if (!paymentMethod) return null;
+    const found = paymentMethods.find((p: any) => p.id === paymentMethod);
+    let bal = found ? (Number(found.currentBalance) || 0) : 0;
+    if (editingId && oldBillData) {
+      const oldMethod = oldBillData.payment_method_id || oldBillData.paymentMethodId || "cash";
+      const currentMethod = paymentMethod || "cash";
+      if (oldMethod === currentMethod) {
+        bal += Number(oldBillData.paid_amount || 0);
+      }
+    }
+    return bal;
+  }, [paymentMethod, paymentMethods, editingId, oldBillData]);
 
   useEffect(() => {
     const loadBillData = async () => {
@@ -145,6 +190,7 @@ function AddPurchaseBillPageInner() {
 
             setPaymentMethod(bill.payment_method_id || bill.paymentMethodId || "");
             setDescription(bill.description || "");
+            setOldBillData(bill);
           }
         } catch (error) {
           console.error("Error loading purchase bill for edit:", error);
@@ -152,6 +198,7 @@ function AddPurchaseBillPageInner() {
           setLoading(false);
         }
       } else {
+        setOldBillData(null);
         setPurchaseNumber(generateReferenceNumber("PUR"));
         setLoading(false);
       }
@@ -178,6 +225,7 @@ function AddPurchaseBillPageInner() {
     setPaymentMethod("");
     setDescription("");
     setSaveError("");
+    setOldBillData(null);
   };
 
   // Calculations
@@ -400,11 +448,12 @@ function AddPurchaseBillPageInner() {
 
   // Save Bill
   const handleSaveBill = async () => {
+    if (isSaving) return;
     if (!selectedPartyId || selectedProducts.length === 0) {
       setSaveError(
         !selectedPartyId
-          ? t("selectParty") || "Please select a supplier / party"
-          : t("addItems") || "Please add at least one item"
+          ? t("selectParty")
+          : t("addItems")
       );
       setShowSaveErrorDialog(true);
       return;
@@ -427,13 +476,24 @@ function AddPurchaseBillPageInner() {
       return;
     }
 
+    if (currentPaid > 0 && selectedMethodBalance !== null && currentPaid > selectedMethodBalance) {
+      setSaveError(
+        t("insufficientBalance", {
+          available: selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          required: currentPaid.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        })
+      );
+      setShowSaveErrorDialog(true);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const now = new Date();
       const nowIso = now.toISOString();
       const localBillId = editingId || `local_pb_${Date.now()}`;
       const finalPurchaseNo = purchaseNumber || generateReferenceNumber("PUR");
-      const { adjustOfflineStock } = await import("@/lib/db/offline-stock-manager");
+      const { adjustOfflineStockWithValuation } = await import("@/lib/db/offline-stock-manager");
 
       const finalPaidAmount = currentPaid;
       const finalBalanceDue = Math.max(0, calculations.totalAmount - finalPaidAmount);
@@ -450,9 +510,19 @@ function AddPurchaseBillPageInner() {
           if (oldBill.items && Array.isArray(oldBill.items)) {
             for (const item of oldBill.items) {
               if (item.product_id) {
-                await adjustOfflineStock(
+                const itemCost = Number(
+                  item.cost_price ??
+                  item.purchase_price ??
+                  item.unit_price ??
+                  item.price ??
+                  item.sell_price ??
+                  0
+                );
+                await adjustOfflineStockWithValuation(
                   String(item.product_id),
-                  -(Number(item.quantity) || 0)
+                  -(Number(item.quantity) || 0),
+                  itemCost,
+                  { source_id: editingId }
                 );
               }
             }
@@ -460,15 +530,7 @@ function AddPurchaseBillPageInner() {
         }
       }
 
-      let billDateTime: string;
-      if (selectedDate) {
-        const [year, month, day] = selectedDate.split("-").map(Number);
-        const d = new Date(now.getTime());
-        d.setFullYear(year, month - 1, day);
-        billDateTime = d.toISOString();
-      } else {
-        billDateTime = nowIso;
-      }
+      const billDateTime = toSafeISOString(selectedDate);
 
       const billData: any = {
         id: localBillId,
@@ -514,10 +576,20 @@ function AddPurchaseBillPageInner() {
       // 4. Update offline party balance (negative for purchase bill debit)
       await updateOfflinePartyBalance(selectedPartyId, -finalBalanceDue);
 
-      // 5. Update offline stock (+ for purchase increment) & save UOM if changed
+      // 5. Update offline stock (+ for purchase increment) & update valuation & batches
       for (const p of selectedProducts) {
         if (p.id) {
-          await adjustOfflineStock(String(p.id), Number(p.quantity) || 0);
+          const pCost = Number(p.sell_price) || 0;
+          await adjustOfflineStockWithValuation(
+            String(p.id),
+            Number(p.quantity) || 0,
+            pCost,
+            {
+              source_id: localBillId,
+              batch_number: finalPurchaseNo,
+              batch_date: billDateTime,
+            }
+          );
 
           const productDoc = await db.products.get(String(p.id));
           if (
@@ -670,6 +742,10 @@ function AddPurchaseBillPageInner() {
                     type="text"
                     value={purchaseNumber}
                     onChange={(e) => setPurchaseNumber(e.target.value)}
+                    onFocus={(e) => {
+                      const target = e.currentTarget;
+                      setTimeout(() => target.select(), 0);
+                    }}
                     placeholder="PUR-001"
                     className="h-8 text-xs"
                   />
@@ -848,6 +924,19 @@ function AddPurchaseBillPageInner() {
                           placeholder="Cash in Hand"
                           defaultToCash={true}
                         />
+                        {selectedMethodBalance !== null && (
+                          <div className="text-xs flex items-center justify-between pt-1 px-1">
+                            <span className="text-muted-foreground">{t("availableBalance") || "Available Balance"}:</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              (selectedMethodBalance >= (paidAmount === "" ? 0 : Number(paidAmount)))
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            )}>
+                              Rs. {selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

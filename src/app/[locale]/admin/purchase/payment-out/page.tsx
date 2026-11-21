@@ -54,14 +54,14 @@ import {
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { Pagination } from "@/components/ui/pagination";
-import { useOfflineCustomers, useOfflineCustomerTransactions, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { useOfflineCustomers, useOfflineCustomerTransactions, useOfflinePaymentMethodsWithBalance } from "@/lib/hooks/useOfflineData";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
-import { generateReferenceNumber, maskPaymentNo, setDateToCurrentTime } from "@/lib/utils";
+import { generateReferenceNumber, maskPaymentNo, cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate } from "@/lib/date-utils";
+import { formatReadableDate, getTodayHTMLDate, safeDate, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 
 type Party = {
   id: string;
@@ -126,7 +126,7 @@ export default function PaymentOutPage() {
   const [formPartyId, setFormPartyId] = useState("");
   const [formPaymentAmount, setFormPaymentAmount] = useState("");
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
-  const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [formDate, setFormDate] = useState(() => getTodayHTMLDate());
 
   // Replace API fetching with offline hook for the filter dropdown
   const offlineParties = useOfflineCustomers() || [];
@@ -180,33 +180,48 @@ export default function PaymentOutPage() {
     return allOfflineTransactions.slice(startIndex, startIndex + pageSize);
   }, [allOfflineTransactions, currentPage, pageSize]);
 
-  const offlinePaymentMethods = useOfflinePaymentMethods() || [];
+  const offlinePaymentMethods = useOfflinePaymentMethodsWithBalance() || [];
   
   const paymentMethods = useMemo(() => {
     const list = offlinePaymentMethods.map((item: any) => ({
       id: item.id || item._id,
       name: item.bankName || item.name || item.bank_name,
       bankDetails: item.bankDetails || item.bank_details,
-    })).filter((item) => item.id && item.name);
+      currentBalance: typeof item.currentBalance === "number" ? item.currentBalance : 0,
+      is_default: item.is_default,
+    })).filter((item: any) => item.id && item.name);
+
+    const cashAccount = list.find((m: any) => m.id === "cash" || m.name?.toLowerCase().includes("cash") || m.is_default);
+    const cashBalance = cashAccount ? cashAccount.currentBalance : 0;
 
     const allMethods = [
-      { id: "cash", name: "Cash" },
-      { id: "cheque", name: "Cheque" },
+      { id: "cash", name: "Cash", currentBalance: cashBalance },
+      { id: "cheque", name: "Cheque", currentBalance: 0 },
       ...list,
     ];
 
     // Remove duplicates
     const uniqueMap = new Map();
-    allMethods.forEach(m => uniqueMap.set(m.id, m));
+    allMethods.forEach(m => {
+      if (!uniqueMap.has(m.id) || (m.currentBalance !== 0 && uniqueMap.get(m.id).currentBalance === 0)) {
+        uniqueMap.set(m.id, m);
+      }
+    });
     return Array.from(uniqueMap.values());
   }, [offlinePaymentMethods]);
+
+  const selectedMethodBalance = useMemo(() => {
+    if (!formPaymentMethodId) return null;
+    const found = paymentMethods.find((p: any) => p.id === formPaymentMethodId);
+    return found ? (Number(found.currentBalance) || 0) : 0;
+  }, [formPaymentMethodId, paymentMethods]);
 
   const resetForm = useCallback(() => {
     setFormPartyId("");
     setFormPaymentAmount("");
     setFormPaymentMethodId("");
     setFormPaymentNumber(generateReferenceNumber("PAY-OUT"));
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setSelectedId(null);
   }, []);
 
@@ -221,6 +236,21 @@ export default function PaymentOutPage() {
       return;
     }
 
+    // Check payment method balance
+    const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
+    const availableBalance = paymentMethod ? (Number((paymentMethod as any).currentBalance) || 0) : 0;
+    if (amount > availableBalance) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("insufficientBalance", {
+          available: availableBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          required: amount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        }),
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const party = parties.find(c => c.id === formPartyId || c._id === formPartyId);
@@ -228,7 +258,7 @@ export default function PaymentOutPage() {
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-OUT");
 
       const now = new Date();
-      const finalDate = setDateToCurrentTime(formDate);
+      const finalDateISO = toSafeISOString(formDate);
 
       const payload = {
         paymentNumber: paymentNo,
@@ -236,8 +266,8 @@ export default function PaymentOutPage() {
         customerId: formPartyId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: finalDate.toISOString(),
-        payment_date: finalDate.toISOString(),
+        date: finalDateISO,
+        payment_date: finalDateISO,
         type: "payment-out"
       };
 
@@ -279,11 +309,32 @@ export default function PaymentOutPage() {
       return;
     }
 
+    const oldTransaction = await db.party_transactions.get(selectedId);
+    const oldPartyId = (oldTransaction?.customerId || oldTransaction?.customer_id || oldTransaction?.party_id)?.toString();
+    const oldAmount = Number(oldTransaction?.paymentAmount ?? oldTransaction?.payment_amount ?? 0);
+    const oldMethodId = (oldTransaction?.paymentMethodId ?? oldTransaction?.payment_method_id)?.toString();
+
+    // Check payment method balance
+    const paymentMethod = paymentMethods.find(p => p.id === formPaymentMethodId);
+    let availableBalance = paymentMethod ? (Number((paymentMethod as any).currentBalance) || 0) : 0;
+    if (oldMethodId === formPaymentMethodId) {
+      availableBalance += oldAmount;
+    }
+
+    if (amount > availableBalance) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("insufficientBalance", {
+          available: availableBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          required: amount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        }),
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const oldTransaction = await db.party_transactions.get(selectedId);
-      const oldPartyId = (oldTransaction?.customerId || oldTransaction?.customer_id || oldTransaction?.party_id)?.toString();
-      const oldAmount = Number(oldTransaction?.paymentAmount ?? oldTransaction?.payment_amount ?? 0);
       if (oldPartyId && !isNaN(oldAmount)) {
         // Revert old balance change for Payment Out (reversing positive delta is negative)
         await updateOfflinePartyBalance(oldPartyId, -oldAmount);
@@ -294,7 +345,7 @@ export default function PaymentOutPage() {
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-OUT");
 
       const now = new Date();
-      const finalDate = setDateToCurrentTime(formDate);
+      const finalDateISO = toSafeISOString(formDate);
 
       const payload = {
         paymentNumber: paymentNo,
@@ -302,8 +353,8 @@ export default function PaymentOutPage() {
         customerId: formPartyId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: finalDate.toISOString(),
-        payment_date: finalDate.toISOString(),
+        date: finalDateISO,
+        payment_date: finalDateISO,
         type: "payment-out"
       };
 
@@ -383,7 +434,7 @@ export default function PaymentOutPage() {
   const openAddDialog = () => {
     resetForm();
     setFormPaymentNumber(generateReferenceNumber("PAY-OUT"));
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setShowAddDialog(true);
   };
 
@@ -401,7 +452,7 @@ export default function PaymentOutPage() {
     setFormPartyId(item.customerId);
     setFormPaymentAmount(item.paymentAmount.toString());
     setFormPaymentMethodId(item.paymentMethodId);
-    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setFormDate(toHTMLDateString((item as any).raw_date || item.date) || getTodayHTMLDate());
     setShowEditDialog(true);
   };
 
@@ -747,8 +798,20 @@ export default function PaymentOutPage() {
                 searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
                 noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
                 addButtonPosition="bottom"
-                // includeDefaultMethods={true}
               />
+              {selectedMethodBalance !== null && (
+                <div className="text-xs flex items-center justify-between pt-1 px-1">
+                  <span className="text-muted-foreground">{t("availableBalance")}:</span>
+                  <span className={cn(
+                    "font-mono font-bold",
+                    (selectedMethodBalance >= (parseFloat(formPaymentAmount) || 0))
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
+                  )}>
+                    Rs. {selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>
@@ -818,8 +881,20 @@ export default function PaymentOutPage() {
                 searchPlaceholder={tCommon("searchPaymentMethods") || "Search payment methods..."}
                 noResultsText={tCommon("noPaymentMethodsFound") || "No payment methods found"}
                 addButtonPosition="bottom"
-                // includeDefaultMethods={true}
               />
+              {selectedMethodBalance !== null && (
+                <div className="text-xs flex items-center justify-between pt-1 px-1">
+                  <span className="text-muted-foreground">{t("availableBalance")}:</span>
+                  <span className={cn(
+                    "font-mono font-bold",
+                    (selectedMethodBalance >= (parseFloat(formPaymentAmount) || 0))
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
+                  )}>
+                    Rs. {selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("date")}</Label>

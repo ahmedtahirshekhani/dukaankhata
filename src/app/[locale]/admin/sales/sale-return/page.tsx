@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { db } from "@/lib/db/offline-db";
-import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethods } from "@/lib/hooks/useOfflineData";
+import { useOfflineProducts, useOfflineSaleReturns, useOfflineCustomers, useOfflinePaymentMethodsWithBalance } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrencyString } from "@/lib/utils";
+import { formatCurrencyString, cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -58,9 +58,8 @@ import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { PartyDropdown } from "@/components/dropdown/party-dropdown";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate } from "@/lib/date-utils";
+import { formatReadableDate, getTodayHTMLDate, safeDate, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { usePermissions } from "@/hooks/use-permissions";
-import { setDateToCurrentTime } from "@/lib/utils";
 
 type Customer = {
   id: string;
@@ -199,9 +198,7 @@ export default function SaleReturnPage() {
 
   const [formReturnNumber, setFormReturnNumber] = useState(generateReturnNumber());
   const [formCustomerId, setFormCustomerId] = useState("");
-  const [formDate, setFormDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [formDate, setFormDate] = useState(() => getTodayHTMLDate());
   const [formInvoiceDate, setFormInvoiceDate] = useState("");
   const [formInvoiceNo, setFormInvoiceNo] = useState("");
   const [formItems, setFormItems] = useState<ReturnItem[]>([createItem()]);
@@ -266,25 +263,48 @@ export default function SaleReturnPage() {
   }, [customers, filterCustomerPage]);
   const hasMoreFilterCustomers = displayCustomers.length < customers.length;
 
-  const offlinePaymentMethods = useOfflinePaymentMethods() || [];
+  const offlinePaymentMethods = useOfflinePaymentMethodsWithBalance() || [];
   
   const paymentMethods = useMemo(() => {
     const list = offlinePaymentMethods.map((item: any) => ({
       id: item.id || item._id,
       name: item.bankName || item.name || item.bank_name,
       bankDetails: item.bankDetails || item.bank_details,
-    })).filter((item) => item.id && item.name);
+      currentBalance: typeof item.currentBalance === "number" ? item.currentBalance : 0,
+      is_default: item.is_default,
+    })).filter((item: any) => item.id && item.name);
+
+    const cashAccount = list.find((m: any) => m.id === "cash" || m.name?.toLowerCase().includes("cash") || m.is_default);
+    const cashBalance = cashAccount ? cashAccount.currentBalance : 0;
 
     const allMethods = [
-      { id: "cash", name: "Cash" },
-      { id: "cheque", name: "Cheque" },
+      { id: "cash", name: "Cash", currentBalance: cashBalance },
+      { id: "cheque", name: "Cheque", currentBalance: 0 },
       ...list,
     ];
 
     const uniqueMap = new Map();
-    allMethods.forEach(m => uniqueMap.set(m.id, m));
+    allMethods.forEach(m => {
+      if (!uniqueMap.has(m.id) || (m.currentBalance !== 0 && uniqueMap.get(m.id).currentBalance === 0)) {
+        uniqueMap.set(m.id, m);
+      }
+    });
     return Array.from(uniqueMap.values());
   }, [offlinePaymentMethods]);
+
+  const selectedMethodBalance = useMemo(() => {
+    if (!formPaymentMethodId) return null;
+    const found = paymentMethods.find((p: any) => p.id === formPaymentMethodId);
+    let bal = found ? (Number(found.currentBalance) || 0) : 0;
+    if (selectedId) {
+      const existing = (allOfflineTransactions || []).find((r: any) => r.id === selectedId);
+      const existingMethodId = existing?.paymentMethodId || existing?.payment_method_id;
+      if (existing && existingMethodId === formPaymentMethodId) {
+        bal += Number(existing.paidAmount ?? existing.paid_amount ?? 0);
+      }
+    }
+    return bal;
+  }, [formPaymentMethodId, paymentMethods, selectedId, allOfflineTransactions]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -293,7 +313,7 @@ export default function SaleReturnPage() {
   const resetForm = useCallback(() => {
     setFormReturnNumber(generateReturnNumber());
     setFormCustomerId("");
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setFormInvoiceDate("");
     setFormInvoiceNo("");
     setFormItems([createItem()]);
@@ -391,17 +411,30 @@ export default function SaleReturnPage() {
       return false;
     }
 
+    if (paidAmount > 0 && selectedMethodBalance !== null && paidAmount > selectedMethodBalance) {
+      setErrorDialog({
+        open: true,
+        title: t("validationError"),
+        message: t("insufficientBalance", {
+          available: selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          required: paidAmount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        }),
+      });
+      return false;
+    }
+
     return true;
   };
 
   const buildPayload = () => {
-    const finalDate = setDateToCurrentTime(formDate);
+    const finalDateISO = toSafeISOString(formDate);
+    const invoiceDateISO = formInvoiceDate ? toSafeISOString(formInvoiceDate) : undefined;
     return {
       returnNumber: formReturnNumber.trim(),
       customerId: formCustomerId,
-      date: finalDate.toISOString(),
-      return_date: finalDate.toISOString(),
-      invoiceDate: formInvoiceDate || undefined,
+      date: finalDateISO,
+      return_date: finalDateISO,
+      invoiceDate: invoiceDateISO,
       invoiceNo: formInvoiceNo.trim(),
       items: formItems.map((item) => ({
         id: item.id,
@@ -451,10 +484,22 @@ export default function SaleReturnPage() {
       const netAmount = paidAmount - totalAmount;
       await updateOfflinePartyBalance(formCustomerId, netAmount);
 
-      const { adjustOfflineStock } = await import('@/lib/db/offline-stock-manager');
+      const { adjustOfflineStock, reInwardOfflineBatchOnSaleReturn } = await import('@/lib/db/offline-stock-manager');
       for (const item of payload.items) {
         const pId = (item.productId || (item as any).product_id)?.toString();
-        if (pId) await adjustOfflineStock(pId, item.quantity);
+        if (pId) {
+          await adjustOfflineStock(pId, item.quantity);
+          const productDoc = await db.products.get(pId);
+          const costPrice = Number(productDoc?.cost_price || productDoc?.purchase_price) || Number(item.rate) || 0;
+          await reInwardOfflineBatchOnSaleReturn({
+            productId: pId,
+            quantity: Number(item.quantity) || 0,
+            costPrice,
+            returnId: newId,
+            returnNumber: formReturnNumber,
+            returnDate: payload.date,
+          });
+        }
       }
 
       await SyncEngine.queueOperation(
@@ -559,13 +604,31 @@ export default function SaleReturnPage() {
           if (pId) await adjustOfflineStock(pId, item.quantity);
         }
 
-        await SyncEngine.queueOperation(
-          "sale_return_transactions", 
-          "PUT", 
-          `/${locale}/api/sale-return-transactions/${selectedId}`, 
-          payload, 
-          selectedId
-        );
+        const isMongoId = /^[0-9a-fA-F]{24}$/.test(selectedId);
+        if (!isMongoId) {
+          const pendingPost = await db.syncQueue.where("localId").equals(selectedId).first();
+          if (pendingPost) {
+            pendingPost.data = payload;
+            pendingPost.status = "pending";
+            await db.syncQueue.put(pendingPost);
+          } else {
+            await SyncEngine.queueOperation(
+              "sale_return_transactions",
+              "PUT",
+              `/${locale}/api/sale-return-transactions/${selectedId}`,
+              payload,
+              selectedId
+            );
+          }
+        } else {
+          await SyncEngine.queueOperation(
+            "sale_return_transactions",
+            "PUT",
+            `/${locale}/api/sale-return-transactions/${selectedId}`,
+            payload,
+            selectedId
+          );
+        }
       }
       setShowEditDialog(false);
       resetForm();
@@ -620,6 +683,15 @@ export default function SaleReturnPage() {
             if (pId && qty > 0) await adjustOfflineStock(pId, -qty);
           }
         }
+
+        // Delete batches associated with this sale return
+        const delTargetId = transactionToDelete.id.toString();
+        const retBatches = await db.inventory_batches
+          .filter((b: any) => String(b.source_id || b.sourceId) === delTargetId)
+          .toArray();
+        for (const b of retBatches) {
+          if (b.id) await db.inventory_batches.delete(b.id);
+        }
         await db.sale_return_transactions.update(transactionToDelete.id, {
           ...existing,
           is_delete: 1,
@@ -671,8 +743,8 @@ export default function SaleReturnPage() {
     setSelectedId(item.id);
     setFormReturnNumber(item.returnNumber || generateReturnNumber());
     setFormCustomerId(item.customerId);
-    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
-    setFormInvoiceDate(item.invoiceDate ? item.invoiceDate.split("T")[0] : "");
+    setFormDate(toHTMLDateString((item as any).raw_date || item.date) || getTodayHTMLDate());
+    setFormInvoiceDate(item.invoiceDate ? toHTMLDateString(item.invoiceDate) : "");
     setFormInvoiceNo(item.invoiceNo || "");
     
     // Parse items if they are stored as string (some legacy offline data might be)
@@ -738,6 +810,19 @@ export default function SaleReturnPage() {
             addButtonPosition="bottom"
             // includeDefaultMethods={true}
           />
+          {selectedMethodBalance !== null && (
+            <div className="text-xs flex items-center justify-between pt-1 px-1">
+              <span className="text-muted-foreground">{t("availableBalance") || "Available Balance"}:</span>
+              <span className={cn(
+                "font-mono font-bold",
+                (selectedMethodBalance >= paidAmount)
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400"
+              )}>
+                Rs. {selectedMethodBalance.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           <Label>{t("invoiceDate")}</Label>

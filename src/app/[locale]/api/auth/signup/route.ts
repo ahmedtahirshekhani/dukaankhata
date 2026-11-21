@@ -193,7 +193,8 @@ export async function POST(request: NextRequest) {
         user_id: newUser?._id,
         is_counterSale_enable: false,
         is_AI_Chat_Enable: true,
-        is_Whatsapp_enable: false,
+        is_Whatsapp_enable: true,
+        stock_valuation_method: "average",
         created_at: new Date(),
         updated_at: new Date(),
       });

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, updateUserLastActivity } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -43,13 +44,15 @@ export async function GET(request: NextRequest) {
     };
 
     // Date Range Filter (matches on bill_date, purchase_date, date, or created_at)
-    if (fromDate && toDate) {
-      const from = new Date(fromDate);
-      from.setHours(0, 0, 0, 0);
-      const to = new Date(toDate);
-      to.setHours(23, 59, 59, 999);
+    if (fromDate || toDate) {
+      const from = fromDate ? parsePKTDateBoundary(fromDate, false) : null;
+      const to = toDate ? parsePKTDateBoundary(toDate, true) : null;
 
-      if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+      const dateConditions: any[] = [{ $ne: ["$$parsedDate", null] }];
+      if (from && !isNaN(from.getTime())) dateConditions.push({ $gte: ["$$parsedDate", from] });
+      if (to && !isNaN(to.getTime())) dateConditions.push({ $lte: ["$$parsedDate", to] });
+
+      if (dateConditions.length > 1) {
         matchQuery.$and = matchQuery.$and || [];
         matchQuery.$and.push({
           $expr: {
@@ -60,8 +63,18 @@ export async function GET(request: NextRequest) {
                     "$bill_date",
                     {
                       $ifNull: [
-                        "$purchase_date",
-                        { $ifNull: ["$date", "$created_at"] },
+                        "$billDate",
+                        {
+                          $ifNull: [
+                            "$purchase_date",
+                            {
+                              $ifNull: [
+                                "$purchaseDate",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
                       ],
                     },
                   ],
@@ -80,11 +93,7 @@ export async function GET(request: NextRequest) {
                     },
                   },
                   in: {
-                    $and: [
-                      { $ne: ["$$parsedDate", null] },
-                      { $gte: ["$$parsedDate", from] },
-                      { $lte: ["$$parsedDate", to] },
-                    ],
+                    $and: dateConditions,
                   },
                 },
               },
@@ -180,8 +189,18 @@ export async function GET(request: NextRequest) {
                 "$bill_date",
                 {
                   $ifNull: [
-                    "$purchase_date",
-                    { $ifNull: ["$date", "$created_at"] },
+                    "$billDate",
+                    {
+                      $ifNull: [
+                        "$purchase_date",
+                        {
+                          $ifNull: [
+                            "$purchaseDate",
+                            { $ifNull: ["$date", "$created_at"] },
+                          ],
+                        },
+                      ],
+                    },
                   ],
                 },
               ],
@@ -323,7 +342,9 @@ export async function GET(request: NextRequest) {
 
       const billDate =
         bill.bill_date ||
+        bill.billDate ||
         bill.purchase_date ||
+        bill.purchaseDate ||
         bill.date ||
         bill.created_at ||
         new Date().toISOString();

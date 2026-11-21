@@ -4,6 +4,7 @@ import { getCollection, COLLECTIONS, toObjectId, updateUserLastActivity } from '
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/utils'
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,18 +33,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
+    const from = parsePKTDateBoundary(fromDate, false);
+    const to = parsePKTDateBoundary(toDate, true);
 
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       return NextResponse.json(
         { error: "Invalid date range" },
         { status: 400 }
       );
     }
-
-    from.setHours(0, 0, 0, 0);
-    to.setHours(23, 59, 59, 999);
 
     const userId = toObjectId(user.id);
 
@@ -62,7 +60,59 @@ export async function GET(request: NextRequest) {
     const revenueQuery: any = {
       ...baseQuery,
       status: { $ne: "cancelled" },
-      created_at: { $gte: from, $lte: to },
+      $expr: {
+        $let: {
+          vars: {
+            rawDate: {
+              $ifNull: [
+                "$sale_date",
+                {
+                  $ifNull: [
+                    "$saleDate",
+                    {
+                      $ifNull: [
+                        "$invoice_date",
+                        {
+                          $ifNull: [
+                            "$invoiceDate",
+                            {
+                              $ifNull: [
+                                "$order_date",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          in: {
+            $let: {
+              vars: {
+                parsedDate: {
+                  $convert: {
+                    input: "$$rawDate",
+                    to: "date",
+                    onError: null,
+                    onNull: null,
+                  },
+                },
+              },
+              in: {
+                $and: [
+                  { $ne: ["$$parsedDate", null] },
+                  { $gte: ["$$parsedDate", from] },
+                  { $lte: ["$$parsedDate", to] },
+                ],
+              },
+            },
+          },
+        },
+      },
     };
 
     const revenuePipeline = [
@@ -87,35 +137,47 @@ export async function GET(request: NextRequest) {
           total_amount: { $first: "$total_amount" },
           total_cost: {
             $sum: {
-              $multiply: [
-                { $convert: { input: { $ifNull: ["$items.quantity", 0] }, to: "double", onError: 0, onNull: 0 } },
+              $ifNull: [
                 {
                   $convert: {
-                    input: {
-                      $ifNull: [
-                        "$items.cost_price",
-                        {
+                    input: "$items.total_cogs",
+                    to: "double",
+                    onError: null,
+                    onNull: null,
+                  }
+                },
+                {
+                  $multiply: [
+                    { $convert: { input: { $ifNull: ["$items.quantity", 0] }, to: "double", onError: 0, onNull: 0 } },
+                    {
+                      $convert: {
+                        input: {
                           $ifNull: [
-                            "$items.purchase_price",
+                            "$items.cost_price",
                             {
                               $ifNull: [
-                                "$items.costPrice",
+                                "$items.purchase_price",
                                 {
                                   $ifNull: [
-                                    "$items.purchasePrice",
-                                    { $ifNull: ["$product_cost", 0] }
+                                    "$items.costPrice",
+                                    {
+                                      $ifNull: [
+                                        "$items.purchasePrice",
+                                        { $ifNull: ["$product_cost", 0] }
+                                      ]
+                                    }
                                   ]
                                 }
                               ]
                             }
                           ]
-                        }
-                      ]
-                    },
-                    to: "double",
-                    onError: 0,
-                    onNull: 0
-                  }
+                        },
+                        to: "double",
+                        onError: 0,
+                        onNull: 0
+                      }
+                    }
+                  ]
                 }
               ]
             }
@@ -138,7 +200,10 @@ export async function GET(request: NextRequest) {
       ...baseQuery,
       type: "income",
       productId: { $exists: true, $nin: ["0", null] },
-      created_at: { $gte: from, $lte: to },
+      $or: [
+        { date: { $gte: from, $lte: to } },
+        { created_at: { $gte: from, $lte: to } },
+      ],
     };
 
     const counterSalesPipeline = [
@@ -177,7 +242,10 @@ export async function GET(request: NextRequest) {
     // Calculate Expenses
     const expensesQuery: any = {
       ...baseQuery,
-      created_at: { $gte: from, $lte: to },
+      $or: [
+        { date: { $gte: from, $lte: to } },
+        { created_at: { $gte: from, $lte: to } },
+      ],
     };
 
     const expensePipeline = [
@@ -325,7 +393,10 @@ export async function GET(request: NextRequest) {
     // Get top expenses
     const topExpensesQuery = {
       ...baseQuery,
-      created_at: { $gte: from, $lte: to },
+      $or: [
+        { date: { $gte: from, $lte: to } },
+        { created_at: { $gte: from, $lte: to } },
+      ],
     };
 
     const skip = limit > 0 ? (page - 1) * limit : 0;
@@ -347,9 +418,9 @@ export async function GET(request: NextRequest) {
     const expenses = expenseItems.map((expense: any) => ({
       id: expense._id.toString(),
       category: expense.category || "Uncategorized",
-      description: expense.description || "-",
+      description: expense.description || expense.item_name || "-",
       amount: expense.amount || 0,
-      date: expense.created_at || new Date(),
+      date: expense.date || expense.created_at || new Date(),
       paymentMethod: expense.payment_method || "-",
     }));
 

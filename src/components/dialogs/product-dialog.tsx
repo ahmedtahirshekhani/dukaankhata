@@ -25,7 +25,8 @@ import {
 import { ErrorDialog } from "./error-dialog";
 import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
-import { Info } from "lucide-react";
+import { toSafeOpeningISOString } from "@/lib/date-utils";
+import { Info, AlertTriangle } from "lucide-react";
 import { CategorySelector } from "@/components/selectors/category-selector";
 import { BranchSelector } from "@/components/selectors/branch-selector";
 
@@ -122,6 +123,7 @@ export function ProductDialog({
   const [unitOfMeasurement, setUnitOfMeasurement] = useState("");
   const [branch, setBranch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const isEditMode = selectedProduct !== null;
 
@@ -131,14 +133,24 @@ export function ProductDialog({
       setProductName(selectedProduct.name);
       setProductDescription(selectedProduct.description || "");
       if (selectedProduct.type === "goods") {
-        setSellPrice(selectedProduct.sell_price_str ?? formatInitialPrice(selectedProduct.sell_price));
-        setCostPrice(selectedProduct.cost_price_str ?? formatInitialPrice(selectedProduct.cost_price));
-        setProductInStock(selectedProduct.quantity_str ?? formatInitialQuantity(selectedProduct.quantity));
-        setDamagedQuantity(selectedProduct.damaged_quantity_str ?? formatInitialQuantity(selectedProduct.damaged_quantity));
+        const liveSellPrice = selectedProduct.sell_price !== undefined ? formatInitialPrice(selectedProduct.sell_price) : (selectedProduct.sell_price_str || "");
+        const liveCostPrice = selectedProduct.cost_price !== undefined ? formatInitialPrice(selectedProduct.cost_price) : (selectedProduct.cost_price_str || "");
+        const liveQuantity = (selectedProduct.quantity ?? selectedProduct.in_stock) !== undefined
+          ? formatInitialQuantity(selectedProduct.quantity ?? selectedProduct.in_stock)
+          : (selectedProduct.quantity_str || "");
+        const liveDamagedQty = selectedProduct.damaged_quantity !== undefined
+          ? formatInitialQuantity(selectedProduct.damaged_quantity)
+          : (selectedProduct.damaged_quantity_str || "");
+
+        setSellPrice(liveSellPrice);
+        setCostPrice(liveCostPrice);
+        setProductInStock(liveQuantity);
+        setDamagedQuantity(liveDamagedQty);
         setUnitOfMeasurement(selectedProduct.unit_of_measurement || "");
         setBranch(selectedProduct.branch || "");
       } else {
-        setSellPrice(selectedProduct.sell_price_str ?? formatInitialPrice(selectedProduct.sell_price));
+        const liveSellPrice = selectedProduct.sell_price !== undefined ? formatInitialPrice(selectedProduct.sell_price) : (selectedProduct.sell_price_str || "");
+        setSellPrice(liveSellPrice);
       }
       setProductCategory(selectedProduct.category || "");
     } else {
@@ -158,11 +170,23 @@ export function ProductDialog({
     setProductCategory("");
     setUnitOfMeasurement("");
     setBranch("");
+    setValidationError(null);
   };
 
   const handleAddProduct = useCallback(async () => {
+    if (
+      itemType === "goods" &&
+      productInStock !== "" &&
+      Number(productInStock) > 0 &&
+      (costPrice === "" || Number(costPrice) <= 0)
+    ) {
+      setValidationError(t("openingStockRequiresCostPrice"));
+      return;
+    }
+
     try {
       setLoading(true);
+      setValidationError(null);
       const newProduct = {
         type: itemType,
         name: productName,
@@ -175,6 +199,8 @@ export function ProductDialog({
           cost_price_str: costPrice === "" ? "" : String(costPrice),
           quantity: productInStock === "" ? 0 : Number(productInStock),
           quantity_str: productInStock === "" ? "" : String(productInStock),
+          initial_quantity: productInStock === "" ? 0 : Number(productInStock),
+          initial_cost: costPrice === "" ? 0 : Number(costPrice),
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
@@ -184,11 +210,33 @@ export function ProductDialog({
           sell_price: sellPrice === "" ? 0 : Number(sellPrice),
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
-        created_at: new Date().toISOString(),
+        created_at: toSafeOpeningISOString(),
       };
       const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const addedProduct = { ...newProduct, id: tempId, _id: tempId, is_delete: 0 };
       await db.products.add(addedProduct);
+
+      // Create opening stock batch in local IndexedDB if initial quantity exists
+      if (addedProduct.quantity && Number(addedProduct.quantity) > 0) {
+        const openingQty = Number(addedProduct.quantity);
+        const openingCost = Number(addedProduct.cost_price || 0);
+        const openingBatchDate = toSafeOpeningISOString();
+        await db.inventory_batches.put({
+          id: `batch_opening_${tempId}`,
+          product_id: tempId,
+          source_type: "opening_stock",
+          source_id: tempId,
+          batch_number: "OPENING",
+          initial_quantity: openingQty,
+          remaining_quantity: openingQty,
+          cost_price: openingCost,
+          status: "active",
+          batch_date: openingBatchDate,
+          created_at: openingBatchDate,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
       await SyncEngine.queueOperation("products", "POST", "/api/products", newProduct, tempId);
       
       onSuccess(addedProduct as any, false);
@@ -199,50 +247,83 @@ export function ProductDialog({
     } finally {
       setLoading(false);
     }
-  }, [
-    itemType,
-    productName,
-    productDescription,
-    productPrice,
-    sellPrice,
-    costPrice,
-    productInStock,
-    damagedQuantity,
-    productCategory,
-    unitOfMeasurement,
-    branch,
-    onSuccess,
-    onOpenChange,
-  ]);
+  }, [itemType, productInStock, costPrice, t, productName, productDescription, productCategory, sellPrice, damagedQuantity, unitOfMeasurement, branch, onSuccess, onOpenChange]);
 
   const handleEditProduct = useCallback(async () => {
     if (!selectedProduct) return;
+
     try {
       setLoading(true);
+      setValidationError(null);
+      const newCostPrice = costPrice === "" ? 0 : Number(costPrice);
+      const newSellPrice = sellPrice === "" ? 0 : Number(sellPrice);
       const updatedProduct = {
         type: itemType,
         name: productName,
         description: productDescription,
         category: productCategory,
         ...(itemType === "goods" && {
-          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price: newSellPrice,
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
-          cost_price: costPrice === "" ? 0 : Number(costPrice),
+          cost_price: newCostPrice,
           cost_price_str: costPrice === "" ? "" : String(costPrice),
-          quantity: productInStock === "" ? 0 : Number(productInStock),
-          quantity_str: productInStock === "" ? "" : String(productInStock),
+          purchase_price: newCostPrice,
+          // Keep existing live inventory and opening baseline - do NOT overwrite opening stock/batch with live stock!
+          quantity: selectedProduct.quantity ?? selectedProduct.in_stock ?? 0,
+          quantity_str: selectedProduct.quantity_str || String(selectedProduct.quantity ?? selectedProduct.in_stock ?? 0),
+          in_stock: selectedProduct.in_stock ?? selectedProduct.quantity ?? 0,
+          initial_quantity: (selectedProduct as any).initial_quantity ?? (selectedProduct as any).opening_stock ?? 0,
+          initial_cost: newCostPrice,
           damaged_quantity: damagedQuantity === "" ? 0 : Number(damagedQuantity),
           damaged_quantity_str: damagedQuantity === "" ? "" : String(damagedQuantity),
           unit_of_measurement: unitOfMeasurement,
           branch: branch,
         }),
         ...(itemType === "services" && {
-          sell_price: sellPrice === "" ? 0 : Number(sellPrice),
+          sell_price: newSellPrice,
           sell_price_str: sellPrice === "" ? "" : String(sellPrice),
         }),
       };
       const updatedProductFromServer = { ...selectedProduct, ...updatedProduct };
       await db.products.update(selectedProduct.id, updatedProduct);
+
+      // Sync opening stock batch cost in Dexie if cost price was updated
+      if (itemType === "goods") {
+        const prodIdStr = String(selectedProduct.id);
+        const openingBatches = await db.inventory_batches
+          .filter((b: any) => 
+            (String(b.product_id) === prodIdStr || String(b.productId) === prodIdStr) && 
+            (b.source_type === "opening_stock" || b.batch_number === "OPENING")
+          )
+          .toArray();
+        if (openingBatches.length > 0) {
+          for (const ob of openingBatches) {
+            if (ob.id) {
+              await db.inventory_batches.update(ob.id, {
+                cost_price: newCostPrice,
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
+        } else if (Number((selectedProduct as any).initial_quantity || (selectedProduct as any).opening_stock || selectedProduct.quantity) > 0) {
+          const openingQty = Number((selectedProduct as any).initial_quantity || (selectedProduct as any).opening_stock || selectedProduct.quantity);
+          await db.inventory_batches.put({
+            id: `batch_opening_${prodIdStr}`,
+            product_id: prodIdStr,
+            source_type: "opening_stock",
+            source_id: prodIdStr,
+            batch_number: "OPENING",
+            initial_quantity: openingQty,
+            remaining_quantity: openingQty,
+            cost_price: newCostPrice,
+            status: "active",
+            batch_date: (selectedProduct as any).created_at || new Date().toISOString(),
+            created_at: (selectedProduct as any).created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+
       await SyncEngine.queueOperation("products", "PUT", `/api/products/${selectedProduct.id}`, updatedProduct, String(selectedProduct.id));
       
       onSuccess(updatedProductFromServer as any, true);
@@ -253,22 +334,7 @@ export function ProductDialog({
     } finally {
       setLoading(false);
     }
-  }, [
-    selectedProduct,
-    itemType,
-    productName,
-    productDescription,
-    productPrice,
-    sellPrice,
-    costPrice,
-    productInStock,
-    damagedQuantity,
-    productCategory,
-    unitOfMeasurement,
-    branch,
-    onSuccess,
-    onOpenChange,
-  ]);
+  }, [selectedProduct, itemType, productName, productDescription, productCategory, sellPrice, costPrice, damagedQuantity, unitOfMeasurement, branch, onSuccess, onOpenChange]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -399,7 +465,10 @@ export function ProductDialog({
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="costPrice">{t("costPrice")}</Label>
+                      <Label htmlFor="costPrice">
+                        {t("costPrice")}
+                        {Number(productInStock) > 0 && <span className="text-red-500 ml-0.5">*</span>}
+                      </Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
@@ -416,24 +485,37 @@ export function ProductDialog({
                         const val = e.target.value;
                         if (val !== "" && Number(val) < 0) return;
                         setCostPrice(val);
+                        if (validationError) setValidationError(null);
                       }}
                       placeholder="0"
                       min="0"
                     />
+                    {!isEditMode && Number(productInStock) > 0 && (costPrice === "" || Number(costPrice) <= 0) && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium mt-1">
+                        <Info className="w-3 h-3 shrink-0" />
+                        <span>{t("costPriceRequiredForOpeningStock")}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="quantity">{t("quantity")}</Label>
+                      <Label htmlFor="quantity">
+                        {!isEditMode ? t("quantity") : (t("currentStock") || t("quantity"))}
+                      </Label>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button type="button" className="cursor-help">
                             <Info className="w-3 h-3 text-gray-400" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent>{t("quantityTooltip")}</TooltipContent>
+                        <TooltipContent>
+                          {isEditMode 
+                            ? (t("currentStockEditTooltip") || "Current stock cannot be edited directly. Please use 'Adjust Stock'.") 
+                            : t("quantityTooltip")}
+                        </TooltipContent>
                       </Tooltip>
                     </div>
                     <NumericInput
@@ -443,10 +525,17 @@ export function ProductDialog({
                         const val = e.target.value;
                         if (val !== "" && Number(val) < 0) return;
                         setProductInStock(val);
+                        if (validationError) setValidationError(null);
                       }}
                       placeholder="0"
                       min="0"
+                      disabled={isEditMode}
                     />
+                    {isEditMode && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("useStockAdjustmentToChangeStock") || "Use 'Adjust Stock' to change inventory quantity."}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -557,6 +646,12 @@ export function ProductDialog({
                   />
                 </div>
               </>
+            )}
+            {validationError && (
+              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs p-2.5 rounded-lg flex items-center gap-2 mt-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{validationError}</span>
+              </div>
             )}
           </div>
           <DialogFooter>

@@ -191,7 +191,20 @@ export const UNITS_OF_MEASUREMENT: UnitOption[] = [
 export function getUomShortcut(uom?: string | null): string {
   if (!uom) return "";
   const normalized = uom.toLowerCase().trim();
-  return UOM_SHORTCUTS[normalized] || uom;
+  if (UOM_SHORTCUTS[normalized]) return UOM_SHORTCUTS[normalized];
+
+  // If string contains parentheses like "Piece (pcs)" or "Kilogram (kg)", extract the shortcut inside
+  const match = uom.match(/\(([^)]+)\)/);
+  if (match && match[1]) {
+    const inside = match[1].trim().toLowerCase();
+    return UOM_SHORTCUTS[inside] || match[1].trim();
+  }
+
+  // Check prefix before parenthesis
+  const beforeParen = normalized.split("(")[0].trim();
+  if (UOM_SHORTCUTS[beforeParen]) return UOM_SHORTCUTS[beforeParen];
+
+  return uom;
 }
 
 /**

@@ -126,11 +126,11 @@ export function WorkspaceSwitcher({ sidebarMinimized, activeCompanyName, onClose
             role="button"
             tabIndex={0}
             className={`w-full h-auto py-1.5 flex items-center border border-primary/20 bg-primary/5 hover:bg-gradient-to-r hover:from-primary/15 hover:to-primary/5 text-primary transition-all duration-300 shadow-sm rounded-lg cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-              sidebarMinimized ? "justify-center sm:px-0" : "justify-between px-2.5"
+              sidebarMinimized ? "sm:justify-center sm:px-0 justify-between px-2.5" : "justify-between px-2.5"
             }`}
             title={sidebarMinimized ? t("switchWorkspace") : ""}
           >
-            <div className={`flex items-center gap-2.5 truncate ${sidebarMinimized ? "sm:pr-0" : "pr-2"}`}>
+            <div className={`flex items-center gap-2.5 truncate ${sidebarMinimized ? "sm:pr-0 pr-2" : "pr-2"}`}>
               <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-md w-7 h-7 shrink-0 shadow-sm">
                 <Store className="h-3.5 w-3.5" />
               </div>

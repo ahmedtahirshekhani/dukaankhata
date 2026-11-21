@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,10 @@ import {
   MoreVertical,
   PlusCircle,
   XIcon,
+  SlidersHorizontal,
+  Package,
 } from "lucide-react";
+import { ItemAdjustmentsTab } from "@/components/products/item-adjustments-tab";
 import { exportProductsToExcel, exportProductsTemplate } from "@/lib/excel";
 import { db } from "@/lib/db/offline-db";
 import { createSampleProductsExcel } from "@/lib/excel/sample-products";
@@ -51,6 +55,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ProductDialog } from "@/components/dialogs/product-dialog";
+import { AdjustStockDialog } from "@/components/dialogs/adjust-stock-dialog";
 import { ProductFilters } from "@/components/products/product-filters";
 import {
   ProductsTable,
@@ -67,6 +72,7 @@ import { ImportPreviewModal } from "@/components/dialogs/import-preview-modal";
 import * as XLSX from "xlsx";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { usePermissions } from "@/hooks/use-permissions";
+import { checkProductHasTransactionsOffline } from "@/lib/entity-checks/offline";
 
 const capitalizeFirstLetter = (str: string | undefined | null): string => {
   if (!str) return "-";
@@ -86,6 +92,8 @@ const STANDARD_IMPORT_COLUMNS = [
 ];
 
 export default function Products() {
+  const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
   const { can } = usePermissions();
@@ -93,6 +101,7 @@ export default function Products() {
   const canEdit = can("products", "edit");
   const canDelete = can("products", "delete");
   const canExport = can("products", "view");
+  const [activeTab, setActiveTab] = useState<"items" | "adjustments">("items");
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     category: "all",
@@ -112,6 +121,9 @@ export default function Products() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isAdjustStockOpen, setIsAdjustStockOpen] = useState(false);
+  const [selectedProductForAdjustment, setSelectedProductForAdjustment] =
+    useState<Product | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -178,7 +190,30 @@ export default function Products() {
     if (!productToDelete) return;
     try {
       setIsDeleting(true);
+
+      const checkResult = await checkProductHasTransactionsOffline(productToDelete.id);
+      if (checkResult.hasTransactions) {
+        setIsDeleteConfirmationOpen(false);
+        setProductToDelete(null);
+        setErrorDialog({
+          open: true,
+          title: t("cannotDelete") || "Cannot Delete",
+          message: t("hasAssociatedTransactions", { details: checkResult.summary }) ||
+            `Cannot delete item because it has associated transactions (${checkResult.summary}).`,
+        });
+        return;
+      }
+
       await db.products.delete(productToDelete.id);
+      // Clean up untouched opening stock batch if exists
+      const openingBatches = await db.inventory_batches
+        .where("product_id")
+        .equals(String(productToDelete.id))
+        .toArray();
+      for (const b of openingBatches) {
+        if (b.id) await db.inventory_batches.delete(b.id);
+      }
+
       await SyncEngine.queueOperation("products", "DELETE", `/api/products/${productToDelete.id}`, {}, String(productToDelete.id));
       setIsDeleteConfirmationOpen(false);
       setProductToDelete(null);
@@ -187,7 +222,7 @@ export default function Products() {
     } finally {
       setIsDeleting(false);
     }
-  }, [productToDelete, products, setProducts, refetchData]);
+  }, [productToDelete, t]);
 
   const currentProducts = products;
 
@@ -594,6 +629,22 @@ export default function Products() {
               </>
             )}
 
+            {canEdit && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedProductForAdjustment(null);
+                  setIsAdjustStockOpen(true);
+                }}
+                size="sm"
+                className="h-9 text-xs px-2.5 sm:px-3 flex-shrink-0 whitespace-nowrap gap-1.5 border-border hover:bg-accent"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline">{t("adjustStock")}</span>
+                <span className="inline sm:hidden">Adjust</span>
+              </Button>
+            )}
+
             {canCreate && (
               <Button
                 onClick={() => {
@@ -612,9 +663,44 @@ export default function Products() {
         </div>
 
         {/* Row 2: Description */}
-        <p className="text-sm text-muted-foreground break-words">{t("pageDescription")}</p>
+        <p className="text-sm text-muted-foreground break-words">
+          {t("pageDescription")}
+        </p>
       </div>
 
+      {/* Navigation Tabs Bar */}
+      <div className="flex items-center gap-2 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setActiveTab("items")}
+          className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "items"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          <span>{t("productsTab") || "Items & Products"}</span>
+          <span className="ml-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+            {totalCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("adjustments")}
+          className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "adjustments"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>{t("adjustmentsTab") || "Items Adjustment"}</span>
+        </button>
+      </div>
+
+      {activeTab === "items" && (
       <Card className="flex flex-col gap-6 p-4 sm:p-6 shadow-md">
         <CardHeader className="p-0">
           <div className="flex flex-col gap-4">
@@ -707,6 +793,10 @@ export default function Products() {
           <ProductsTable
             products={currentProducts}
             isLoading={loading}
+            onViewValuation={(product) => {
+              const pId = product.id || (product as any)._id;
+              router.push(`/${locale}/admin/products/${pId}/valuation`);
+            }}
             onEdit={(product) => {
               setSelectedProduct(product);
               setIsProductDialogOpen(true);
@@ -755,6 +845,17 @@ export default function Products() {
           />
         </CardFooter>
       </Card>
+      )}
+
+      {activeTab === "adjustments" && (
+        <ItemAdjustmentsTab
+          onAdjustStock={() => {
+            setSelectedProductForAdjustment(null);
+            setIsAdjustStockOpen(true);
+          }}
+          canEdit={canEdit}
+        />
+      )}
       <ProductDialog
         open={isProductDialogOpen}
         onOpenChange={(open) => {
@@ -954,6 +1055,17 @@ export default function Products() {
         title={errorDialog.title}
         message={errorDialog.message}
         isSuccess={errorDialog.isSuccess}
+      />
+      <AdjustStockDialog
+        open={isAdjustStockOpen}
+        onOpenChange={setIsAdjustStockOpen}
+        product={selectedProductForAdjustment}
+        onSuccess={(updatedProduct) => {
+          setProducts((prev) =>
+            prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+          );
+          refetchData();
+        }}
       />
     </div>
   );

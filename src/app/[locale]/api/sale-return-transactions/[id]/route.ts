@@ -10,7 +10,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 interface SaleReturnDoc {
@@ -138,7 +138,7 @@ export async function GET(
       paymentRefNo: item.payment_ref_no ?? "",
       invoiceNo: item.invoice_no ?? "",
       invoiceDate: item.invoice_date
-        ? new Date(item.invoice_date).toISOString().split("T")[0]
+        ? toHTMLDateString(item.invoice_date)
         : "",
       date: item.date ? (typeof item.date === "string" ? item.date : new Date(item.date).toISOString()) : "",
       return_date: item.return_date || item.date || "",
@@ -190,7 +190,7 @@ export async function PUT(
     const invoiceDateRaw = (body?.invoiceDate ?? body?.invoice_date ?? "")
       .toString()
       .trim();
-    const dateStr = body?.date ?? new Date().toISOString().split("T")[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json(
@@ -235,8 +235,8 @@ export async function PUT(
       );
     }
 
-    const date = setDateToCurrentTime(dateStr);
-    const invoiceDate = invoiceDateRaw ? setDateToCurrentTime(invoiceDateRaw) : null;
+    const date = parseSafeDate(dateStr);
+    const invoiceDate = invoiceDateRaw ? parseSafeDate(invoiceDateRaw) : null;
 
     const collection = await getCollection<SaleReturnDoc>(
       COLLECTIONS.SALE_RETURN_TRANSACTIONS
@@ -249,6 +249,31 @@ export async function PUT(
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (paidAmount > 0) {
+      const pmId = (paymentMethodId || existing.payment_method_id || "cash").toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+        excludeTransaction: {
+          amount: Number(existing.paid_amount) || 0,
+          paymentMethodId: existing.payment_method_id?.toString(),
+        },
+      });
+
+      if (paidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${paidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: paidAmount,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Ledger adjustments (reverse old, apply new)
@@ -264,10 +289,54 @@ export async function PUT(
         if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
       }
     }
-    // Apply new stock
+    // Delete old inventory batches for this sale return
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.deleteMany({
+        user_id: toObjectId(user.id),
+        source_id: id.toString(),
+      });
+    } catch (bErr) {
+      console.error("Failed to delete old batches on sale return update:", bErr);
+    }
+
+    // Apply new stock and re-inward batches at Current Cost Rate
     if (lineItems && Array.isArray(lineItems)) {
+      const { reInwardBatchOnSaleReturnServer, resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+      const productsColl = await getCollection(COLLECTIONS.PRODUCTS);
       for (const item of lineItems) {
-        if (item.productId) await adjustStock(item.productId, user.id, (item.quantity || 0));
+        if (item.productId) {
+          const retQty = item.quantity || 0;
+          await adjustStock(item.productId, user.id, retQty);
+          if (retQty > 0) {
+            try {
+              const productDoc = await productsColl.findOne(
+                { _id: toObjectId(item.productId) },
+                { projection: { cost_price: 1, purchase_price: 1 } }
+              );
+              const costPrice = Number((productDoc as any)?.cost_price) || Number((productDoc as any)?.purchase_price) || Number((item as any).costPrice) || 0;
+              (item as any).costPrice = costPrice;
+              (item as any).cost_price = costPrice;
+
+              await reInwardBatchOnSaleReturnServer({
+                userId: user.id,
+                returnId: id.toString(),
+                returnNumber: existing.return_number || "SR",
+                productId: item.productId,
+                quantity: retQty,
+                costPrice,
+                returnDate: date,
+              });
+
+              await resequenceProductFIFOBatchesServer({
+                userId: user.id,
+                productId: item.productId,
+              });
+            } catch (retBatchErr) {
+              console.error("Failed to re-inward batch on sale return update:", retBatchErr);
+            }
+          }
+        }
       }
     }
 
@@ -417,9 +486,9 @@ export async function PUT(
       paymentRefNo: updated.payment_ref_no ?? "",
       invoiceNo: updated.invoice_no ?? "",
       invoiceDate: updated.invoice_date
-        ? new Date(updated.invoice_date).toISOString().split("T")[0]
+        ? toHTMLDateString(updated.invoice_date)
         : "",
-      date: new Date(updated.date).toISOString().split("T")[0],
+      date: toHTMLDateString(updated.date),
     });
   } catch (err: unknown) {
     console.error("sale-return-transactions PUT [id] error", err);
@@ -467,6 +536,17 @@ export async function DELETE(
       for (const item of existing.items) {
         if (item.productId) await adjustStock(item.productId, user.id, -(item.quantity || 0));
       }
+    }
+
+    // Delete inventory batches created by this sale return
+    try {
+      const batchesCollection = await getCollection(COLLECTIONS.INVENTORY_BATCHES);
+      await batchesCollection.deleteMany({
+        user_id: toObjectId(user.id),
+        source_id: id.toString(),
+      });
+    } catch (delBatchErr) {
+      console.error("Failed to delete inventory batches for sale return:", delBatchErr);
     }
 
     if (customerId && isValidObjectId(customerId)) {

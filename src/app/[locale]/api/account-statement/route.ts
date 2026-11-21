@@ -9,7 +9,7 @@ import {
   isValidObjectId,
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
-import { safeDate } from "@/lib/date-utils";
+import { parsePKTDateBoundary, safeDate, toHTMLDateString } from "@/lib/date-utils";
 
 type LedgerEntryDoc = {
   _id: ObjectId;
@@ -62,15 +62,12 @@ function isDocDeleted(doc: any): boolean {
 }
 
 function parseDateRange(fromDate: string, toDate: string) {
-  const fDate = safeDate(fromDate);
-  const tDate = safeDate(toDate);
+  const from = parsePKTDateBoundary(fromDate, false);
+  const to = parsePKTDateBoundary(toDate, true);
 
-  if (isNaN(fDate.getTime()) || isNaN(tDate.getTime())) {
+  if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
     throw new Error("Invalid date range");
   }
-
-  const from = new Date(fDate.getFullYear(), fDate.getMonth(), fDate.getDate(), 0, 0, 0, 0);
-  const to = new Date(tDate.getFullYear(), tDate.getMonth(), tDate.getDate(), 23, 59, 59, 999);
 
   if (from.getTime() > to.getTime()) {
     throw new Error("fromDate cannot be greater than toDate");
@@ -576,7 +573,7 @@ export async function GET(request: NextRequest) {
           title: "Party Statement",
           fromDate,
           toDate,
-          reportDate: reportNow.toISOString().split("T")[0],
+          reportDate: toHTMLDateString(reportNow),
           reportTime: reportNow.toTimeString().split(" ")[0],
           companyName: userDoc?.company_name || customer?.company_name || "-",
           companyAddress: userDoc?.company_address || customer?.company_address || "-",

@@ -340,6 +340,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
     "/admin/reports/item-wise-sales",
     "/admin/reports/sale-report",
     "/admin/reports/purchase-report",
+    "/admin/reports/party-wise-report",
   ];
   const isSalesSectionActive =
     pathWithoutLocale === "/admin/sales" || salesSubRoutes.includes(pathWithoutLocale);
@@ -443,11 +444,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
   };
 
   const navItemBase =
-    "group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200";
+    "group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-150 select-none";
   const navItemActive =
-    "bg-accent/70 text-foreground ring-1 ring-border/60 shadow-sm";
+    "bg-primary/10 text-primary font-semibold shadow-xs ring-1 ring-primary/20";
   const navItemInactive =
-    "text-foreground/70 hover:bg-accent/70 hover:text-foreground";
+    "text-muted-foreground hover:bg-accent/70 hover:text-foreground";
   const navItemCompact = sidebarMinimized ? "sm:justify-center sm:px-0" : "";
 
   return (
@@ -611,13 +612,15 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         </div>
       </header>
       <div
-        className={`flex flex-col sm:gap-4 sm:py-4 transition-all ${sidebarMinimized ? "sm:pl-16 md:pl-16" : "sm:pl-44 md:pl-52"
-          }`}
+        className={`flex flex-col sm:gap-4 sm:py-4 transition-all duration-300 ${
+          sidebarMinimized ? "sm:pl-16 md:pl-16" : "sm:pl-52 md:pl-56"
+        }`}
       >
         {sidebarOpen && (
           <div
-            className="fixed inset-0 mt-12 z-10 bg-black/50 sm:hidden"
+            className="fixed inset-0 top-12 z-40 bg-black/60 backdrop-blur-xs sm:hidden transition-opacity duration-300 animate-in fade-in"
             onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
           />
         )}
 
@@ -625,9 +628,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         <Button
           variant="outline"
           size="icon"
-          className={`hidden sm:flex fixed top-14 z-50 h-7 w-7 items-center justify-center rounded-md border bg-background shadow-md transition-all hover:bg-accent ${sidebarMinimized ? "left-[4.25rem]" : "left-[10.25rem] md:left-[12.25rem]"
-            }`}
+          className={`hidden sm:flex fixed top-14 z-50 h-7 w-7 items-center justify-center rounded-md border bg-background shadow-md transition-all hover:bg-accent ${
+            sidebarMinimized ? "left-[3.5rem]" : "left-[12.25rem] md:left-[13.25rem]"
+          }`}
           onClick={() => setSidebarMinimized(!sidebarMinimized)}
+          title={sidebarMinimized ? "Expand sidebar" : "Minimize sidebar"}
         >
           {sidebarMinimized ? (
             <ChevronRight className="h-3.5 w-3.5" />
@@ -637,12 +642,14 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
         </Button>
 
         <aside
-          className={`fixed top-12 inset-y-0 left-0 z-40 flex-col border-r border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all flex ${sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
-            } ${sidebarMinimized ? "sm:w-16 md:w-16" : "w-60 sm:w-44 md:w-52"}`}
+          className={`fixed top-12 bottom-0 left-0 z-50 sm:z-30 flex-col border-r border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-2xl sm:shadow-none transition-all duration-300 flex ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+          } ${sidebarMinimized ? "sm:w-16 md:w-16 w-72 max-w-[85vw]" : "w-72 max-w-[85vw] sm:w-52 md:w-56"}`}
         >
           <nav
-            className={`flex h-full overflow-y-auto flex-col gap-1 py-2 md:py-3 ${sidebarMinimized ? "sm:px-1 md:px-1" : "px-2 md:px-2.5"
-              }`}
+            className={`flex h-full overflow-y-auto custom-scrollbar flex-col gap-1 py-3 px-3 ${
+              sidebarMinimized ? "sm:px-1 md:px-1" : "sm:px-2 md:px-2.5"
+            }`}
           >
             {/* Workspace Switcher at the very top */}
             <WorkspaceSwitcher sidebarMinimized={sidebarMinimized} activeCompanyName={companyName} onClose={() => setSidebarOpen(false)} />
@@ -654,7 +661,7 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     key={i}
                     className={cn(
                       "h-7 rounded-lg",
-                      sidebarMinimized ? "w-7 mx-auto" : "w-full"
+                      sidebarMinimized ? "sm:w-7 sm:mx-auto w-full" : "w-full"
                     )}
                   />
                 ))}
@@ -766,10 +773,19 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             <div>
               <button
                 type="button"
-                onClick={() => setSalesExpanded((prev) => !prev)}
-                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
-                  isSalesSectionActive ? navItemActive : navItemInactive
-                } ${navItemCompact}`}
+                onClick={() => {
+                  if (sidebarMinimized) {
+                    setSidebarMinimized(false);
+                    setSalesExpanded(true);
+                  } else {
+                    setSalesExpanded((prev) => !prev);
+                  }
+                }}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "sm:justify-center sm:px-0" : "justify-between"} cursor-pointer ${
+                  isSalesSectionActive
+                    ? "bg-accent/60 text-foreground font-semibold"
+                    : navItemInactive
+                }`}
                 title={sidebarMinimized ? tNav("sales") : ""}
                 aria-label={salesExpanded ? "Collapse sales menu" : "Expand sales menu"}
                 aria-expanded={salesExpanded}
@@ -780,25 +796,26 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     {tNav("sales")}
                   </span>
                 </div>
-                {!sidebarMinimized && hasSalesSub && (
+                {hasSalesSub && (
                   <ChevronRight
-                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${salesExpanded ? "rotate-90" : ""}`}
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${salesExpanded ? "rotate-90 text-foreground" : ""}`}
                   />
                 )}
               </button>
 
-              {!sidebarMinimized && salesExpanded && (
-                <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
+              {salesExpanded && (
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                   {can('sales', 'view_quotations') && (
                     <Link
                       href={`/${locale}/admin/sales/quotations`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/quotations" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/quotations"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/sales/quotations"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("quotations")}
                     </Link>
@@ -809,25 +826,26 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/invoice" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/invoice"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/sales/invoice"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("invoice")}
                     </Link>
                   )}
-
                   {can('sales', 'view_payment_in') && (
                     <Link
                       href={`/${locale}/admin/sales/payment-in`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/payment-in" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/payment-in"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/sales/payment-in"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("paymentIn")}
                     </Link>
@@ -838,10 +856,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/sale-return" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/sale-return"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/sales/sale-return"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("saleReturn")}
                     </Link>
@@ -852,10 +871,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/sales/counter-sale" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/sales/counter-sale"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/sales/counter-sale"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("counterSale")}
                     </Link>
@@ -870,10 +890,19 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             <div>
               <button
                 type="button"
-                onClick={() => setPurchaseExpanded((prev) => !prev)}
-                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
-                  isPurchaseSectionActive ? navItemActive : navItemInactive
-                } ${navItemCompact}`}
+                onClick={() => {
+                  if (sidebarMinimized) {
+                    setSidebarMinimized(false);
+                    setPurchaseExpanded(true);
+                  } else {
+                    setPurchaseExpanded((prev) => !prev);
+                  }
+                }}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "sm:justify-center sm:px-0" : "justify-between"} cursor-pointer ${
+                  isPurchaseSectionActive
+                    ? "bg-accent/60 text-foreground font-semibold"
+                    : navItemInactive
+                }`}
                 title={sidebarMinimized ? tNav("purchase") : ""}
                 aria-label={purchaseExpanded ? "Collapse purchase menu" : "Expand purchase menu"}
                 aria-expanded={purchaseExpanded}
@@ -884,25 +913,26 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     {tNav("purchase")}
                   </span>
                 </div>
-                {!sidebarMinimized && hasPurchaseSub && (
+                {hasPurchaseSub && (
                   <ChevronRight
-                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${purchaseExpanded ? "rotate-90" : ""}`}
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${purchaseExpanded ? "rotate-90 text-foreground" : ""}`}
                   />
                 )}
               </button>
 
-              {!sidebarMinimized && purchaseExpanded && (
-                <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
+              {purchaseExpanded && (
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                   {can('purchase', 'view_purchase_bill') && (
                     <Link
                       href={`/${locale}/admin/purchase/purchase-bill`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/purchase/purchase-bill" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/purchase/purchase-bill"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/purchase/purchase-bill"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("purchaseBill")}
                     </Link>
@@ -913,10 +943,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/purchase/payment-out" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/purchase/payment-out"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/purchase/payment-out"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("paymentOut")}
                     </Link>
@@ -969,10 +1000,19 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
             <div>
               <button
                 type="button"
-                onClick={() => setReportsExpanded((prev) => !prev)}
-                className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
-                  isReportsSectionActive ? navItemActive : navItemInactive
-                } ${navItemCompact}`}
+                onClick={() => {
+                  if (sidebarMinimized) {
+                    setSidebarMinimized(false);
+                    setReportsExpanded(true);
+                  } else {
+                    setReportsExpanded((prev) => !prev);
+                  }
+                }}
+                className={`w-full ${navItemBase} ${sidebarMinimized ? "sm:justify-center sm:px-0" : "justify-between"} cursor-pointer ${
+                  isReportsSectionActive
+                    ? "bg-accent/60 text-foreground font-semibold"
+                    : navItemInactive
+                }`}
                 title={sidebarMinimized ? tNav("reports") : ""}
                 aria-label={reportsExpanded ? "Collapse reports menu" : "Expand reports menu"}
                 aria-expanded={reportsExpanded}
@@ -983,25 +1023,26 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                     {tNav("reports")}
                   </span>
                 </div>
-                {!sidebarMinimized && hasReportsSub && (
+                {hasReportsSub && (
                   <ChevronRight
-                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${reportsExpanded ? "rotate-90" : ""}`}
+                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${reportsExpanded ? "rotate-90 text-foreground" : ""}`}
                   />
                 )}
               </button>              
 
-              {!sidebarMinimized && reportsExpanded && (
-                <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
+              {reportsExpanded && (
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
                   {can('reports', 'view_account_statement') && (
                     <Link
                       href={`/${locale}/admin/reports/account-statement`}
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/account-statement" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/account-statement"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/account-statement"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("accountStatement")}
                     </Link>
@@ -1012,10 +1053,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/stock" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/stock"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/stock"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("stockReport")}
                     </Link>
@@ -1026,10 +1068,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/receivable-summary" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/receivable-summary"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/receivable-summary"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("receivableSummary")}
                     </Link>
@@ -1040,10 +1083,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/profitability" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/profitability"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/profitability"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("profitability")}
                     </Link>
@@ -1054,10 +1098,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/item-wise-sales" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/item-wise-sales"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/item-wise-sales"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("itemWiseSaleReport")}
                     </Link>
@@ -1068,10 +1113,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/sale-report" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/sale-report"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/sale-report"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("saleReport")}
                     </Link>
@@ -1082,10 +1128,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/purchase-report" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/purchase-report"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/purchase-report"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("purchaseReport")}
                     </Link>
@@ -1096,10 +1143,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       aria-current={pathWithoutLocale === "/admin/reports/party-wise-report" ? "page" : undefined}
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${pathWithoutLocale === "/admin/reports/party-wise-report"
-                        ? "bg-accent/80 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        }`}
+                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                        pathWithoutLocale === "/admin/reports/party-wise-report"
+                          ? "bg-accent/80 font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
                     >
                       {tNav("partyWiseReport")}
                     </Link>
@@ -1116,10 +1164,19 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
               <div>
                 <button
                   type="button"
-                  onClick={() => setWhatsappExpanded((prev) => !prev)}
-                  className={`w-full ${navItemBase} ${sidebarMinimized ? "justify-center" : "justify-between"} cursor-pointer ${
-                    pathWithoutLocale === "/admin/whatsapp-integration" ? navItemActive : navItemInactive
-                  } ${navItemCompact}`}
+                  onClick={() => {
+                    if (sidebarMinimized) {
+                      setSidebarMinimized(false);
+                      setWhatsappExpanded(true);
+                    } else {
+                      setWhatsappExpanded((prev) => !prev);
+                    }
+                  }}
+                  className={`w-full ${navItemBase} ${sidebarMinimized ? "sm:justify-center sm:px-0" : "justify-between"} cursor-pointer ${
+                    pathWithoutLocale === "/admin/whatsapp-integration"
+                      ? "bg-accent/60 text-foreground font-semibold"
+                      : navItemInactive
+                  }`}
                   title={sidebarMinimized ? "WhatsApp" : ""}
                   aria-label={whatsappExpanded ? "Collapse WhatsApp menu" : "Expand WhatsApp menu"}
                   aria-expanded={whatsappExpanded}
@@ -1130,68 +1187,66 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
                       {tNav("whatsapp")}
                     </span>
                   </div>
-                  {!sidebarMinimized && (
-                    <ChevronRight
-                      className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${whatsappExpanded ? "rotate-90" : ""}`}
-                    />
-                  )}
-                </button>
+                <ChevronRight
+                  className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 text-muted-foreground ${sidebarMinimized ? "sm:hidden" : ""} ${whatsappExpanded ? "rotate-90 text-foreground" : ""}`}
+                />
+              </button>
 
-                {!sidebarMinimized && whatsappExpanded && (
-                  <div className="ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5">
-                    <Link
-                      href={`/${locale}/admin/whatsapp-integration?tab=campaigns`}
-                      prefetch={false}
-                      onClick={() => handleWhatsappTabClick("campaigns")}
-                      aria-current={
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
-                          ? "page"
-                          : undefined
-                      }
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
-                          ? "bg-accent/80 font-medium text-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                    >
-                      Marketing Campaigns
-                    </Link>
-                    <Link
-                      href={`/${locale}/admin/whatsapp-integration?tab=connection`}
-                      prefetch={false}
-                      onClick={() => handleWhatsappTabClick("connection")}
-                      aria-current={
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
-                          ? "page"
-                          : undefined
-                      }
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
-                          ? "bg-accent/80 font-medium text-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                    >
-                      Device Connection
-                    </Link>
-                    <Link
-                      href={`/${locale}/admin/whatsapp-integration?tab=reminders`}
-                      prefetch={false}
-                      onClick={() => handleWhatsappTabClick("reminders")}
-                      aria-current={
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
-                          ? "page"
-                          : undefined
-                      }
-                      className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
-                        pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
-                          ? "bg-accent/80 font-medium text-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                    >
-                      Udhaar Reminders
-                    </Link>
-                  </div>
-                )}
+              {whatsappExpanded && (
+                <div className={`ml-4 mt-0.5 border-l border-border/70 pl-2.5 flex flex-col gap-0.5 ${sidebarMinimized ? "sm:hidden" : ""}`}>
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration?tab=campaigns`}
+                    prefetch={false}
+                    onClick={() => handleWhatsappTabClick("campaigns")}
+                    aria-current={
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
+                        ? "page"
+                        : undefined
+                    }
+                    className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "campaigns"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    Marketing Campaigns
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration?tab=connection`}
+                    prefetch={false}
+                    onClick={() => handleWhatsappTabClick("connection")}
+                    aria-current={
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
+                        ? "page"
+                        : undefined
+                    }
+                    className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "connection"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    Device Connection
+                  </Link>
+                  <Link
+                    href={`/${locale}/admin/whatsapp-integration?tab=reminders`}
+                    prefetch={false}
+                    onClick={() => handleWhatsappTabClick("reminders")}
+                    aria-current={
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
+                        ? "page"
+                        : undefined
+                    }
+                    className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                      pathWithoutLocale === "/admin/whatsapp-integration" && whatsappTab === "reminders"
+                        ? "bg-accent/80 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    Udhaar Reminders
+                  </Link>
+                </div>
+              )}
               </div>
             )}
 
@@ -1244,12 +1299,11 @@ export function AdminLayout({ children, isInitialSyncing = false }: { children: 
           </nav>
         </aside>
         <main
-          className={`flex-1 p-3 sm:p-4 md:px-6 md:pt-12 md:pb-6 transition-all relative ${sidebarMinimized ? "sm:pl-16 md:pl-16" : ""
-            }`}
+          className="flex-1 p-3 sm:p-4 md:px-6 md:pt-12 md:pb-6 transition-all relative"
         >
           {/* Quick Actions Sub-Header */}
           {!blockedSubscriptionData && (
-            <div className={`hidden md:flex items-center justify-end bg-background/95 backdrop-blur-sm border-b px-6 py-1.5 fixed top-12 right-0 z-20 transition-all ${sidebarMinimized ? "left-16" : "left-52"}`}>
+            <div className={`hidden md:flex items-center justify-end bg-background/95 backdrop-blur-sm border-b px-6 py-1.5 fixed top-12 right-0 z-20 transition-all duration-300 ${sidebarMinimized ? "left-16" : "left-52 md:left-56"}`}>
               <QuickActions />
             </div>
           )}

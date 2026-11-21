@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { exportCustomersToExcel, exportCustomersTemplate } from "@/lib/excel";
 import { ErrorDialog } from "@/components/dialogs/error-dialog";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
+import { checkPartyHasTransactionsOffline } from "@/lib/entity-checks/offline";
 import { useOfflineCustomers } from "@/lib/hooks/useOfflineData";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { db } from "@/lib/db/offline-db";
@@ -205,6 +206,12 @@ export default function PartiesPage() {
           continue;
         }
 
+        const checkResult = await checkPartyHasTransactionsOffline(id);
+        if (checkResult.hasTransactions) {
+          skippedCount++;
+          continue;
+        }
+
         await db.parties.delete(id);
         await SyncEngine.queueOperation("parties", "DELETE", `/api/customers/${id}`, {});
         deletedCount++;
@@ -217,7 +224,7 @@ export default function PartiesPage() {
         toast.success(t("customerDeletedSuccess") || `Successfully deleted ${deletedCount} parties.`);
       }
       if (skippedCount > 0) {
-        toast.error(`${skippedCount} parties were skipped (non-zero balance or default cash party).`);
+        toast.error(`${skippedCount} parties were skipped (transactions exist, non-zero balance, or default cash party).`);
       }
     } catch (error) {
       console.error(error);
@@ -269,6 +276,22 @@ export default function PartiesPage() {
     if (customerToDelete.balance !== 0 && customerToDelete.balance !== undefined && customerToDelete.balance !== null) {
       toast.error(`${t("cannotDeleteMessage")} ${Math.round(customerToDelete.balance)}`);
       setIsDeleteDialogOpen(false);
+      return;
+    }
+
+    // Check for associated transactions
+    const checkResult = await checkPartyHasTransactionsOffline(customerToDelete.id);
+    if (checkResult.hasTransactions) {
+      setIsDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+      const msg = t("hasAssociatedTransactions", { details: checkResult.summary }) ||
+        `Cannot delete party because it has associated transactions (${checkResult.summary}).`;
+      setErrorDialog({
+        open: true,
+        title: t("cannotDelete") || "Cannot Delete",
+        message: msg,
+      });
+      toast.error(msg);
       return;
     }
 

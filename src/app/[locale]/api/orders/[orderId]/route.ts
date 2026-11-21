@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from '@/lib/auth/rbac';
 import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
-import { setDateToCurrentTime } from '@/lib/utils';
+import { parseSafeDate } from '@/lib/date-utils';
 
 // Helper to check if product is goods (not service)
 function isGoodsProduct(productDoc: any): boolean {
@@ -37,6 +37,18 @@ async function reverseStockItem(
   } else {
     const { adjustStock } = await import('@/lib/db/stock-manager');
     await adjustStock(item.product_id.toString(), userId, qty);
+
+    if (item.batch_splits && Array.isArray(item.batch_splits) && item.batch_splits.length > 0) {
+      try {
+        const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+        await restoreBatchesOnSaleRevertServer({
+          userId,
+          consumedBatches: item.batch_splits,
+        });
+      } catch (err) {
+        console.error("Failed to restore batch splits on revert:", err);
+      }
+    }
   }
 }
 
@@ -65,6 +77,51 @@ async function applyStockItem(
   } else {
     const { adjustStock } = await import('@/lib/db/stock-manager');
     await adjustStock(item.product_id.toString(), userId, -qty);
+
+    try {
+      const { getValuationMethod, consumeBatchesOnSaleServer } = await import('@/lib/inventory/valuation-engine');
+      const valuationMethod = await getValuationMethod(userId);
+      const fallbackCost = Number((productDoc as any).cost_price) || 0;
+
+      if (valuationMethod === "fifo") {
+        const consumption = await consumeBatchesOnSaleServer({
+          userId,
+          productId: item.product_id.toString(),
+          saleQty: qty,
+          fallbackCostPrice: fallbackCost,
+        });
+        item.batch_splits = consumption.consumed_batches;
+        item.cost_price = consumption.effective_unit_cost;
+        item.total_cogs = consumption.total_cogs;
+        item.unfulfilled_quantity = consumption.remaining_unfulfilled_qty;
+        item.is_oversold = consumption.remaining_unfulfilled_qty > 0;
+      } else {
+        const curStock = parseFloat((productDoc as any).quantity?.toString() || (productDoc as any).in_stock?.toString() || "0");
+        const isDeficit = (curStock < qty) || fallbackCost <= 0;
+        item.cost_price = fallbackCost;
+        item.total_cogs = Math.round(qty * fallbackCost * 100) / 100;
+        item.unfulfilled_quantity = isDeficit ? Math.max(0, qty - Math.max(0, curStock)) : 0;
+        item.is_oversold = isDeficit;
+      }
+    } catch (fifoErr) {
+      console.error("Error consuming FIFO batches on sale edit:", fifoErr);
+    }
+  }
+
+  // Update product master with latest selling price used during sale
+  if (item.price !== undefined && item.price !== null && Number(item.price) > 0) {
+    const salePriceNum = Number(item.price);
+    await productsCollection.updateOne(
+      { _id: item.product_id },
+      {
+        $set: {
+          sell_price: salePriceNum,
+          sell_price_str: salePriceNum.toString(),
+          price: salePriceNum,
+          updated_at: new Date(),
+        },
+      }
+    );
   }
 }
 
@@ -148,8 +205,8 @@ export async function PUT(
   const now = new Date();
   const updateData: any = {
     customer_id: toObjectId(customerId),
-    sale_date: saleDate ? setDateToCurrentTime(saleDate) : setDateToCurrentTime(now),
-    due_date: dueDate ? setDateToCurrentTime(dueDate) : null,
+    sale_date: parseSafeDate(saleDate || now),
+    due_date: dueDate ? parseSafeDate(dueDate) : null,
     invoice_no: invoiceNo || null,
     items: newItems,
     subtotal: subtotal || total,
@@ -164,7 +221,7 @@ export async function PUT(
     updateData.payment = {
       method: payment.method,
       paid_amount: payment.paidAmount || 0,
-      paid_date: payment.paidDate ? setDateToCurrentTime(payment.paidDate) : null,
+      paid_date: payment.paidDate ? parseSafeDate(payment.paidDate) : null,
       no_payment_at_all: payment.noPaymentAtAll || false,
     };
   } else {
@@ -197,7 +254,7 @@ export async function PUT(
       category: 'selling',
       type: 'income',
       description: `Payment for order #${orderId}`,
-      payment_date: payment.paidDate ? setDateToCurrentTime(payment.paidDate) : now,
+      payment_date: payment.paidDate ? parseSafeDate(payment.paidDate) : now,
       payment_method_id: payment.method === 'cash' ? 'cash' : payment.method === 'cheque' ? 'cheque' : null,
       created_at: now,
     });
@@ -238,7 +295,7 @@ export async function PUT(
       eventSource: 'order',
       eventSourceId: orderId,
       amountDelta: newNet,
-      effectiveAt: now,
+      effectiveAt: updateData.sale_date || now,
       metadata: { reason: 'order_update_apply', newTotal, newPaid },
     });
   }
@@ -319,6 +376,17 @@ export async function DELETE(
           );
         } else {
           await adjustStock(item.product_id.toString(), user.id, qty);
+          if (item.batch_splits && Array.isArray(item.batch_splits) && item.batch_splits.length > 0) {
+            try {
+              const { restoreBatchesOnSaleRevertServer } = await import('@/lib/inventory/valuation-engine');
+              await restoreBatchesOnSaleRevertServer({
+                userId: user.id,
+                consumedBatches: item.batch_splits,
+              });
+            } catch (err) {
+              console.error("Failed to restore batch splits on order delete:", err);
+            }
+          }
         }
       }
     }

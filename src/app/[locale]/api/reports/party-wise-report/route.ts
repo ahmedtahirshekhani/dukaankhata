@@ -4,9 +4,54 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from "@/lib/db/mongodb";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
+import { parsePKTDateBoundary } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseDateBoundary(dateStr: string | null | undefined, isEnd: boolean = false): Date | null {
+  return parsePKTDateBoundary(dateStr, isEnd);
+}
+
+function buildDateExpr(from: Date | null, to: Date | null, dateFieldList: string[]) {
+  if (!from && !to) return null;
+
+  let rawDateExpr: any = `$${dateFieldList[dateFieldList.length - 1]}`;
+  for (let i = dateFieldList.length - 2; i >= 0; i--) {
+    rawDateExpr = { $ifNull: [`$${dateFieldList[i]}`, rawDateExpr] };
+  }
+
+  const conditions: any[] = [{ $ne: ["$$parsedDate", null] }];
+  if (from) conditions.push({ $gte: ["$$parsedDate", from] });
+  if (to) conditions.push({ $lte: ["$$parsedDate", to] });
+
+  return {
+    $expr: {
+      $let: {
+        vars: {
+          rawDate: rawDateExpr,
+        },
+        in: {
+          $let: {
+            vars: {
+              parsedDate: {
+                $convert: {
+                  input: "$$rawDate",
+                  to: "date",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            },
+            in: {
+              $and: conditions,
+            },
+          },
+        },
+      },
+    },
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -53,8 +98,9 @@ export async function GET(request: NextRequest) {
     });
 
     // --- DRILLDOWN DETAILS FOR A SINGLE PARTY ---
-    if (detailsPartyId) {
-      const partyObjId = isValidObjectId(detailsPartyId) ? toObjectId(detailsPartyId) : null;
+    if (detailsPartyId !== null) {
+      const isWalkIn = !detailsPartyId || detailsPartyId === "walk-in" || detailsPartyId === "null" || detailsPartyId === "undefined" || detailsPartyId.trim() === "";
+      const partyObjId = !isWalkIn && isValidObjectId(detailsPartyId) ? toObjectId(detailsPartyId) : null;
 
       if (mode === "sales") {
         const orderMatch: any = {
@@ -64,49 +110,49 @@ export async function GET(request: NextRequest) {
           isDelete: { $nin: [1, true, "1"] },
           isDeleted: { $ne: true },
           status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
-          $or: [
+        };
+
+        if (isWalkIn) {
+          orderMatch.$or = [
+            { customer_id: null },
+            { customer_id: "" },
+            { customer_id: { $exists: false } },
+            { party_id: null },
+            { party_id: "" },
+            { party_id: { $exists: false } },
+          ];
+        } else {
+          orderMatch.$or = [
             { customer_id: detailsPartyId },
             ...(partyObjId ? [{ customer_id: partyObjId }] : []),
             { "customer._id": detailsPartyId },
             ...(partyObjId ? [{ "customer._id": partyObjId }] : []),
-          ],
-        };
+            { party_id: detailsPartyId },
+            ...(partyObjId ? [{ party_id: partyObjId }] : []),
+            { "customer.id": detailsPartyId },
+          ];
+        }
 
-        if (fromDate && toDate) {
-          const from = new Date(fromDate);
-          from.setHours(0, 0, 0, 0);
-          const to = new Date(toDate);
-          to.setHours(23, 59, 59, 999);
-
-          if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-            orderMatch.$and = orderMatch.$and || [];
-            orderMatch.$and.push({
-              $expr: {
-                $let: {
-                  vars: {
-                    rawDate: {
-                      $ifNull: [
-                        "$invoice_date",
-                        { $ifNull: ["$sale_date", { $ifNull: ["$order_date", { $ifNull: ["$date", "$created_at"] }] }] },
-                      ],
-                    },
-                  },
-                  in: {
-                    $and: [
-                      { $gte: [{ $toDate: "$$rawDate" }, from] },
-                      { $lte: [{ $toDate: "$$rawDate" }, to] },
-                    ],
-                  },
-                },
-              },
-            });
-          }
+        const from = parseDateBoundary(fromDate, false);
+        const to = parseDateBoundary(toDate, true);
+        const dateExpr = buildDateExpr(from, to, [
+          "sale_date",
+          "saleDate",
+          "invoice_date",
+          "invoiceDate",
+          "order_date",
+          "date",
+          "created_at",
+        ]);
+        if (dateExpr) {
+          orderMatch.$and = orderMatch.$and || [];
+          orderMatch.$and.push(dateExpr);
         }
 
         const invoices = await ordersCollection
           .find(orderMatch)
           .sort({ sale_date: -1, invoice_date: -1, created_at: -1 })
-          .limit(100)
+          .limit(1000)
           .toArray();
 
         const mapped = invoices.map((o) => {
@@ -168,49 +214,54 @@ export async function GET(request: NextRequest) {
         // Purchases Drilldown
         const billMatch: any = {
           user_id: userObjId,
-          $or: [
+          is_delete: { $nin: [1, true, "1"] },
+          is_deleted: { $nin: [1, true, "1"] },
+          isDelete: { $nin: [1, true, "1"] },
+          isDeleted: { $ne: true },
+          status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
+        };
+
+        if (isWalkIn) {
+          billMatch.$or = [
+            { party_id: null },
+            { party_id: "" },
+            { party_id: { $exists: false } },
+            { supplier_id: null },
+            { supplier_id: "" },
+            { supplier_id: { $exists: false } },
+          ];
+        } else {
+          billMatch.$or = [
             { party_id: detailsPartyId },
             ...(partyObjId ? [{ party_id: partyObjId }] : []),
             { "party._id": detailsPartyId },
             ...(partyObjId ? [{ "party._id": partyObjId }] : []),
-          ],
-        };
+            { supplier_id: detailsPartyId },
+            ...(partyObjId ? [{ supplier_id: partyObjId }] : []),
+            { "supplier._id": detailsPartyId },
+            ...(partyObjId ? [{ "supplier._id": partyObjId }] : []),
+          ];
+        }
 
-        if (fromDate && toDate) {
-          const from = new Date(fromDate);
-          from.setHours(0, 0, 0, 0);
-          const to = new Date(toDate);
-          to.setHours(23, 59, 59, 999);
-
-          if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-            billMatch.$and = billMatch.$and || [];
-            billMatch.$and.push({
-              $expr: {
-                $let: {
-                  vars: {
-                    rawDate: {
-                      $ifNull: [
-                        "$bill_date",
-                        { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] },
-                      ],
-                    },
-                  },
-                  in: {
-                    $and: [
-                      { $gte: [{ $toDate: "$$rawDate" }, from] },
-                      { $lte: [{ $toDate: "$$rawDate" }, to] },
-                    ],
-                  },
-                },
-              },
-            });
-          }
+        const from = parseDateBoundary(fromDate, false);
+        const to = parseDateBoundary(toDate, true);
+        const dateExpr = buildDateExpr(from, to, [
+          "bill_date",
+          "billDate",
+          "purchase_date",
+          "purchaseDate",
+          "date",
+          "created_at",
+        ]);
+        if (dateExpr) {
+          billMatch.$and = billMatch.$and || [];
+          billMatch.$and.push(dateExpr);
         }
 
         const bills = await purchaseBillsCollection
           .find(billMatch)
-          .sort({ bill_date: -1, created_at: -1 })
-          .limit(100)
+          .sort({ bill_date: -1, purchase_date: -1, created_at: -1 })
+          .limit(1000)
           .toArray();
 
         const mapped = bills.map((b) => {
@@ -285,35 +336,20 @@ export async function GET(request: NextRequest) {
         ];
       }
 
-      if (fromDate && toDate) {
-        const from = new Date(fromDate);
-        from.setHours(0, 0, 0, 0);
-        const to = new Date(toDate);
-        to.setHours(23, 59, 59, 999);
-
-        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-          matchQuery.$and = matchQuery.$and || [];
-          matchQuery.$and.push({
-            $expr: {
-              $let: {
-                vars: {
-                  rawDate: {
-                    $ifNull: [
-                      "$invoice_date",
-                      { $ifNull: ["$sale_date", { $ifNull: ["$date", "$created_at"] }] },
-                    ],
-                  },
-                },
-                in: {
-                  $and: [
-                    { $gte: [{ $toDate: "$$rawDate" }, from] },
-                    { $lte: [{ $toDate: "$$rawDate" }, to] },
-                  ],
-                },
-              },
-            },
-          });
-        }
+      const from = parseDateBoundary(fromDate, false);
+      const to = parseDateBoundary(toDate, true);
+      const dateExpr = buildDateExpr(from, to, [
+        "sale_date",
+        "saleDate",
+        "invoice_date",
+        "invoiceDate",
+        "order_date",
+        "date",
+        "created_at",
+      ]);
+      if (dateExpr) {
+        matchQuery.$and = matchQuery.$and || [];
+        matchQuery.$and.push(dateExpr);
       }
 
       // Group sales by Customer
@@ -434,11 +470,31 @@ export async function GET(request: NextRequest) {
               last_date: {
                 $max: {
                   $ifNull: [
-                    "$invoice_date",
-                    { $ifNull: ["$sale_date", { $ifNull: ["$order_date", { $ifNull: ["$date", "$created_at"] }] }] }
-                  ]
-                }
-              }
+                    "$sale_date",
+                    {
+                      $ifNull: [
+                        "$saleDate",
+                        {
+                          $ifNull: [
+                            "$invoice_date",
+                            {
+                              $ifNull: [
+                                "$invoiceDate",
+                                {
+                                  $ifNull: [
+                                    "$order_date",
+                                    { $ifNull: ["$date", "$created_at"] },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
             }
           }
         ])
@@ -556,6 +612,11 @@ export async function GET(request: NextRequest) {
     if (mode === "purchases") {
       const matchQuery: any = {
         user_id: userObjId,
+        is_delete: { $nin: [1, true, "1"] },
+        is_deleted: { $nin: [1, true, "1"] },
+        isDelete: { $nin: [1, true, "1"] },
+        isDeleted: { $ne: true },
+        status: { $nin: ["cancelled", "deleted", "inactive", "Cancelled", "Deleted", "Inactive"] },
       };
 
       if (partyId && partyId !== "all") {
@@ -568,35 +629,19 @@ export async function GET(request: NextRequest) {
         ];
       }
 
-      if (fromDate && toDate) {
-        const from = new Date(fromDate);
-        from.setHours(0, 0, 0, 0);
-        const to = new Date(toDate);
-        to.setHours(23, 59, 59, 999);
-
-        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-          matchQuery.$and = matchQuery.$and || [];
-          matchQuery.$and.push({
-            $expr: {
-              $let: {
-                vars: {
-                  rawDate: {
-                    $ifNull: [
-                      "$bill_date",
-                      { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] },
-                    ],
-                  },
-                },
-                in: {
-                  $and: [
-                    { $gte: [{ $toDate: "$$rawDate" }, from] },
-                    { $lte: [{ $toDate: "$$rawDate" }, to] },
-                  ],
-                },
-              },
-            },
-          });
-        }
+      const from = parseDateBoundary(fromDate, false);
+      const to = parseDateBoundary(toDate, true);
+      const dateExpr = buildDateExpr(from, to, [
+        "bill_date",
+        "billDate",
+        "purchase_date",
+        "purchaseDate",
+        "date",
+        "created_at",
+      ]);
+      if (dateExpr) {
+        matchQuery.$and = matchQuery.$and || [];
+        matchQuery.$and.push(dateExpr);
       }
 
       // Group purchases by Supplier/Party
@@ -712,10 +757,25 @@ export async function GET(request: NextRequest) {
                 $max: {
                   $ifNull: [
                     "$bill_date",
-                    { $ifNull: ["$purchase_date", { $ifNull: ["$date", "$created_at"] }] }
-                  ]
-                }
-              }
+                    {
+                      $ifNull: [
+                        "$billDate",
+                        {
+                          $ifNull: [
+                            "$purchase_date",
+                            {
+                              $ifNull: [
+                                "$purchaseDate",
+                                { $ifNull: ["$date", "$created_at"] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
             }
           }
         ])

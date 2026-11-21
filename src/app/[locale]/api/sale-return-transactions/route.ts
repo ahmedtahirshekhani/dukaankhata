@@ -10,7 +10,7 @@ import {
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
 import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
-import { setDateToCurrentTime } from "@/lib/utils";
+import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
 type SaleReturnItem = {
@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
         paymentMethodName: pmName,
         paymentRefNo: item.payment_ref_no ?? "",
         invoiceNo: item.invoice_no ?? "",
-        invoiceDate: item.invoice_date ? new Date(item.invoice_date).toISOString().split("T")[0] : "",
+        invoiceDate: item.invoice_date ? toHTMLDateString(item.invoice_date) : "",
         date: item.date ? (typeof item.date === "string" ? item.date : new Date(item.date).toISOString()) : "",
         return_date: item.return_date || item.date || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : undefined,
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
     const invoiceDateRaw = (body?.invoiceDate ?? body?.invoice_date ?? "")
       .toString()
       .trim();
-    const dateStr = body?.date ?? new Date().toISOString().split("T")[0];
+    const dateStr = body?.date ?? getTodayHTMLDate();
 
     if (!customerId || !isValidObjectId(customerId)) {
       return NextResponse.json(
@@ -249,6 +249,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (paidAmount > 0) {
+      const pmId = paymentMethodId.toString();
+      const { getServerPaymentMethodBalance } = await import("@/lib/payment-methods/balance-check");
+      const serverBalance = await getServerPaymentMethodBalance({
+        userId: user.id,
+        paymentMethodId: pmId,
+      });
+
+      if (paidAmount > serverBalance) {
+        return NextResponse.json(
+          {
+            error: "insufficient_balance",
+            message: `Insufficient balance in selected payment method. Available: Rs. ${serverBalance.toFixed(2)}, Required: Rs. ${paidAmount.toFixed(2)}`,
+            availableBalance: serverBalance,
+            requiredAmount: paidAmount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (lineItems.length === 0) {
       return NextResponse.json(
         { error: "At least one return item is required" },
@@ -256,8 +277,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const date = setDateToCurrentTime(dateStr);
-    const invoiceDate = invoiceDateRaw ? setDateToCurrentTime(invoiceDateRaw) : null;
+    const date = parseSafeDate(dateStr);
+    const invoiceDate = invoiceDateRaw ? parseSafeDate(invoiceDateRaw) : null;
+
+    // Attach current cost rate to each returned item for accurate inventory valuation (WAC & FIFO)
+    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
+    const enrichedLineItems = await Promise.all(
+      lineItems.map(async (item) => {
+        if (!item.productId || !isValidObjectId(item.productId)) return item;
+        const pDoc = await productsCollection.findOne(
+          { _id: toObjectId(item.productId) },
+          { projection: { cost_price: 1, purchase_price: 1 } }
+        );
+        const currentCost = Number((pDoc as any)?.cost_price ?? (pDoc as any)?.purchase_price) || 0;
+        return {
+          ...item,
+          costPrice: currentCost,
+          cost_price: currentCost,
+        };
+      })
+    );
 
     const collection = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
     const now = new Date();
@@ -265,7 +304,7 @@ export async function POST(req: NextRequest) {
       user_id: toObjectId(user.id),
       return_number: returnNumber,
       customer_id: toObjectId(customerId),
-      items: lineItems,
+      items: enrichedLineItems,
       total_amount: paymentAmount,
       paid_amount: paidAmount,
       balance_due: balanceDue,
@@ -290,14 +329,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Increment stock for returned products
-    const productsCollection = await getCollection(COLLECTIONS.PRODUCTS);
     const { adjustStock } = await import('@/lib/db/stock-manager');
-    for (const item of lineItems) {
+    for (const item of enrichedLineItems) {
       if (!item.productId || !isValidObjectId(item.productId)) continue;
       
       const productDoc = await productsCollection.findOne(
         { _id: toObjectId(item.productId) },
-        { projection: { type: 1, quantity: 1, in_stock: 1 } }
+        { projection: { type: 1, quantity: 1, in_stock: 1, cost_price: 1, purchase_price: 1 } }
       );
       
       if (!productDoc) continue;
@@ -310,6 +348,29 @@ export async function POST(req: NextRequest) {
       if (returnQty <= 0) continue;
 
       await adjustStock(item.productId, user.id, returnQty);
+
+      // Re-inward batch into inventory_batches at Current Cost Rate
+      try {
+        const { reInwardBatchOnSaleReturnServer, resequenceProductFIFOBatchesServer } = await import('@/lib/inventory/valuation-engine');
+        const costPrice = Number((productDoc as any).cost_price) || Number((productDoc as any).purchase_price) || Number((item as any).costPrice) || 0;
+        await reInwardBatchOnSaleReturnServer({
+          userId: user.id,
+          returnId: insertedId.toString(),
+          returnNumber,
+          productId: item.productId,
+          quantity: returnQty,
+          costPrice,
+          returnDate: date,
+        });
+
+        // Real-time dynamic FIFO re-sequencing
+        await resequenceProductFIFOBatchesServer({
+          userId: user.id,
+          productId: item.productId,
+        });
+      } catch (retBatchErr) {
+        console.error("Failed to re-inward batch on sale return:", retBatchErr);
+      }
     }
 
     await appendCustomerLedgerEntry({
@@ -380,8 +441,8 @@ export async function POST(req: NextRequest) {
       paymentMethodId,
       paymentRefNo,
       invoiceNo,
-      invoiceDate: invoiceDate ? invoiceDate.toISOString().split("T")[0] : "",
-      date: date.toISOString().split("T")[0],
+      invoiceDate: invoiceDate ? toHTMLDateString(invoiceDate) : "",
+      date: toHTMLDateString(date),
     });
   } catch (err: unknown) {
     console.error("sale-return-transactions POST error", err);

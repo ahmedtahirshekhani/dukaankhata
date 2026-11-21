@@ -59,9 +59,9 @@ import { db } from "@/lib/db/offline-db";
 import { SyncEngine } from "@/lib/sync/sync-engine";
 import { updateOfflinePartyBalance } from "@/lib/ledger/offline-ledger";
 import { usePermissions } from "@/hooks/use-permissions";
-import { generateReferenceNumber, maskPaymentNo, setDateToCurrentTime } from "@/lib/utils";
+import { generateReferenceNumber, maskPaymentNo } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatReadableDate, safeDate } from "@/lib/date-utils";
+import { formatReadableDate, getTodayHTMLDate, safeDate, toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 
 type Customer = {
   id: string;
@@ -125,7 +125,7 @@ export default function PaymentInPage() {
   const [formCustomerId, setFormCustomerId] = useState("");
   const [formPaymentAmount, setFormPaymentAmount] = useState("");
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
-  const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [formDate, setFormDate] = useState(() => getTodayHTMLDate());
 
   // Replace API fetching with offline hook
   const offlineTransactions = useOfflineCustomerTransactions("payment-in", searchTerm, filters.paymentMethod, filters.customer);
@@ -205,7 +205,7 @@ export default function PaymentInPage() {
     setFormPaymentAmount("");
     setFormPaymentMethodId("");
     setFormPaymentNumber(generateReferenceNumber("PAY-IN"));
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setSelectedId(null);
   }, []);
 
@@ -227,7 +227,7 @@ export default function PaymentInPage() {
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-IN");
 
       const now = new Date();
-      const finalDate = setDateToCurrentTime(formDate);
+      const finalDateISO = toSafeISOString(formDate);
 
       const payload = {
         paymentNumber: paymentNo,
@@ -235,8 +235,8 @@ export default function PaymentInPage() {
         customerId: formCustomerId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: finalDate.toISOString(),
-        payment_date: finalDate.toISOString(),
+        date: finalDateISO,
+        payment_date: finalDateISO,
         type: "payment-in"
       };
 
@@ -293,7 +293,7 @@ export default function PaymentInPage() {
       const paymentNo = formPaymentNumber.trim() || generateReferenceNumber("PAY-IN");
 
       const now = new Date();
-      const finalDate = setDateToCurrentTime(formDate);
+      const finalDateISO = toSafeISOString(formDate);
 
       const payload = {
         paymentNumber: paymentNo,
@@ -301,8 +301,8 @@ export default function PaymentInPage() {
         customerId: formCustomerId,
         paymentAmount: amount,
         paymentMethodId: formPaymentMethodId,
-        date: finalDate.toISOString(),
-        payment_date: finalDate.toISOString(),
+        date: finalDateISO,
+        payment_date: finalDateISO,
         type: "payment-in"
       };
 
@@ -382,7 +382,7 @@ export default function PaymentInPage() {
   const openAddDialog = () => {
     resetForm();
     setFormPaymentNumber(generateReferenceNumber("PAY-IN"));
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(getTodayHTMLDate());
     setShowAddDialog(true);
   };
 
@@ -400,7 +400,7 @@ export default function PaymentInPage() {
     setFormCustomerId(item.customerId);
     setFormPaymentAmount(item.paymentAmount.toString());
     setFormPaymentMethodId(item.paymentMethodId);
-    setFormDate(item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setFormDate(toHTMLDateString((item as any).raw_date || item.date) || getTodayHTMLDate());
     setShowEditDialog(true);
   };
 

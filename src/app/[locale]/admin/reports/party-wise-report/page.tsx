@@ -48,7 +48,7 @@ import {
 } from "@/components/reports/report-pdf-header";
 import { PdfTable, type PdfTableColumn } from "@/components/reports/pdf-table";
 import { formatCurrency, formatStatementDate, cn } from "@/lib/utils";
-import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
+import { toHTMLDateString, getDaysAgoHTMLDate, getTodayHTMLDate, safeDate, formatPakistaniDateTime, parsePKTDateBoundary } from "@/lib/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePermissions } from "@/hooks/use-permissions";
 import { exportPartyWiseByModeToExcel } from "@/lib/excel";
@@ -295,7 +295,7 @@ export default function PartyWiseReportPage() {
     try {
       const params = new URLSearchParams();
       params.set("mode", mode);
-      params.set("detailsPartyId", item.party_id);
+      params.set("detailsPartyId", item.party_id || "walk-in");
       if (fromDate) params.set("fromDate", fromDate);
       if (toDate) params.set("toDate", toDate);
 
@@ -330,6 +330,7 @@ export default function PartyWiseReportPage() {
   // Filtered, Sorted & Paginated Party Transactions for Drilldown Modal DataTable
   const sortedAndFilteredPartyTransactions = useMemo(() => {
     let result = partyTransactions;
+
     if (modalSearch) {
       const s = modalSearch.toLowerCase();
       result = result.filter((tx) => {
@@ -392,6 +393,29 @@ export default function PartyWiseReportPage() {
       return modalSortOrder === "asc" ? comparison : -comparison;
     });
   }, [partyTransactions, modalSearch, isSaleMode, modalSortBy, modalSortOrder]);
+
+  // Dynamic summary for the modal pills
+  const modalSummary = useMemo(() => {
+    if (!selectedParty) return null;
+    const totalAmount = sortedAndFilteredPartyTransactions.reduce(
+      (sum, tx) => sum + (Number(tx.total_amount) || 0),
+      0
+    );
+    const totalPaid = sortedAndFilteredPartyTransactions.reduce(
+      (sum, tx) => sum + (Number(tx.paid_amount) || 0),
+      0
+    );
+    const totalBalance = sortedAndFilteredPartyTransactions.reduce(
+      (sum, tx) => sum + (Number(tx.balance_due) || 0),
+      0
+    );
+    return {
+      totalAmount,
+      totalPaid,
+      totalBalance,
+      count: sortedAndFilteredPartyTransactions.length,
+    };
+  }, [selectedParty, sortedAndFilteredPartyTransactions]);
 
   const paginatedPartyTransactions = useMemo(() => {
     const start = (modalCurrentPage - 1) * modalPageSize;
@@ -1010,15 +1034,27 @@ export default function PartyWiseReportPage() {
           {selectedParty && (
             <div className="flex flex-col gap-3">
               <DialogHeader className="pb-2 border-b border-border/40">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
                     <span>{selectedParty.party_name}</span>
                   </DialogTitle>
+                  {(fromDate || toDate) && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium w-fit">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {fromDate && toDate
+                          ? `${formatPakistaniDateTime(fromDate, false)} ${tCommon("to") || "to"} ${formatPakistaniDateTime(toDate, false)}`
+                          : fromDate
+                          ? `${tCommon("from") || "From"} ${formatPakistaniDateTime(fromDate, false)}`
+                          : `${tCommon("to") || "Until"} ${formatPakistaniDateTime(toDate, false)}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </DialogHeader>
 
-              {/* Party Summary Pills */}
+              {/* Party Summary Pills (Accurate to active filter) */}
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="p-2.5 bg-muted/40 rounded-lg">
                   <span className="text-[10px] text-muted-foreground block">
@@ -1031,10 +1067,10 @@ export default function PartyWiseReportPage() {
                         : "text-cyan-600 dark:text-cyan-400"
                     }`}
                   >
-                    {formatCurrency(selectedParty.total_amount)}
+                    {formatCurrency(modalSummary?.totalAmount ?? selectedParty.total_amount)}
                   </span>
                   <span className="text-[10px] text-muted-foreground block mt-0.5">
-                    {selectedParty.transactions_count} {isSaleMode ? t("invoicesCount") : t("billsCount")}
+                    {modalSummary?.count ?? selectedParty.transactions_count} {isSaleMode ? t("invoicesCount") : t("billsCount")}
                   </span>
                 </div>
 
@@ -1043,7 +1079,7 @@ export default function PartyWiseReportPage() {
                     {isSaleMode ? t("receivedAmount") : t("paidAmount")}
                   </span>
                   <span className="font-bold text-foreground text-xs sm:text-sm">
-                    {formatCurrency(selectedParty.paid_amount)}
+                    {formatCurrency(modalSummary?.totalPaid ?? selectedParty.paid_amount)}
                   </span>
                 </div>
 
@@ -1052,7 +1088,7 @@ export default function PartyWiseReportPage() {
                     {t("balanceDue")}
                   </span>
                   <span className="font-bold text-xs sm:text-sm text-rose-600 dark:text-rose-400">
-                    {formatCurrency(selectedParty.balance_due)}
+                    {formatCurrency(modalSummary?.totalBalance ?? selectedParty.balance_due)}
                   </span>
                 </div>
               </div>
@@ -1066,6 +1102,7 @@ export default function PartyWiseReportPage() {
                 onSort={handleModalSort}
                 currentPage={modalCurrentPage}
                 pageSize={modalPageSize}
+                pageSizeOptions={[5, 10, 20, 50]}
                 totalCount={sortedAndFilteredPartyTransactions.length}
                 onPageChange={(p: number) => setModalCurrentPage(p)}
                 onPageSizeChange={(s: number) => {
