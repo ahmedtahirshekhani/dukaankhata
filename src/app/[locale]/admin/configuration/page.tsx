@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertCircle, Loader2, Layers, Home } from "lucide-react";
+import { AlertCircle, Loader2, Layers, Home, Lock, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,6 +83,9 @@ export default function ConfigurationPage({
   const [enableAiChat, setEnableAiChat] = useState(true);
   const [enableWhatsApp, setEnableWhatsApp] = useState(true);
   const [stockValuationMethod, setStockValuationMethod] = useState<"average" | "fifo">("average");
+  const [isValuationLocked, setIsValuationLocked] = useState(false);
+  const [showFifoConfirmModal, setShowFifoConfirmModal] = useState(false);
+  const [isSwitchingValuation, setIsSwitchingValuation] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -95,8 +98,11 @@ export default function ConfigurationPage({
           const savedWa = localStorage.getItem("setting_wa");
           if (savedWa) setEnableWhatsApp(savedWa === "true");
           const savedMethod = localStorage.getItem("setting_stockValuationMethod");
-          if (savedMethod === "fifo" || savedMethod === "average") {
-            setStockValuationMethod(savedMethod);
+          if (savedMethod === "fifo") {
+            setStockValuationMethod("fifo");
+            setIsValuationLocked(true);
+          } else if (savedMethod === "average") {
+            setStockValuationMethod("average");
           }
 
           const wsId = (session?.user as any)?.id || "";
@@ -137,6 +143,9 @@ export default function ConfigurationPage({
               if (cfg.stock_valuation_method === "fifo" || cfg.stock_valuation_method === "average") {
                 setStockValuationMethod(cfg.stock_valuation_method);
                 localStorage.setItem("setting_stockValuationMethod", cfg.stock_valuation_method);
+              }
+              if (cfg.stock_valuation_method === "fifo" || cfg.is_valuation_locked) {
+                setIsValuationLocked(true);
               }
             if (typeof cfg.is_counterSale_enable === "boolean") {
               setEnableCounterSale(cfg.is_counterSale_enable);
@@ -211,12 +220,36 @@ export default function ConfigurationPage({
     syncFeatureSettings({ wa: val });
   };
 
-  const handleValuationMethodChange = (method: "average" | "fifo") => {
-    setStockValuationMethod(method);
-    localStorage.setItem("setting_stockValuationMethod", method);
-    window.dispatchEvent(new Event("featureSettingsUpdated"));
-    window.dispatchEvent(new Event("stockValuationMethodUpdated"));
-    syncFeatureSettings({ stockValuationMethod: method });
+  const handleValuationMethodSelect = (method: "average" | "fifo") => {
+    if (!canEditConfig) return;
+    if (method === stockValuationMethod) return;
+
+    // If locked on FIFO, never allow going back to Average!
+    if (isValuationLocked || stockValuationMethod === "fifo") {
+      return;
+    }
+
+    // If switching from Average to FIFO, prompt with confirmation modal
+    if (method === "fifo") {
+      setShowFifoConfirmModal(true);
+    }
+  };
+
+  const confirmSwitchToFifo = async () => {
+    setIsSwitchingValuation(true);
+    try {
+      setStockValuationMethod("fifo");
+      setIsValuationLocked(true);
+      localStorage.setItem("setting_stockValuationMethod", "fifo");
+      window.dispatchEvent(new Event("featureSettingsUpdated"));
+      window.dispatchEvent(new Event("stockValuationMethodUpdated"));
+      await syncFeatureSettings({ stockValuationMethod: "fifo" });
+      setShowFifoConfirmModal(false);
+    } catch (err) {
+      console.error("Failed to switch valuation method:", err);
+    } finally {
+      setIsSwitchingValuation(false);
+    }
   };
 
   const handleDeleteData = async (e: React.FormEvent) => {
@@ -552,52 +585,85 @@ export default function ConfigurationPage({
                     <CardContent>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         {/* Weighted Average Option */}
-                        <div
-                          onClick={() => handleValuationMethodChange("average")}
-                          className={cn(
-                            "p-4 rounded-xl border-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
-                            stockValuationMethod === "average"
-                              ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20"
-                              : "border-border hover:border-muted-foreground/30 bg-card"
-                          )}
-                        >
-                          <div>
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1 pr-2">
-                                <h4 className="font-bold text-foreground text-xs sm:text-sm">
-                                  {t("weightedAverageTitle")}
-                                </h4>
-                                <Badge className="text-[10px] px-2 py-0.5 bg-primary/15 text-primary hover:bg-primary/25 border-primary/20 shadow-none font-semibold">
-                                  {t("weightedAverageBadge")}
-                                </Badge>
+                        {isValuationLocked || stockValuationMethod === "fifo" ? (
+                          <div
+                            className={cn(
+                              "p-4 rounded-xl border-2 transition-all duration-150 flex flex-col justify-between",
+                              "opacity-60 cursor-not-allowed bg-muted/40 border-muted text-muted-foreground select-none"
+                            )}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-1 pr-2">
+                                  <h4 className="font-bold text-foreground/80 text-xs sm:text-sm flex items-center gap-1.5">
+                                    {t("weightedAverageTitle")}
+                                    <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                  </h4>
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-muted-foreground/30 text-muted-foreground font-semibold">
+                                    {t("weightedAverageBadge")}
+                                  </Badge>
+                                </div>
+                                <div className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center border-muted-foreground/30">
+                                  <Lock className="w-2.5 h-2.5 text-muted-foreground" />
+                                </div>
                               </div>
-                              <div
-                                className={cn(
-                                  "w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
-                                  stockValuationMethod === "average"
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-muted-foreground/40"
-                                )}
-                              >
-                                {stockValuationMethod === "average" && (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-                                )}
-                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                                {t("weightedAverageDesc")}
+                              </p>
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-                              {t("weightedAverageDesc")}
-                            </p>
+                            <div className="mt-3 pt-2 border-t border-border/50 flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                              <Lock className="w-3.5 h-3.5 shrink-0" />
+                              <span>{t("valuationLockedDesc")}</span>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div
+                            onClick={() => handleValuationMethodSelect("average")}
+                            className={cn(
+                              "p-4 rounded-xl border-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
+                              stockValuationMethod === "average"
+                                ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20"
+                                : "border-border hover:border-muted-foreground/30 bg-card"
+                            )}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-1 pr-2">
+                                  <h4 className="font-bold text-foreground text-xs sm:text-sm">
+                                    {t("weightedAverageTitle")}
+                                  </h4>
+                                  <Badge className="text-[10px] px-2 py-0.5 bg-primary/15 text-primary hover:bg-primary/25 border-primary/20 shadow-none font-semibold">
+                                    {t("weightedAverageBadge")}
+                                  </Badge>
+                                </div>
+                                <div
+                                  className={cn(
+                                    "w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
+                                    stockValuationMethod === "average"
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-muted-foreground/40"
+                                  )}
+                                >
+                                  {stockValuationMethod === "average" && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                                {t("weightedAverageDesc")}
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
                         {/* FIFO Option */}
                         <div
-                          onClick={() => handleValuationMethodChange("fifo")}
+                          onClick={() => handleValuationMethodSelect("fifo")}
                           className={cn(
-                            "p-4 rounded-xl border-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
+                            "p-4 rounded-xl border-2 transition-all duration-150 flex flex-col justify-between",
                             stockValuationMethod === "fifo"
-                              ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20"
-                              : "border-border hover:border-muted-foreground/30 bg-card"
+                              ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20 cursor-default"
+                              : "border-border hover:border-muted-foreground/30 bg-card cursor-pointer"
                           )}
                         >
                           <div>
@@ -606,9 +672,17 @@ export default function ConfigurationPage({
                                 <h4 className="font-bold text-foreground text-xs sm:text-sm">
                                   {t("fifoTitle")}
                                 </h4>
-                                <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/40 text-primary font-semibold">
-                                  {t("fifoBadge")}
-                                </Badge>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/40 text-primary font-semibold">
+                                    {t("fifoBadge")}
+                                  </Badge>
+                                  {(isValuationLocked || stockValuationMethod === "fifo") && (
+                                    <Badge className="text-[10px] px-2 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-semibold flex items-center gap-1 shadow-none">
+                                      <Lock className="w-2.5 h-2.5" />
+                                      {t("valuationLocked")}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                               <div
                                 className={cn(
@@ -1074,6 +1148,56 @@ export default function ConfigurationPage({
                   </form>
                 </>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* FIFO Valuation Confirmation Modal */}
+          <Dialog open={showFifoConfirmModal} onOpenChange={setShowFifoConfirmModal}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <div className="flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
+                  <div className="p-2 bg-amber-500/10 rounded-full">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <DialogTitle className="text-base sm:text-lg">
+                    {t("switchValuationTitle")}
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="text-xs sm:text-sm text-foreground/80 mt-2 leading-relaxed">
+                  {t("switchValuationDesc")}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2 mt-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <p className="leading-relaxed font-medium">{t("switchValuationWarning")}</p>
+              </div>
+
+              <div className="flex gap-2.5 justify-end pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowFifoConfirmModal(false)}
+                  disabled={isSwitchingValuation}
+                >
+                  {t("cancelSwitch")}
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={confirmSwitchToFifo}
+                  disabled={isSwitchingValuation}
+                >
+                  {isSwitchingValuation ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t("confirmSwitch")}
+                    </>
+                  ) : (
+                    t("confirmSwitch")
+                  )}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
 

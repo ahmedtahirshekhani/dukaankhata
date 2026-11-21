@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       is_AI_Chat_Enable: config?.is_AI_Chat_Enable ?? true,
       is_Whatsapp_enable: config?.is_Whatsapp_enable ?? false,
       stock_valuation_method: config?.stock_valuation_method || "average",
+      is_valuation_locked: config?.stock_valuation_method === "fifo" || Boolean(config?.is_valuation_locked),
     }, { status: 200 });
   } catch (error) {
     console.error("Configuration fetch error:", error);
@@ -53,8 +54,21 @@ export async function PUT(request: NextRequest) {
     }
     if (body.stock_valuation_method !== undefined) {
       const method = String(body.stock_valuation_method).toLowerCase();
+      const existingConfig = await configCollection.findOne({ user_id: toObjectId(user.id) });
+      const isAlreadyFifoOrLocked = existingConfig?.stock_valuation_method === "fifo" || Boolean(existingConfig?.is_valuation_locked);
+
+      if (isAlreadyFifoOrLocked && method === "average") {
+        return NextResponse.json({
+          error: "VALUATION_METHOD_LOCKED",
+          message: "Cannot switch back to Weighted Average once FIFO has been activated for this workspace."
+        }, { status: 400 });
+      }
+
       if (method === "average" || method === "fifo" || method === "static") {
         updateFields.stock_valuation_method = method;
+        if (method === "fifo") {
+          updateFields.is_valuation_locked = true;
+        }
       }
     }
 
