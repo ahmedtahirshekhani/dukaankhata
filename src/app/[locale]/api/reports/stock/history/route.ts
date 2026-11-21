@@ -123,8 +123,7 @@ export async function GET(request: NextRequest) {
       const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
       if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
 
-      // If base date has no time (hours=0, min=0, sec=0) but createdAt has exact time, merge time
-      if (base.getHours() === 0 && base.getMinutes() === 0 && base.getSeconds() === 0 && createdAtVal) {
+      if (createdAtVal) {
         const created = new Date(createdAtVal);
         if (!isNaN(created.getTime())) {
           base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
@@ -248,8 +247,8 @@ export async function GET(request: NextRequest) {
     for (const bill of purchaseBills) {
       const d = getExactTimestamp(bill.bill_date || bill.date, bill.created_at);
       const supplierName = bill.party_name || partyMap.get(bill.party_id?.toString()) || "Supplier";
-      
-      const matchedItems = (bill.items || []).filter((it: any) => 
+
+      const matchedItems = (bill.items || []).filter((it: any) =>
         it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString()
       );
 
@@ -277,7 +276,7 @@ export async function GET(request: NextRequest) {
       const d = getExactTimestamp(order.sale_date || order.date, order.created_at);
       const customerName = order.customer_name || partyMap.get(order.customer_id?.toString()) || "Customer";
 
-      const matchedItems = (order.items || []).filter((it: any) => 
+      const matchedItems = (order.items || []).filter((it: any) =>
         it.product_id?.toString() === productId || it.product_id?.toString() === prodObjId.toString()
       );
 
@@ -349,7 +348,7 @@ export async function GET(request: NextRequest) {
       const d = getExactTimestamp(ret.return_date || ret.date, ret.created_at);
       const customerName = ret.customerName || partyMap.get(ret.customerId?.toString() || ret.customer_id?.toString()) || "Customer";
 
-      const matchedItems = (ret.items || []).filter((it: any) => 
+      const matchedItems = (ret.items || []).filter((it: any) =>
         (it.productId || it.product_id)?.toString() === productId || (it.productId || it.product_id)?.toString() === prodObjId.toString()
       );
 
@@ -450,8 +449,8 @@ export async function GET(request: NextRequest) {
         while (outwardQueue.length > 0) {
           const nextSale = outwardQueue[0];
 
-          // 1. Emit inwards that occurred at or before this sale's timestamp
-          while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()) {
+          // 1. Emit inwards that occurred strictly before this sale's timestamp
+          while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() < new Date(nextSale.date).getTime()) {
             const naturalInward = inwardQueue.shift()!;
             result.push(naturalInward);
             runningStock += (naturalInward.inwardQty || 0);
@@ -524,8 +523,8 @@ export async function GET(request: NextRequest) {
           effectiveRate = m.unitRate > 0 ? m.unitRate : lastKnownCost;
           lastKnownCost = effectiveRate;
           runningValuation = roundToPrecision(runningBalance * effectiveRate, 2);
-          impactFormula = m.inwardQty > 0 
-            ? `Opening Batch: ${m.inwardQty} units @ ${effectiveRate}` 
+          impactFormula = m.inwardQty > 0
+            ? `Opening Batch: ${m.inwardQty} units @ ${effectiveRate}`
             : `Opening balance @ 0`;
         } else if (m.type === "purchase") {
           runningBalance = roundToPrecision(runningBalance + m.inwardQty, 3);
@@ -602,7 +601,7 @@ export async function GET(request: NextRequest) {
             wacFormula = `Reconciled Deficit (${prevBal}) + Inward (${inQty} @ ${inRate}) -> WAC: ${effectiveWac}`;
           } else {
             effectiveWac = calculateMovingAverage(prevBal, prevWac, inQty, inRate);
-            wacFormula = prevBal > 0 
+            wacFormula = prevBal > 0
               ? `(${prevBal} @ ${prevWac} + ${inQty} @ ${inRate}) / ${roundToPrecision(prevBal + inQty, 3)} = ${effectiveWac}`
               : `New inward @ ${inRate}`;
           }
@@ -876,8 +875,8 @@ export async function GET(request: NextRequest) {
         openingStock: openingBalanceBeforeFilter,
         totalInward: Math.round(periodInward * 1000) / 1000,
         totalOutward: Math.round(periodOutward * 1000) / 1000,
-        closingStock: filteredMovements.length > 0 
-          ? filteredMovements[filteredMovements.length - 1].balance 
+        closingStock: filteredMovements.length > 0
+          ? filteredMovements[filteredMovements.length - 1].balance
           : openingBalanceBeforeFilter,
         closingWac: filteredMovements.length > 0
           ? filteredMovements[filteredMovements.length - 1].effectiveWac

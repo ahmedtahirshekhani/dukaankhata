@@ -1187,7 +1187,7 @@ export async function calculateProductDynamicSalesValuation(options: {
     const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
     if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
 
-    if (base.getHours() === 0 && base.getMinutes() === 0 && base.getSeconds() === 0 && createdAtVal) {
+    if (createdAtVal) {
       const created = new Date(createdAtVal);
       if (!isNaN(created.getTime())) {
         base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
@@ -1464,7 +1464,7 @@ export async function calculateProductDynamicSalesValuation(options: {
 
       while (
         inwardQueue.length > 0 &&
-        new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()
+        new Date(inwardQueue[0].date).getTime() < new Date(nextSale.date).getTime()
       ) {
         const naturalInward = inwardQueue.shift()!;
         sequence.push(naturalInward);
@@ -1527,12 +1527,12 @@ export async function calculateProductDynamicSalesValuation(options: {
           effectiveWac =
             prevBal < 0
               ? calculateMovingAverageWithPrior(
-                  prevBal,
-                  prevWac,
-                  inQty,
-                  inRate,
-                  priorFulfilledBudget
-                )
+                prevBal,
+                prevWac,
+                inQty,
+                inRate,
+                priorFulfilledBudget
+              )
               : calculateMovingAverage(prevBal, prevWac, inQty, inRate);
           runningWac = effectiveWac;
         } else {

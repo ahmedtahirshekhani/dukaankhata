@@ -1518,6 +1518,21 @@ export async function getOfflineProductStockValuationHistory(options: {
     partyMap.set(String(p.id || (p as any)._id), p.company_name || p.name || "Party");
   }
 
+  // Helper to get exact timestamp combining date and time down to milliseconds
+  const getExactTimestamp = (dateVal: any, createdAtVal: any): Date => {
+    if (!dateVal && !createdAtVal) return new Date();
+    const base = dateVal ? new Date(dateVal) : new Date(createdAtVal);
+    if (isNaN(base.getTime())) return createdAtVal ? new Date(createdAtVal) : new Date();
+
+    if (createdAtVal) {
+      const created = new Date(createdAtVal);
+      if (!isNaN(created.getTime())) {
+        base.setHours(created.getHours(), created.getMinutes(), created.getSeconds(), created.getMilliseconds());
+      }
+    }
+    return base;
+  };
+
   const rawMovements: any[] = [];
 
   // Opening Stock
@@ -1619,7 +1634,7 @@ export async function getOfflineProductStockValuationHistory(options: {
     for (const it of matched) {
       const qty = Number(it.quantity) || 0;
       const rate = Number(it.cost_price ?? it.unit_price) || 0;
-      const d = new Date(bill.bill_date || bill.date || bill.created_at || Date.now());
+      const d = getExactTimestamp(bill.bill_date || bill.date, bill.created_at);
       rawMovements.push({
         id: `pb-${bill.id || (bill as any)._id}-${it.product_id}`,
         date: d,
@@ -1643,7 +1658,7 @@ export async function getOfflineProductStockValuationHistory(options: {
       const qty = Number(it.quantity) || 0;
       const price = Number(it.price) || 0;
       const costPrice = Number(it.cost_price ?? product.cost_price) || 0;
-      const d = new Date(order.sale_date || order.date || order.created_at || Date.now());
+      const d = getExactTimestamp(order.sale_date || order.date, order.created_at);
       const customerName = partyMap.get(String(order.customer_id || order.party_id)) || order.customer_name || "Customer";
       const invoiceNo = order.invoice_no || `INV-${String(order.id || (order as any)._id).slice(-6)}`;
       const splits = Array.isArray(it.batch_splits) && it.batch_splits.length > 0 ? it.batch_splits : null;
@@ -1712,7 +1727,7 @@ export async function getOfflineProductStockValuationHistory(options: {
     for (const it of matched) {
       const qty = Number(it.quantity) || 0;
       const rate = Number(it.rate) || 0;
-      const d = new Date(ret.return_date || ret.date || ret.created_at || Date.now());
+      const d = getExactTimestamp(ret.return_date || ret.date, ret.created_at);
       rawMovements.push({
         id: `sr-${ret.id || (ret as any)._id}-${it.productId || it.product_id}`,
         date: d,
@@ -1733,7 +1748,7 @@ export async function getOfflineProductStockValuationHistory(options: {
     const isAdd = adj.action_type === "add";
     const qty = Number(adj.quantity) || 0;
     const rate = Number(adj.cost_price || product.cost_price) || 0;
-    const d = new Date(adj.date || adj.adjustment_date || adj.created_at || Date.now());
+    const d = getExactTimestamp(adj.date || adj.adjustment_date, adj.created_at);
     const splits = Array.isArray(adj.batch_splits) && adj.batch_splits.length > 0 ? adj.batch_splits : null;
 
     if (!isAdd && valuationMethod === "fifo" && splits && splits.length > 0) {
@@ -1805,8 +1820,8 @@ export async function getOfflineProductStockValuationHistory(options: {
       while (outwardQueue.length > 0) {
         const nextSale = outwardQueue[0];
 
-        // 1. Emit inwards that occurred at or before this sale's timestamp
-        while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() <= new Date(nextSale.date).getTime()) {
+        // 1. Emit inwards that occurred strictly before this sale's timestamp
+        while (inwardQueue.length > 0 && new Date(inwardQueue[0].date).getTime() < new Date(nextSale.date).getTime()) {
           const naturalInward = inwardQueue.shift()!;
           result.push(naturalInward);
           runningStock += (naturalInward.inwardQty || 0);
