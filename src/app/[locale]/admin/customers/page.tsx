@@ -213,6 +213,16 @@ export default function PartiesPage() {
         }
 
         await db.parties.delete(id);
+        if (db.party_ledger_entries) {
+          await db.party_ledger_entries
+            .filter((l: any) => String(l.party_id || l.partyId || "").trim() === id)
+            .delete();
+        }
+        if (db.party_balance_state) {
+          await db.party_balance_state
+            .filter((s: any) => String(s.party_id || s.partyId || "").trim() === id)
+            .delete();
+        }
         await SyncEngine.queueOperation("parties", "DELETE", `/api/customers/${id}`, {});
         deletedCount++;
       }
@@ -298,6 +308,16 @@ export default function PartiesPage() {
     setIsDeleting(true);
     try {
       await db.parties.delete(customerToDelete.id);
+      if (db.party_ledger_entries) {
+        await db.party_ledger_entries
+          .filter((l: any) => String(l.party_id || l.partyId || "").trim() === String(customerToDelete.id).trim())
+          .delete();
+      }
+      if (db.party_balance_state) {
+        await db.party_balance_state
+          .filter((s: any) => String(s.party_id || s.partyId || "").trim() === String(customerToDelete.id).trim())
+          .delete();
+      }
       await SyncEngine.queueOperation("parties", "DELETE", `/api/customers/${customerToDelete.id}`, {});
 
       setIsDeleteDialogOpen(false);

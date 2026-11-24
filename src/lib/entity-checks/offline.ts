@@ -158,7 +158,6 @@ export async function checkPartyHasTransactionsOffline(
   if (counts.saleReturns > 0) details.push(`${counts.saleReturns} Sale Return(s)`);
   if (counts.partyTransactions > 0) details.push(`${counts.partyTransactions} Payment(s)`);
   if (counts.vendorTransactions > 0) details.push(`${counts.vendorTransactions} Vendor Transaction(s)`);
-  if (counts.ledgerEntries > 0) details.push(`${counts.ledgerEntries} Ledger Entry(s)`);
   if (counts.transactions > 0) details.push(`${counts.transactions} Transaction Record(s)`);
   if (counts.quotations > 0) details.push(`${counts.quotations} Quotation(s)`);
 

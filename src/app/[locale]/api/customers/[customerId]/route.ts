@@ -224,6 +224,28 @@ export async function DELETE(
     );
   }
 
+  // Clean up any orphaned shadow ledger entries and balance state for this customer
+  try {
+    const pleCol = await getCollection(COLLECTIONS.PARTY_LEDGER_ENTRIES);
+    await pleCol.deleteMany({
+      $or: [
+        { party_id: toObjectId(customerId) },
+        { party_id: customerId },
+        { customer_id: toObjectId(customerId) },
+        { customer_id: customerId },
+      ],
+    });
+    const pbsCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+    await pbsCol.deleteMany({
+      $or: [
+        { party_id: toObjectId(customerId) },
+        { party_id: customerId },
+      ],
+    });
+  } catch (cleanErr) {
+    console.warn("Failed to clean up party ledger entries on customer delete:", cleanErr);
+  }
+
   // Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
