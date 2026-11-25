@@ -427,9 +427,20 @@ export async function GET(request: NextRequest) {
         eventKey.includes("reverse") ||
         eventKey.includes("delete") ||
         eventKey.includes("update") ||
+        eventKey.includes("edit") ||
+        eventKey.includes("order_") ||
+        eventKey.includes("purchase_") ||
+        eventKey.includes("sale_") ||
+        eventKey.includes("payment_") ||
+        eventKey.includes("opening_") ||
+        eventKey.includes("legacy_") ||
+        adj.event_source === "order" ||
+        adj.event_source === "party_transaction" ||
         reason.includes("reversal") ||
         reason.includes("reverse") ||
-        reason.includes("deleted")
+        reason.includes("deleted") ||
+        reason.includes("edit") ||
+        reason.includes("revert")
       ) {
         continue;
       }
