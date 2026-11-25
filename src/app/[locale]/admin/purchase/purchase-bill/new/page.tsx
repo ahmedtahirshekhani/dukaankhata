@@ -615,13 +615,14 @@ function AddPurchaseBillPageInner() {
       }
 
       // 6. Queue sync operation for backend
-      const syncMethod = editingId ? "PUT" : "POST";
+      const isExistingServerBill = Boolean(editingId && !String(editingId).startsWith("local_"));
+      const syncMethod = isExistingServerBill ? "PUT" : "POST";
       await SyncEngine.queueOperation(
         "purchase_bills",
         syncMethod,
         `/${locale}/api/purchase-bills`,
         billData,
-        !editingId ? localBillId : editingId
+        !isExistingServerBill ? localBillId : (editingId || undefined)
       );
 
       // 7. Navigate back to listing page

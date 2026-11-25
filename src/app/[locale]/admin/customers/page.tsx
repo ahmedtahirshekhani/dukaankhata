@@ -283,8 +283,13 @@ export default function PartiesPage() {
       return;
     }
 
-    if (customerToDelete.balance !== 0 && customerToDelete.balance !== undefined && customerToDelete.balance !== null) {
-      toast.error(`${t("cannotDeleteMessage")} ${Math.round(customerToDelete.balance)}`);
+    // Reconcile balance offline first in case transactions were deleted but balance drifted
+    const { reconcileOfflinePartyBalance } = await import("@/lib/ledger/offline-ledger");
+    const freshBalance = await reconcileOfflinePartyBalance(customerToDelete.id);
+    customerToDelete.balance = freshBalance;
+
+    if (freshBalance !== 0 && freshBalance !== undefined && freshBalance !== null) {
+      toast.error(`${t("cannotDeleteMessage")} ${Math.round(freshBalance)}`);
       setIsDeleteDialogOpen(false);
       return;
     }

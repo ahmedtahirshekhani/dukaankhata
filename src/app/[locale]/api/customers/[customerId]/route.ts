@@ -10,7 +10,7 @@ import {
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { NextResponse } from "next/server";
-import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
+import { appendPartyLedgerEntry, reconcilePartyBalanceServer } from "@/lib/ledger/customer-ledger";
 
 export async function GET(
   request: Request,
@@ -35,10 +35,13 @@ export async function GET(
 
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 
+  const reconciledBal = await reconcilePartyBalanceServer(user.id, customerId);
+
   await updateUserLastActivity();
   return NextResponse.json({
     ...customer,
     id: customer._id.toString(),
+    balance: reconciledBal,
     _id: undefined,
   });
 }
@@ -144,6 +147,8 @@ export async function PUT(
     );
   }
 
+  const finalBalance = await reconcilePartyBalanceServer(user.id, customerId);
+
   // Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
@@ -157,7 +162,7 @@ export async function PUT(
     company_name: resultDoc.company_name,
     company_address: resultDoc.company_address,
     opening_balance: resultDoc.opening_balance ?? 0,
-    balance: resultDoc.balance !== undefined ? resultDoc.balance : resultDoc.opening_balance,
+    balance: finalBalance,
     status: resultDoc.status || "active",
     is_delete: resultDoc.is_delete || 0,
   });

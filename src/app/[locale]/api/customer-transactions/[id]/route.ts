@@ -10,7 +10,7 @@ import {
   setLastUpdated,
   updateUserLastActivity,
 } from '@/lib/db/mongodb';
-import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
+import { appendCustomerLedgerEntry, reconcilePartyBalanceServer } from '@/lib/ledger/customer-ledger';
 import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from '@/lib/date-utils';
 import { requireAnyPermission } from "@/lib/auth/rbac";
 
@@ -305,6 +305,14 @@ export async function DELETE(
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    if (customerId) {
+      try {
+        await reconcilePartyBalanceServer(user.id, customerId);
+      } catch (recErr) {
+        console.error("Error reconciling party balance on payment delete:", recErr);
+      }
     }
 
     await updateUserLastActivity();

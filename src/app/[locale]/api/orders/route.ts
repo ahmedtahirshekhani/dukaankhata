@@ -10,7 +10,7 @@ import {
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
-import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
+import { appendCustomerLedgerEntry, reconcilePartyBalanceServer } from "@/lib/ledger/customer-ledger";
 import { parseSafeDate } from "@/lib/date-utils";
 
 function escapeRegex(value: string): string {
@@ -547,7 +547,7 @@ export async function DELETE(request: Request) {
   const id = searchParams.get("id");
 
   if (!id || !isValidObjectId(id)) {
-    return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+    return NextResponse.json({ success: true, message: "Local order ignored" });
   }
 
   try {
@@ -672,6 +672,14 @@ export async function DELETE(request: Request) {
 
     if (result.deletedCount === 0) {
       throw new Error("Failed to delete order");
+    }
+
+    if (order.customer_id) {
+      try {
+        await reconcilePartyBalanceServer(user.id, order.customer_id.toString());
+      } catch (recErr) {
+        console.error("Error reconciling party balance on order delete:", recErr);
+      }
     }
 
     // Update user's last activity

@@ -27,45 +27,64 @@ export async function getServerPaymentMethodBalance(
   if (!userId || !paymentMethodId) return 0;
 
   const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
-  const isCash =
+  let isCash =
     paymentMethodId === "cash" ||
     paymentMethodId === "Cash" ||
     paymentMethodId.toLowerCase().includes("cash");
-  const isCheque =
+  let isCheque =
     paymentMethodId === "cheque" ||
     paymentMethodId === "Cheque" ||
     paymentMethodId.toLowerCase().includes("cheque");
-  const isHardcodedMethod = isCash || isCheque;
 
-  const pmValues: any[] = [paymentMethodId];
+  const pmValuesSet = new Set<any>();
+  pmValuesSet.add(paymentMethodId);
   if (isValidObjectId(paymentMethodId)) {
-    pmValues.push(toObjectId(paymentMethodId));
-  }
-  if (isCash) {
-    pmValues.push("cash", "Cash", "CASH", null, "");
-  }
-  if (isCheque) {
-    pmValues.push("cheque", "Cheque", "CHEQUE");
+    pmValuesSet.add(toObjectId(paymentMethodId));
   }
 
   let openingBal = 0;
-  if (!isHardcodedMethod && isValidObjectId(paymentMethodId)) {
+  if (isValidObjectId(paymentMethodId)) {
     const pmDoc = await paymentMethodCollection.findOne({
       _id: toObjectId(paymentMethodId),
       user_id: toObjectId(userId),
     });
-    openingBal = Number(pmDoc?.opening_balance) || 0;
-  } else if (isCash) {
-    const defaultCashDoc = await paymentMethodCollection.findOne({
-      user_id: toObjectId(userId),
-      $or: [{ is_default: true }, { bank_name: { $regex: /cash/i } }],
-    });
-    openingBal = Number(defaultCashDoc?.opening_balance) || 0;
-    if (defaultCashDoc) {
-      pmValues.push(defaultCashDoc._id, defaultCashDoc._id.toString());
+    if (pmDoc) {
+      openingBal = Number(pmDoc.opening_balance) || 0;
+      if (pmDoc.is_default || /cash/i.test(pmDoc.bank_name || pmDoc.name || "")) {
+        isCash = true;
+      }
+      if (/cheque/i.test(pmDoc.bank_name || pmDoc.name || "")) {
+        isCheque = true;
+      }
     }
   }
 
+  if (isCash) {
+    const defaultCashDoc = await paymentMethodCollection.findOne({
+      user_id: toObjectId(userId),
+      $or: [{ is_default: true }, { bank_name: { $regex: /cash/i } }, { name: { $regex: /cash/i } }],
+    });
+    if (defaultCashDoc) {
+      if (openingBal === 0) {
+        openingBal = Number(defaultCashDoc.opening_balance) || 0;
+      }
+      pmValuesSet.add(defaultCashDoc._id);
+      pmValuesSet.add(defaultCashDoc._id.toString());
+    }
+    pmValuesSet.add("cash");
+    pmValuesSet.add("Cash");
+    pmValuesSet.add("CASH");
+    pmValuesSet.add(null);
+    pmValuesSet.add("");
+  }
+
+  if (isCheque) {
+    pmValuesSet.add("cheque");
+    pmValuesSet.add("Cheque");
+    pmValuesSet.add("CHEQUE");
+  }
+
+  const pmValues = Array.from(pmValuesSet);
   const pmFilter = { $in: pmValues };
   const userIdObj = toObjectId(userId);
   const ctCollection = await getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS);
