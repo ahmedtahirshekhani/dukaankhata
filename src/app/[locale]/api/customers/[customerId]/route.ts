@@ -202,6 +202,18 @@ export async function DELETE(
     );
   }
 
+  // 2. Reconcile and verify balance is zero
+  const serverBal = await reconcilePartyBalanceServer(user.id, customerId);
+  if (serverBal !== 0) {
+    return NextResponse.json(
+      {
+        error: "non_zero_balance",
+        message: `Cannot delete party because it has a non-zero balance (${serverBal}).`,
+      },
+      { status: 400 }
+    );
+  }
+
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
 
   // Soft delete: update status to inactive and is_delete to 1
