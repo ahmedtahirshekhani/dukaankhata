@@ -9,7 +9,7 @@ import {
   setLastUpdated,
   updateUserLastActivity,
 } from "@/lib/db/mongodb";
-import { appendCustomerLedgerEntry } from "@/lib/ledger/customer-ledger";
+import { appendCustomerLedgerEntry, reconcilePartyBalanceServer } from "@/lib/ledger/customer-ledger";
 import { getTodayHTMLDate, parseSafeDate, toHTMLDateString } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
 
@@ -100,7 +100,7 @@ export async function GET(
 
     const id = params.id;
     if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const collection = await getCollection<SaleReturnDoc>(
@@ -165,7 +165,7 @@ export async function PUT(
 
     const id = params.id;
     if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+      return NextResponse.json({ message: "Local sale return ignored" });
     }
 
     const body = await req.json();
@@ -510,7 +510,7 @@ export async function DELETE(
 
     const id = params.id;
     if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const collection = await getCollection<SaleReturnDoc>(
@@ -595,6 +595,14 @@ export async function DELETE(
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (customerId) {
+      try {
+        await reconcilePartyBalanceServer(user.id, customerId);
+      } catch (recErr) {
+        console.error("Error reconciling party balance on sale return delete:", recErr);
+      }
     }
 
     // ✅ Update user's last activity after deletion

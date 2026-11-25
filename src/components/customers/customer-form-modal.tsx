@@ -127,10 +127,12 @@ export function CustomerFormModal({
 
       if (customerToEdit) {
         // EDIT MODE
+        const { checkPartyHasTransactionsOffline } = await import("@/lib/entity-checks/offline");
+        const txCheck = await checkPartyHasTransactionsOffline(customerToEdit.id);
         const oldOpening = Number(customerToEdit.opening_balance ?? 0);
         const delta = finalOpeningBalance - oldOpening;
         const currentBal = Number(customerToEdit.balance ?? 0);
-        const newLiveBalance = currentBal + delta;
+        const newLiveBalance = !txCheck.hasTransactions ? finalOpeningBalance : currentBal + delta;
 
         const updatedCustomer = {
           ...customerToEdit,

@@ -1,5 +1,18 @@
 import { db } from "@/lib/db/offline-db";
 
+export function isOfflineEntityDeleted(item: any): boolean {
+  if (!item) return true;
+  if (item.is_delete === 1 || item.is_delete === true || item.is_delete === "1") return true;
+  if (item.is_deleted === 1 || item.is_deleted === true || item.is_deleted === "1" || item.isDeleted === true || item.isDeleted === 1) return true;
+  if (item.isDelete === 1 || item.isDelete === true || item.isDelete === "1") return true;
+  if (item.deleted_at || item.deletedAt) return true;
+  if (typeof item.status === "string") {
+    const s = item.status.toLowerCase().trim();
+    if (s === "cancelled" || s === "deleted" || s === "inactive") return true;
+  }
+  return false;
+}
+
 export interface EntityTransactionCheckResult {
   hasTransactions: boolean;
   counts: {
@@ -51,6 +64,7 @@ export async function checkPartyHasTransactionsOffline(
   try {
     counts.orders = await db.orders
       .filter((o: any) => {
+        if (isOfflineEntityDeleted(o)) return false;
         const cId = String(o.customer_id || o.customerId || o.party_id || o.partyId || "").trim();
         return cId === pIdStr;
       })
@@ -63,6 +77,7 @@ export async function checkPartyHasTransactionsOffline(
   try {
     counts.purchaseBills = await db.purchase_bills
       .filter((b: any) => {
+        if (isOfflineEntityDeleted(b)) return false;
         const pId = String(b.party_id || b.partyId || "").trim();
         return pId === pIdStr;
       })
@@ -75,6 +90,7 @@ export async function checkPartyHasTransactionsOffline(
   try {
     counts.saleReturns = await db.sale_return_transactions
       .filter((r: any) => {
+        if (isOfflineEntityDeleted(r)) return false;
         const cId = String(r.customerId || r.customer_id || r.party_id || r.partyId || "").trim();
         return cId === pIdStr;
       })
@@ -87,6 +103,7 @@ export async function checkPartyHasTransactionsOffline(
   try {
     counts.partyTransactions = await db.party_transactions
       .filter((t: any) => {
+        if (isOfflineEntityDeleted(t)) return false;
         const cId = String(t.customerId || t.customer_id || t.party_id || t.partyId || "").trim();
         return cId === pIdStr;
       })
@@ -100,6 +117,7 @@ export async function checkPartyHasTransactionsOffline(
     if (db.vendor_transactions) {
       counts.vendorTransactions = await db.vendor_transactions
         .filter((vt: any) => {
+          if (isOfflineEntityDeleted(vt)) return false;
           const vId = String(vt.vendor_id || vt.vendorId || vt.party_id || vt.partyId || vt.customerId || vt.customer_id || "").trim();
           return vId === pIdStr;
         })
@@ -114,6 +132,7 @@ export async function checkPartyHasTransactionsOffline(
     if (db.party_ledger_entries) {
       counts.ledgerEntries = await db.party_ledger_entries
         .filter((l: any) => {
+          if (isOfflineEntityDeleted(l)) return false;
           const lPartyId = String(l.party_id || l.partyId || "").trim();
           if (lPartyId !== pIdStr) return false;
           const evType = String(l.event_type || l.eventType || "").toLowerCase();
@@ -131,6 +150,7 @@ export async function checkPartyHasTransactionsOffline(
     if (db.transactions) {
       counts.transactions = await db.transactions
         .filter((tx: any) => {
+          if (isOfflineEntityDeleted(tx)) return false;
           const tId = String(tx.customer_id || tx.customerId || tx.party_id || tx.partyId || "").trim();
           return tId === pIdStr;
         })
@@ -144,6 +164,7 @@ export async function checkPartyHasTransactionsOffline(
   try {
     counts.quotations = await db.quotations
       .filter((quo: any) => {
+        if (isOfflineEntityDeleted(quo)) return false;
         const cId = String(quo.party_id || quo.partyId || quo.customer_id || quo.customerId || "").trim();
         return cId === pIdStr;
       })
@@ -158,7 +179,6 @@ export async function checkPartyHasTransactionsOffline(
   if (counts.saleReturns > 0) details.push(`${counts.saleReturns} Sale Return(s)`);
   if (counts.partyTransactions > 0) details.push(`${counts.partyTransactions} Payment(s)`);
   if (counts.vendorTransactions > 0) details.push(`${counts.vendorTransactions} Vendor Transaction(s)`);
-  if (counts.ledgerEntries > 0) details.push(`${counts.ledgerEntries} Ledger Entry(s)`);
   if (counts.transactions > 0) details.push(`${counts.transactions} Transaction Record(s)`);
   if (counts.quotations > 0) details.push(`${counts.quotations} Quotation(s)`);
 
@@ -204,6 +224,7 @@ export async function checkProductHasTransactionsOffline(
   try {
     counts.orders = await db.orders
       .filter((o: any) => {
+        if (isOfflineEntityDeleted(o)) return false;
         if (!Array.isArray(o.items)) return false;
         return o.items.some((item: any) => {
           const id = String(item.product_id || item.productId || item.id || "").trim();
@@ -219,6 +240,7 @@ export async function checkProductHasTransactionsOffline(
   try {
     counts.purchaseBills = await db.purchase_bills
       .filter((b: any) => {
+        if (isOfflineEntityDeleted(b)) return false;
         if (!Array.isArray(b.items)) return false;
         return b.items.some((item: any) => {
           const id = String(item.product_id || item.productId || item.id || "").trim();
@@ -234,6 +256,7 @@ export async function checkProductHasTransactionsOffline(
   try {
     counts.saleReturns = await db.sale_return_transactions
       .filter((r: any) => {
+        if (isOfflineEntityDeleted(r)) return false;
         if (!Array.isArray(r.items)) return false;
         return r.items.some((item: any) => {
           const id = String(item.productId || item.product_id || item.id || "").trim();
@@ -249,6 +272,7 @@ export async function checkProductHasTransactionsOffline(
   try {
     counts.stockAdjustments = await db.stock_adjustments
       .filter((a: any) => {
+        if (isOfflineEntityDeleted(a)) return false;
         const directId = String(a.product_id || a.productId || "").trim();
         if (directId === prodIdStr) return true;
         if (Array.isArray(a.items)) {

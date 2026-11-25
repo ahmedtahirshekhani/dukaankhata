@@ -1,4 +1,4 @@
-import { getCollection, COLLECTIONS, toObjectId } from '@/lib/db/mongodb';
+import { getCollection, COLLECTIONS, toObjectId, isValidObjectId } from '@/lib/db/mongodb';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 
@@ -134,6 +134,43 @@ export async function GET(request: Request) {
 
     result.users = [...(result.users || []), ...pendingUserDocs];
     result.user_roles = [...(result.user_roles || []), ...pendingUserRoleDocs];
+
+    // Reconcile party balance for parties with 0 active transactions
+    if (result.parties && Array.isArray(result.parties)) {
+      const activeOrders = (result.orders || []).filter((o: any) => o.status !== "cancelled" && o.status !== "deleted" && o.is_delete !== 1 && o.is_delete !== "1");
+      const activePbs = (result.purchase_bills || []).filter((b: any) => b.status !== "cancelled" && b.status !== "deleted" && b.is_delete !== 1 && b.is_delete !== "1");
+      const activeSrs = (result.sale_return_transactions || []).filter((r: any) => r.status !== "cancelled" && r.status !== "deleted" && r.is_delete !== 1 && r.is_delete !== "1");
+      const activePts = (result.party_transactions || []).filter((t: any) => t.status !== "cancelled" && t.status !== "deleted" && t.is_delete !== 1 && t.is_delete !== "1");
+
+      const partiesCol = await getCollection(COLLECTIONS.PARTIES);
+      const balanceStateCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+
+      for (const p of result.parties) {
+        const pId = p.id;
+        const hasOrder = activeOrders.some((o: any) => String(o.customer_id || o.customerId || o.party_id || o.partyId || "") === pId);
+        const hasPb = activePbs.some((b: any) => String(b.party_id || b.partyId || "") === pId);
+        const hasSr = activeSrs.some((r: any) => String(r.customerId || r.customer_id || r.party_id || r.partyId || "") === pId);
+        const hasPt = activePts.some((t: any) => String(t.customerId || t.customer_id || t.party_id || t.partyId || "") === pId);
+
+        if (!hasOrder && !hasPb && !hasSr && !hasPt) {
+          const trueBal = Number(p.opening_balance ?? 0);
+          if (p.balance !== trueBal) {
+            p.balance = trueBal;
+            if (pId && isValidObjectId(pId)) {
+              await partiesCol.updateOne(
+                { _id: toObjectId(pId) },
+                { $set: { balance: trueBal, updated_at: new Date() } }
+              );
+              await balanceStateCol.updateOne(
+                { user_id: toObjectId(user.id), party_id: toObjectId(pId) },
+                { $set: { current_balance: trueBal, updated_at: new Date() } },
+                { upsert: true }
+              );
+            }
+          }
+        }
+      }
+    }
 
     console.log('SYNC RESULT:', {
       payment_methods: result.payment_methods?.length,

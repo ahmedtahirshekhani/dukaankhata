@@ -3,6 +3,7 @@ import clientPromise, {
   COLLECTIONS,
   getCollection,
   toObjectId,
+  isValidObjectId,
 } from "@/lib/db/mongodb";
 
 export type PartyLedgerEventType =
@@ -354,6 +355,132 @@ export async function getCurrentCustomerBalance(
   customerId: string
 ): Promise<number> {
   return getCurrentPartyBalance(userId, customerId);
+}
+
+/**
+ * Reconciles the balance of a party on MongoDB from its actual active transactions.
+ * If 0 active transactions exist, the balance is guaranteed to equal opening_balance.
+ */
+export async function reconcilePartyBalanceServer(
+  userId: string,
+  partyId: string
+): Promise<number> {
+  if (!partyId || !userId) return 0;
+  const userObjId = toObjectId(userId);
+  const partyObjId = isValidObjectId(partyId) ? toObjectId(partyId) : partyId;
+  const partyMatches = [partyObjId, String(partyId)];
+
+  const notDeletedFilter = {
+    is_delete: { $nin: [1, true, "1"] },
+    is_deleted: { $nin: [1, true, "1"] },
+    isDeleted: { $ne: true },
+    status: { $nin: ["cancelled", "deleted", "inactive"] },
+  };
+
+  const partiesCollection = await getCollection(COLLECTIONS.PARTIES);
+  const party = await partiesCollection.findOne({
+    _id: typeof partyObjId === "object" ? partyObjId : toObjectId(partyId),
+    user_id: userObjId,
+  });
+
+  if (!party) return 0;
+
+  const openingBalance = Number(party.opening_balance ?? 0);
+
+  const ordersCol = await getCollection(COLLECTIONS.ORDERS);
+  const pbCol = await getCollection(COLLECTIONS.PURCHASE_BILLS);
+  const srCol = await getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS);
+  const ptCol = await getCollection(COLLECTIONS.PARTY_TRANSACTIONS);
+
+  const [orders, purchaseBills, saleReturns, partyTransactions] = await Promise.all([
+    ordersCol.find({
+      user_id: userObjId,
+      $or: [
+        { customer_id: { $in: partyMatches } },
+        { customerId: { $in: partyMatches } },
+        { party_id: { $in: partyMatches } },
+        { partyId: { $in: partyMatches } },
+      ],
+      ...notDeletedFilter,
+    }).toArray(),
+    pbCol.find({
+      user_id: userObjId,
+      $or: [
+        { party_id: { $in: partyMatches } },
+        { partyId: { $in: partyMatches } },
+      ],
+      ...notDeletedFilter,
+    }).toArray(),
+    srCol.find({
+      user_id: userObjId,
+      $or: [
+        { customerId: { $in: partyMatches } },
+        { customer_id: { $in: partyMatches } },
+        { party_id: { $in: partyMatches } },
+        { partyId: { $in: partyMatches } },
+      ],
+      ...notDeletedFilter,
+    }).toArray(),
+    ptCol.find({
+      user_id: userObjId,
+      $or: [
+        { customerId: { $in: partyMatches } },
+        { customer_id: { $in: partyMatches } },
+        { party_id: { $in: partyMatches } },
+        { partyId: { $in: partyMatches } },
+      ],
+      ...notDeletedFilter,
+    }).toArray(),
+  ]);
+
+  const totalActive = orders.length + purchaseBills.length + saleReturns.length + partyTransactions.length;
+
+  let trueBalance = openingBalance;
+  if (totalActive > 0) {
+    const netOrders = orders.reduce((sum, o: any) => {
+      const tot = Number(o.total_amount ?? 0);
+      const paid = Number(o.payment?.paid_amount ?? 0);
+      return sum + (tot - paid);
+    }, 0);
+
+    const netReturns = saleReturns.reduce((sum, r: any) => {
+      const tot = Number(r.total_amount ?? r.payment_amount ?? 0);
+      const refund = Number(r.paid_amount ?? r.refund_amount ?? 0);
+      return sum + (tot - refund);
+    }, 0);
+
+    const netPurchases = purchaseBills.reduce((sum, b: any) => {
+      const tot = Number(b.total_amount ?? 0);
+      const paid = Number(b.paid_amount ?? 0);
+      return sum + (tot - paid);
+    }, 0);
+
+    const netPayments = partyTransactions.reduce((sum, t: any) => {
+      const amt = Number(t.payment_amount ?? t.amount ?? 0);
+      const isPaymentIn = t.type === "payment-in" || t.type === "payment_in";
+      return isPaymentIn ? sum - amt : sum + amt;
+    }, 0);
+
+    trueBalance = openingBalance + netOrders - netReturns - netPurchases + netPayments;
+  }
+
+  trueBalance = Math.round(trueBalance * 100) / 100;
+
+  const now = new Date();
+  if (party.balance !== trueBalance) {
+    await partiesCollection.updateOne(
+      { _id: typeof partyObjId === "object" ? partyObjId : toObjectId(partyId) },
+      { $set: { balance: trueBalance, updated_at: now } }
+    );
+    const balanceStateCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+    await balanceStateCol.updateOne(
+      { user_id: userObjId, party_id: typeof partyObjId === "object" ? partyObjId : toObjectId(partyId) },
+      { $set: { current_balance: trueBalance, updated_at: now } },
+      { upsert: true }
+    );
+  }
+
+  return trueBalance;
 }
 
 function toEventSourceId(
