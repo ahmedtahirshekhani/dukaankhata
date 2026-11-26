@@ -10,7 +10,7 @@ import {
 import { getCurrentUser } from "@/lib/auth/utils";
 import { requirePermission } from "@/lib/auth/rbac";
 import { NextResponse } from "next/server";
-import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
+import { appendPartyLedgerEntry, reconcilePartyBalanceServer } from "@/lib/ledger/customer-ledger";
 
 export async function GET(
   request: Request,
@@ -35,10 +35,13 @@ export async function GET(
 
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 
+  const reconciledBal = await reconcilePartyBalanceServer(user.id, customerId);
+
   await updateUserLastActivity();
   return NextResponse.json({
     ...customer,
     id: customer._id.toString(),
+    balance: reconciledBal,
     _id: undefined,
   });
 }
@@ -144,6 +147,8 @@ export async function PUT(
     );
   }
 
+  const finalBalance = await reconcilePartyBalanceServer(user.id, customerId);
+
   // Update user's last activity
   const usersCollection = await getCollection(COLLECTIONS.USERS);
   await setLastUpdated(usersCollection, { _id: toObjectId(user.id) });
@@ -157,7 +162,7 @@ export async function PUT(
     company_name: resultDoc.company_name,
     company_address: resultDoc.company_address,
     opening_balance: resultDoc.opening_balance ?? 0,
-    balance: resultDoc.balance !== undefined ? resultDoc.balance : resultDoc.opening_balance,
+    balance: finalBalance,
     status: resultDoc.status || "active",
     is_delete: resultDoc.is_delete || 0,
   });
@@ -197,6 +202,18 @@ export async function DELETE(
     );
   }
 
+  // 2. Reconcile and verify balance is zero
+  const serverBal = await reconcilePartyBalanceServer(user.id, customerId);
+  if (serverBal !== 0) {
+    return NextResponse.json(
+      {
+        error: "non_zero_balance",
+        message: `Cannot delete party because it has a non-zero balance (${serverBal}).`,
+      },
+      { status: 400 }
+    );
+  }
+
   const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS);
 
   // Soft delete: update status to inactive and is_delete to 1
@@ -222,6 +239,28 @@ export async function DELETE(
       { error: "Customer not found or not authorized" },
       { status: 404 },
     );
+  }
+
+  // Clean up any orphaned shadow ledger entries and balance state for this customer
+  try {
+    const pleCol = await getCollection(COLLECTIONS.PARTY_LEDGER_ENTRIES);
+    await pleCol.deleteMany({
+      $or: [
+        { party_id: toObjectId(customerId) },
+        { party_id: customerId },
+        { customer_id: toObjectId(customerId) },
+        { customer_id: customerId },
+      ],
+    });
+    const pbsCol = await getCollection(COLLECTIONS.PARTY_BALANCE_STATE);
+    await pbsCol.deleteMany({
+      $or: [
+        { party_id: toObjectId(customerId) },
+        { party_id: customerId },
+      ],
+    });
+  } catch (cleanErr) {
+    console.warn("Failed to clean up party ledger entries on customer delete:", cleanErr);
   }
 
   // Update user's last activity

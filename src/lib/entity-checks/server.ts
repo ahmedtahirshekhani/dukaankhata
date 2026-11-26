@@ -61,6 +61,13 @@ export async function checkPartyHasTransactionsServer(options: {
     partyMatches.push(toObjectId(pIdStr));
   }
 
+  const notDeletedFilter = {
+    is_delete: { $nin: [1, true, "1"] },
+    is_deleted: { $nin: [1, true, "1"] },
+    isDeleted: { $ne: true },
+    status: { $nin: ["cancelled", "deleted", "inactive"] },
+  };
+
   // 1. Orders / Invoices
   try {
     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
@@ -72,6 +79,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { party_id: { $in: partyMatches } },
         { partyId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking orders:", e);
@@ -86,6 +94,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { party_id: { $in: partyMatches } },
         { partyId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking purchase bills:", e);
@@ -102,6 +111,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { party_id: { $in: partyMatches } },
         { partyId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking sale returns:", e);
@@ -118,6 +128,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { party_id: { $in: partyMatches } },
         { partyId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking party transactions:", e);
@@ -136,6 +147,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { customer_id: { $in: partyMatches } },
         { customerId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking vendor transactions:", e);
@@ -167,6 +179,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { party_id: { $in: partyMatches } },
         { partyId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking general transactions:", e);
@@ -183,6 +196,7 @@ export async function checkPartyHasTransactionsServer(options: {
         { customer_id: { $in: partyMatches } },
         { customerId: { $in: partyMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkPartyHasTransactionsServer] Error checking quotations:", e);
@@ -194,7 +208,6 @@ export async function checkPartyHasTransactionsServer(options: {
   if (counts.saleReturns > 0) details.push(`${counts.saleReturns} Sale Return(s)`);
   if (counts.partyTransactions > 0) details.push(`${counts.partyTransactions} Payment(s)`);
   if (counts.vendorTransactions > 0) details.push(`${counts.vendorTransactions} Vendor Transaction(s)`);
-  if (counts.ledgerEntries > 0) details.push(`${counts.ledgerEntries} Ledger Entry(s)`);
   if (counts.transactions > 0) details.push(`${counts.transactions} Transaction Record(s)`);
   if (counts.quotations > 0) details.push(`${counts.quotations} Quotation(s)`);
 
@@ -249,6 +262,13 @@ export async function checkProductHasTransactionsServer(options: {
     prodMatches.push(toObjectId(prodIdStr));
   }
 
+  const notDeletedFilter = {
+    is_delete: { $nin: [1, true, "1"] },
+    is_deleted: { $nin: [1, true, "1"] },
+    isDeleted: { $ne: true },
+    status: { $nin: ["cancelled", "deleted", "inactive"] },
+  };
+
   // 1. Orders / Sales Invoices
   try {
     const ordersCol = await getCollection(COLLECTIONS.ORDERS);
@@ -259,6 +279,7 @@ export async function checkProductHasTransactionsServer(options: {
         { "items.productId": { $in: prodMatches } },
         { "items.id": { $in: prodMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkProductHasTransactionsServer] Error checking orders:", e);
@@ -272,6 +293,7 @@ export async function checkProductHasTransactionsServer(options: {
         { product_id: { $in: prodMatches } },
         { productId: { $in: prodMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkProductHasTransactionsServer] Error checking order_items:", e);
@@ -287,6 +309,7 @@ export async function checkProductHasTransactionsServer(options: {
         { "items.productId": { $in: prodMatches } },
         { "items.id": { $in: prodMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkProductHasTransactionsServer] Error checking purchase bills:", e);
@@ -302,6 +325,7 @@ export async function checkProductHasTransactionsServer(options: {
         { "items.product_id": { $in: prodMatches } },
         { "items.id": { $in: prodMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkProductHasTransactionsServer] Error checking sale returns:", e);
@@ -318,6 +342,7 @@ export async function checkProductHasTransactionsServer(options: {
         { "items.product_id": { $in: prodMatches } },
         { "items.productId": { $in: prodMatches } },
       ],
+      ...notDeletedFilter,
     });
   } catch (e) {
     console.warn("[checkProductHasTransactionsServer] Error checking stock adjustments:", e);

@@ -48,3 +48,99 @@ export async function updateOfflinePartyBalance(partyId: string | number | undef
     console.error("[Offline Ledger] Failed to update party balance locally:", error);
   }
 }
+
+/**
+ * Reconciles the offline balance of a party from its actual active Dexie transactions.
+ * If 0 active transactions exist, balance is strictly set to opening_balance.
+ */
+export async function reconcileOfflinePartyBalance(partyId: string | number | undefined | null): Promise<number> {
+  if (!partyId) return 0;
+  const pIdStr = partyId.toString();
+
+  try {
+    let party = await db.parties.get(pIdStr);
+    if (!party) {
+      party = await db.parties.where('id').equals(pIdStr).first();
+    }
+    if (!party) {
+      party = await db.parties.where('_id').equals(pIdStr).first();
+    }
+    if (!party) return 0;
+
+    const openingBalance = Number(party.opening_balance ?? 0);
+
+    const isItemDeleted = (item: any) => {
+      if (!item) return true;
+      if (item.is_delete === 1 || item.is_delete === true || item.is_delete === "1") return true;
+      if (item.is_deleted === 1 || item.is_deleted === true || item.is_deleted === "1") return true;
+      if (typeof item.status === "string") {
+        const s = item.status.toLowerCase().trim();
+        if (s === "cancelled" || s === "deleted" || s === "inactive") return true;
+      }
+      return false;
+    };
+
+    const orders = await db.orders
+      .filter((o: any) => !isItemDeleted(o) && String(o.customer_id || o.customerId || o.party_id || o.partyId || "").trim() === pIdStr)
+      .toArray();
+
+    const purchaseBills = await db.purchase_bills
+      .filter((b: any) => !isItemDeleted(b) && String(b.party_id || b.partyId || "").trim() === pIdStr)
+      .toArray();
+
+    const saleReturns = await db.sale_return_transactions
+      .filter((r: any) => !isItemDeleted(r) && String(r.customerId || r.customer_id || r.party_id || r.partyId || "").trim() === pIdStr)
+      .toArray();
+
+    const partyTransactions = await db.party_transactions
+      .filter((t: any) => !isItemDeleted(t) && String(t.customerId || t.customer_id || t.party_id || t.partyId || "").trim() === pIdStr)
+      .toArray();
+
+    const totalActive = orders.length + purchaseBills.length + saleReturns.length + partyTransactions.length;
+
+    let trueBalance = openingBalance;
+    if (totalActive > 0) {
+      const netOrders = orders.reduce((sum, o: any) => {
+        const tot = Number(o.total_amount ?? 0);
+        const paid = Number(o.payment?.paid_amount ?? 0);
+        return sum + (tot - paid);
+      }, 0);
+
+      const netReturns = saleReturns.reduce((sum, r: any) => {
+        const tot = Number(r.total_amount ?? r.payment_amount ?? 0);
+        const refund = Number(r.paid_amount ?? r.refund_amount ?? 0);
+        return sum + (tot - refund);
+      }, 0);
+
+      const netPurchases = purchaseBills.reduce((sum, b: any) => {
+        const tot = Number(b.total_amount ?? 0);
+        const paid = Number(b.paid_amount ?? 0);
+        return sum + (tot - paid);
+      }, 0);
+
+      const netPayments = partyTransactions.reduce((sum, t: any) => {
+        const amt = Number(t.payment_amount ?? t.amount ?? 0);
+        const isPaymentIn = t.type === "payment-in" || t.type === "payment_in";
+        return isPaymentIn ? sum - amt : sum + amt;
+      }, 0);
+
+      trueBalance = openingBalance + netOrders - netReturns - netPurchases + netPayments;
+    }
+
+    trueBalance = Math.round(trueBalance * 100) / 100;
+
+    if (party.balance !== trueBalance) {
+      await db.parties.update(party.id, { balance: trueBalance });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('partyBalanceUpdated', { 
+          detail: { partyId: party.id, oldBalance: party.balance, newBalance: trueBalance } 
+        }));
+      }
+    }
+
+    return trueBalance;
+  } catch (err) {
+    console.error("[Offline Ledger] Failed to reconcile offline party balance:", err);
+    return 0;
+  }
+}

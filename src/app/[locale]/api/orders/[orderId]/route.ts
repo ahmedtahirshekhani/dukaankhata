@@ -3,7 +3,7 @@ import { getCollection, COLLECTIONS, toObjectId, isValidObjectId, setLastUpdated
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { requirePermission } from '@/lib/auth/rbac';
-import { appendCustomerLedgerEntry } from '@/lib/ledger/customer-ledger';
+import { appendCustomerLedgerEntry, reconcilePartyBalanceServer } from '@/lib/ledger/customer-ledger';
 import { parseSafeDate } from '@/lib/date-utils';
 
 // Helper to check if product is goods (not service)
@@ -342,7 +342,7 @@ export async function DELETE(
 
   const orderId = params.orderId;
   if (!isValidObjectId(orderId)) {
-    return NextResponse.json({ error: 'Invalid order ID' }, { status: 400 });
+    return NextResponse.json({ success: true, message: 'Local order ignored' });
   }
 
   const ordersCollection = await getCollection(COLLECTIONS.ORDERS);
@@ -413,6 +413,14 @@ export async function DELETE(
       effectiveAt: new Date(),
       metadata: { reason: 'order_deleted', totalAmount, paidAmount },
     });
+  }
+
+  if (customerId) {
+    try {
+      await reconcilePartyBalanceServer(user.id, customerId);
+    } catch (recErr) {
+      console.error("Error reconciling party balance on order delete:", recErr);
+    }
   }
 
   // ✅ Update user's last activity after deletion

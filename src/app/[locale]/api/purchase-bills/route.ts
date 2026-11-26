@@ -10,7 +10,7 @@ import {
 } from "@/lib/db/mongodb";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/utils";
-import { appendPartyLedgerEntry } from "@/lib/ledger/customer-ledger";
+import { appendPartyLedgerEntry, reconcilePartyBalanceServer } from "@/lib/ledger/customer-ledger";
 import { generateReferenceNumber } from "@/lib/utils";
 import { parseSafeDate } from "@/lib/date-utils";
 import { requirePermission } from "@/lib/auth/rbac";
@@ -210,6 +210,11 @@ export async function POST(request: Request) {
   const authCheck = await requirePermission("purchase.create_purchase_bill");
   if (!authCheck.allowed) return authCheck.response!;
 
+  const body = await request.json();
+  return handleCreatePurchaseBill(user, body);
+}
+
+async function handleCreatePurchaseBill(user: { id: string }, body: any) {
   const {
     party_id: partyId,
     party_name: partyName,
@@ -231,7 +236,7 @@ export async function POST(request: Request) {
     bill_date: customBillDate,
     date: customDate,
     created_at: customCreatedAt,
-  } = await request.json();
+  } = body;
 
   try {
     if (!partyId || !partyName) {
@@ -356,8 +361,13 @@ export async function POST(request: Request) {
     });
     if (existingBill) {
       return NextResponse.json(
-        { error: "Purchase bill with this bill number already exists" },
-        { status: 409 }
+        {
+          success: true,
+          id: existingBill._id.toString(),
+          _id: existingBill._id.toString(),
+          message: "Purchase bill already exists",
+        },
+        { status: 200 }
       );
     }
 
@@ -469,6 +479,7 @@ export async function POST(request: Request) {
       {
         success: true,
         id: billResult.insertedId.toString(),
+        _id: billResult.insertedId.toString(),
         message: "Purchase bill created successfully",
       },
       { status: 201 }
@@ -491,6 +502,7 @@ export async function PUT(request: Request) {
   const authCheck = await requirePermission("purchase.edit_purchase_bill");
   if (!authCheck.allowed) return authCheck.response!;
 
+  const body = await request.json();
   const {
     id,
     party_id: partyId,
@@ -513,7 +525,7 @@ export async function PUT(request: Request) {
     bill_date: customBillDate,
     date: customDate,
     purchase_date: customPurchaseDate,
-  } = await request.json();
+  } = body;
 
   try {
     if (!id) {
@@ -521,6 +533,12 @@ export async function PUT(request: Request) {
         { error: "Bill ID is required" },
         { status: 400 }
       );
+    }
+
+    // If ID is not a valid ObjectId (e.g. "local_pb_..."), this bill was created offline
+    // and hasn't been created on the server yet. Delegate to handleCreatePurchaseBill!
+    if (!isValidObjectId(id)) {
+      return handleCreatePurchaseBill(user, body);
     }
 
     const purchaseBillsCollection = await getCollection(
@@ -533,10 +551,7 @@ export async function PUT(request: Request) {
     // Fetch existing bill to revert old stock
     const oldBill = await purchaseBillsCollection.findOne(filter);
     if (!oldBill) {
-      return NextResponse.json(
-        { error: "Purchase bill not found" },
-        { status: 404 }
-      );
+      return handleCreatePurchaseBill(user, body);
     }
 
     const finalPaidAmount = Number(paidAmount) || 0;
@@ -831,11 +846,8 @@ export async function DELETE(request: Request) {
   const id = url.searchParams.get("id");
 
   try {
-    if (!id) {
-      return NextResponse.json(
-        { error: "Bill ID is required" },
-        { status: 400 }
-      );
+    if (!id || !isValidObjectId(id)) {
+      return NextResponse.json({ success: true, message: "Local or invalid purchase bill ignored", deletedCount: 0 });
     }
 
     const purchaseBillsCollection = await getCollection(
@@ -932,6 +944,14 @@ export async function DELETE(request: Request) {
       user_id: userObjId,
       order_id: billObjId,
     });
+
+    if (oldBill.party_id) {
+      try {
+        await reconcilePartyBalanceServer(user.id, oldBill.party_id.toString());
+      } catch (recErr) {
+        console.error("Error reconciling party balance on purchase bill delete:", recErr);
+      }
+    }
 
     // ✅ Update user's last activity after deletion
     const usersCollection = await getCollection(COLLECTIONS.USERS);
