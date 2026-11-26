@@ -146,18 +146,33 @@ export async function GET(request: NextRequest) {
       ]
     };
 
+    const caQuery: any = {
+      user_id: userId,
+      is_deleted: { $ne: true },
+      is_delete: { $nin: [1, true, "1"] },
+      $or: [
+        { payment_method_id: pmStringQuery },
+        ...(isCashAccount ? [
+          { payment_method_id: { $in: ['cash', 'Cash', 'CASH', null, ''] } },
+          { payment_method_id: { $exists: false } }
+        ] : [])
+      ]
+    };
+
     const [
       customerTransactions,
       orders,
       purchaseBills,
       saleReturns,
-      expenses
+      expenses,
+      cashAdjustments
     ] = await Promise.all([
       getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS).then(c => c.find(ctQuery).toArray()),
       getCollection(COLLECTIONS.ORDERS).then(c => c.find(orderQuery).toArray()),
       getCollection(COLLECTIONS.PURCHASE_BILLS).then(c => c.find(pbQuery).toArray()),
       getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS).then(c => c.find(srQuery).toArray()),
-      getCollection(COLLECTIONS.EXPENSES).then(c => c.find(expQuery).toArray())
+      getCollection(COLLECTIONS.EXPENSES).then(c => c.find(expQuery).toArray()),
+      getCollection(COLLECTIONS.CASH_ADJUSTMENTS).then(c => c.find(caQuery).toArray())
     ]);
 
     let transactions: any[] = [];
@@ -259,6 +274,27 @@ export async function GET(request: NextRequest) {
           amount: amount,
           direction: 'OUT',
           dateTime: parseToISO(expDate, e.created_at)
+        });
+      }
+    });
+
+    // Cash Adjustments -> IN (for Add) / OUT (for Reduce)
+    cashAdjustments.forEach(ca => {
+      const amount = Number(ca.amount || 0);
+      if (amount > 0) {
+        const isReduce = ca.type === 'reduce';
+        const voucherNo = ca.ref_no || null;
+        const caDate = ca.date || ca.created_at;
+        const desc = ca.reason ? `Cash Adjustment: ${ca.reason}` : (isReduce ? 'Cash Adjustment (Reduce)' : 'Cash Adjustment (Add)');
+        transactions.push({
+          id: ca._id.toString(),
+          type: isReduce ? 'Cash Adjustment (-)' : 'Cash Adjustment (+)',
+          rawType: 'cash_adjustment',
+          voucherNo: voucherNo,
+          description: desc,
+          amount: amount,
+          direction: isReduce ? 'OUT' : 'IN',
+          dateTime: parseToISO(caDate, ca.created_at)
         });
       }
     });

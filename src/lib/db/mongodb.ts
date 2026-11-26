@@ -140,6 +140,7 @@ export const COLLECTIONS = {
   WHATSAPP_CAMPAIGNS: "whatsapp_campaigns",
   WHATSAPP_CAMPAIGN_LOGS: "whatsapp_campaign_logs",
   STOCK_ADJUSTMENTS: "stock_adjustments",
+  CASH_ADJUSTMENTS: "cash_adjustments",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string

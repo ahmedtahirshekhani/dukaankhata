@@ -151,6 +151,18 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       );
     }, [methods, searchTerm]);
 
+    // Resolved value that actually exists in methods, or undefined so placeholder displays
+    const resolvedValue = React.useMemo(() => {
+      if (!value) return undefined;
+      const found = methods.find(m => m.id === value || String(m.id) === String(value));
+      if (found) return String(found.id);
+      if (value === 'cash') {
+        const cashMethod = methods.find(m => m.is_default || m.name?.toLowerCase().includes('cash'));
+        if (cashMethod) return String(cashMethod.id);
+      }
+      return undefined;
+    }, [value, methods]);
+
     // Auto-select default payment method (is_default)
     React.useEffect(() => {
       if (defaultToCash && !value && methods.length > 0) {
@@ -319,7 +331,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       <>
         <div className="relative">
           <Select
-            value={value}
+            value={resolvedValue}
             onValueChange={handleValueChange}
             disabled={disabled}
             open={isOpen}

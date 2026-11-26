@@ -410,13 +410,14 @@ export function useOfflinePaymentMethodsWithBalance() {
       methods.unshift({ id: "cash", name: "Cash", bank_name: "Cash", opening_balance: 0, is_default: true });
     }
     
-    const [partyTransactions, orders, purchaseBills, saleReturns, expenses, vendorTransactions] = await Promise.all([
+    const [partyTransactions, orders, purchaseBills, saleReturns, expenses, vendorTransactions, cashAdjustments] = await Promise.all([
       db.party_transactions.toArray(),
       db.orders.toArray(),
       db.purchase_bills.toArray(),
       db.sale_return_transactions.toArray(),
       db.expenses.toArray(),
       db.vendor_transactions.toArray(),
+      db.cash_adjustments.toArray(),
     ]);
 
     return methods.map(method => {
@@ -483,12 +484,41 @@ export function useOfflinePaymentMethodsWithBalance() {
         }
       });
 
+      cashAdjustments.forEach(ca => {
+        if (ca.is_deleted || ca.isDeleted || ca.is_delete === 1) return;
+        if (matchMethod(ca.payment_method_id || ca.paymentMethodId)) {
+          const amount = parseFloat(ca.amount) || 0;
+          if (ca.type === 'add') {
+            currentBalance += amount; // IN
+          } else if (ca.type === 'reduce') {
+            currentBalance -= amount; // OUT
+          }
+        }
+      });
+
       return {
         ...method,
         currentBalance: Math.round(currentBalance * 100) / 100
       };
     });
   });
+}
+
+export function useOfflineCashAdjustments(paymentMethodId?: string) {
+  return useSafeLiveQuery(async () => {
+    let adjustments = await db.cash_adjustments.toArray();
+    adjustments = adjustments.filter(a => !a.is_deleted && !a.isDeleted && a.is_delete !== 1);
+    if (paymentMethodId) {
+      const isCash = paymentMethodId === "cash";
+      adjustments = adjustments.filter(a => {
+        const pmId = (a.payment_method_id || a.paymentMethodId)?.toString();
+        if (pmId === paymentMethodId) return true;
+        if (isCash && (!pmId || pmId.toLowerCase() === "cash")) return true;
+        return false;
+      });
+    }
+    return adjustments.sort((a, b) => new Date(b.date || b.created_at).getTime() - new Date(a.date || a.created_at).getTime());
+  }, [paymentMethodId]);
 }
 
 export function useOfflineQuotations(searchQuery: string = "") {
