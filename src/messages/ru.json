@@ -2405,6 +2405,13 @@
     "refNo": "Ref No",
     "account": "Account",
     "dateTime": "Date & Time",
-    "type": "Type"
+    "type": "Type",
+    "editAdjustment": "Cash Adjustment Edit Karein",
+    "editAdjustmentDescription": "Adjustment ki details aur balance update karein",
+    "adjustmentUpdated": "Cash adjustment kamyabi se update ho gayi",
+    "adjustmentDeleted": "Cash adjustment delete aur balance wapis revert ho gaya",
+    "deleteAdjustmentTitle": "Cash Adjustment Delete Karein",
+    "deleteAdjustmentConfirm": "Kya aap waqai is cash adjustment ko delete karna chahte hain?",
+    "deleteAdjustmentRevertNote": "Note: Is adjustment ko delete karne se account ka balance foran pehle jesa revert ho jayega."
   }
 }

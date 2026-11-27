@@ -52,6 +52,7 @@ interface PaymentMethodDropdownProps {
   defaultToCash?: boolean; // auto-select cash/default method if available
   showAddButton?: boolean;
   allowAdd?: boolean;
+  customMethods?: PaymentMethod[];
 }
 
 const DEFAULT_METHODS: PaymentMethod[] = [
@@ -75,6 +76,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       defaultToCash = false,
       showAddButton = true,
       allowAdd,
+      customMethods,
     },
     ref
   ) => {
@@ -120,11 +122,23 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     
     const methods = React.useMemo(() => {
       let allMethods = includeDefaultMethods ? [...DEFAULT_METHODS] : [];
+
+      if (customMethods && customMethods.length > 0) {
+        for (const cm of customMethods) {
+          if (!allMethods.some(ex => String(ex.id) === String(cm.id))) {
+            allMethods.push({
+              ...cm,
+              id: String(cm.id),
+              name: String(cm.name || ""),
+            });
+          }
+        }
+      }
       
       const apiMethods = offlineMethods.map((item: any) => ({
-        id: item.id || item._id,
-        name: item.bankName || item.name || item.bank_name,
-        bankDetails: item.bankDetails || item.bank_details,
+        id: String(item.id || item._id || ""),
+        name: String(item.bankName || item.name || item.bank_name || ""),
+        bankDetails: item.bankDetails || item.bank_details || "",
         is_default: Boolean(
           item.is_default === true ||
           item.is_default === 1 ||
@@ -134,12 +148,12 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
       }));
 
       for (const m of apiMethods) {
-        if (!allMethods.some(ex => ex.id === m.id)) {
+        if (!allMethods.some(ex => String(ex.id) === String(m.id))) {
           allMethods.push(m);
         }
       }
       return allMethods;
-    }, [offlineMethods, includeDefaultMethods]);
+    }, [offlineMethods, includeDefaultMethods, customMethods]);
 
     const filteredMethods = React.useMemo(() => {
       if (!searchTerm.trim()) return methods;
@@ -154,14 +168,29 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     // Resolved value that actually exists in methods, or undefined so placeholder displays
     const resolvedValue = React.useMemo(() => {
       if (!value) return undefined;
-      const found = methods.find(m => m.id === value || String(m.id) === String(value));
-      if (found) return String(found.id);
-      if (value === 'cash') {
-        const cashMethod = methods.find(m => m.is_default || m.name?.toLowerCase().includes('cash'));
+      const strVal = String(value).trim().toLowerCase();
+
+      // 1. Direct ID match
+      const foundById = methods.find(m => String(m.id) === String(value) || String(m.id).toLowerCase() === strVal);
+      if (foundById) return String(foundById.id);
+
+      // 2. Name match (case-insensitive)
+      const foundByName = methods.find(m => m.name && m.name.toLowerCase() === strVal);
+      if (foundByName) return String(foundByName.id);
+
+      // 3. Fallback for 'cash'
+      if (strVal === 'cash' || strVal.includes('cash')) {
+        const cashMethod = methods.find(m => m.is_default || m.name?.toLowerCase().includes('cash') || String(m.id) === 'cash');
         if (cashMethod) return String(cashMethod.id);
       }
+
       return undefined;
     }, [value, methods]);
+
+    const selectedMethod = React.useMemo(() => {
+      if (!resolvedValue) return undefined;
+      return methods.find(m => String(m.id) === String(resolvedValue));
+    }, [resolvedValue, methods]);
 
     // Auto-select default payment method (is_default)
     React.useEffect(() => {
@@ -269,7 +298,7 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
     };
 
     const handleValueChange = (newValue: string) => {
-      const selected = methods.find((m) => m.id === newValue);
+      const selected = methods.find((m) => String(m.id) === String(newValue));
       onValueChange(newValue, selected);
       setIsOpen(false);
       setSearchTerm("");
@@ -338,7 +367,18 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
             onOpenChange={handleOpenChange}
           >
             <SelectTrigger className={className} ref={ref}>
-              <SelectValue placeholder={placeholder} />
+              <SelectValue placeholder={placeholder}>
+                {selectedMethod ? (
+                  <div className="flex flex-col items-start gap-0.5 py-0.5 text-left">
+                    <span className="font-medium leading-tight">{selectedMethod.name}</span>
+                    {selectedMethod.bankDetails ? (
+                      <span className="text-xs text-muted-foreground truncate max-w-[240px] sm:max-w-[300px]">
+                        {truncateDetails(selectedMethod.bankDetails)}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent className="min-w-[280px] max-w-[90vw] p-0">
               {canCreate && canShowAdd && addButtonPosition === "top" && <AddButtonTop />}
@@ -389,7 +429,10 @@ export const PaymentMethodDropdown = forwardRef<HTMLButtonElement, PaymentMethod
                   </div>
                 )}
                 {filteredMethods.map((method) => (
-                  <SelectItem key={method.id} value={method.id}>
+                  <SelectItem
+                    key={String(method.id)}
+                    value={String(method.id)}
+                  >
                     <div className="flex flex-col items-start gap-0.5 py-0.5">
                       <span className="font-medium">{method.name}</span>
                       {method.bankDetails && (

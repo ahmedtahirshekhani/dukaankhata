@@ -2413,6 +2413,13 @@
     "refNo": "حوالہ نمبر",
     "account": "اکاؤنٹ",
     "dateTime": "تاریخ اور وقت",
-    "type": "قسم"
+    "type": "قسم",
+    "editAdjustment": "کیش ایڈجسٹمنٹ میں ترمیم کریں",
+    "editAdjustmentDescription": "ایڈجسٹمنٹ کی تفصیلات اور بیلنس اپ ڈیٹ کریں",
+    "adjustmentUpdated": "کیش ایڈجسٹمنٹ کامیابی سے اپ ڈیٹ ہو گئی",
+    "adjustmentDeleted": "کیش ایڈجسٹمنٹ حذف اور بیلنس واپس ریورٹ ہو گیا",
+    "deleteAdjustmentTitle": "کیش ایڈجسٹمنٹ حذف کریں",
+    "deleteAdjustmentConfirm": "کیا آپ واقعی اس کیش ایڈجسٹمنٹ کو حذف کرنا چاہتے ہیں؟",
+    "deleteAdjustmentRevertNote": "نوٹ: اس ایڈجسٹمنٹ کو حذف کرنے سے اکاؤنٹ کا بیلنس فوراً پہلے جیسا ریورٹ ہو جائے گا۔"
   }
 }

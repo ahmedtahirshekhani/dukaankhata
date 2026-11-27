@@ -2414,6 +2414,13 @@
     "refNo": "Ref No",
     "account": "Account",
     "dateTime": "Date & Time",
-    "type": "Type"
+    "type": "Type",
+    "editAdjustment": "Edit Cash Adjustment",
+    "editAdjustmentDescription": "Update adjustment details and balance",
+    "adjustmentUpdated": "Cash adjustment updated successfully",
+    "adjustmentDeleted": "Cash adjustment deleted & balance reverted successfully",
+    "deleteAdjustmentTitle": "Delete Cash Adjustment",
+    "deleteAdjustmentConfirm": "Are you sure you want to delete this cash adjustment?",
+    "deleteAdjustmentRevertNote": "Note: Deleting this adjustment will immediately revert the account balance."
   }
 }

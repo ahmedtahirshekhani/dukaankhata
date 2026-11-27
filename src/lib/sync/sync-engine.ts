@@ -253,7 +253,13 @@ export class SyncEngine {
             result = await response.json().catch(() => ({})); // Parse JSON safely
           }
           
-          const newId = result.id || result._id;
+          const newId =
+            result.id ||
+            result._id ||
+            result.adjustment?.id ||
+            result.adjustment?._id ||
+            result.data?.id ||
+            result.data?._id;
           // If this was a POST and the server returned a new ID, update the local record
           if (op.method === 'POST' && newId && op.localId && newId !== op.localId) {
             const collectionName = op.collection as keyof typeof db;

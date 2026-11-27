@@ -35,7 +35,10 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { toHTMLDateString, toSafeISOString } from "@/lib/date-utils";
 import { formatCurrencyString } from "@/lib/utils";
-import { recordCashAdjustmentOffline } from "@/lib/db/offline-cash-manager";
+import {
+  recordCashAdjustmentOffline,
+  updateCashAdjustmentOffline,
+} from "@/lib/db/offline-cash-manager";
 import { PaymentMethodDropdown } from "@/components/dropdown/payment-method-dropdown";
 import type { BankAccountItem } from "@/app/[locale]/admin/bank-accounts/bank-accounts-client";
 
@@ -44,6 +47,7 @@ interface AdjustCashDialogProps {
   onOpenChange: (open: boolean) => void;
   accounts: BankAccountItem[];
   defaultAccountId?: string;
+  adjustmentToEdit?: any | null;
   onSuccess?: (adjustment: any) => void;
 }
 
@@ -52,10 +56,13 @@ export function AdjustCashDialog({
   onOpenChange,
   accounts = [],
   defaultAccountId,
+  adjustmentToEdit,
   onSuccess,
 }: AdjustCashDialogProps) {
   const tBank = useTranslations("bankAccounts");
   const tCommon = useTranslations("common");
+
+  const isEditMode = Boolean(adjustmentToEdit);
 
   // Determine initial selected account (defaults to empty so placeholder shows)
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
@@ -71,39 +78,97 @@ export function AdjustCashDialog({
   // Sync state whenever dialog opens
   useEffect(() => {
     if (open) {
-      const defaultAcc = defaultAccountId
-        ? accounts.find((a) => a.id === defaultAccountId)
-        : null;
+      if (adjustmentToEdit) {
+        // Edit Mode: Prefill existing values
+        const editPmId = String(
+          adjustmentToEdit.payment_method_id ||
+          adjustmentToEdit.paymentMethodId ||
+          adjustmentToEdit.account_id ||
+          adjustmentToEdit.accountId ||
+          ""
+        ).trim();
+        const editAccName = String(
+          adjustmentToEdit.account_name ||
+          adjustmentToEdit.accountName ||
+          ""
+        ).trim();
 
-      const initialId = defaultAcc ? defaultAcc.id : "";
-      setSelectedAccountId(initialId);
-      setSelectedAccountName(defaultAcc?.bankName || "");
-      setActionType("add");
-      setAmount("");
-      setReason("");
-      setAdjustmentDate(toHTMLDateString(new Date()));
-      setNotes("");
-      setErrorMsg(null);
+        // Match in accounts list
+        let matched = accounts.find((a) =>
+          (editPmId && editPmId !== "cash" && String(a.id).toLowerCase() === editPmId.toLowerCase()) ||
+          (editAccName && a.bankName.toLowerCase() === editAccName.toLowerCase())
+        );
+
+        if (!matched && (editPmId === "cash" || editAccName.toLowerCase().includes("cash"))) {
+          matched = accounts.find((a) =>
+            String(a.id).toLowerCase() === "cash" ||
+            a.bankName.toLowerCase().includes("cash")
+          );
+        }
+
+        const resolvedId = matched ? String(matched.id) : (editPmId || "cash");
+        const resolvedName = matched ? matched.bankName : (editAccName || "Cash in Hand");
+
+        setSelectedAccountId(resolvedId);
+        setSelectedAccountName(resolvedName);
+        setActionType(adjustmentToEdit.type || "add");
+        setAmount(adjustmentToEdit.amount?.toString() || "");
+
+        // Map reason back to key if matched, or keep as is
+        const rawReason = adjustmentToEdit.reason || "";
+        const revReasonMap: Record<string, string> = {
+          [tBank("reasonPhysicalDiscrepancy")]: "physical_discrepancy",
+          [tBank("reasonOwnerDrawing")]: "owner_drawing",
+          [tBank("reasonOwnerCapital")]: "owner_capital",
+          [tBank("reasonPettyExpense")]: "petty_expense",
+          [tBank("reasonRoundingAudit")]: "rounding_audit",
+          [tBank("reasonOther")]: "other",
+        };
+        const foundKey = revReasonMap[rawReason] || rawReason;
+        setReason(foundKey);
+
+        setAdjustmentDate(toHTMLDateString(adjustmentToEdit.date || adjustmentToEdit.created_at || new Date()));
+        setNotes(adjustmentToEdit.notes || "");
+        setErrorMsg(null);
+      } else {
+        // Create Mode
+        const defaultAcc = defaultAccountId
+          ? accounts.find((a) => a.id === defaultAccountId)
+          : null;
+
+        const initialId = defaultAcc ? defaultAcc.id : "";
+        setSelectedAccountId(initialId);
+        setSelectedAccountName(defaultAcc?.bankName || "");
+        setActionType("add");
+        setAmount("");
+        setReason("");
+        setAdjustmentDate(toHTMLDateString(new Date()));
+        setNotes("");
+        setErrorMsg(null);
+      }
     }
-  }, [open, defaultAccountId, accounts]);
+  }, [open, defaultAccountId, accounts, adjustmentToEdit, tBank]);
 
   const selectedAccount = useMemo(() => {
-    if (!selectedAccountId) return null;
+    if (!selectedAccountId && !selectedAccountName) return null;
     const found =
       accounts.find(
         (a) =>
-          a.id === selectedAccountId ||
-          a.id?.toString() === selectedAccountId?.toString()
+          (selectedAccountId && (a.id === selectedAccountId || a.id?.toString() === selectedAccountId?.toString())) ||
+          (selectedAccountName && a.bankName.toLowerCase() === selectedAccountName.toLowerCase())
       ) ||
-      accounts.find(
-        (a) =>
-          selectedAccountId === "cash" &&
-          (a.bankName.toLowerCase().includes("cash") || a.id === "cash")
-      );
+      (selectedAccountId === "cash" || selectedAccountName?.toLowerCase().includes("cash")
+        ? accounts.find(
+            (a) =>
+              a.bankName.toLowerCase().includes("cash") ||
+              a.id === "cash" ||
+              (a as any).is_default
+          )
+        : null);
     if (found) return found;
     if (selectedAccountName) {
       return {
-        id: selectedAccountId,
+        id: selectedAccountId || "cash",
         bankName: selectedAccountName,
         bankDetails: "",
         openingBalance: 0,
@@ -120,6 +185,19 @@ export function AdjustCashDialog({
       : selectedAccount.openingBalance || 0;
   }, [selectedAccount]);
 
+  const baselineBalance = useMemo(() => {
+    let bal = currentBalance;
+    if (isEditMode && adjustmentToEdit) {
+      const origAmount = Number(adjustmentToEdit.amount) || 0;
+      if (adjustmentToEdit.type === "add") {
+        bal -= origAmount;
+      } else if (adjustmentToEdit.type === "reduce") {
+        bal += origAmount;
+      }
+    }
+    return bal;
+  }, [currentBalance, isEditMode, adjustmentToEdit]);
+
   const numAmount = useMemo(() => {
     const val = parseFloat(amount);
     return isNaN(val) ? 0 : Math.abs(val);
@@ -127,10 +205,10 @@ export function AdjustCashDialog({
 
   const newBalance = useMemo(() => {
     if (actionType === "add") {
-      return currentBalance + numAmount;
+      return baselineBalance + numAmount;
     }
-    return currentBalance - numAmount;
-  }, [currentBalance, numAmount, actionType]);
+    return baselineBalance - numAmount;
+  }, [baselineBalance, numAmount, actionType]);
 
   const isCashAccount = useMemo(() => {
     if (!selectedAccount) return true;
@@ -155,11 +233,11 @@ export function AdjustCashDialog({
       return;
     }
     if (actionType === "reduce") {
-      if (currentBalance <= 0) {
+      if (baselineBalance <= 0) {
         setErrorMsg(tBank("cashCannotReduceBelowZero"));
         return;
       }
-      if (numAmount > currentBalance) {
+      if (numAmount > baselineBalance) {
         setErrorMsg(tBank("reduceCashExceedsAvailable"));
         return;
       }
@@ -185,15 +263,29 @@ export function AdjustCashDialog({
       const paymentMethodId =
         selectedAccount?.id || selectedAccountId || "cash";
 
-      const record = await recordCashAdjustmentOffline({
-        paymentMethodId,
-        accountName,
-        type: actionType,
-        amount: numAmount,
-        reason: resolvedReason,
-        notes: notes.trim(),
-        date: toSafeISOString(adjustmentDate),
-      });
+      let record: any;
+      if (isEditMode && adjustmentToEdit) {
+        const editId = adjustmentToEdit.id || adjustmentToEdit._id;
+        record = await updateCashAdjustmentOffline(editId, {
+          paymentMethodId,
+          accountName,
+          type: actionType,
+          amount: numAmount,
+          reason: resolvedReason,
+          notes: notes.trim(),
+          date: toSafeISOString(adjustmentDate),
+        });
+      } else {
+        record = await recordCashAdjustmentOffline({
+          paymentMethodId,
+          accountName,
+          type: actionType,
+          amount: numAmount,
+          reason: resolvedReason,
+          notes: notes.trim(),
+          date: toSafeISOString(adjustmentDate),
+        });
+      }
 
       if (onSuccess) {
         onSuccess(record);
@@ -218,10 +310,12 @@ export function AdjustCashDialog({
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-bold">
-                {tBank("adjustCash")}
+                {isEditMode ? tBank("editAdjustment") : tBank("adjustCash")}
               </DialogTitle>
               <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                {tBank("adjustCashDescription")}
+                {isEditMode
+                  ? `${adjustmentToEdit?.ref_no || "CADJ"} — ${tBank("editAdjustmentDescription")}`
+                  : tBank("adjustCashDescription")}
               </DialogDescription>
             </div>
           </div>
@@ -249,11 +343,17 @@ export function AdjustCashDialog({
                 }
                 setErrorMsg(null);
               }}
+              customMethods={accounts.map((a) => ({
+                id: String(a.id),
+                name: a.bankName,
+                bankDetails: a.bankDetails,
+                is_default: Boolean((a as any).is_default || a.bankName.toLowerCase().includes("cash")),
+              }))}
               includeDefaultMethods={false}
               defaultToCash={false}
               showAddButton={false}
               placeholder={tBank("selectAccount")}
-              className="h-10 text-xs sm:text-sm"
+              className="min-h-10 h-auto py-1.5 text-xs sm:text-sm"
             />
           </div>
 
@@ -454,7 +554,7 @@ export function AdjustCashDialog({
                 </>
               ) : (
                 <span>
-                  {actionType === "add" ? tBank("addCash") : tBank("reduceCash")}
+                  {isEditMode ? tCommon("save") : (actionType === "add" ? tBank("addCash") : tBank("reduceCash"))}
                 </span>
               )}
             </Button>

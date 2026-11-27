@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       if (mapped.party_id && typeof mapped.party_id === 'object') mapped.party_id = mapped.party_id.toString();
       if (mapped.product_id && typeof mapped.product_id === 'object') mapped.product_id = mapped.product_id.toString();
       if (mapped.source_id && typeof mapped.source_id === 'object') mapped.source_id = mapped.source_id.toString();
+      if (mapped.payment_method_id && typeof mapped.payment_method_id === 'object') mapped.payment_method_id = mapped.payment_method_id.toString();
       return mapped;
     });
 

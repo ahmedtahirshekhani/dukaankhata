@@ -17,6 +17,8 @@ import {
   ArrowDownLeft,
   SlidersHorizontal,
   Plus,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import {
   useOfflinePaymentMethodsWithBalance,
@@ -63,6 +65,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { BankAccountStatementModal } from "./bank-account-statement-modal";
 import { AdjustCashDialog } from "@/components/dialogs/adjust-cash-dialog";
 import { ViewCashAdjustmentDialog } from "@/components/dialogs/view-cash-adjustment-dialog";
+import { deleteCashAdjustmentOffline } from "@/lib/db/offline-cash-manager";
 
 export interface BankAccountItem {
   id: string;
@@ -128,6 +131,25 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
   const [showAdjustCashDialog, setShowAdjustCashDialog] = useState(false);
   const [selectedAdjustAccountId, setSelectedAdjustAccountId] = useState<string | undefined>(undefined);
   const [viewAdjustment, setViewAdjustment] = useState<any | null>(null);
+  const [adjustmentToEdit, setAdjustmentToEdit] = useState<any | null>(null);
+  const [adjustmentToDelete, setAdjustmentToDelete] = useState<any | null>(null);
+  const [isDeletingAdjustment, setIsDeletingAdjustment] = useState<boolean>(false);
+
+  const handleDeleteAdjustment = async () => {
+    if (!adjustmentToDelete) return;
+    setIsDeletingAdjustment(true);
+    try {
+      const targetId = adjustmentToDelete.id || adjustmentToDelete._id;
+      await deleteCashAdjustmentOffline(targetId);
+      showMessage(tBank("adjustmentDeleted") || "Cash adjustment deleted & balance reverted successfully");
+      setAdjustmentToDelete(null);
+    } catch (err: any) {
+      console.error("Failed to delete cash adjustment:", err);
+      showMessage(err?.message || "Failed to delete cash adjustment", true);
+    } finally {
+      setIsDeletingAdjustment(false);
+    }
+  };
 
   // Cash Adjustments Offline Hook
   const rawAdjustments = useOfflineCashAdjustments();
@@ -343,6 +365,7 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
               variant="outline"
               size="sm"
               onClick={() => {
+                setAdjustmentToEdit(null);
                 setSelectedAdjustAccountId(undefined);
                 setShowAdjustCashDialog(true);
               }}
@@ -699,15 +722,42 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                             {adj.reason || "—"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-gray-500 hover:bg-gray-100"
-                              onClick={() => setViewAdjustment(adj)}
-                              title={tBank("viewAdjustment")}
-                            >
-                              <Eye className="h-4 w-4 text-gray-500" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-500 hover:bg-gray-100"
+                                onClick={() => setViewAdjustment(adj)}
+                                title={tBank("viewAdjustment")}
+                              >
+                                <Eye className="h-4 w-4 text-gray-500" />
+                              </Button>
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                                  onClick={() => {
+                                    setAdjustmentToEdit(adj);
+                                    setShowAdjustCashDialog(true);
+                                  }}
+                                  title={tCommon("edit")}
+                                >
+                                  <FilePenIcon className="h-4 w-4 text-sky-500" />
+                                </Button>
+                              )}
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                  onClick={() => setAdjustmentToDelete(adj)}
+                                  title={tCommon("delete")}
+                                >
+                                  <Trash2 className="h-4 w-4 text-rose-500" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -729,6 +779,11 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
                     key={adj.id}
                     adjustment={adj}
                     onView={() => setViewAdjustment(adj)}
+                    onEdit={canEdit ? () => {
+                      setAdjustmentToEdit(adj);
+                      setShowAdjustCashDialog(true);
+                    } : undefined}
+                    onDelete={canEdit ? () => setAdjustmentToDelete(adj) : undefined}
                     tBank={tBank}
                     tCommon={tCommon}
                   />
@@ -823,11 +878,22 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
       {/* Adjust Cash Dialog */}
       <AdjustCashDialog
         open={showAdjustCashDialog}
-        onOpenChange={setShowAdjustCashDialog}
+        onOpenChange={(open) => {
+          setShowAdjustCashDialog(open);
+          if (!open) {
+            setAdjustmentToEdit(null);
+          }
+        }}
         accounts={allList}
         defaultAccountId={selectedAdjustAccountId}
+        adjustmentToEdit={adjustmentToEdit}
         onSuccess={() => {
-          showMessage(tBank("adjustmentSaved") || "Cash adjustment recorded successfully");
+          showMessage(
+            adjustmentToEdit
+              ? (tBank("adjustmentUpdated") || "Cash adjustment updated successfully")
+              : (tBank("adjustmentSaved") || "Cash adjustment recorded successfully")
+          );
+          setAdjustmentToEdit(null);
         }}
       />
 
@@ -839,6 +905,74 @@ export function BankAccountsClient({ locale }: BankAccountsClientProps) {
           onOpenChange={(open) => !open && setViewAdjustment(null)}
         />
       )}
+
+      {/* Delete Cash Adjustment Confirmation Dialog */}
+      <Dialog
+        open={!!adjustmentToDelete}
+        onOpenChange={(open) => !open && setAdjustmentToDelete(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-600 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              <span>{tBank("deleteAdjustmentTitle") || "Delete Cash Adjustment"}</span>
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-sm text-foreground space-y-2">
+              <p>
+                {tBank("deleteAdjustmentConfirm") || "Are you sure you want to delete this cash adjustment?"}
+              </p>
+              {adjustmentToDelete && (
+                <div className="p-3 bg-muted/50 rounded-lg border text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{tBank("refNo")}:</span>
+                    <span className="font-mono font-semibold">{adjustmentToDelete.ref_no || "CADJ"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{tBank("account")}:</span>
+                    <span className="font-semibold">{adjustmentToDelete.account_name || "Cash in Hand"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{tBank("amount")}:</span>
+                    <span className={`font-bold ${adjustmentToDelete.type === "add" ? "text-emerald-600" : "text-rose-600"}`}>
+                      {adjustmentToDelete.type === "add" ? "+" : "-"} {formatCurrencyString(adjustmentToDelete.amount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground pt-1">
+                {tBank("deleteAdjustmentRevertNote") || "Note: Deleting this adjustment will immediately revert the account balance."}
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setAdjustmentToDelete(null)}
+              disabled={isDeletingAdjustment}
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAdjustment}
+              disabled={isDeletingAdjustment}
+              className="gap-1.5"
+            >
+              {isDeletingAdjustment ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{tCommon("deleting") || "Deleting..."}</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>{tCommon("delete")}</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -916,11 +1050,15 @@ function BankAccountCard({
 function CashAdjustmentCard({
   adjustment,
   onView,
+  onEdit,
+  onDelete,
   tBank,
   tCommon,
 }: {
   adjustment: any;
   onView: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   tBank: (key: string) => string;
   tCommon: (key: string) => string;
 }) {
@@ -955,6 +1093,28 @@ function CashAdjustmentCard({
           >
             <Eye className="w-3.5 h-3.5" />
           </Button>
+          {onEdit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              className="h-7 w-7 text-sky-500 hover:bg-sky-50"
+              title={tCommon("edit")}
+            >
+              <FilePenIcon className="w-3.5 h-3.5 text-sky-500" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-7 w-7 text-rose-500 hover:bg-rose-50"
+              title={tCommon("delete")}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex justify-between items-center text-xs">
