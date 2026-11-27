@@ -38,6 +38,7 @@ export class DukanKhataDB extends Dexie {
   branches!: Table<any, string>;
   inventory_batches!: Table<any, string>;
   stock_adjustments!: Table<any, string>;
+  cash_adjustments!: Table<any, string>;
   syncQueue!: Table<SyncOperation, number>;
 
   constructor(dbName: string = 'DukanKhataOfflineDB') {
@@ -203,6 +204,10 @@ export class DukanKhataDB extends Dexie {
     // v6: added source_id index to inventory_batches
     this.version(6).stores({
       inventory_batches: 'id, product_id, source_id, status, batch_date, created_at'
+    });
+    // v7: added cash_adjustments for Cash & Bank balance adjustments
+    this.version(7).stores({
+      cash_adjustments: 'id, payment_method_id, type, date, created_at'
     });
   }
 }

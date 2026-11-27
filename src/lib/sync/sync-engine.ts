@@ -62,7 +62,7 @@ export class SyncEngine {
         db.purchase_bills, db.expenses, db.quotations, db.categories, db.branches, db.payment_methods,
         db.vendor_transactions, db.sale_return_transactions,
         db.transactions, db.subscriptions, db.configurations,
-        db.inventory_batches, db.stock_adjustments,
+        db.inventory_batches, db.stock_adjustments, db.cash_adjustments,
         db.users, db.modules, db.permissions, db.roles, db.role_permissions, db.user_roles],
         async () => {
           const promises = [];
@@ -107,6 +107,20 @@ export class SyncEngine {
               if (matchedServer) await db.stock_adjustments.delete(loc.id);
             }
             promises.push(db.stock_adjustments.bulkPut(data.stock_adjustments));
+          }
+          if (data.cash_adjustments?.length) {
+            const localAdjs = await db.cash_adjustments.toArray();
+            const tempAdjs = localAdjs.filter((a: any) => a.id && String(a.id).startsWith("local_cash_adj_"));
+            for (const loc of tempAdjs) {
+              const matchedServer = data.cash_adjustments.find((srv: any) =>
+                (srv.ref_no && loc.ref_no && srv.ref_no === loc.ref_no) ||
+                (String(srv.payment_method_id) === String(loc.payment_method_id) &&
+                 srv.type === loc.type &&
+                 Number(srv.amount) === Number(loc.amount))
+              );
+              if (matchedServer) await db.cash_adjustments.delete(loc.id);
+            }
+            promises.push(db.cash_adjustments.bulkPut(data.cash_adjustments));
           }
           if (data.users?.length) promises.push(db.users.bulkPut(data.users));
           if (data.modules?.length) promises.push(db.modules.bulkPut(data.modules));
@@ -239,7 +253,13 @@ export class SyncEngine {
             result = await response.json().catch(() => ({})); // Parse JSON safely
           }
           
-          const newId = result.id || result._id;
+          const newId =
+            result.id ||
+            result._id ||
+            result.adjustment?.id ||
+            result.adjustment?._id ||
+            result.data?.id ||
+            result.data?._id;
           // If this was a POST and the server returned a new ID, update the local record
           if (op.method === 'POST' && newId && op.localId && newId !== op.localId) {
             const collectionName = op.collection as keyof typeof db;

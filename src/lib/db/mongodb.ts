@@ -140,6 +140,7 @@ export const COLLECTIONS = {
   WHATSAPP_CAMPAIGNS: "whatsapp_campaigns",
   WHATSAPP_CAMPAIGN_LOGS: "whatsapp_campaign_logs",
   STOCK_ADJUSTMENTS: "stock_adjustments",
+  CASH_ADJUSTMENTS: "cash_adjustments",
 } as const;
 
 // Helper to convert MongoDB ObjectId to string
@@ -334,6 +335,12 @@ export async function createIndexes() {
     await safeIndex(COLLECTIONS.WHATSAPP_CAMPAIGN_LOGS, { shop_id: 1, customer_id: 1 });
     await safeIndex(COLLECTIONS.WHATSAPP_CAMPAIGN_LOGS, { campaign_id: 1, sent_at: -1 });
     await safeIndex(COLLECTIONS.PARTIES, { user_id: 1, last_marketing_sent_at: 1 });
+
+    // Cash adjustments collection indexes
+    await safeIndex(COLLECTIONS.CASH_ADJUSTMENTS, { user_id: 1, date: -1 });
+    await safeIndex(COLLECTIONS.CASH_ADJUSTMENTS, { user_id: 1, payment_method_id: 1 });
+    await safeIndex(COLLECTIONS.CASH_ADJUSTMENTS, { user_id: 1, updated_at: -1 });
+    await safeIndex(COLLECTIONS.CASH_ADJUSTMENTS, { user_id: 1, ref_no: 1 });
 
     console.log("MongoDB indexes processed successfully");
   } catch (error) {

@@ -123,6 +123,7 @@ export async function POST(request: Request) {
       COLLECTIONS.CONFIGURATIONS,
       COLLECTIONS.STOCK_ADJUSTMENTS,
       COLLECTIONS.INVENTORY_BATCHES,
+      COLLECTIONS.CASH_ADJUSTMENTS,
     ];
 
     for (const collectionName of collectionsToClear) {

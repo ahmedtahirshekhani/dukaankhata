@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       COLLECTIONS.PAYMENT_METHODS,
       COLLECTIONS.STOCK_ADJUSTMENTS,
       COLLECTIONS.INVENTORY_BATCHES,
+      COLLECTIONS.CASH_ADJUSTMENTS,
     ];
 
     console.log(`\n========================================`);

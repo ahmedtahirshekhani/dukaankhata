@@ -11,6 +11,10 @@ import {
 import { ObjectId } from "mongodb";
 import { parsePKTDateBoundary } from "@/lib/date-utils";
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function parseDateRange(fromDate: string, toDate: string) {
   const from = parsePKTDateBoundary(fromDate, false);
   const to = parsePKTDateBoundary(toDate, true);
@@ -41,33 +45,84 @@ export async function GET(request: NextRequest) {
     const fromDate = searchParams.get("fromDate");
     const toDate = searchParams.get("toDate");
 
-    if (!bankAccountId || !isValidObjectId(bankAccountId)) {
-      return NextResponse.json({ error: "Valid bank account ID is required" }, { status: 400 });
+    if (!bankAccountId) {
+      return NextResponse.json({ error: "bankAccountId is required" }, { status: 400 });
     }
     if (!fromDate || !toDate) {
       return NextResponse.json({ error: "fromDate and toDate are required" }, { status: 400 });
     }
 
     const userId = toObjectId(user.id);
-    const methodObjId = toObjectId(bankAccountId);
     const { from, to } = parseDateRange(fromDate, toDate);
 
     const paymentMethodCollection = await getCollection(COLLECTIONS.PAYMENT_METHODS);
-    const bankAccount = await paymentMethodCollection.findOne({
-      _id: methodObjId,
-      user_id: userId,
-    });
+
+    let bankAccount: any = null;
+    if (isValidObjectId(bankAccountId)) {
+      bankAccount = await paymentMethodCollection.findOne({
+        _id: toObjectId(bankAccountId),
+        user_id: userId,
+      });
+    }
 
     if (!bankAccount) {
-      return NextResponse.json({ error: "Bank account not found" }, { status: 404 });
+      bankAccount = await paymentMethodCollection.findOne({
+        user_id: userId,
+        $or: [
+          { id: bankAccountId },
+          ...(isValidObjectId(bankAccountId) ? [{ _id: toObjectId(bankAccountId) }] : []),
+          { local_id: bankAccountId },
+          { bank_name: { $regex: new RegExp(`^${escapeRegex(bankAccountId)}$`, "i") } },
+          ...(bankAccountId.toLowerCase() === "cash" ? [{ is_default: true }] : [])
+        ]
+      } as any);
+    }
+
+    if (!bankAccount && (bankAccountId.toLowerCase() === "cash" || bankAccountId.toLowerCase().includes("cash"))) {
+      bankAccount = await paymentMethodCollection.findOne({
+        user_id: userId,
+        $or: [{ is_default: true }, { bank_name: { $regex: /cash/i } }]
+      });
+    }
+
+    if (!bankAccount) {
+      // Fallback synthetic representation if bank account is not found in DB
+      bankAccount = {
+        _id: isValidObjectId(bankAccountId) ? toObjectId(bankAccountId) : bankAccountId,
+        bank_name: bankAccountId.toLowerCase() === "cash" ? "Cash in Hand" : bankAccountId,
+        opening_balance: 0,
+        is_default: bankAccountId.toLowerCase() === "cash"
+      };
     }
 
     const openingBalance = bankAccount.opening_balance || 0;
 
-    const isCashAccount = bankAccount.is_default || bankAccount.bank_name?.toLowerCase().includes("cash");
-    const isChequeAccount = bankAccount.bank_name?.toLowerCase().includes("cheque");
+    const isCashAccount = Boolean(
+      bankAccount.is_default ||
+      bankAccount.bank_name?.toLowerCase().includes("cash") ||
+      bankAccountId.toLowerCase() === "cash"
+    );
+    const isChequeAccount = Boolean(bankAccount.bank_name?.toLowerCase().includes("cheque"));
 
-    const pmValues: any[] = [methodObjId, bankAccountId, methodObjId.toString()];
+    const pmValues: any[] = [];
+    if (bankAccount._id) {
+      pmValues.push(bankAccount._id);
+      pmValues.push(bankAccount._id.toString());
+    }
+    if (bankAccount.id) pmValues.push(bankAccount.id);
+    if (bankAccount.local_id) pmValues.push(bankAccount.local_id);
+    if (bankAccountId) {
+      pmValues.push(bankAccountId);
+      if (isValidObjectId(bankAccountId)) {
+        pmValues.push(toObjectId(bankAccountId));
+      }
+    }
+    if (bankAccount.bank_name) {
+      pmValues.push(bankAccount.bank_name);
+    }
+    if (bankAccount.name) {
+      pmValues.push(bankAccount.name);
+    }
     if (isCashAccount) {
       pmValues.push("cash", "Cash", "CASH", null, "");
     }
@@ -146,21 +201,72 @@ export async function GET(request: NextRequest) {
       ]
     };
 
+    const vtQuery: any = {
+      user_id: userId,
+      $or: [
+        { payment_method_id: pmStringQuery },
+        { paymentMethodId: pmStringQuery },
+        ...(isCashAccount ? [
+          { payment_method_id: { $in: ['cash', 'Cash', 'CASH', null, ''] } },
+          { payment_method_id: { $exists: false } }
+        ] : [])
+      ]
+    };
+
+    const caQuery: any = {
+      user_id: userId,
+      is_deleted: { $ne: true },
+      is_delete: { $nin: [1, true, "1"] },
+      $or: [
+        { payment_method_id: pmStringQuery },
+        ...(bankAccount.bank_name ? [{ account_name: { $regex: new RegExp(`^${escapeRegex(bankAccount.bank_name)}$`, 'i') } }] : []),
+        ...(isCashAccount ? [
+          { payment_method_id: { $in: ['cash', 'Cash', 'CASH', null, ''] } },
+          { payment_method_id: { $exists: false } },
+          { account_name: { $regex: /cash/i } }
+        ] : [])
+      ]
+    };
+
     const [
       customerTransactions,
+      vendorTransactions,
       orders,
       purchaseBills,
       saleReturns,
-      expenses
+      expenses,
+      cashAdjustments
     ] = await Promise.all([
       getCollection(COLLECTIONS.CUSTOMER_TRANSACTIONS).then(c => c.find(ctQuery).toArray()),
+      getCollection(COLLECTIONS.VENDOR_TRANSACTIONS).then(c => c.find(vtQuery).toArray()).catch(() => []),
       getCollection(COLLECTIONS.ORDERS).then(c => c.find(orderQuery).toArray()),
       getCollection(COLLECTIONS.PURCHASE_BILLS).then(c => c.find(pbQuery).toArray()),
       getCollection(COLLECTIONS.SALE_RETURN_TRANSACTIONS).then(c => c.find(srQuery).toArray()),
-      getCollection(COLLECTIONS.EXPENSES).then(c => c.find(expQuery).toArray())
+      getCollection(COLLECTIONS.EXPENSES).then(c => c.find(expQuery).toArray()),
+      getCollection(COLLECTIONS.CASH_ADJUSTMENTS).then(c => c.find(caQuery).toArray())
     ]);
 
     let transactions: any[] = [];
+
+    // Vendor Transactions -> OUT (for payment-out) / IN (for refund/payment-in)
+    (vendorTransactions || []).forEach(t => {
+      const amount = Number(t.payment_amount || t.amount || 0);
+      if (amount > 0) {
+        const isPaymentOut = t.type === 'payment-out' || !t.type;
+        const voucherNo = t.payment_number || t.paymentNumber || t.voucher_no || t.reference_no || null;
+        const txnDate = t.date || t.payment_date || t.created_at;
+        transactions.push({
+          id: t._id.toString(),
+          type: isPaymentOut ? 'Payment Out' : 'Payment In',
+          rawType: isPaymentOut ? 'payment_out' : 'payment_in',
+          voucherNo: voucherNo,
+          description: t.description || (isPaymentOut ? 'Payment to vendor' : 'Payment from vendor'),
+          amount: amount,
+          direction: isPaymentOut ? 'OUT' : 'IN',
+          dateTime: parseToISO(txnDate, t.created_at)
+        });
+      }
+    });
 
     // Payment In (type: payment-in) -> IN
     // Payment Out (type: payment-out) -> OUT
@@ -259,6 +365,27 @@ export async function GET(request: NextRequest) {
           amount: amount,
           direction: 'OUT',
           dateTime: parseToISO(expDate, e.created_at)
+        });
+      }
+    });
+
+    // Cash Adjustments -> IN (for Add) / OUT (for Reduce)
+    cashAdjustments.forEach(ca => {
+      const amount = Number(ca.amount || 0);
+      if (amount > 0) {
+        const isReduce = ca.type === 'reduce';
+        const voucherNo = ca.ref_no || null;
+        const caDate = ca.date || ca.created_at;
+        const desc = ca.reason ? `Cash Adjustment: ${ca.reason}` : (isReduce ? 'Cash Adjustment (Reduce)' : 'Cash Adjustment (Add)');
+        transactions.push({
+          id: ca._id.toString(),
+          type: isReduce ? 'Cash Adjustment (-)' : 'Cash Adjustment (+)',
+          rawType: 'cash_adjustment',
+          voucherNo: voucherNo,
+          description: desc,
+          amount: amount,
+          direction: isReduce ? 'OUT' : 'IN',
+          dateTime: parseToISO(caDate, ca.created_at)
         });
       }
     });

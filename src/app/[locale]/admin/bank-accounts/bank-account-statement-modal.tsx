@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { formatCurrency, formatStatementDate, cn } from "@/lib/utils";
-import { getDaysAgoHTMLDate, getTodayHTMLDate } from "@/lib/date-utils";
+import { getDaysAgoHTMLDate, getTodayHTMLDate, parsePKTDateBoundary } from "@/lib/date-utils";
+import { db } from "@/lib/db/offline-db";
 import {
   Dialog,
   DialogContent,
@@ -98,34 +99,329 @@ export function BankAccountStatementModal({
     }
   }, [locale, isOpen]);
 
+  const generateOfflineStatementData = useCallback(
+    async (bAccount: BankAccountItem, fromStr: string, toStr: string) => {
+      const targetId = String(bAccount.id || "").trim();
+      const targetName = (bAccount.bankName || "").toLowerCase().trim();
+      const isCash =
+        targetId === "cash" ||
+        targetName.includes("cash") ||
+        Boolean((bAccount as any).is_default);
+      const isCheque = targetId === "cheque" || targetName.includes("cheque");
+
+      const matchMethod = (val?: any, accName?: any) => {
+        if (accName && String(accName).toLowerCase().trim() === targetName) return true;
+        const str = String(val || "").trim();
+        if (!str) return isCash;
+        if (str === targetId) return true;
+        if (targetName && str.toLowerCase() === targetName) return true;
+        if (isCash && (str.toLowerCase() === "cash" || str.toLowerCase().includes("cash"))) return true;
+        if (isCheque && str.toLowerCase() === "cheque") return true;
+        return false;
+      };
+
+      const [
+        partyTransactions,
+        orders,
+        purchaseBills,
+        saleReturns,
+        expenses,
+        vendorTransactions,
+        cashAdjustments,
+      ] = await Promise.all([
+        db.party_transactions.toArray(),
+        db.orders.toArray(),
+        db.purchase_bills.toArray(),
+        db.sale_return_transactions.toArray(),
+        db.expenses.toArray(),
+        db.vendor_transactions.toArray(),
+        db.cash_adjustments.toArray(),
+      ]);
+
+      const allTxns: any[] = [];
+
+      partyTransactions.forEach((t: any) => {
+        if (matchMethod(t.paymentMethodId || t.payment_method_id, t.paymentMethodName || t.account_name)) {
+          const amount = Number(t.paymentAmount || t.payment_amount || t.amount || 0);
+          if (amount > 0) {
+            const isPaymentOut = t.type === "payment-out";
+            const voucherNo = t.paymentNumber || t.payment_number || t.voucher_no || null;
+            const txnDate = t.date || t.payment_date || t.created_at;
+            allTxns.push({
+              id: String(t.id || t._id),
+              type: isPaymentOut ? "Payment Out" : "Payment In",
+              rawType: isPaymentOut ? "payment_out" : "payment_in",
+              voucherNo,
+              description: t.description || (isPaymentOut ? "Payment to party" : "Payment from party"),
+              amount,
+              direction: isPaymentOut ? "OUT" : "IN",
+              dateTime: new Date(txnDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      (vendorTransactions || []).forEach((t: any) => {
+        if (matchMethod(t.paymentMethodId || t.payment_method_id, t.paymentMethodName || t.account_name)) {
+          const amount = Number(t.paymentAmount || t.payment_amount || t.amount || 0);
+          if (amount > 0) {
+            const isPaymentOut = t.type === "payment-out" || !t.type;
+            const voucherNo = t.paymentNumber || t.payment_number || t.voucher_no || null;
+            const txnDate = t.date || t.payment_date || t.created_at;
+            allTxns.push({
+              id: String(t.id || t._id),
+              type: isPaymentOut ? "Payment Out" : "Payment In",
+              rawType: isPaymentOut ? "payment_out" : "payment_in",
+              voucherNo,
+              description: t.description || (isPaymentOut ? "Payment to vendor" : "Payment from vendor"),
+              amount,
+              direction: isPaymentOut ? "OUT" : "IN",
+              dateTime: new Date(txnDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      orders.forEach((o: any) => {
+        const method = o.payment?.method || o.payment_method_id || o.paymentMethodId;
+        if (matchMethod(method)) {
+          const paidAmount = Number(o.payment?.paid_amount || o.paid_amount || o.paidAmount || 0);
+          if (paidAmount > 0) {
+            const voucherNo = o.invoice_no || o.order_number || null;
+            const orderDate = o.sale_date || o.order_date || o.date || o.payment?.paid_date || o.created_at;
+            allTxns.push({
+              id: String(o.id || o._id),
+              type: "Sale Invoice",
+              rawType: "order",
+              voucherNo,
+              description: "Sale Invoice",
+              amount: paidAmount,
+              direction: "IN",
+              dateTime: new Date(orderDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      purchaseBills.forEach((p: any) => {
+        const method = p.payment?.method || p.payment_method_id || p.paymentMethodId;
+        if (matchMethod(method)) {
+          const paidAmount = Number(p.payment?.paid_amount || p.paid_amount || p.paidAmount || 0);
+          if (paidAmount > 0) {
+            const voucherNo = p.bill_no || p.purchase_number || null;
+            const pbDate = p.payment?.paid_date || p.purchase_date || p.bill_date || p.date || p.created_at;
+            allTxns.push({
+              id: String(p.id || p._id),
+              type: "Purchase Bill",
+              rawType: "purchase_bill",
+              voucherNo,
+              description: "Purchase Bill",
+              amount: paidAmount,
+              direction: "OUT",
+              dateTime: new Date(pbDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      saleReturns.forEach((s: any) => {
+        const method = s.paymentMethodId || s.payment_method_id;
+        if (matchMethod(method)) {
+          const paidAmount = Number(s.paidAmount || s.paid_amount || 0);
+          if (paidAmount > 0) {
+            const voucherNo = s.return_number || null;
+            const srDate = s.date || s.return_date || s.created_at;
+            allTxns.push({
+              id: String(s.id || s._id),
+              type: "Sale Return",
+              rawType: "sale_return",
+              voucherNo,
+              description: "Sale Return Refund",
+              amount: paidAmount,
+              direction: "OUT",
+              dateTime: new Date(srDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      expenses.forEach((e: any) => {
+        const method = e.paymentMethodId || e.payment_method_id;
+        if (matchMethod(method)) {
+          const amount = Number(e.amount || 0);
+          if (amount > 0) {
+            const voucherNo = e.expense_number || e.expense_no || null;
+            const expDate = e.date || e.expense_date || e.created_at;
+            allTxns.push({
+              id: String(e.id || e._id),
+              type: "Expense",
+              rawType: "expense",
+              voucherNo,
+              description: e.category || e.description || "Expense",
+              amount,
+              direction: "OUT",
+              dateTime: new Date(expDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      cashAdjustments.forEach((ca: any) => {
+        if (ca.is_deleted || ca.isDeleted || ca.is_delete === 1) return;
+        if (matchMethod(ca.payment_method_id || ca.paymentMethodId, ca.account_name)) {
+          const amount = Number(ca.amount || 0);
+          if (amount > 0) {
+            const isReduce = ca.type === "reduce";
+            const voucherNo = ca.ref_no || null;
+            const caDate = ca.date || ca.created_at;
+            const desc = ca.reason
+              ? `Cash Adjustment: ${ca.reason}`
+              : isReduce
+                ? "Cash Adjustment (Reduce)"
+                : "Cash Adjustment (Add)";
+            allTxns.push({
+              id: String(ca.id || ca._id),
+              type: isReduce ? "Cash Adjustment (-)" : "Cash Adjustment (+)",
+              rawType: "cash_adjustment",
+              voucherNo,
+              description: desc,
+              amount,
+              direction: isReduce ? "OUT" : "IN",
+              dateTime: new Date(caDate || Date.now()).toISOString(),
+            });
+          }
+        }
+      });
+
+      allTxns.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
+      const from = parsePKTDateBoundary(fromStr, false);
+      const to = parsePKTDateBoundary(toStr, true);
+
+      let currentBalance = Number(bAccount.openingBalance) || 0;
+      let periodOpeningBalance = currentBalance;
+      let totalIn = 0;
+      let totalOut = 0;
+      const filteredTransactions: any[] = [];
+
+      for (const t of allTxns) {
+        const tDate = new Date(t.dateTime);
+        const isBeforeFrom = from ? tDate < from : false;
+        const isInRange = (!from || tDate >= from) && (!to || tDate <= to);
+
+        if (t.direction === "IN") {
+          currentBalance += t.amount;
+          if (isBeforeFrom) {
+            periodOpeningBalance += t.amount;
+          } else if (isInRange) {
+            totalIn += t.amount;
+          }
+        } else {
+          currentBalance -= t.amount;
+          if (isBeforeFrom) {
+            periodOpeningBalance -= t.amount;
+          } else if (isInRange) {
+            totalOut += t.amount;
+          }
+        }
+
+        if (isInRange) {
+          filteredTransactions.push({
+            ...t,
+            balance: currentBalance,
+            debit: t.direction === "IN" ? t.amount : 0,
+            credit: t.direction === "OUT" ? t.amount : 0,
+          });
+        }
+      }
+
+      filteredTransactions.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
+      const openingBalanceRecord = {
+        id: "opening_balance",
+        type: "Opening Balance",
+        rawType: "opening_balance",
+        voucherNo: "-",
+        description: "Opening Balance",
+        amount: Math.abs(periodOpeningBalance),
+        direction: periodOpeningBalance >= 0 ? "IN" : "OUT",
+        debit: periodOpeningBalance > 0 ? periodOpeningBalance : 0,
+        credit: periodOpeningBalance < 0 ? Math.abs(periodOpeningBalance) : 0,
+        balance: periodOpeningBalance,
+        dateTime: from ? from.toISOString() : new Date().toISOString(),
+      };
+
+      const summary = {
+        openingBalance: periodOpeningBalance,
+        totalIn,
+        totalOut,
+        currentBalance,
+      };
+
+      return {
+        transactions: [openingBalanceRecord, ...filteredTransactions],
+        summary,
+      };
+    },
+    []
+  );
+
   const fetchStatement = useCallback(async () => {
     if (!bankAccount.id || !fromDate || !toDate) return;
 
     setLoading(true);
     setHasSearched(true);
     try {
-      const params = new URLSearchParams({
-        bankAccountId: bankAccount.id,
-        fromDate,
-        toDate,
-      });
-      const res = await fetch(`/${locale}/api/bank-accounts/statement?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(data.transactions || []);
-        setSummary(data.summary || null);
+      let serverSuccess = false;
+      let serverTxns: any[] = [];
+      let serverSummary: any = null;
+
+      try {
+        const params = new URLSearchParams({
+          bankAccountId: bankAccount.id,
+          fromDate,
+          toDate,
+        });
+        const res = await fetch(`/${locale}/api/bank-accounts/statement?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          serverTxns = data.transactions || [];
+          serverSummary = data.summary || null;
+          serverSuccess = true;
+        }
+      } catch (networkErr) {
+        console.warn("Server statement fetch failed, falling back to local database:", networkErr);
+      }
+
+      // If server returned real entries (> 1 items because index 0 is virtual opening balance), use server
+      if (serverSuccess && serverTxns.length > 1) {
+        setTransactions(serverTxns);
+        setSummary(serverSummary);
       } else {
+        // Fallback to local Dexie database
+        const offlineResult = await generateOfflineStatementData(bankAccount, fromDate, toDate);
+        if (offlineResult.transactions.length > 1 || !serverSuccess) {
+          setTransactions(offlineResult.transactions);
+          setSummary(offlineResult.summary);
+        } else {
+          setTransactions(serverTxns);
+          setSummary(serverSummary);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to generate bank account statement:", err);
+      try {
+        const offlineResult = await generateOfflineStatementData(bankAccount, fromDate, toDate);
+        setTransactions(offlineResult.transactions);
+        setSummary(offlineResult.summary);
+      } catch {
         setTransactions([]);
         setSummary(null);
       }
-    } catch (err) {
-      console.error("Failed to fetch bank account statement:", err);
-      setTransactions([]);
-      setSummary(null);
     } finally {
       setLoading(false);
     }
-  }, [bankAccount.id, fromDate, toDate, locale]);
+  }, [bankAccount, fromDate, toDate, locale, generateOfflineStatementData]);
 
   // Reset state when modal opens/closes without auto-generating
   useEffect(() => {
